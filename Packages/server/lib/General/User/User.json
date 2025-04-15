@@ -1,0 +1,30 @@
+{
+    "credentials": {
+        "password": "<HASHED-PASSWORD>",
+        "passkey": {
+            "exist": false
+        },
+        "uid": "<USERS-UID>",
+        "providers": [
+            "GOOGLE",
+            "SPOTIFY"
+        ]
+    },
+    "security": {
+        "emailVerified": false,
+        "activeTokens": [
+            { "tokenId": "<TOKEN-ID>" , "challenge": "<TOKEN-SECURITY-CHALLENGE-HASHED>" },
+            { "tokenId": "<TOKEN-ID>" , "challenge": "<TOKEN-SECURITY-CHALLENGE-HASHED>" }
+        ],
+        "twoFA": {
+            "enabled": true,
+            "methods": [
+                "EMAIL-PIN",
+                "SMS-PIN"
+            ]
+        }
+    },
+    "profile": {
+
+    }
+}
