@@ -2,9 +2,10 @@ const admin = require('firebase-admin');
 const { logger } = require('../logger');
 
 class FirestoreService {
-  constructor() {
+  constructor(advancedSecurityMode) {
     this.db = null;
     this.initialized = false;
+    this.advancedSecurityMode = advancedSecurityMode;
   }
 
   initialize(cred) {

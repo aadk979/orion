@@ -41,7 +41,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             return { error: true, errorCode: accessToken.errorCode };
         }
 
-        const refreshToken = await generateRefreshToken(user.data.credentials.uid , sanitizedEmail , parameters.fingerprint , "PASSWORD" , "USER" , parameters.ip, accessToken.cookies[0] , parameters.userAgent);
+        const refreshToken = await generateRefreshToken(user.data.credentials.uid , sanitizedEmail , parameters.fingerprint , "PASSWORD" , "USER" , parameters.ip, accessToken.cookies[0] , parameters.userAgent , accessToken.accessTokenLinkCode);
 
         if(refreshToken.error){
             return { error: true, errorCode: refreshToken.errorCode };
@@ -50,10 +50,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         const response = {
             accessToken: accessToken.token,
             refreshToken: refreshToken.token,
-            cookies: accessToken.cookies
         }
 
-        return { error: false, data: response , completed: true };
+        return { error: false, data: response , completed: true, cookies: accessToken.cookies };
     }
 
     const parameters = {
@@ -85,12 +84,14 @@ const routeHandlerSignInWithPassword = async (request , response) => {
         return respondWithError(response , callback.errorCode)
     }
 
-    if(callback.cookies){
+    if (callback.cookies) {
         for (let i = 0; i < callback.cookies.length; i++) {
             const cookie = callback.cookies[i];
-            response.cookie(cookie.key, cookie.data , { httpOnly: true , secure: true , sameSite: "Strict" , maxAge: cookie.maxAge });
+            response.cookie(cookie.key, JSON.stringify(cookie.data), { httpOnly: true, secure: true, sameSite: "None", maxAge: cookie.maxAge });
         }
     }
+    
+    delete callback.cookies
 
     return respondWithSuccess(response , 200 , callback);
 }

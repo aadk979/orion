@@ -1,4 +1,4 @@
-import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4';
+import FingerprintJS from '../External-Scripts/fPrint.js';
 
 async function getDeviceFingerprint() {
     const fp = await FingerprintJS.load();

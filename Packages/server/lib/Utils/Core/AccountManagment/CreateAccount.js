@@ -93,7 +93,6 @@ const createAccount = async (email, password) => {
 }
 
 const routeHandlerCreateAccount = async (request , response) => {
-    console.log(request.cookies["ID$:COOKIE_KEY-sgR2AhNefdMscfK"])
     const packet = request.body.packet;
 
     const email = packet.email;

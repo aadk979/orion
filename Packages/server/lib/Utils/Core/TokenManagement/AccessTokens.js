@@ -1,22 +1,31 @@
 const jwt = require('jsonwebtoken');
 const { globalAccessPoint } = require('../../GlobalAccessPoint');
-const { hashString, generateEncryptionKey, encrypt, decrypt, verifyHash } = require('../../CryptoFunctions');
-const { generateChallenge, generateId } = require('../../valueGenerator');
+const { hashString, encrypt, decrypt, verifyHash, importKeyFromBase64 } = require('../../CryptoFunctions');
+const { generateChallenge, generateId, generateRandomNumber } = require('../../valueGenerator');
 const { getIpRange, isIpInRange } = require('../../Ip');
 const { getFutureUnixTime, isUnixExpired } = require('../../Date&Time');
+const { logger } = require('../../logger');
 
-async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent) {
-    const secret = globalAccessPoint.getValue("systemConfig").tokens?.secrets.accessTokens || crypto.randomBytes(256).toString("hex");
+async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent , accessTokenLinkCodeExternal) {
+    const secret = globalAccessPoint.getValue("systemConfig").tokens?.secrets.accessTokens || undefined;
     const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.accessTokens || "15m";
-    const encryptionKey = globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens || generateEncryptionKey();
+    const encryptionKey = importKeyFromBase64(globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens) || undefined;
+
+    if (!secret || !encryptionKey) {
+        logger.error("CRITICAL: Access token secret or encryption key is not set in the system config.");
+        return { error: true, errorCode: "UNABLE-TO-GENERATE-ACCESS-TOKEN" };
+    }
 
     const hashedFingerprint = await hashString(fingerprint);
     const ipRange = getIpRange(ip);
 
+    const accessTokenLinkCode = accessTokenLinkCodeExternal || generateRandomNumber(45);
+
     const tokenData = {
         tokenId: generateId("ACCESS_TOKEN", 15),
         challenge: generateChallenge(32),
-        type: "ACCESS_TOKEN"
+        type: "ACCESS_TOKEN",
+        accessTokenLinkCode: accessTokenLinkCode
     }
 
     const dbTokenData = {
@@ -24,7 +33,8 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
         challenge: await hashString(tokenData.challenge),
         exp: getFutureUnixTime("15m"),
         type: tokenData.type,
-        userAgent: userAgent
+        userAgent: userAgent,
+        accessTokenLinkCode: accessTokenLinkCode
     }
 
     const cookieData = {
@@ -66,17 +76,22 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     }
 
     const token = jwt.sign(payload, secret, { expiresIn: expiry });
-    const encryptedToken = await encrypt(token, encryptionKey);
+    const encryptedToken = encrypt(token, encryptionKey);
 
-    return { error: false, token: encryptedToken, cookies: [storageCookieData] }
+    return { error: false, token: encryptedToken, cookies: [storageCookieData] , accessTokenLinkCode: accessTokenLinkCode };
 }
 
-async function validateAccessToken(token, cookieData, fingerprint, ip) {
+async function validateAccessToken(token, cookies, fingerprint, ip) {
     try {
-        const secret = globalAccessPoint.getValue("systemConfig").tokens.secrets.accessTokens || crypto.randomBytes(256).toString("hex");
-        const encryptionKey = globalAccessPoint.getValue("systemConfig").tokens.encryptionKeys.accessTokens || generateEncryptionKey();
+        const secret = globalAccessPoint.getValue("systemConfig").tokens.secrets.accessTokens || undefined;
+        const encryptionKey = importKeyFromBase64(globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens) || undefined;
 
-        const decryptedToken = await decrypt(token, encryptionKey);
+        if (!secret || !encryptionKey) {
+            logger.error("CRITICAL: Access token secret or encryption key is not set in the system config.");
+            return { error: true, errorCode: "UNABLE-TO-VALIDATE-ACCESS-TOKEN" }
+        }
+
+        const decryptedToken = decrypt(token, encryptionKey);
         const validatedToken = jwt.verify(decryptedToken, secret);
         const cookieDataToken = validatedToken.cookieData;
 
@@ -84,15 +99,17 @@ async function validateAccessToken(token, cookieData, fingerprint, ip) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE" }
         }
 
-        if (cookieData.key !== cookieDataToken.key) {
-            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-KEY-MISMATCH" }
+        const cookieData = cookies[cookieDataToken.key] ? JSON.parse(cookies[cookieDataToken.key]) : undefined;
+
+        if (!cookieData) {
+            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-NOT-FOUND" };
         }
 
-        if ((await verifyHash(cookieDataToken.challenge, cookieData.data.challenge)) === false) {
+        if ((await verifyHash(cookieDataToken.challenge, cookieData.challenge)) === false) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-CHALLENGE-MISMATCH" }
         }
 
-        if ((await verifyHash(fingerprint, cookieData.data.hashedDeviceFingerprint)) === false) {
+        if ((await verifyHash(fingerprint, cookieData.hashedDeviceFingerprint)) === false) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-DEVICE-FINGERPRINT-MISMATCH" }
         }
 
@@ -103,6 +120,7 @@ async function validateAccessToken(token, cookieData, fingerprint, ip) {
         const activeTokens = user.security.activeTokens;
 
         const tokenData = activeTokens.find(value => value.tokenId === validatedToken.tokenData.tokenId);
+        
         if (!tokenData) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND" }
         }
@@ -124,6 +142,8 @@ async function validateAccessToken(token, cookieData, fingerprint, ip) {
         if (e.message === "jwt expired") {
             return { error: true, errorCode: "ACCESS-TOKEN-EXPIRED" }
         }
+
+        console.error(e)
         return { error: true, errorCode: "UNABLE-TO-VALIDATE-ACCESS-TOKEN" }
     }
 }

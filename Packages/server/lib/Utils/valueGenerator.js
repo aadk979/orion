@@ -8,7 +8,7 @@ const generateRequestId = (prefix = "NP", length = 32) => {
     for (let i = 0; i < length; i++) {
         result += charset[array[i] % charset.length];
     }
-    return "REQ$:" + prefix.toUpperCase() + "-" + result;
+    return "REQ_" + prefix.toUpperCase() + "-" + result;
 }
 
 const generateId = (prefix = "NP", length = 32) => {
@@ -19,7 +19,7 @@ const generateId = (prefix = "NP", length = 32) => {
     for (let i = 0; i < length; i++) {
         result += charset[array[i] % charset.length];
     }
-    return "ID$:" + prefix.toUpperCase() + "-" + result;
+    return "ID_" + prefix.toUpperCase() + "-" + result;
 }
 
 const generateRandomNumber = (length) => {

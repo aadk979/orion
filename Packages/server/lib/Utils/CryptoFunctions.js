@@ -1,13 +1,19 @@
+// This file contains crypto fucntions for internal use
+
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
+const crypto = require("crypto")
 
 const SALT_ROUNDS = 10;
 
 async function hashString(input) {
+    if (typeof input !== 'string' || input.trim() === '') {
+        throw new Error("Invalid input to hash: must be a non-empty string");
+    }
+
     return await new Promise((resolve, reject) => {
         bcrypt.hash(input, SALT_ROUNDS, (err, hashed) => {
             if (err) reject(err);
-            resolve(hashed);
+            else resolve(hashed);
         });
     });
 }
@@ -62,47 +68,66 @@ async function privateDecrypt(privateKey, encryptedBase64) {
     });
 }
 
-const AES_ALGO = 'aes-256-cbc';
-const IV_LENGTH = 16;
+// AES-256-GCM Encryption
+function encryptAESGCM(plaintext, keyBuffer) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", keyBuffer, iv);
 
-async function encrypt(plainText, hexKey) {
-    return await new Promise((resolve, reject) => {
-        try {
-            const key = Buffer.from(hexKey, 'hex');
-            if (key.length !== 32) throw new Error('Key must be 32 bytes (256 bits).');
-            const iv = crypto.randomBytes(IV_LENGTH);
-            const cipher = crypto.createCipheriv(AES_ALGO, key, iv);
-            const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
-            const combined = Buffer.concat([iv, encrypted]);
-            resolve(combined.toString('base64'));
-        } catch (err) {
-            reject(err);
-        }
-    });
+  const encrypted = Buffer.concat([
+    cipher.update(plaintext, "utf8"),
+    cipher.final()
+  ]);
+
+  const authTag = cipher.getAuthTag();
+
+  // Combine: iv + ciphertext + authTag
+  const result = Buffer.concat([iv, encrypted, authTag]);
+  return result.toString("base64");
 }
 
-async function decrypt(encryptedBase64, hexKey) {
-    return await new Promise((resolve, reject) => {
-        try {
-            const key = Buffer.from(hexKey, 'hex');
-            if (key.length !== 32) throw new Error('Key must be 32 bytes (256 bits).');
-            const data = Buffer.from(encryptedBase64, 'base64');
-            const iv = data.subarray(0, IV_LENGTH);
-            const encrypted = data.subarray(IV_LENGTH);
-            const decipher = crypto.createDecipheriv(AES_ALGO, key, iv);
-            const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-            resolve(decrypted.toString('utf8'));
-        } catch (err) {
-            reject(err);
-        }
-    });
+function decryptAESGCM(base64Data, keyBuffer) {
+  const data = Buffer.from(base64Data, "base64");
+
+  const iv = data.subarray(0, 12);
+  const ciphertext = data.subarray(12, data.length - 16);
+  const authTag = data.subarray(data.length - 16);
+
+  const decipher = crypto.createDecipheriv("aes-256-gcm", keyBuffer, iv);
+  decipher.setAuthTag(authTag);
+
+  const decrypted = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final()
+  ]);
+
+  return decrypted.toString("utf8");
 }
 
-async function generateEncryptionKey() {
-    return await new Promise((resolve) => {
+function importKeyFromBase64(base64Key) {
+  return Buffer.from(base64Key, "base64"); // Convert browser-exported key
+}
+
+function exportKeyBase64(keyBuffer) {
+  // Accepts a 32-byte Buffer and returns a Base64 string
+  return keyBuffer.toString("base64");
+}
+
+function generateEncryptionKey() {
+  return crypto.randomBytes(64); // 256-bit key (32 bytes)
+}
+
+async function generateHmac(data, key) {
+  const crypto = require('crypto');
+  const hmac = crypto.createHmac('sha256', key);
+  hmac.update(data);
+  return hmac.digest('hex');
+}
+
+function generateHmacKey() {
+    return new Promise((resolve) => {
         const key = crypto.randomBytes(32).toString("hex");
         resolve(key);
     });
 }
 
-module.exports = { hashString, verifyHash, generateKeyPair, publicEncrypt, privateDecrypt , encrypt , decrypt , generateEncryptionKey };
+module.exports = { generateHmacKey , generateHmac , hashString, verifyHash, generateKeyPair, publicEncrypt,exportKeyBase64, importKeyFromBase64, privateDecrypt , encrypt: encryptAESGCM , decrypt: decryptAESGCM , generateEncryptionKey };

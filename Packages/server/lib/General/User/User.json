@@ -17,12 +17,11 @@
             { "tokenId": "<TOKEN-ID>" , "challenge": "<TOKEN-SECURITY-CHALLENGE-HASHED>" }
         ],
         "twoFA": {
-            "enabled": true,
-            "methods": [
-                "EMAIL-PIN",
-                "SMS-PIN"
-            ]
-        }
+            "enabled": true
+        },
+        "recognizedDevices": [
+            { "deviceCodeHash": "<CODE>", "userAgentHash": "<HASH>", "exp": "<EXP-TIME>" }
+        ]
     },
     "profile": {
 

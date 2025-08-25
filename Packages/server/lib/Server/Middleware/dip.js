@@ -1,0 +1,135 @@
+// DIP (Data Integrity Protocol) middleware.
+// The DIP middleware is a key component of data validation and tamper proofing in the Orion system.
+// Removing it or modifying it without a deep understanding of its purpose and functionality can lead to data integrity issues and security vulnerabilities.
+
+// DO NOT TOUCH THIS FILE UNLESS YOU ARE SURE OF WHAT YOU ARE DOING.
+
+const { globalAccessPoint } = require("../../Utils/GlobalAccessPoint");
+const { tryCatch } = require("../../Utils/TryCatch");
+const { respondWithError } = require("../../Server/Response/response");
+const { isIpInRange, getIp } = require("../../Utils/Ip");
+const { generateHmac } = require("../../Utils/CryptoFunctions");
+
+const nonDipRequiredRoutes = [
+  "generate-no-auth-token-transaction",
+  "generate-no-auth-token",
+  "have-no-auth-token",
+  "configure-dip",
+  "encryption-request-key",
+];
+
+const dipMiddleware = async (request, response, next) => {
+  const Function = async (parameters) => {
+    if (
+      nonDipRequiredRoutes.includes(
+        parameters.request.path.split("/")[
+          parameters.request.path.split("/").length - 1
+        ]
+      )
+    ) {
+      return parameters.next();
+    }
+
+    const headers = parameters.request.headers;
+    const dipStateHeader = headers["orion-dip-state"] || "DEFAULT NONE";
+    const dipIdHeader = headers["orion-dip-id"] || "DEFAULT NONE";
+    const dipSignatureHeader = headers["orion-dip-signature"] || "DEFAULT NONE";
+    const dipSaltHeader = headers["orion-dip-salt"] || "DEFAULT NONE";
+    const dipTimestampHeader = headers["orion-dip-timestamp"] || "DEFAULT NONE";
+    const userAgent = headers["orion-user-agent"];
+    const deviceFingerprint = headers["orion-fingerprint"]
+
+    const ip = getIp(parameters.request);
+
+    if (dipStateHeader === "DEFAULT NONE" || dipStateHeader === "NO DATA") {
+      const body = parameters.request.body;
+
+      // Check if the body is empty or not and reject if data is present
+      // If DIP state is not given the default assumption is that the body should be empty
+      // If DIP state is NO-DATA then the body should also be empty
+
+      if (body && Object.keys(body).length > 0) {
+        return respondWithError(
+          parameters.response,
+          "DIP-STATE-BODY-DATA-PRESENT"
+        );
+      }
+
+      return parameters.next();
+    }
+
+    if (dipIdHeader === "DEFAULT NONE") {
+      return respondWithError(
+        parameters.response,
+        "DIP-STATE-ID-HEADER-MISSING"
+      );
+    }
+
+    const dipStorage = await globalAccessPoint.db().getData("dip", dipIdHeader);
+
+    if (dipStorage.data === undefined) {
+      return respondWithError(parameters.response, "DIP-TIMEDOUT");
+    }
+
+    if (!isIpInRange(ip, dipStorage.data.ip)) {
+      return respondWithError(parameters.response, "DIP-STATE-IP-MISMATCH");
+    }
+
+    if (dipStorage.data === undefined) {
+      return respondWithError(
+        parameters.response,
+        "DIP-STATE-ID-HEADER-INVALID"
+      );
+    }
+
+    if (!dipSignatureHeader || dipSignatureHeader === "DEFAULT NONE") {
+      return respondWithError(
+        parameters.response,
+        "DIP-STATE-SIGNATURE-HEADER-MISSING"
+      );
+    }
+
+    const payload = parameters.request.body;
+
+    // Check if the payload is empty or not and reject if data is not present as at this point we have estableshed that the payload should not be empty
+
+    if (!payload || Object.keys(payload).length <= 0) {
+      return respondWithError(
+        parameters.response,
+        "DIP-STATE-BODY-DATA-PRESENT"
+      );
+    }
+
+    if (dipSaltHeader === "DEFAULT NONE") {
+        return respondWithError(parameters.response, "DIP-STATE-MISSING-SALT");
+    }
+
+    if (dipTimestampHeader === "DEFAULT NONE") {
+        return respondWithError(parameters.response, "DIP-STATE-MISSING-TIMESTAMP");
+    }
+
+    const stringPayload = JSON.stringify(payload);
+
+    const hmac = await generateHmac(stringPayload + dipSaltHeader + dipTimestampHeader + userAgent + deviceFingerprint, dipStorage.data.signatureKey);
+
+    if (hmac !== dipSignatureHeader) {
+      return respondWithError(
+        parameters.response,
+        "DIP-STATE-SIGNATURE-MISMATCH"
+      );
+    }
+
+    return parameters.next();
+  };
+
+  const parameters = {
+    request: request,
+    response: response,
+    next: next,
+  };
+
+  const result = await tryCatch(Function, true, parameters);
+  return;
+};
+
+module.exports = { dipMiddleware };

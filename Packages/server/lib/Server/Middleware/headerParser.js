@@ -1,33 +1,17 @@
 const { respondWithError } = require("../Response/response");
 
-const expectedHeaderKeys = [
-    'accept',
-    'host',
-    'user-agent',
-    'accept-encoding',
-    'accept-language',
-    'referer',
-    'x-request-id',
-    'x-real-ip',
-    'x-forwarded-port',
-    'x-forwarded-scheme',
-    'x-original-uri',
-    'x-scheme',
-    'sec-fetch-site',
-    'priority',
-    'sec-fetch-mode',
-    'sec-fetch-dest',
-    'x-original-proto',
-    'x-forwarded-proto',
-    'x-forwarded-host',
-    'x-forwarded-for',
-    'proxy-connection'
-];
-
 const orionHeaders = [
     "orion-fingerprint",
     "orion-user-agent",
-]
+    "orion-dip-state",
+    "orion-dip-id",
+    "orion-dip-signature",
+    "orion-dip-salt",
+    "orion-dip-timestamp",
+    "orion-encryption-status",
+    "orion-encryption-request-id",
+    "orion-api-system-version"
+];
 
 class headerParser {
     constructor(systemConfig) {
@@ -39,49 +23,18 @@ class headerParser {
     }
 
     verifyHeader(request, response, next) {
-        if (request.get("x-orion-cross-origin") === "TRUE") {
-            const userHeaders = headerParser.systemConfig.api.customHeaders.map(value => value.toLowerCase());
-            const requestHeaders = Object.keys(request.headers).map(value => value.toLowerCase());
-            const allHeaders = [...userHeaders, ...orionHeaders];
+        const userHeaders = headerParser.systemConfig.api.customHeaders.map(h => h.toLowerCase());
+        const requiredHeaders = [...userHeaders, ...orionHeaders];
 
-            const missingHeaders = allHeaders.filter(header => !requestHeaders.includes(header));
-            if (missingHeaders.length > 0) {
-                return respondWithError(response, "HEADERS-INVALID");
-            }
+        const missingOrInvalidHeaders = requiredHeaders.filter(header => {
+            const value = request.get(header);
+            return typeof value !== "string" || value.trim() === "";
+        });
 
-            return next();
-        }
+        console.log(missingOrInvalidHeaders)
 
-        if (request.get("x-original-uri") === "/") {
-            const userHeaders = headerParser.systemConfig.api.customHeaders.map(value => value.toLowerCase());
-            const requestHeaders = Object.keys(request.headers).map(value => value.toLowerCase());
-            const allHeaders = [...userHeaders, ...expectedHeaderKeys, ...orionHeaders];
-
-            const missingHeaders = allHeaders.filter(header => !requestHeaders.includes(header));
-            if (missingHeaders.length > 0) {
-                return respondWithError(response, "HEADERS-INVALID");
-            }
-
-            const extraHeaders = requestHeaders.filter(header => !allHeaders.includes(header));
-            if (extraHeaders.length > 0) {
-                return respondWithError(response, "HEADERS-INVALID");
-            }
-
-            next();
-        }
-
-        const userHeaders = headerParser.systemConfig.api.customHeaders.map(value => value.toLowerCase());
-        const requestHeaders = Object.keys(request.headers).map(value => value.toLowerCase());
-        const allHeaders = [...userHeaders, ...expectedHeaderKeys, ...orionHeaders];
-    
-        const missingHeaders = allHeaders.filter(header => !requestHeaders.includes(header));
-        if (missingHeaders.length > 1) {
-            return respondWithError(response , "HEADERS-INVALID");
-        }
-    
-        const extraHeaders = requestHeaders.filter(header => !allHeaders.includes(header));
-        if (extraHeaders.length > 1) {
-            return respondWithError(response , "HEADERS-INVALID");
+        if (missingOrInvalidHeaders.length > 0) {
+            return respondWithError(response, "HEADERS-INVALID");
         }
 
         next();
@@ -90,21 +43,17 @@ class headerParser {
     parseHeader(request, response, next) {
         request.userHeaders = {};
         request.orionHeaders = {};
-        request.expectedHeaders = {};
 
-        const lowerUserHeaders = headerParser.systemConfig.api.customHeaders.map(h => h.toLowerCase());
-        const lowerOrionHeaders = orionHeaders.map(h => h.toLowerCase());
-        const lowerExpectedHeaders = expectedHeaderKeys.map(h => h.toLowerCase());
+        const userHeadersSet = new Set(headerParser.systemConfig.api.customHeaders.map(h => h.toLowerCase()));
+        const orionHeadersSet = new Set(orionHeaders.map(h => h.toLowerCase()));
 
-        for (const [originalKey, value] of Object.entries(request.headers)) {
-            const lowerKey = originalKey.toLowerCase();
+        for (const [key, value] of Object.entries(request.headers)) {
+            const lowerKey = key.toLowerCase();
 
-            if (lowerUserHeaders.includes(lowerKey)) {
-                request.userHeaders[originalKey] = value;
-            } else if (lowerOrionHeaders.includes(lowerKey)) {
-                request.orionHeaders[originalKey] = value;
-            } else if (lowerExpectedHeaders.includes(lowerKey)) {
-                request.expectedHeaders[originalKey] = value;
+            if (userHeadersSet.has(lowerKey)) {
+                request.userHeaders[key] = value;
+            } else if (orionHeadersSet.has(lowerKey)) {
+                request.orionHeaders[key] = value;
             }
         }
 
@@ -112,4 +61,4 @@ class headerParser {
     }
 }
 
-module.exports = { headerParser }
+module.exports = { headerParser };

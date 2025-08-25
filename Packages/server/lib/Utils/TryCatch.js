@@ -20,7 +20,8 @@ const tryCatch = async (Function , async , parameters) => {
     }
     catch(e) {
         logger.error("Error while executing function: " + e);
-        return { error: true , errorCode: "UNKOWN-ERROR" , context: e.message }
+        logger.error("Error occurence at: " + Function)
+        return { error: true , errorCode: "UNKNOWN-ERROR" , context: e.message }
     }
 }
 

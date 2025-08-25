@@ -2,12 +2,17 @@ const ipaddr = require('ipaddr.js');
 
 function getIpRange(ip) {
   const addr = ipaddr.parse(ip);
+
   if (addr.kind() === 'ipv4') {
     const parts = ip.split('.');
     parts[3] = '0';
     return `${parts.join('.')}/24`;
   } else if (addr.kind() === 'ipv6') {
-    const masked = addr.mask(64);
+    const segments = addr.parts.slice(0, 4);
+    while (segments.length < 8) {
+      segments.push(0);
+    }
+    const masked = new ipaddr.IPv6(segments);
     return `${masked.toNormalizedString()}/64`;
   } else {
     throw new Error('Invalid IP');
