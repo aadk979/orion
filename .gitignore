@@ -1,5 +1,4 @@
 Testing/Server/orion.config.js
 
-Packages/server/node_modules
-
-Testing/Server/node_modules
+# Ignore all node_modules everywhere
+node_modules/
