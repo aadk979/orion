@@ -1,16 +1,16 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { globalAccessPoint } = require('../../GlobalAccessPoint');
-const { hashString, generateEncryptionKey, encrypt, decrypt, verifyHash, importKeyFromBase64 } = require('../../CryptoFunctions');
+const { hashString, encrypt, decrypt, verifyHash, importKeyFromBase64 } = require('../../CryptoFunctions');
 const { generateChallenge, generateId } = require('../../valueGenerator');
 const { getIpRange, isIpInRange } = require('../../Ip');
 const { getFutureUnixTime, isUnixExpired } = require('../../Date&Time');
 
 async function generateRefreshToken(uid, email, fingerprint, authMethod, role, ip, cookieData, userAgent, accessTokenLinkCode) {
     const config = globalAccessPoint.getValue("systemConfig").tokens;
-    const secret = config?.secrets.refreshTokens || crypto.randomBytes(256).toString("hex");
+    const secret = config?.secrets.refreshTokens || undefined;
     const expiry = config?.lifespans.refreshTokens || "24h";
-    const encryptionKey = importKeyFromBase64(config?.encryptionKeys.refreshTokens);
+    const encryptionKey = importKeyFromBase64(config?.encryptionKeys.refreshTokens) || undefined;
 
     if (!secret || !encryptionKey) {
         logger.error("CRITICAL: Refresh token secret or encryption key is not set in the system config.");
@@ -70,8 +70,8 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
 
 async function validateRefreshToken(token, fingerprint, ip) {
     const config = globalAccessPoint.getValue("systemConfig").tokens;
-    const secret = config.secrets.refreshTokens || crypto.randomBytes(256).toString("hex");
-    const encryptionKey = importKeyFromBase64(config?.encryptionKeys.refreshTokens);
+    const secret = config.secrets.refreshTokens || undefined;
+    const encryptionKey = importKeyFromBase64(config?.encryptionKeys.refreshTokens) || undefined;
 
     if (!secret || !encryptionKey) {
         logger.error("CRITICAL: Refresh token secret or encryption key is not set in the system config.");

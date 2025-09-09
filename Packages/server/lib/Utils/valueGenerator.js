@@ -61,12 +61,11 @@ const emailPrefixList = {
 
 const generateUID = (email) => {
     const split = email.split("@");
-    const split0 = split[0];
     const split1 = split[1];
 
     const mailPrefix = emailPrefixList[split1] || "UKM"
     const hash = crypto.createHash("sha256");
-    hash.update(split0);
+    hash.update(email);
     const userPrefix = hash.digest("hex");
 
     const randomId = crypto.randomUUID();

@@ -289,6 +289,15 @@ const internalErrors = {
         ],
         logout: true
     },
+    "MISSING-AUTHENTICATION-TOKEN": {
+        status: 401,
+        context: "The token specified for the token type is missing",
+        errorCode: "MISSING-AUTHENTICATION-TOKEN",
+        fault: "CLIENT",
+        solutions: [
+            "NONE"
+        ]
+    }
 }
 
 module.exports = { internalErrors }

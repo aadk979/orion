@@ -57,8 +57,6 @@ async function signInWithPasskey({ Api, getAuthHeader, dipConfig, This, email })
 
   if (data2.error) return { error: true, errorCode: "CLIENT-UNABLE-TO-AUTHENTICATE-PASSKEY" };
 
-  await orionVault.setItem("ACCESS_TOKEN", data2.data.accessToken);
-  await orionVault.setItem("REFRESH_TOKEN", data2.data.refreshToken);
   await orionVault.setItem("USER_EMAIL", email);
 
   This.setUserSignedInState(true);

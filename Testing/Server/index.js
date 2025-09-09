@@ -2,7 +2,7 @@ const { intitiateServer } = require("../../Packages/server/lib/Server/initiateSe
 const { logger } = require("../../Packages/server/lib/Utils/logger");
 const { configuration } = require("./orion.config");
 
-const __main = async () => {
+const main = async () => {
     try {
         console.clear();
         const server = await intitiateServer(undefined , configuration);
@@ -15,4 +15,4 @@ const __main = async () => {
     }
 };
 
-__main();
+main();

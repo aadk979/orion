@@ -1,10 +1,10 @@
 import { getDeviceFingerprint } from "./DevicePrint.js"; // Import the fingerprint function
 
-function createModalCaptcha(serverURL, nameSpace) {
+async function createModalCaptcha(serverURL, nameSpace) {
   // --- Security Enhancement: Use an IIFE (Immediately Invoked Function Expression) ---
   // This creates a private scope, preventing variables and functions from leaking
   // into the global scope, making them harder to access directly from the console.
-  (function () {
+  (function async () {
     // --- Elements ---
     const overlay = document.createElement("div");
     const modal = document.createElement("div");
@@ -429,7 +429,7 @@ function createModalCaptcha(serverURL, nameSpace) {
         }
 
         // --- CRITICAL: Rely *only* on the server's response ---
-        if (data.data && data.data.success === true) {
+        if (!data.error) {
           // Success - remove modal
           cleanupModal();
 
@@ -440,7 +440,10 @@ function createModalCaptcha(serverURL, nameSpace) {
               responseData: data.data, // Pass along any relevant data from the server response
             },
           });
+
           document.dispatchEvent(event);
+
+          window.location.reload();
         } else {
           // Verification failed server-side (e.g., wrong code)
           throw new Error(data?.message || "Incorrect CAPTCHA code.");
@@ -453,9 +456,7 @@ function createModalCaptcha(serverURL, nameSpace) {
         modal.classList.add("shake");
         setTimeout(() => modal.classList.remove("shake"), 500);
 
-        // Refresh CAPTCHA on failure
-        fetchCaptcha(); // This will re-enable buttons/input upon success
-        input.value = ""; // Clear input field
+        window.location.reload();
         // input.focus(); // fetchCaptcha will handle focus
       } finally {
         // Restore button state only if fetchCaptcha wasn't called or if it failed immediately
@@ -525,7 +526,7 @@ async function checkAndDeployCaptcha(serverURL, nameSpace) {
   const data = await req.json();
 
   if (!data?.data?.valid || data.error) {
-    createModalCaptcha(serverURL, nameSpace);
+    await createModalCaptcha(serverURL, nameSpace);
     return;
   }
 

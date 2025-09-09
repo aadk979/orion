@@ -31,8 +31,6 @@ class headerParser {
             return typeof value !== "string" || value.trim() === "";
         });
 
-        console.log(missingOrInvalidHeaders)
-
         if (missingOrInvalidHeaders.length > 0) {
             return respondWithError(response, "HEADERS-INVALID");
         }

@@ -5,12 +5,12 @@ import { getAuthHeader } from "../Utils/Authorisation.js";
 
 async function x() {
     orion.initialize()
-    /*const c = await orion.signInUser("tom@tmail.com" , "Amelie@260908");
-    console.log(c); */
+    const c = await orion.signInUser("tom@tmail.com" , "Amelie@260908");
+    console.log(c);
 
-    const head = await getAuthHeader(false, "NO_AUTH_BEARER")
+    const head = await getAuthHeader(true, "ACCESS_BEARER")
 
-   // const x = await orion.Api.fetch("/p", "GET", head.authHead, null);
+    const x = await orion.Api.fetch("/p", "GET", head.authHead, null);
 
 
 }

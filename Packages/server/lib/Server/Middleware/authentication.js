@@ -4,15 +4,15 @@
 
 const { validateAccessToken, generateAccessToken } = require("../../Utils/Core/TokenManagement/AccessTokens");
 const { getIp } = require("../../Utils/Ip");
-const { respondWithError } = require("../Response/response");
+const { respondWithError, respondWithSuccess } = require("../Response/response");
 const { validateRefreshToken } = require("../../Utils/Core/TokenManagement/RefreshTokens");
 const { validateNoAuthToken } = require("../../Utils/Core/SecurityManagment/NoAuthToken");
 const { defaultServerRoutes } = require("../Endpoints");
 const { globalAccessPoint } = require("../../Utils/GlobalAccessPoint");
+const { parseDuration } = require("../../Utils/Date&Time");
 
 const tokenTypes = [
     "ACCESS_BEARER",
-    "REFRESH_BEARER",
     "NO_AUTH_BEARER",
     "NO_BEARER"
 ]
@@ -32,7 +32,8 @@ const authenticationMiddleware = async (request , response , next) => {
         const ip = getIp(parameters.request);
         const authHeader = headers["authorization"] || "DEFAULT NONE";
 
-        const token = authHeader.split(" ")[1] || "NONE";
+        const reqIsAuthStateCheck = parameters.request.path.split("/")[parameters.request.path.split("/").length -1] === "get-current-auth-state";
+
         const tokenType = authHeader.split(" ")[0];
 
         let authRequired = true;
@@ -41,7 +42,7 @@ const authenticationMiddleware = async (request , response , next) => {
         const endpoint = defaultServerRoutes.endpoints.find(item => item.path === parameters.request.path);
         const endpointBackUp = globalAccessPoint.getValue("systemConfig").api.customEndpoints.find(item => item.path === parameters.request.path);
 
-        if (!endpoint && !endpointBackUp && parameters.path.split("/")[parameters.path.split("/").length -1] !== "refresh-access-token-blind") {
+        if (!endpoint && !endpointBackUp && !reqIsAuthStateCheck) {
             return respondWithError(parameters.response, "UNKOWN-API-ROUTE");
         }
 
@@ -57,49 +58,83 @@ const authenticationMiddleware = async (request , response , next) => {
             setBy = 2;
         }
 
-        if (token === "NONE" && tokenType !== "NO_BEARER" && tokenType !== "NO_AUTH_BEARER") {
-            return respondWithError(parameters.response , "MISSING-AUTHENTICATION-TOKEN")
-        }
-
         if (!tokenTypes.includes(tokenType)) {
             return respondWithError(parameters.response , "INVALID-AUTHENTICATION-TOKEN-TYPE")
         }
 
+        if (tokenType !== "NO_BEARER" && !parameters.request.cookies["NO_AUTH_TOKEN"] && !parameters.request.cookies["ACCESS_TOKEN"] && !parameters.request.cookies["REFRESH_TOKEN"]) {
+            return respondWithError(parameters.response , "MISSING-AUTHENTICATION-TOKEN")
+        }
+
         switch (tokenType) {
             case "ACCESS_BEARER":
-                const verification = await validateAccessToken(token , parameters.request.cookies , fingerprint , ip);
+
+                let verification = await validateAccessToken(parameters.request.cookies["ACCESS_TOKEN"] , parameters.request.cookies , fingerprint , ip);
+
 
                 if (verification.error || !verification.valid) {
-                    return respondWithError(parameters.response , verification.errorCode)
+
+                    // Guard clause early exit of issue is not that the access token is expired
+                    if (verification.errorCode !== "ACCESS-TOKEN-EXPIRED" && verification.errorCode !== "MISSING-AUTHENTICATION-TOKEN") {
+                        return respondWithError(parameters.response , verification.errorCode)
+                    }
+
+                    if (verification.errorCode === "ACCESS-TOKEN-EXPIRED" || verification.errorCode === "MISSING-AUTHENTICATION-TOKEN") {
+
+                        if (!parameters.request.cookies["REFRESH_TOKEN"]) {
+                            return respondWithError(parameters.response, "MISSING-AUTHENTICATION-TOKEN");
+                        }
+
+                        const refreshVerification = await validateRefreshToken(parameters.request.cookies["REFRESH_TOKEN"] , fingerprint , ip);
+
+                        if (refreshVerification.error || !refreshVerification.valid) {
+                            return respondWithError(parameters.response , refreshVerification.errorCode)
+                        }
+
+                        const newAccessToken = await generateAccessToken(refreshVerification.data.uid , refreshVerification.data.email , fingerprint, refreshVerification.data.authMethod , refreshVerification.data.role , ip , userAgent , refreshVerification.data.tokenData.accessTokenLinkCode);
+
+                        if (newAccessToken.error) {
+                            return respondWithError(parameters.response , newAccessToken.errorCode);
+                        }
+
+                        let validCookie = { }
+
+                        validCookie[newAccessToken.cookies[0].key] = JSON.stringify(newAccessToken.cookies[0].data);
+
+                        verification = await validateAccessToken(newAccessToken.token, validCookie , fingerprint , ip);
+
+                        if (verification.error || !verification.valid) {
+                            return respondWithError(parameters.response , verification.errorCode)
+                        }
+
+                        if(newAccessToken.cookies){
+                            for (let i = 0; i < newAccessToken.cookies.length; i++) {
+                                const cookie = newAccessToken.cookies[i];
+                                parameters.response.cookie(cookie.key, JSON.stringify(cookie.data) , { httpOnly: true , secure: true , sameSite: "None" , maxAge: cookie.maxAge });
+                            }
+                        }
+
+                        const durationForAccessToken = globalAccessPoint.getValue("systemConfig").tokens.lifespans.accessTokens;
+
+                        parameters.response.cookie("ACCESS_TOKEN", JSON.stringify(newAccessToken.token) , { httpOnly: true , secure: true , sameSite: "None" , maxAge: parseDuration(durationForAccessToken) });
+                        
+                        // Cleanup logic flaw: since the cookies key is inside the refresh token, auto-cleanup will only work on the first refresh. On subsequent refreshes, the cookies key is different, so the line below has no effect.
+                        parameters.response.cookie(refreshVerification.cookieKey, "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+                    }
+
+                }
+
+                if (reqIsAuthStateCheck) {
+                    const responseData = {
+                        authed: true
+                    }
+
+                    return respondWithSuccess(parameters.response, 200, responseData);
                 }
 
                 parameters.request.user = verification.data;
 
                 return next();
-
-            case "REFRESH_BEARER":
-                const refreshVerification = await validateRefreshToken(token , fingerprint , ip);
-
-                if (refreshVerification.error || !refreshVerification.valid) {
-                    return respondWithError(parameters.response , refreshVerification.errorCode)
-                }
-
-                const newAccessToken = await generateAccessToken(refreshVerification.data.uid , refreshVerification.data.email , refreshVerification.data.hashedDeviceFingerprint , refreshVerification.data.authMethod , refreshVerification.data.role , ip , userAgent , refreshVerification.data.tokenData.accessTokenLinkCode);
-
-                if (newAccessToken.error) {
-                    return respondWithError(parameters.response , newAccessToken.errorCode);
-                }
-
-                if(newAccessToken.cookies){
-                    for (let i = 0; i < newAccessToken.cookies.length; i++) {
-                        const cookie = newAccessToken.cookies[i];
-                        parameters.response.cookie(cookie.key, JSON.stringify(cookie.data) , { httpOnly: true , secure: true , sameSite: "None" , maxAge: cookie.maxAge });
-                    }
-                }
-
-                parameters.response.cookie(refreshVerification.data.cookieKey, "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-                return parameters.response.status(200).json({ accessTokenRefreshed: true , accessToken: newAccessToken.token });
 
             case "NO_AUTH_BEARER":
 
@@ -118,8 +153,6 @@ const authenticationMiddleware = async (request , response , next) => {
                 const noAuthToken = parameters.request.cookies["NO_AUTH_TOKEN"] ? JSON.parse(parameters.request.cookies["NO_AUTH_TOKEN"]) : "NONE";
 
                 const noAuthVerification = await validateNoAuthToken(noAuthToken , ip , fingerprint , userAgent);
-
-                console.log("No auth token Response: " , noAuthVerification);
 
                 if (noAuthVerification.error || !noAuthVerification.valid) {
                     return respondWithError(parameters.response , noAuthVerification.errorCode);

@@ -5,8 +5,8 @@ import { orionVault } from "./Utils/OrionVault.js";
 import { getDIP } from "./API-Handlers/Helper/dip.js";
 import { signInUser } from "./API-Handlers/Auth/SignInUser.js";
 import { signUpUser } from "./API-Handlers/Auth/SignUpUser.js";
-import { registerPasskey } from "./API-Handlers/Auth/Passkey/registerPasskey.js";
-import { signInWithPasskey } from "./API-Handlers/Auth/Passkey/signInWithPasskey.js";
+import { registerPasskey } from "./API-Handlers/Auth/Passkey/RegisterPasskey.js";
+import { signInWithPasskey } from "./API-Handlers/Auth/Passkey/SignInWithPasskey.js";
 
 class Orion {
   #signedIn = null;
@@ -38,34 +38,6 @@ class Orion {
     this.#user = user;
   }
 
-  async #refreshAccessToken() {
-    const refreshToken = await orionVault.getItem("REFRESH_TOKEN");
-
-    if (!refreshToken) {
-      return { error: true, errorCode: "CLIENT-NO-REFRESH-TOKEN-PRESENT" };
-    }
-
-    const authHeader = await getAuthHeader(this.#signedIn, "REFRESH_BEARER");
-
-    const newToken = await this.Api.fetch(
-      `/${this.systemConfig.nameSpace}/api/v1/action/refresh-access-token-blind`,
-      "POST",
-      authHeader,
-      undefined
-    );
-
-    if (newToken.error) {
-      return { error: true, errorCode: newToken.errorCode };
-    }
-
-    const data = await newToken.json();
-    const newAccessToken = data.accessToken;
-
-    await orionVault.setItem("ACCESS_TOKEN", newAccessToken);
-
-    return { error: false };
-  }
-
   async initialize() {
     try {
       await orionVault.initDB();
@@ -79,10 +51,35 @@ class Orion {
 
       this.dipConfig = dipConfig;
 
-      const accessToken = await orionVault.getItem("ACCESS_TOKEN");
+      const authHeader = await getAuthHeader(true, "ACCESS_BEARER");
 
-      this.#signedIn = !!accessToken;
-      Orion.initialized = true;
+      const request = await this.Api.fetch(`/${this.systemConfig.nameSpace}/api/v1/action/get-current-auth-state`, 'POST', authHeader.authHead, null, null, null);
+
+      const data = await request.json();
+
+      if (data.error) {
+        const allowedErrors = [
+          "MISSING-AUTHENTICATION-TOKEN",
+          "ACCESS-TOKEN-EXPIRED", // Impossible error code, but added just incase
+          "REFRESH-TOKEN-EXPIRED"
+        ]
+
+        if (!allowedErrors.includes(data.errorData.errorCode)) {
+            throw new Error("Unkown error: " + JSON.stringify(data));
+        }
+
+        this.#signedIn = false;
+        Orion.initialized = true;
+        return;
+      }
+
+      if (data.data.authed) {
+        this.#signedIn = true;
+        Orion.initialized = true;
+        return;
+      }
+
+      throw new Error("Unkown error: Unexpected API response: " + JSON.stringify(data));
     } catch (e) {
       throw new Error("Error during initialization: " + e.message);
     }

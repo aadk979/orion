@@ -9,18 +9,12 @@ const authConfigs = new Map([
 
 const handlers = {
     ACCESS_BEARER: async () => {
-        const accessToken = await orionVault.getItem("ACCESS_TOKEN");
-        if (!accessToken) throw new Error("Signed in, but no access token found!");
-        return { authHead: `ACCESS_BEARER ${accessToken}` };
+        return { authHead: `ACCESS_BEARER` };
     },
     REFRESH_BEARER: async () => {
-        const refreshToken = await orionVault.getItem("REFRESH_TOKEN");
-        if (!refreshToken) throw new Error("Signed in, but no refresh token found!");
-        return { authHead: `REFRESH_BEARER ${refreshToken}` };
+        return { authHead: `REFRESH_BEARER` };
     },
     NO_AUTH_BEARER: async () => {
-        const token = await orionVault.getItem("ACCESS_TOKEN");
-        if (token) throw new Error("Signed out, but access token exists!");
         return { authHead: "NO_AUTH_BEARER" };
     },
     NO_BEARER: async () => ({ authHead: "NO_BEARER" }),

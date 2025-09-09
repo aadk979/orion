@@ -3,7 +3,7 @@ const { globalAccessPoint } = require('../../GlobalAccessPoint');
 const { hashString, encrypt, decrypt, verifyHash, importKeyFromBase64 } = require('../../CryptoFunctions');
 const { generateChallenge, generateId, generateRandomNumber } = require('../../valueGenerator');
 const { getIpRange, isIpInRange } = require('../../Ip');
-const { getFutureUnixTime, isUnixExpired } = require('../../Date&Time');
+const { getFutureUnixTime, isUnixExpired, parseDuration } = require('../../Date&Time');
 const { logger } = require('../../logger');
 
 async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent , accessTokenLinkCodeExternal) {
@@ -31,7 +31,7 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     const dbTokenData = {
         tokenId: tokenData.tokenId,
         challenge: await hashString(tokenData.challenge),
-        exp: getFutureUnixTime("15m"),
+        exp: getFutureUnixTime(expiry),
         type: tokenData.type,
         userAgent: userAgent,
         accessTokenLinkCode: accessTokenLinkCode
@@ -47,8 +47,8 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
         data: {
             challenge: await hashString(cookieData.challenge),
             hashedDeviceFingerprint: hashedFingerprint,
-            maxAge: 1000 * 60 * 16,
-        }
+        },
+        maxAge: parseDuration(expiry) + parseDuration("15m"),
     }
 
     const payload = {
@@ -82,13 +82,18 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
 }
 
 async function validateAccessToken(token, cookies, fingerprint, ip) {
-    try {
-        const secret = globalAccessPoint.getValue("systemConfig").tokens.secrets.accessTokens || undefined;
-        const encryptionKey = importKeyFromBase64(globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens) || undefined;
+    const secret = globalAccessPoint.getValue("systemConfig").tokens.secrets.accessTokens || undefined;
+    const encryptionKey = importKeyFromBase64(globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens) || undefined;
 
-        if (!secret || !encryptionKey) {
-            logger.error("CRITICAL: Access token secret or encryption key is not set in the system config.");
-            return { error: true, errorCode: "UNABLE-TO-VALIDATE-ACCESS-TOKEN" }
+    if (!secret || !encryptionKey) {
+        logger.error("CRITICAL: Access token secret or encryption key is not set in the system config.");
+        return { error: true, errorCode: "UNABLE-TO-VALIDATE-ACCESS-TOKEN" }
+    }
+
+    try {
+
+        if (!token) {
+            return { error: true, errorCode: "MISSING-AUTHENTICATION-TOKEN" }
         }
 
         const decryptedToken = decrypt(token, encryptionKey);

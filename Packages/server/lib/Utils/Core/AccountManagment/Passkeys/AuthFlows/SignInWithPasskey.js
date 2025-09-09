@@ -33,11 +33,18 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
         }
 
         const response = {
-            accessToken: accessToken.token,
-            refreshToken: refreshToken.token,
+            signedIn: true
         }
 
-        return { error: false, data: response , completed: true, cookies: accessToken.cookies };
+        const systemConfig = await globalAccessPoint.systemConfig();
+
+        const tokenCookies = [
+            { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
+            { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+        ]
+
+        return { error: false, data: response , completed: true, cookies: [...tokenCookies, ...accessToken.cookies] };
+
     }
 
     const parameters = {

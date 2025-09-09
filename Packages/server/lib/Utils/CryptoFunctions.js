@@ -1,7 +1,113 @@
 // This file contains crypto fucntions for internal use
 
 const bcrypt = require('bcrypt');
-const crypto = require("crypto")
+const crypto = require("crypto");
+
+const alphabetMap = {
+  A: 168,
+  B: 893,
+  C: 159,
+  D: 395,
+  E: 165,
+  F: 996,
+  G: 973,
+  H: 266,
+  I: 223,
+  J: 596,
+  K: 731,
+  L: 649,
+  M: 654,
+  N: 198,
+  O: 138,
+  P: 424,
+  Q: 265,
+  R: 468,
+  S: 759,
+  T: 431,
+  U: 148,
+  V: 567,
+  W: 302,
+  X: 792,
+  Y: 894,
+  Z: 968,
+  a: 577,
+  b: 536,
+  c: 432,
+  d: 114,
+  e: 981,
+  f: 340,
+  g: 150,
+  h: 889,
+  i: 560,
+  j: 922,
+  k: 690,
+  l: 425,
+  m: 970,
+  n: 144,
+  o: 630,
+  p: 327,
+  q: 334,
+  r: 295,
+  s: 936,
+  t: 193,
+  u: 822,
+  v: 890,
+  w: 902,
+  x: 495,
+  y: 986,
+  z: 479,
+};
+
+function getCheckSumFromHash(hash) {
+  let array = hash.split("");
+
+  array = array.map((val) => {
+    if (!/^[a-zA-Z0-9]$/.test(val)) {
+      return 2;
+    }
+
+    if (isNaN(Number(val))) {
+      const number = alphabetMap[val];
+      return number;
+    }
+
+    return val;
+  });
+
+  const chunkSize = Math.ceil(array.length / 4);
+
+  const chunk1 = array.slice(0, chunkSize);
+  const chunk2 = array.slice(chunkSize, chunkSize * 2);
+  const chunk3 = array.slice(chunkSize * 2, chunkSize * 3);
+  const chunk4 = array.slice(chunkSize * 3, chunkSize * 4);
+
+  const nums1 = chunk1.map(Number);
+  const nums2 = chunk2.map(Number);
+  const nums3 = chunk3.map(Number);
+  const nums4 = chunk4.map(Number);
+
+  // 1. Sum all values in chunk1
+  const val1 = nums1.reduce((acc, val) => acc + val, 0);
+
+  // 2. Subtract each value from the accumulator in chunk2
+  const val2 = nums2.reduce((acc, val) => acc - val);
+
+  // 3. Reduce chunk3 safely: (acc - 1) / val
+  const val3 = nums3.reduce((acc, val) => (val !== 0 ? (acc - 1) / val : acc));
+
+  // 4. Reduce chunk4 with alternating operation
+  const val4 = nums4.reduce((acc, val, index) => {
+    if (val === 0) val = 1; // prevent division by zero
+    return index % 2 === 0 ? (acc + 1) / val : (acc + 1) * val;
+  });
+
+  const fVal1 = val3 / val1 - val1 / val3;
+  const fVal2 = val2 / val4 + val4 / val2;
+
+  console.log(fVal1 * fVal2);
+
+  return fVal1 * fVal2;
+}
 
 const SALT_ROUNDS = 10;
 
@@ -130,4 +236,4 @@ function generateHmacKey() {
     });
 }
 
-module.exports = { generateHmacKey , generateHmac , hashString, verifyHash, generateKeyPair, publicEncrypt,exportKeyBase64, importKeyFromBase64, privateDecrypt , encrypt: encryptAESGCM , decrypt: decryptAESGCM , generateEncryptionKey };
+module.exports = { generateHmacKey , generateHmac , hashString, verifyHash, generateKeyPair, publicEncrypt,exportKeyBase64, importKeyFromBase64, privateDecrypt , encrypt: encryptAESGCM , decrypt: decryptAESGCM , generateEncryptionKey , getCheckSumFromHash };

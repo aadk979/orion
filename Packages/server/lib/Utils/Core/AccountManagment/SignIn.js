@@ -1,5 +1,6 @@
 const { respondWithError, respondWithSuccess } = require("../../../Server/Response/response");
 const { verifyHash } = require("../../CryptoFunctions");
+const { parseDuration } = require("../../Date&Time");
 const { globalAccessPoint } = require("../../GlobalAccessPoint");
 const { getIp } = require("../../Ip");
 const { sanitizeString } = require("../../Sanitizer");
@@ -48,11 +49,17 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         }
 
         const response = {
-            accessToken: accessToken.token,
-            refreshToken: refreshToken.token,
+            signedIn: true
         }
 
-        return { error: false, data: response , completed: true, cookies: accessToken.cookies };
+        const systemConfig = await globalAccessPoint.systemConfig();
+
+        const tokenCookies = [
+            { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
+            { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+        ]
+
+        return { error: false, data: response , completed: true, cookies: [...tokenCookies, ...accessToken.cookies] };
     }
 
     const parameters = {

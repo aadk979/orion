@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 const SALT_ROUNDS = 12;
 const CAPTCHA_LENGTH = 8;
-const CHAR_SET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+const CHAR_SET = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789";
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 const randInt = (min, max) => Math.floor(rand(min, max + 1));
@@ -113,7 +113,7 @@ function addGradientOverlays(ctx, width, height) {
   ctx.fillRect(0, 0, width, height);
 }
 
-// Enhanced character rendering with multiple distortions
+// Enhanced character rendering with controlled distortions
 function renderCharacter(ctx, char, x, y, index, totalChars) {
   const fonts = [
     "bold 38px Courier New",
@@ -124,14 +124,18 @@ function renderCharacter(ctx, char, x, y, index, totalChars) {
   
   ctx.save();
   
-  // Multiple transformations
+  // Controlled positioning - keep characters within their zones
   ctx.translate(x, y);
-  ctx.rotate(rand(-0.4, 0.4)); // Increased rotation range
-  ctx.scale(rand(0.7, 1.3), rand(0.5, 1.6)); // More aggressive scaling
   
-  // Character-specific positioning variation
-  const wave = Math.sin(index * 0.8 + Date.now() / 1000) * 8;
-  const bounce = Math.cos(index * 1.2 + Date.now() / 800) * 6;
+  // Reduced rotation to prevent order confusion
+  ctx.rotate(rand(-0.2, 0.2)); // Reduced from -0.4, 0.4
+  
+  // More conservative scaling to maintain readability
+  ctx.scale(rand(0.8, 1.2), rand(0.7, 1.3)); // Less aggressive scaling
+  
+  // Subtle wave effect that won't disrupt order
+  const wave = Math.sin(index * 0.8 + Date.now() / 1000) * 3; // Reduced from 8
+  const bounce = Math.cos(index * 1.2 + Date.now() / 800) * 4; // Reduced from 6
   ctx.translate(wave, bounce);
   
   // Font variation
@@ -156,6 +160,28 @@ function renderCharacter(ctx, char, x, y, index, totalChars) {
   }
   
   ctx.restore();
+}
+
+// Add character-specific noise zones to obscure without disrupting order
+function addCharacterNoise(ctx, x, y, charWidth, charHeight) {
+  // Add localized noise around each character
+  for (let i = 0; i < 15; i++) {
+    const noiseX = x + rand(-charWidth/2, charWidth/2);
+    const noiseY = y + rand(-charHeight/2, charHeight/2);
+    
+    ctx.beginPath();
+    ctx.arc(noiseX, noiseY, rand(0.5, 2), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${randInt(0,255)}, ${randInt(0,255)}, ${randInt(0,255)}, ${rand(0.1, 0.3)})`;
+    ctx.fill();
+  }
+  
+  // Add small interference lines near character
+  ctx.beginPath();
+  ctx.moveTo(x + rand(-charWidth/2, charWidth/2), y + rand(-charHeight/2, charHeight/2));
+  ctx.lineTo(x + rand(-charWidth/2, charWidth/2), y + rand(-charHeight/2, charHeight/2));
+  ctx.strokeStyle = `rgba(${randInt(0,255)}, ${randInt(0,255)}, ${randInt(0,255)}, 0.3)`;
+  ctx.lineWidth = rand(0.5, 1.5);
+  ctx.stroke();
 }
 
 async function generateCaptchaImage() {
@@ -198,38 +224,52 @@ async function generateCaptchaImage() {
   // Layer 6: Decoy characters (before real characters)
   addDecoyCharacters(ctx, width, height, code);
   
-  // Layer 7: Real characters with enhanced rendering
+  // Layer 7: Real characters with preserved order
   const charSpacing = (width - 60) / code.length;
+  const charWidth = charSpacing * 0.8;
+  const charHeight = 50;
+  
   for (let i = 0; i < code.length; i++) {
     const char = code[i];
-    const baseX = 30 + i * charSpacing + rand(-8, 8);
-    const baseY = height / 2 + rand(-10, 10);
+    // Controlled base positioning - smaller random offset
+    const baseX = 30 + i * charSpacing + rand(-3, 3); // Reduced from rand(-8, 8)
+    const baseY = height / 2 + rand(-5, 5); // Reduced from rand(-10, 10)
     
+    // Add character-specific noise first
+    addCharacterNoise(ctx, baseX, baseY, charWidth, charHeight);
+    
+    // Render the character
     renderCharacter(ctx, char, baseX, baseY, i, code.length);
   }
   
-  // Layer 8: Final interference patterns
+  // Layer 8: Final interference patterns (more controlled)
   for (let i = 0; i < 3; i++) {
     ctx.beginPath();
-    ctx.moveTo(rand(0, width), rand(0, height));
-    for (let j = 0; j < 20; j++) {
-      ctx.lineTo(rand(0, width), rand(0, height));
+    const startX = rand(0, width);
+    const startY = rand(0, height);
+    ctx.moveTo(startX, startY);
+    
+    // Create more structured interference lines
+    for (let j = 0; j < 8; j++) {
+      const nextX = startX + rand(-30, 30);
+      const nextY = startY + rand(-20, 20);
+      ctx.lineTo(nextX, nextY);
     }
     ctx.strokeStyle = `rgba(${randInt(0,255)}, ${randInt(0,255)}, ${randInt(0,255)}, 0.15)`;
     ctx.lineWidth = rand(0.5, 2);
     ctx.stroke();
   }
   
-  // Layer 9: Pixel-level distortion
+  // Layer 9: Pixel-level distortion (reduced intensity)
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
   
   for (let i = 0; i < data.length; i += 4) {
-    // Add slight random variations to RGB values
-    if (Math.random() < 0.02) {
-      data[i] = Math.min(255, data[i] + randInt(-20, 20));     // R
-      data[i + 1] = Math.min(255, data[i + 1] + randInt(-20, 20)); // G
-      data[i + 2] = Math.min(255, data[i + 2] + randInt(-20, 20)); // B
+    // Add slight random variations to RGB values (reduced probability)
+    if (Math.random() < 0.01) { // Reduced from 0.02
+      data[i] = Math.min(255, data[i] + randInt(-10, 10));     // R (reduced range)
+      data[i + 1] = Math.min(255, data[i + 1] + randInt(-10, 10)); // G (reduced range)
+      data[i + 2] = Math.min(255, data[i + 2] + randInt(-10, 10)); // B (reduced range)
     }
   }
   

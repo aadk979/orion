@@ -106,7 +106,7 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
             return { error: true, errorCode: "INVALID-CAPTCHA-TRANSACTION-USERAGENT" };
         }
 
-        if (await verifyCaptcha(parameters.recaptchaResponse.captchaCode, transactionStorage.data.captchaCode)) {
+        if (!(await verifyCaptcha(parameters.recaptchaResponse.captchaCode, transactionStorage.data.captchaCode))) {
             await deletionFunction({ collection: "noAuthTokenCreationTransactions", docId: parameters.transactionId });
             return { error: true, errorCode: "INVALID-CAPTCHA-CODE" };
         }

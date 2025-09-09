@@ -21,10 +21,6 @@ const defaultStartConfig = Object.freeze({
   rateLimitWindowMs: 15 * 60 * 1000,
   maxRequests: 100,
   sizeLimit: '10mb',
-  cors: {
-    origin: (_, cb) => cb(null, true),
-    credentials: true
-  }
 });
 
 // Prepares the middleware stack
@@ -35,7 +31,7 @@ const buildMiddlewarePipeline = (systemConfig) => {
   return [
     express.json({ limit: systemConfig.api?.maxPayloadSize || '10mb' }),
     express.urlencoded({ extended: true }),
-    cors(systemConfig.cors || defaultStartConfig.cors),
+    cors({ origin: OriginVerifier.corsVerifier, credentials: true }),
     helmet(),
     hpp(),
     cookieParser(),

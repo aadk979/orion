@@ -38,8 +38,6 @@ async function signInUser({ Api, orionVault, email, password, dipConfig, getAuth
   const data = await request.json();
   if (data.error) return data.errorData;
 
-  await orionVault.setItem("ACCESS_TOKEN", data.data.data.accessToken);
-  await orionVault.setItem("REFRESH_TOKEN", data.data.data.refreshToken);
   await orionVault.setItem("USER_EMAIL", cleanedEmail);
 
   This.setUserSignedInState(true);

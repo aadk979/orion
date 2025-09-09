@@ -13,6 +13,7 @@ async function registerPasskey({ Api, getAuthHeader, dipConfig, This }) {
   );
 
   const data = await res.json();
+  
   if (data.error) return { error: true, errorCode: "CLIENT-PASSKEY-REG-OPTIONS-FAILED" };
 
   const passkeyRegistration = await startRegistration({ optionsJSON: data.data.options });
