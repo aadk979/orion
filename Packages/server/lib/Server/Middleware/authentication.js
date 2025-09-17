@@ -10,6 +10,7 @@ const { validateNoAuthToken } = require("../../Utils/Core/SecurityManagment/NoAu
 const { defaultServerRoutes } = require("../Endpoints");
 const { globalAccessPoint } = require("../../Utils/GlobalAccessPoint");
 const { parseDuration } = require("../../Utils/Date&Time");
+const { generateHmac } = require("../../Utils/CryptoFunctions");
 
 const tokenTypes = [
     "ACCESS_BEARER",
@@ -69,6 +70,40 @@ const authenticationMiddleware = async (request , response , next) => {
         switch (tokenType) {
             case "ACCESS_BEARER":
 
+                if (!parameters.request.cookies["SID"] || !parameters.request.cookies["SID_HMAC"]) {
+
+                    parameters.response.cookie("ACCESS_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+                    parameters.response.cookie("REFRESH_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+                    parameters.response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+                    parameters.response.cookie("SID_HMAC", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+                    
+                    return respondWithError(parameters.response, "MISSING-SESSION-ID-OR-SESSION-HMAC");
+                }
+
+                const sessionId = JSON.parse(parameters.request.cookies["SID"]);
+
+                const refreshToken = parameters.request.cookies["REFRESH_TOKEN"] ? JSON.parse(parameters.request.cookies["REFRESH_TOKEN"]) : "NONE";
+
+                const secretKey = globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret;
+
+                const generatedHmac = await generateHmac(sessionId + refreshToken, secretKey);
+
+                if (generatedHmac !== JSON.parse(parameters.request.cookies["SID_HMAC"])) {
+
+                    parameters.response.cookie("ACCESS_TOKEN", "", { httpOnly: true, secure: true, sameSite: "None", maxAge: 0 });
+
+                    parameters.response.cookie("REFRESH_TOKEN", "", { httpOnly: true, secure: true, sameSite: "None", maxAge: 0 });
+
+                    parameters.response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+                    parameters.response.cookie("SID_HMAC", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+                    
+                    return respondWithError(parameters.response, "INVALID-SESSION-ID");
+                }
+
                 let verification = await validateAccessToken(parameters.request.cookies["ACCESS_TOKEN"] , parameters.request.cookies , fingerprint , ip);
 
 
@@ -91,11 +126,21 @@ const authenticationMiddleware = async (request , response , next) => {
                             return respondWithError(parameters.response , refreshVerification.errorCode)
                         }
 
+                        const refreshAllowed = globalAccessPoint.getValue("refreshRateLimiter").canRefresh(parameters.request.cookies["SID"]);
+
+                        if (!refreshAllowed) {
+                            return respondWithError(parameters.response, "REFRESH-TOKEN-LIMIT-HIT");
+                        }
+
                         const newAccessToken = await generateAccessToken(refreshVerification.data.uid , refreshVerification.data.email , fingerprint, refreshVerification.data.authMethod , refreshVerification.data.role , ip , userAgent , refreshVerification.data.tokenData.accessTokenLinkCode);
 
                         if (newAccessToken.error) {
                             return respondWithError(parameters.response , newAccessToken.errorCode);
                         }
+
+                        console.log("New access token generated for: " + parameters.request.path)
+
+                        globalAccessPoint.getValue("refreshRateLimiter").increment(parameters.request.cookies["SID"]);
 
                         let validCookie = { }
 
@@ -119,7 +164,8 @@ const authenticationMiddleware = async (request , response , next) => {
                         parameters.response.cookie("ACCESS_TOKEN", JSON.stringify(newAccessToken.token) , { httpOnly: true , secure: true , sameSite: "None" , maxAge: parseDuration(durationForAccessToken) });
                         
                         // Cleanup logic flaw: since the cookies key is inside the refresh token, auto-cleanup will only work on the first refresh. On subsequent refreshes, the cookies key is different, so the line below has no effect.
-                        parameters.response.cookie(refreshVerification.cookieKey, "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+                        // However, the flaw is negligible since the cookie will automatically expire 15 minutes after the access token does.
+                        parameters.response.cookie(refreshVerification.data.cookieKey, "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
                     }
 
                 }

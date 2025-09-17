@@ -1,5 +1,5 @@
 // Do not tamper with this file unless you know what you are doing.
-// This file contains endpint schemas for the default endpoints that are added by the Orion system.
+// This file contains endpoint schemas for the default endpoints that are added by the Orion system.
 // You are highly discouraged from modifying this file as some client SDK's may rely on these if not properly modifed or maintained.
 // Modifying this file incorrectly may cause security vulneribilities or bugs in the system.
 

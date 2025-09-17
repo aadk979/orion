@@ -9,7 +9,7 @@ class GlobalAccessPoint {
         }
 
         this._values = {};
-        this._lockedKeys = new Set(["db", "systemConfig"]);
+        this._lockedKeys = new Set(["db", "systemConfig", "volatileSecretsManager"]);
         GlobalAccessPoint.instance = this;
     }
 

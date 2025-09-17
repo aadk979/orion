@@ -1,4 +1,4 @@
 This folder contains external scripts.
 For reliability purposes, the actual code has been duplicated with their licenses.
-Orion will regularly monitor and update these scrips to their latest ones.
+Orion will regularly monitor and update these scrips to their latest versions.
 THESE SCRIPTS ARE NOT PROPERTY OF ORION NOR WRITTEN BY ORION!

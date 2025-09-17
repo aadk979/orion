@@ -6,7 +6,7 @@ const main = async () => {
     try {
         console.clear();
         const server = await intitiateServer(undefined , configuration);
-        server.app.listen(3495 , ()=>{
+        server.app.listen(configuration.PORT , ()=>{
             logger.info("Server is up and running")
         })
     } catch (err) {

@@ -61,7 +61,8 @@ class Orion {
         const allowedErrors = [
           "MISSING-AUTHENTICATION-TOKEN",
           "ACCESS-TOKEN-EXPIRED", // Impossible error code, but added just incase
-          "REFRESH-TOKEN-EXPIRED"
+          "REFRESH-TOKEN-EXPIRED",
+          "MISSING-SESSION-ID-OR-SESSION-HMAC"
         ]
 
         if (!allowedErrors.includes(data.errorData.errorCode)) {

@@ -15,6 +15,9 @@ const { dataValidator } = require('./Middleware/dataValidator');
 const { authenticationMiddleware } = require('./Middleware/authentication');
 const { decryptionMiddleware } = require('./Middleware/decryptor');
 const { dipMiddleware } = require('./Middleware/dip');
+const { VolatileSecretsManager } = require('../Utils/VolatileSecretsManager');
+const { RefreshRateLimiter } = require('../Utils/RefreshTokenRateLimitSystem');
+const { parseDuration } = require('../Utils/Date&Time');
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
@@ -112,8 +115,17 @@ const intitiateServer = async (startConfig = defaultStartConfig, systemConfig) =
 
     // Init DB
     const dbManager = new DatabaseManager(mergedConfig);
+    
+    // Init Volatile Secrets Manager
+    const volatileSecretsManager = new VolatileSecretsManager(20, 32, true);
+
+    // Init Refresh Rate Limiter
+    const refreshRateLimiter = new RefreshRateLimiter(parseDuration(systemConfig.tokens.lifespans.refreshTokens), Math.floor(parseDuration(systemConfig.tokens.lifespans.refreshTokens)/parseDuration(systemConfig.tokens.lifespans.accessTokens)) + 3, parseDuration(systemConfig.tokens.lifespans.refreshTokens))
+
     globalAccessPoint.setValue('db', dbManager.db());
     globalAccessPoint.setValue('systemConfig', mergedConfig);
+    globalAccessPoint.setValue('volatileSecretsManager', volatileSecretsManager);
+    globalAccessPoint.setValue('refreshRateLimiter', refreshRateLimiter)
 
     const app = express();
     app.set('trust proxy', 1);

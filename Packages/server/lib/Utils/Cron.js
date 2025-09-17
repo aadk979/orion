@@ -1,4 +1,5 @@
 const cron = require('node-cron');
+const { logger } = require('./logger');
 
 class EventScheduler {
     constructor() {
@@ -16,12 +17,12 @@ class EventScheduler {
 
         const task = cron.schedule(cronExpression, () => {
             callback(params);
-            console.log(`Event ${eventID} ran successfully`)
+            logger.info(`Event ${eventID} ran successfully`)
             this.events.delete(eventID);
         }, { scheduled: true });
 
         this.events.set(eventID, task);
-        console.log(`Scheduled event "${eventID}" to run at ${runTime}`);
+        logger.info(`Scheduled event "${eventID}" to run at ${runTime}`);
     }
 
     parseTime(time) {
@@ -43,9 +44,9 @@ class EventScheduler {
         if (this.events.has(eventID)) {
             this.events.get(eventID).stop();
             this.events.delete(eventID);
-            console.log(`Cancelled event "${eventID}"`);
+            logger.info(`Cancelled event "${eventID}"`);
         } else {
-            console.log(`Event "${eventID}" not found.`);
+            logger.info(`Event "${eventID}" not found.`);
         }
     }
 }

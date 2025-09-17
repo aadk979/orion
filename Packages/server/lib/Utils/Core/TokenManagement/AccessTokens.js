@@ -78,6 +78,8 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     const token = jwt.sign(payload, secret, { expiresIn: expiry });
     const encryptedToken = encrypt(token, encryptionKey);
 
+    console.log("Token generated")
+
     return { error: false, token: encryptedToken, cookies: [storageCookieData] , accessTokenLinkCode: accessTokenLinkCode };
 }
 

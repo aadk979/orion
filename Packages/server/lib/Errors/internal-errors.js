@@ -297,7 +297,16 @@ const internalErrors = {
         solutions: [
             "NONE"
         ]
-    }
+    },
+    "MISSING-SESSION-ID-OR-SESSION-HMAC": {
+        status: 401,
+        context: "Either the session id or the session HMAC is missing",
+        errorCode: "MISSING-SESSION-ID-OR-SESSION-HMAC",
+        fault: "CLIENT",
+        solutions: [
+            "NONE"
+        ]
+    },
 }
 
 module.exports = { internalErrors }

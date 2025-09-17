@@ -1,3 +1,4 @@
+const { generateChallenge } = require("../../Utils/valueGenerator");
 const { respondWithError } = require("../Response/response");
 
 class originVerifier {
@@ -13,6 +14,10 @@ class originVerifier {
 
   verifyOrigin(request, response, next) {
     try {
+      if (request.method === "OPTIONS") {
+        return response.sendStatus(204); // No Content, stop here
+      }
+
       const clientOrigin = request.get("origin");
 
       // To be updated in prod to only allow HTTPS (Remove && false flag to activate)

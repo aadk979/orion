@@ -1,7 +1,9 @@
 const { respondWithError, respondWithSuccess } = require("../../../../../Server/Response/response");
+const { generateHmac } = require("../../../../CryptoFunctions");
 const { globalAccessPoint } = require("../../../../GlobalAccessPoint");
 const { getIp } = require("../../../../Ip");
 const { tryCatch } = require("../../../../TryCatch");
+const { generateId } = require("../../../../valueGenerator");
 const { generateAccessToken } = require("../../../TokenManagement/AccessTokens");
 const { generateRefreshToken } = require("../../../TokenManagement/RefreshTokens");
 const { veryifyAndCompletePasskeyAuthentication } = require("../completeAuthentication");
@@ -37,10 +39,15 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
         }
 
         const systemConfig = await globalAccessPoint.systemConfig();
+        const SID = generateId("SID", 64);
+
+        const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0));
 
         const tokenCookies = [
             { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
-            { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+            { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
+            { key: "SID", data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
+            { key: "SID_HMAC", data: hmac, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ]
 
         return { error: false, data: response , completed: true, cookies: [...tokenCookies, ...accessToken.cookies] };
