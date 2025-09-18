@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { globalAccessPoint } = require('./GlobalAccessPoint');
 
 class CustomLogger {
   constructor(logFileName = 'app.log', shutdownLogFileName = 'shutdown.log') {
@@ -24,7 +23,8 @@ class CustomLogger {
     // Bind shutdown events
     this.#bindShutdownEvents();
 
-    this.logToFile = globalAccessPoint.getValue("systemConfig").logToFile;
+    // Default to console-only until configured after system load
+    this.logToFile = false;
   }
 
   #getTimestamp() {
@@ -48,6 +48,33 @@ class CustomLogger {
       if (err) console.error('Failed to write log to file:', err);
     });
   }
+
+  // Configure logger after system has fully loaded
+  configure(options = {}) {
+    if (typeof options.logToFile === 'boolean') {
+      this.logToFile = options.logToFile;
+    }
+  }
+
+  // Convenience: pull config from GlobalAccessPoint lazily to avoid circular require
+  configureFromGlobalAccessPoint() {
+    try {
+      const { globalAccessPoint } = require('./GlobalAccessPoint');
+      const systemConfig = globalAccessPoint.getValue('systemConfig');
+      if (systemConfig && typeof systemConfig.logToFile === 'boolean') {
+        this.logToFile = systemConfig.logToFile;
+      }
+    } catch (e) {
+      // Swallow errors silently to avoid crashing during early boot
+    }
+  }
+
+  log(...args) {
+    if (!this.logToFile) return; // do nothing if logging to file is disabled
+  
+    const parsedArgs = args.map(arg => this.#parseInput(arg)).join(' ');
+    this.#writeToFile(this.logFilePath, 'LOG', parsedArgs);
+  }  
 
   info(...args) {
     const parsedArgs = args.map(arg => this.#parseInput(arg)).join(' ');
@@ -80,15 +107,10 @@ class CustomLogger {
   #bindShutdownEvents() {
     const shutdownHandler = (signal) => {
       const msg1 = `Server is shutting down (${signal})`;
-      const msg2 = 'Cleanup finished. Exiting now.';
 
-      // Log to console
-      this.info(msg1);
-      this.info(msg2);
-
-      // Also log to shutdown log file
-      this.#writeToFile(this.shutdownLogFilePath, 'SHUTDOWN', msg1);
-      this.#writeToFile(this.shutdownLogFilePath, 'SHUTDOWN', msg2);
+      // Only log shutdown notice to console (no file writes during shutdown)
+      const timestamp = this.#getTimestamp();
+      console.log(`[${timestamp}] INFO: ${msg1}`);
 
       process.exit(0);
     };
@@ -104,4 +126,5 @@ class CustomLogger {
 
 // Export a singleton instance
 const logger = new CustomLogger();
+
 module.exports = { logger };

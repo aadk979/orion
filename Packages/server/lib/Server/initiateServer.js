@@ -142,6 +142,10 @@ const intitiateServer = async (startConfig = defaultStartConfig, systemConfig) =
     registerRoutes(app, mergedConfig.api?.customEndpoints || [], mergedConfig.api?.customMiddlewares || []);
 
     // Logs
+    // Configure logger after system config is available to avoid circular require
+    if (typeof logger.configureFromGlobalAccessPoint === 'function') {
+      logger.configureFromGlobalAccessPoint();
+    }
     logger.info(`✅ Service "${mergedConfig.name || 'Unnamed'}" ready`);
     logger.info(`🆔 Service ID: ${mergedConfig.serviceID || 'Unidentified'}`);
     logger.info(`🌐 Listening on port: ${mergedConfig.PORT || 'Not Set (dev?)'}`);

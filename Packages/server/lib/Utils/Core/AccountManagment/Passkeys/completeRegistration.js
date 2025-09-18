@@ -5,6 +5,12 @@ const { respondWithError, respondWithSuccess } = require("../../../../Server/Res
 
 const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async (parameters) => {
+        const systemConfig = globalAccessPoint.getValue("systemConfig");
+
+        if (!systemConfig.authMethods.passkey) {
+            return { error: true, errorCode: "PASSKEY-SIGN-IN-DISABLED" }
+        }
+        
         const cookie = parameters.cookie ? JSON.parse(parameters.cookie) : undefined;
 
         if (!cookie) {

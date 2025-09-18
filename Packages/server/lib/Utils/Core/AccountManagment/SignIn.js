@@ -6,12 +6,18 @@ const { getIp } = require("../../Ip");
 const { sanitizeString } = require("../../Sanitizer");
 const { tryCatch } = require("../../TryCatch");
 const { isValidEmail } = require("../../Validator");
-const { generateChallenge, generateId } = require("../../valueGenerator");
+const { generateId } = require("../../valueGenerator");
 const { generateAccessToken } = require("../TokenManagement/AccessTokens");
 const { generateRefreshToken } = require("../TokenManagement/RefreshTokens");
 
 const signInWithPassword = async (email, password, fingerprint, ip, userAgent) => {
     const Function = async (parameters) => {
+        const systemConfig = globalAccessPoint.getValue("systemConfig");
+
+        if (!systemConfig.authMethods.emailPassword) {
+            return { error: true, errorCode: "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED" }
+        }
+        
         const lowerCaseEmail = parameters.email.toLowerCase();
 
         const sanitizedEmail = sanitizeString(lowerCaseEmail);
@@ -53,7 +59,6 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             signedIn: true
         }
 
-        const systemConfig = await globalAccessPoint.systemConfig();
         const SID = generateId("SID", 64);
 
         const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret);

@@ -37,7 +37,8 @@ const endpointSchemas = {
     [`/${nameSpace}/api/v1/action/complete-passkey-authentication`]: Joi.object({
         authenticationResponse: Joi.object().min(1).required(),
         email: Joi.string().email().required()
-    })
+    }),
+    [`/${nameSpace}/api/v1/action/sign-out-user`]: Joi.object().max(0),
 }
 
 module.exports = { endpointSchemas };

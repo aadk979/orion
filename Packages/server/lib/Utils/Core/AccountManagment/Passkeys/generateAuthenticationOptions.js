@@ -13,6 +13,12 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (
   clientURL
 ) => {
   const Function = async (parameters) => {
+    const systemConfig = globalAccessPoint.getValue("systemConfig");
+
+    if (!systemConfig.authMethods.passkey) {
+      return { error: true, errorCode: "PASSKEY-SIGN-IN-DISABLED" };
+    }
+
     const lowerCaseEmail = parameters.email.toLowerCase();
 
     const sanitizedEmail = sanitizeString(lowerCaseEmail);

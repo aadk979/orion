@@ -9,79 +9,93 @@ const { routeHandlerVerifyAndCompletePasskeyRegistration } = require("../../Util
 const { routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser } = require("../../Utils/Core/AccountManagment/Passkeys/generateAuthenticationOptions");
 const { routeHandlerGeneratePasskeyRegistrationOptionsExistingUser } = require("../../Utils/Core/AccountManagment/Passkeys/generateRegistrationOptions");
 const { routeHandlerSignInWithPassword } = require("../../Utils/Core/AccountManagment/SignIn");
+const { routeHandlerSignOutUser } = require("../../Utils/Core/AccountManagment/SignOutUser");
+const { routeHandlerResetCookies } = require("../../Utils/Core/SecurityManagment/CookieReset");
 const { routeHandlerGenerateDipConfig } = require("../../Utils/Core/SecurityManagment/Dip");
 const { routeHandlerKeyRequest } = require("../../Utils/Core/SecurityManagment/KeyRequest");
 const { routeHandlerGenerateNoAuthTokenCreationTransaction, routeHandlerGenerateNoAuthToken, routeHandlerDeviceHasNoAuthToken } = require("../../Utils/Core/SecurityManagment/NoAuthToken");
 
-const name = "point-break";
+const NAME = "point-break";
 
 const defaultServerRoutes = {
     endpoints: [
         {
-            path: `/${name}/api/v1/action/sign-up-user`,
+            path: `/${NAME}/api/v1/action/sign-up-user`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerCreateAccount
         },
         {
-            path: `/${name}/api/v1/action/sign-in-user`,
+            path: `/${NAME}/api/v1/action/sign-in-user`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerSignInWithPassword
         },
         {
-            path: `/${name}/api/v1/action/generate-no-auth-token-transaction`,
+            path: `/${NAME}/api/v1/action/generate-no-auth-token-transaction`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerGenerateNoAuthTokenCreationTransaction
         },
         {
-            path: `/${name}/api/v1/action/generate-no-auth-token`,
+            path: `/${NAME}/api/v1/action/generate-no-auth-token`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerGenerateNoAuthToken
         },
         {
-            path: `/${name}/api/v1/request/have-no-auth-token`,
+            path: `/${NAME}/api/v1/request/have-no-auth-token`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerDeviceHasNoAuthToken
         },
         {
-            path: `/${name}/api/v1/request/encryption-request-key`,
+            path: `/${NAME}/api/v1/request/encryption-request-key`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerKeyRequest
         },
         {
-            path: `/${name}/api/v1/action/configure-dip`,
+            path: `/${NAME}/api/v1/action/configure-dip`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerGenerateDipConfig
         },
         {
-            path: `/${name}/api/v1/action/generate-passkey-registration-options`,
+            path: `/${NAME}/api/v1/action/generate-passkey-registration-options`,
             requireAuth: true,
             method: "POST",
             callback: routeHandlerGeneratePasskeyRegistrationOptionsExistingUser
         },
         {
-            path: `/${name}/api/v1/action/complete-passkey-registration`,
+            path: `/${NAME}/api/v1/action/complete-passkey-registration`,
             requireAuth: true,
             method: "POST",
             callback: routeHandlerVerifyAndCompletePasskeyRegistration
         },
         {
-            path: `/${name}/api/v1/action/generate-passkey-authentication-options`,
+            path: `/${NAME}/api/v1/action/generate-passkey-authentication-options`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser
         },
         {
-            path: `/${name}/api/v1/action/complete-passkey-authentication`,
+            path: `/${NAME}/api/v1/action/complete-passkey-authentication`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerSignInWithPasskey
+        },
+        {
+            path: `/${NAME}/api/v1/action/sign-out-user`,
+            requireAuth: true,
+            method: "POST",
+            callback: routeHandlerSignOutUser
+        },
+        {
+            path: `/${NAME}/api/v1/action/reset-cookies`,
+            requireAuth: false,
+            method: "POST",
+            callback: routeHandlerResetCookies
         }
     ]
 }

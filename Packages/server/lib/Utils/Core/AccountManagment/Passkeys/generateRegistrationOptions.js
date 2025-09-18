@@ -13,6 +13,12 @@ const generatePasskeyRegistrationOptionsExistingUser = async (
   clientURL
 ) => {
   const Function = async (parameters) => {
+    const systemConfig = globalAccessPoint.getValue("systemConfig");
+
+    if (!systemConfig.authMethods.passkey) {
+      return { error: true, errorCode: "PASSKEY-SIGN-IN-DISABLED" };
+    }
+
     const rpName = "Orion";
 
     const lowerCaseEmail = parameters.email.toLowerCase();
@@ -44,7 +50,7 @@ const generatePasskeyRegistrationOptionsExistingUser = async (
       };
     }
 
-    console.log(parameters.clientURL)
+    console.log(parameters.clientURL);
 
     const options = await generateRegistrationOptions({
       rpId: parameters.clientURL,
@@ -91,7 +97,8 @@ const routeHandlerGeneratePasskeyRegistrationOptionsExistingUser = async (
   const email = request.user.email;
   const clientURL = request.get("Origin") || request.get("Referer");
 
-  const parsedClientURL = clientURL.split("//")[clientURL.split("//").length - 1];
+  const parsedClientURL =
+    clientURL.split("//")[clientURL.split("//").length - 1];
 
   const callback = await generatePasskeyRegistrationOptionsExistingUser(
     email,

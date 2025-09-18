@@ -1,4 +1,4 @@
-import DOMPurify from "https://cdn.jsdelivr.net/npm/dompurify@3.2.5/+esm";
+import DOMPurify from "../External-Scripts/DOM-purify";
 
 function isValidEmail(email) {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

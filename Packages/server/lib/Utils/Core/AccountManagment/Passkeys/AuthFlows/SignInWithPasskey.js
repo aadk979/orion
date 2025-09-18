@@ -10,6 +10,12 @@ const { veryifyAndCompletePasskeyAuthentication } = require("../completeAuthenti
 
 const signInWithPasskey = async (authenticationResponse, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip) => {
     const Function = async (parameters) => {
+        const systemConfig = globalAccessPoint.getValue("systemConfig");
+
+        if (!systemConfig.authMethods.passkey) {
+            return { error: true, errorCode: "PASSKEY-SIGN-IN-DISABLED" }
+        }
+
         const verification = await veryifyAndCompletePasskeyAuthentication(parameters.authenticationResponse, parameters.cookie, parameters.email, parameters.expectedOrigin, parameters.parsedClientURL);
 
         if (verification.error) {
@@ -38,7 +44,6 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             signedIn: true
         }
 
-        const systemConfig = await globalAccessPoint.systemConfig();
         const SID = generateId("SID", 64);
 
         const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0));

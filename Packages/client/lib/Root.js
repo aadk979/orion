@@ -7,10 +7,10 @@ import { signInUser } from "./API-Handlers/Auth/SignInUser.js";
 import { signUpUser } from "./API-Handlers/Auth/SignUpUser.js";
 import { registerPasskey } from "./API-Handlers/Auth/Passkey/RegisterPasskey.js";
 import { signInWithPasskey } from "./API-Handlers/Auth/Passkey/SignInWithPasskey.js";
+import { signOutUser } from "./API-Handlers/Auth/SignOutUser.js";
 
 class Orion {
   #signedIn = null;
-  #user = null;
   #authListeners = new Set();
 
   constructor(systemConfig) {
@@ -32,10 +32,6 @@ class Orion {
     if (changed) {
       this.#authListeners.forEach((cb) => cb(state));
     }
-  }
-
-  setUser(user) {
-    this.#user = user;
   }
 
   async initialize() {
@@ -119,6 +115,19 @@ class Orion {
     });
   }
 
+  async signOutUser() {
+    if (!Orion.initialized) await this.initialize();
+    if (!this.#signedIn)
+      return { error: true, errorCode: "CLIENT-AUTH-NO-AUTHED-USER-PRESENT" };
+
+    return await signOutUser({
+      Api: this.Api,
+      getAuthHeader,
+      This: this,
+      dipConfig: this.dipConfig
+    });
+  }
+
   async registerPasskey() {
     if (!Orion.initialized) await this.initialize();
     if (!this.#signedIn)
@@ -148,7 +157,8 @@ class Orion {
     return result;
   }
 
-  authState(callback) {
+  async authState(callback) {
+    await this.initialize();
     if (typeof callback === "function") {
       this.#authListeners.add(callback);
       callback(this.#signedIn);
@@ -157,9 +167,4 @@ class Orion {
   }
 }
 
-const orion = new Orion({
-  nameSpace: "point-break",
-  serverUrl: "http://localhost:3495",
-});
-
-export { orion };
+export { Orion };

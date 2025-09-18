@@ -10,7 +10,8 @@ const { validateNoAuthToken } = require("../../Utils/Core/SecurityManagment/NoAu
 const { defaultServerRoutes } = require("../Endpoints");
 const { globalAccessPoint } = require("../../Utils/GlobalAccessPoint");
 const { parseDuration } = require("../../Utils/Date&Time");
-const { generateHmac } = require("../../Utils/CryptoFunctions");
+const { generateHmac, hashString } = require("../../Utils/CryptoFunctions");
+const { base64Encode, base64Decode } = require("../../Utils/Encoders");
 
 const tokenTypes = [
     "ACCESS_BEARER",
@@ -21,7 +22,9 @@ const tokenTypes = [
 const routesAccessibleWithNoAuthBearer = [
     "sign-in-user",
     "sign-up-user",
-    "encryption-request-key"
+    "encryption-request-key",
+    "generate-passkey-authentication-options",
+    "generate-passkey-authentication"
 ]
 
 const authenticationMiddleware = async (request , response , next) => {
@@ -109,7 +112,6 @@ const authenticationMiddleware = async (request , response , next) => {
 
                 if (verification.error || !verification.valid) {
 
-                    // Guard clause early exit of issue is not that the access token is expired
                     if (verification.errorCode !== "ACCESS-TOKEN-EXPIRED" && verification.errorCode !== "MISSING-AUTHENTICATION-TOKEN") {
                         return respondWithError(parameters.response , verification.errorCode)
                     }
@@ -138,8 +140,6 @@ const authenticationMiddleware = async (request , response , next) => {
                             return respondWithError(parameters.response , newAccessToken.errorCode);
                         }
 
-                        console.log("New access token generated for: " + parameters.request.path)
-
                         globalAccessPoint.getValue("refreshRateLimiter").increment(parameters.request.cookies["SID"]);
 
                         let validCookie = { }
@@ -156,6 +156,7 @@ const authenticationMiddleware = async (request , response , next) => {
                             for (let i = 0; i < newAccessToken.cookies.length; i++) {
                                 const cookie = newAccessToken.cookies[i];
                                 parameters.response.cookie(cookie.key, JSON.stringify(cookie.data) , { httpOnly: true , secure: true , sameSite: "None" , maxAge: cookie.maxAge });
+                                parameters.response.cookie("ACCESS_TOKEN_COOKIE_CLEAN_UP", base64Encode(cookie.key) , { httpOnly: true , secure: true , sameSite: "None" , maxAge: cookie.maxAge });
                             }
                         }
 
@@ -166,6 +167,13 @@ const authenticationMiddleware = async (request , response , next) => {
                         // Cleanup logic flaw: since the cookies key is inside the refresh token, auto-cleanup will only work on the first refresh. On subsequent refreshes, the cookies key is different, so the line below has no effect.
                         // However, the flaw is negligible since the cookie will automatically expire 15 minutes after the access token does.
                         parameters.response.cookie(refreshVerification.data.cookieKey, "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+                        // Cleanup flaw fix: this system tracks the last added access tokens cookie key and auto wipes it on subsequent token refresh attempts
+                        if (parameters.request.cookies["ACCESS_TOKEN_COOKIE_CLEAN_UP"]) {
+                            const decodedCookieKey = base64Decode(parameters.request.cookies["ACCESS_TOKEN_COOKIE_CLEAN_UP"]);
+
+                            parameters.response.cookie(decodedCookieKey, "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+                        }
                     }
 
                 }

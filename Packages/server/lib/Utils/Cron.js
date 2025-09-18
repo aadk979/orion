@@ -17,12 +17,12 @@ class EventScheduler {
 
         const task = cron.schedule(cronExpression, () => {
             callback(params);
-            logger.info(`Event ${eventID} ran successfully`)
+            logger.log(`Event ${eventID} ran successfully`)
             this.events.delete(eventID);
         }, { scheduled: true });
 
         this.events.set(eventID, task);
-        logger.info(`Scheduled event "${eventID}" to run at ${runTime}`);
+        logger.log(`Scheduled event "${eventID}" to run at ${runTime}`);
     }
 
     parseTime(time) {
@@ -44,9 +44,9 @@ class EventScheduler {
         if (this.events.has(eventID)) {
             this.events.get(eventID).stop();
             this.events.delete(eventID);
-            logger.info(`Cancelled event "${eventID}"`);
+            logger.log(`Cancelled event "${eventID}"`);
         } else {
-            logger.info(`Event "${eventID}" not found.`);
+            logger.log(`Event "${eventID}" not found.`);
         }
     }
 }

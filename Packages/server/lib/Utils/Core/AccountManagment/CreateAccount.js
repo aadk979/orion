@@ -8,6 +8,12 @@ const { generateUID } = require("../../valueGenerator");
 
 const createAccount = async (email, password) => {
     const Function = async (parameters) => {
+        const systemConfig = globalAccessPoint.getValue("systemConfig");
+
+        if (!systemConfig.authMethods.passkey) {
+            return { error: true, errorCode: "ACC-REG-EMAIL-PASSWORD-DISABLED" }
+        }
+
         const lowerCaseEmail = parameters.email.toLowerCase();
 
         const sanitizedEmail = sanitizeString(lowerCaseEmail);
