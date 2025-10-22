@@ -1,28 +1,35 @@
-const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
-const hpp = require('hpp');
-const cookieParser = require('cookie-parser');
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import hpp from 'hpp';
+import cookieParser from 'cookie-parser';
 
-const { logger } = require('../Utils/logger');
-const { originVerifier } = require('./Middleware/originVerifier');
-const { headerParser } = require('./Middleware/headerParser');
-const { DatabaseManager } = require('../Utils/Databases');
-const { globalAccessPoint } = require('../Utils/GlobalAccessPoint');
-const { defaultServerRoutes } = require('./Endpoints');
-const { dataValidator } = require('./Middleware/dataValidator');
-const { authenticationMiddleware } = require('./Middleware/authentication');
-const { decryptionMiddleware } = require('./Middleware/decryptor');
-const { dipMiddleware } = require('./Middleware/dip');
-const { VolatileSecretsManager } = require('../Utils/VolatileSecretsManager');
-const { RefreshRateLimiter } = require('../Utils/RefreshTokenRateLimitSystem');
-const { parseDuration } = require('../Utils/Date&Time');
+import { logger } from '../Utils/logger.js';
+import { originVerifier } from './Middleware/originVerifier.js';
+import { headerParser } from './Middleware/headerParser.js';
+import { DatabaseManager } from '../Utils/Databases/index.js';
+import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
+import { defaultServerRoutes } from './Endpoints/index.js';
+import { dataValidator } from './Middleware/dataValidator.js';
+import { authenticationMiddleware } from './Middleware/authentication.js';
+import { decryptionMiddleware } from './Middleware/decryptor.js';
+import { dipMiddleware } from './Middleware/dip.js';
+import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.js';
+import { RefreshRateLimiter } from '../Utils/Systems/RefreshTokenRateLimitSystem.js';
+import { parseDuration } from '../Utils/Date&Time.js';
+import { OAuthProviderToolkit } from '../Utils/Core/OAuth/OrionOAuthToolKit.js';
+import { TokenSecretsManager } from '../Utils/Systems/TokenSecretsManager.js';
+import { deviceCheckMiddlware } from './Middleware/deviceScanner.js';
+import { MemoryMonitoringSystem } from '../Utils/Systems/MemoryMonitoringSystem.js';
+import { serverStatusMiddlware } from './Middleware/serverStatus.js';
+import { handleOnStartConfiguration } from './onStartConfigurations.js';
+import { requestMetadataMiddleware } from './Middleware/requestMetadata.js';
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
   rateLimitWindowMs: 15 * 60 * 1000,
-  maxRequests: 100,
+  maxRequests: 1000000,
   sizeLimit: '10mb',
 });
 
@@ -39,13 +46,16 @@ const buildMiddlewarePipeline = (systemConfig) => {
     hpp(),
     cookieParser(),
     // Custom middlewares
+    serverStatusMiddlware,
     OriginVerifier.verifyOrigin,
     HeaderParser.verifyHeader,
     HeaderParser.parseHeader,
     authenticationMiddleware,
     dipMiddleware,
     decryptionMiddleware,
-    dataValidator
+    dataValidator,
+    deviceCheckMiddlware,
+    requestMetadataMiddleware
   ];
 };
 
@@ -109,7 +119,7 @@ const registerRoutes = (app, routes, middlewares) => {
 };
 
 
-const intitiateServer = async (startConfig = defaultStartConfig, systemConfig) => {
+const initiateServer = async (startConfig = defaultStartConfig, systemConfig) => {
   try {
     const mergedConfig = { ...defaultStartConfig, ...startConfig, ...systemConfig };
 
@@ -117,15 +127,36 @@ const intitiateServer = async (startConfig = defaultStartConfig, systemConfig) =
     const dbManager = new DatabaseManager(mergedConfig);
     
     // Init Volatile Secrets Manager
-    const volatileSecretsManager = new VolatileSecretsManager(20, 32, true);
+    const volatileSecretsManager = new VolatileSecretsManager(20, 32, true); // To be made configurable later
 
     // Init Refresh Rate Limiter
     const refreshRateLimiter = new RefreshRateLimiter(parseDuration(systemConfig.tokens.lifespans.refreshTokens), Math.floor(parseDuration(systemConfig.tokens.lifespans.refreshTokens)/parseDuration(systemConfig.tokens.lifespans.accessTokens)) + 3, parseDuration(systemConfig.tokens.lifespans.refreshTokens))
 
+    // Init OAuth systems
+    const oAuthToolKit = new OAuthProviderToolkit(systemConfig.authMethods?.oAuth || {});
+    await oAuthToolKit.initializeAllProviders();
+
+    // Init JWT token secrets manager
+    const tokenSecretsManager = new TokenSecretsManager(8, 2048, true); // To be made configurable later
+
+    // Init Memory Handler system
+    const memoryHandlerSystem = new MemoryMonitoringSystem(true);
+    memoryHandlerSystem.start();
+
     globalAccessPoint.setValue('db', dbManager.db());
     globalAccessPoint.setValue('systemConfig', mergedConfig);
+
+    globalAccessPoint.getValue('logger').configureFromGlobalAccessPoint();
+
     globalAccessPoint.setValue('volatileSecretsManager', volatileSecretsManager);
-    globalAccessPoint.setValue('refreshRateLimiter', refreshRateLimiter)
+    globalAccessPoint.setValue('refreshRateLimiter', refreshRateLimiter);
+    globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
+    globalAccessPoint.setValue('tokenSecretsManager', tokenSecretsManager);
+    globalAccessPoint.setValue('memoryHandlerSystem', memoryHandlerSystem);
+
+    globalAccessPoint.setValue("server", { lockdown: false });
+
+    await handleOnStartConfiguration();
 
     const app = express();
     app.set('trust proxy', 1);
@@ -158,4 +189,4 @@ const intitiateServer = async (startConfig = defaultStartConfig, systemConfig) =
   }
 };
 
-module.exports = { intitiateServer };
+export { initiateServer };;

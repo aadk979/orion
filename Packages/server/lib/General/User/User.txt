@@ -1,6 +1,0 @@
-The User.json file contains the data schema that the user object will follow , the collection for this object is "Users" and document id is <UID>.
-
-The UserLink.json file contains the data schema that the users relations object will follow , the collection for the object is "Users-email" and the document id is <USER-EMAIL>.
- - The object contains the users email , their UID (Issued at account creation).
- - This is to allow easy identification of the user via email and getting their data with the associated UID when the UID is not available.
- - The UID is the only value that is linked to the users data , to prevent easy access to a specific users data in the event of a database breach. 

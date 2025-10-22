@@ -50,4 +50,4 @@ function parseDuration(str) {
   return totalMs;
 }
 
-module.exports = { isUnixExpired , getCurrentUnixTime , getFutureUnixTime , parseDuration }
+export { isUnixExpired , getCurrentUnixTime , getFutureUnixTime , parseDuration };;

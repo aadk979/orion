@@ -1,4 +1,4 @@
-const { logger } = require("./logger")
+import { logger } from './logger.js';
 
 const tryCatch = async (Function , async , parameters) => {
     try {
@@ -19,10 +19,11 @@ const tryCatch = async (Function , async , parameters) => {
         }
     }
     catch(e) {
+        console.error(e)
         logger.error("Error while executing function: " + e);
         logger.error("Error occurence at: " + Function)
         return { error: true , errorCode: "UNKNOWN-ERROR" , context: e.message }
     }
 }
 
-module.exports = { tryCatch }
+export { tryCatch };;

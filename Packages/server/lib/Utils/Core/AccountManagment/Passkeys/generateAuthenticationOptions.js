@@ -1,12 +1,10 @@
-const { generateAuthenticationOptions } = require("@simplewebauthn/server");
-const { globalAccessPoint } = require("../../../GlobalAccessPoint");
-const { sanitizeString } = require("../../../Sanitizer");
-const { tryCatch } = require("../../../TryCatch");
-const { isValidEmail } = require("../../../Validator");
-const {
-  respondWithError,
-  respondWithSuccess,
-} = require("../../../../Server/Response/response");
+import { generateAuthenticationOptions } from '@simplewebauthn/server';
+import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { sanitizeString } from '../../../Sanitizer.js';
+import { tryCatch } from '../../../TryCatch.js';
+import { isValidEmail } from '../../../Validator.js';
+import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
+import { stringifyCookieData } from '../../../CookieUtils.js';
 
 const generatePasskeyAuthenticationOptionsExistingUser = async (
   email,
@@ -109,7 +107,7 @@ const routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser = async (
   if (callback.cookies) {
     for (let i = 0; i < callback.cookies.length; i++) {
       const cookie = callback.cookies[i];
-      response.cookie(cookie.key, JSON.stringify(cookie.data), {
+      response.cookie(cookie.key, stringifyCookieData(cookie.data), {
         httpOnly: true,
         secure: true,
         sameSite: "None",
@@ -121,6 +119,6 @@ const routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser = async (
   return respondWithSuccess(response, 200, { options: callback.options });
 };
 
-module.exports = {
+export {
   routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser,
-};
+};;

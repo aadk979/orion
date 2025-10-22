@@ -1,8 +1,8 @@
-const { decrypt, importKeyFromBase64 } = require("../../Utils/CryptoFunctions");
-const { decryptPrivate } = require("../../Utils/dedicatedCrypto");
-const { globalAccessPoint } = require("../../Utils/GlobalAccessPoint");
-const { tryCatch } = require("../../Utils/TryCatch");
-const { respondWithError } = require("../Response/response");
+import { decrypt, importKeyFromBase64 } from '../../Utils/CryptoFunctions.js';
+import { decryptPrivate } from '../../Utils/dedicatedCrypto.js';
+import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
+import { tryCatch } from '../../Utils/TryCatch.js';
+import { respondWithError } from '../Response/response.js';
 
 const decryptionMiddleware = async (request , response, next) => {
     const Function = async (parameters) => {
@@ -68,4 +68,4 @@ const decryptionMiddleware = async (request , response, next) => {
     return;
 }
 
-module.exports = { decryptionMiddleware };
+export { decryptionMiddleware };

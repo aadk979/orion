@@ -4,29 +4,25 @@
 
 // DO NOT TOUCH THIS FILE UNLESS YOU ARE SURE OF WHAT YOU ARE DOING.
 
-const { globalAccessPoint } = require("../../Utils/GlobalAccessPoint");
-const { tryCatch } = require("../../Utils/TryCatch");
-const { respondWithError } = require("../../Server/Response/response");
-const { isIpInRange, getIp } = require("../../Utils/Ip");
-const { generateHmac } = require("../../Utils/CryptoFunctions");
+import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
+import { tryCatch } from '../../Utils/TryCatch.js';
+import { respondWithError } from '../../Server/Response/response.js';
+import { isIpInRange, getIp } from '../../Utils/Ip.js';
+import { generateHmac } from '../../Utils/CryptoFunctions.js';
+
+const NAME_SPACE = globalAccessPoint.nameSpace();
 
 const nonDipRequiredRoutes = [
-  "generate-no-auth-token-transaction",
-  "generate-no-auth-token",
-  "have-no-auth-token",
-  "configure-dip",
-  "encryption-request-key",
+  `/${NAME_SPACE}/api/v1/action/generate-no-auth-token-transaction`,
+  `/${NAME_SPACE}/api/v1/action/generate-no-auth-token`,
+  `/${NAME_SPACE}/api/v1/request/have-no-auth-token`,
+  `/${NAME_SPACE}/api/v1/action/configure-dip`,
+  `/${NAME_SPACE}/api/v1/request/encryption-request-key`,
 ];
 
 const dipMiddleware = async (request, response, next) => {
   const Function = async (parameters) => {
-    if (
-      nonDipRequiredRoutes.includes(
-        parameters.request.path.split("/")[
-          parameters.request.path.split("/").length - 1
-        ]
-      )
-    ) {
+    if (nonDipRequiredRoutes.includes(parameters.request.path)) {
       return parameters.next();
     }
 
@@ -68,18 +64,11 @@ const dipMiddleware = async (request, response, next) => {
     const dipStorage = await globalAccessPoint.db().getData("dip", dipIdHeader);
 
     if (dipStorage.data === undefined) {
-      return respondWithError(parameters.response, "DIP-TIMEDOUT");
+      return respondWithError(parameters.response, "DIP-TIMEDOUT-OR-ID-HEADER-INVALID");
     }
 
-    if (!isIpInRange(ip, dipStorage.data.ip)) {
+    if (!(await isIpInRange(ip, dipStorage.data.ip))) {
       return respondWithError(parameters.response, "DIP-STATE-IP-MISMATCH");
-    }
-
-    if (dipStorage.data === undefined) {
-      return respondWithError(
-        parameters.response,
-        "DIP-STATE-ID-HEADER-INVALID"
-      );
     }
 
     if (!dipSignatureHeader || dipSignatureHeader === "DEFAULT NONE") {
@@ -96,7 +85,7 @@ const dipMiddleware = async (request, response, next) => {
     if (!payload || Object.keys(payload).length <= 0) {
       return respondWithError(
         parameters.response,
-        "DIP-STATE-BODY-DATA-PRESENT"
+        "DIP-STATE-BODY-DATA-NOT-PRESENT"
       );
     }
 
@@ -132,4 +121,4 @@ const dipMiddleware = async (request, response, next) => {
   return;
 };
 
-module.exports = { dipMiddleware };
+export { dipMiddleware };;

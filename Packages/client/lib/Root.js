@@ -5,13 +5,19 @@ import { orionVault } from "./Utils/OrionVault.js";
 import { getDIP } from "./API-Handlers/Helper/dip.js";
 import { signInUser } from "./API-Handlers/Auth/SignInUser.js";
 import { signUpUser } from "./API-Handlers/Auth/SignUpUser.js";
-import { registerPasskey } from "./API-Handlers/Auth/Passkey/RegisterPasskey.js";
+import { registerPasskey } from "./API-Handlers/Auth/Passkey/registerPasskey.js";
 import { signInWithPasskey } from "./API-Handlers/Auth/Passkey/SignInWithPasskey.js";
 import { signOutUser } from "./API-Handlers/Auth/SignOutUser.js";
+import { generateOAuthRedirectURL } from "./API-Handlers/Auth/OAuth/GenerateOAuthRedirectURL.js";
+import { handleOAuthCallback } from "./API-Handlers/Auth/OAuth/HandleOAuthCallback.js";
+import { globalAccessPoint } from "./Utils/GlobalAccessPoint.js";
 
 class Orion {
   #signedIn = null;
   #authListeners = new Set();
+
+  static initialized = false;
+  static initPromise = null; // ⚡ singleton promise caching
 
   constructor(systemConfig) {
     if (Orion.systemConfig) {
@@ -21,8 +27,11 @@ class Orion {
     }
 
     Orion.systemConfig = systemConfig;
+
     this.systemConfig = systemConfig;
-    Orion.initialized = false;
+
+    globalAccessPoint.setValue("systemConfig", systemConfig);
+
     this.Api = new ApiInterface(systemConfig.serverUrl, systemConfig.nameSpace);
   }
 
@@ -30,64 +39,86 @@ class Orion {
     const changed = this.#signedIn !== state;
     this.#signedIn = state;
     if (changed) {
-      this.#authListeners.forEach((cb) => cb(state));
+      // Always call listeners with the same shape as authState callback expects
+      this.#authListeners.forEach(cb =>
+        cb({ signedIn: this.#signedIn, loading: false })
+      );
     }
-  }
+  }  
 
   async initialize() {
-    try {
-      await orionVault.initDB();
-      await checkAndDeployCaptcha(this.systemConfig.serverUrl, this.systemConfig.nameSpace);
+    if (Orion.initialized) return;
+    if (Orion.initPromise) return Orion.initPromise;
 
-      const dipConfig = await getDIP({
-        Api: this.Api,
-        getAuthHeader,
-        nameSpace: this.systemConfig.nameSpace,
-      });
+    Orion.initPromise = (async () => {
+      try {
+        await orionVault.initDB();
+        await checkAndDeployCaptcha(this.systemConfig.serverUrl, this.systemConfig.nameSpace);
 
-      this.dipConfig = dipConfig;
+        const dipConfig = await getDIP({
+          Api: this.Api,
+          getAuthHeader,
+          nameSpace: this.systemConfig.nameSpace,
+        });
 
-      const authHeader = await getAuthHeader(true, "ACCESS_BEARER");
+        this.dipConfig = dipConfig;
 
-      const request = await this.Api.fetch(`/${this.systemConfig.nameSpace}/api/v1/action/get-current-auth-state`, 'POST', authHeader.authHead, null, null, null);
+        globalAccessPoint.setValue("dipConfig", dipConfig);
 
-      const data = await request.json();
+        const authHeader = await getAuthHeader(true, "ACCESS_BEARER");
 
-      if (data.error) {
+        const request = await this.Api.fetch(
+          `/${this.systemConfig.nameSpace}/api/v1/action/get-current-auth-state`,
+          'POST',
+          authHeader.authHead
+        );
+
+        const data = await request.json();
+
         const allowedErrors = [
           "MISSING-AUTHENTICATION-TOKEN",
-          "ACCESS-TOKEN-EXPIRED", // Impossible error code, but added just incase
+          "ACCESS-TOKEN-EXPIRED",
           "REFRESH-TOKEN-EXPIRED",
           "MISSING-SESSION-ID-OR-SESSION-HMAC"
-        ]
+        ];
 
-        if (!allowedErrors.includes(data.errorData.errorCode)) {
-            throw new Error("Unkown error: " + JSON.stringify(data));
+        if (data.error && !allowedErrors.includes(data.errorData?.errorCode)) {
+          throw new Error("Unknown error: " + JSON.stringify(data));
         }
 
-        this.#signedIn = false;
+        this.setUserSignedInState(data.data?.authed || false);
         Orion.initialized = true;
-        return;
+      } catch (e) {
+        throw new Error("Error during initialization: " + e.message);
+      } finally {
+        Orion.initPromise = null;
       }
+    })();
 
-      if (data.data.authed) {
-        this.#signedIn = true;
-        Orion.initialized = true;
-        return;
-      }
+    return Orion.initPromise;
+  }
 
-      throw new Error("Unkown error: Unexpected API response: " + JSON.stringify(data));
-    } catch (e) {
-      throw new Error("Error during initialization: " + e.message);
+  async authState(callback) {
+    await this.initialize();
+
+    if (typeof callback === "function") {
+      this.#authListeners.add(callback);
+
+      callback({
+        signedIn: this.#signedIn,
+        loading: !Orion.initialized
+      });
+
+      return () => this.#authListeners.delete(callback);
     }
   }
 
   async signInUser(email, password) {
-    if (!Orion.initialized) await this.initialize();
+    await this.initialize();
     if (this.#signedIn)
       return { error: true, errorCode: "CLIENT-AUTH-AUTHED-USER-PRESENT" };
 
-    const result = await signInUser({
+    return await signInUser({
       Api: this.Api,
       orionVault,
       email,
@@ -96,13 +127,11 @@ class Orion {
       getAuthHeader,
       This: this,
     });
-
-    return result;
   }
 
   async signUpUser(email, password) {
-    if (!Orion.initialized) await this.initialize();
-    if (this.#signedIn)
+    await this.initialize();
+    if (!this.#signedIn)
       return { error: true, errorCode: "CLIENT-AUTH-AUTHED-USER-PRESENT" };
 
     return await signUpUser({
@@ -116,7 +145,7 @@ class Orion {
   }
 
   async signOutUser() {
-    if (!Orion.initialized) await this.initialize();
+    await this.initialize();
     if (!this.#signedIn)
       return { error: true, errorCode: "CLIENT-AUTH-NO-AUTHED-USER-PRESENT" };
 
@@ -129,7 +158,7 @@ class Orion {
   }
 
   async registerPasskey() {
-    if (!Orion.initialized) await this.initialize();
+    await this.initialize();
     if (!this.#signedIn)
       return { error: true, errorCode: "CLIENT-AUTH-NO-AUTHED-USER-PRESENT" };
 
@@ -142,28 +171,60 @@ class Orion {
   }
 
   async signInWithPasskey(email) {
-    if (!Orion.initialized) await this.initialize();
+    await this.initialize();
     if (this.#signedIn)
       return { error: true, errorCode: "CLIENT-AUTH-AUTHED-USER-PRESENT" };
 
-    const result = await signInWithPasskey({
+    return await signInWithPasskey({
       email,
       Api: this.Api,
       getAuthHeader,
       dipConfig: this.dipConfig,
       This: this,
     });
-
-    return result;
   }
 
-  async authState(callback) {
+  async generateOAuthRedirectURLAndRedirect(providerName) {
     await this.initialize();
-    if (typeof callback === "function") {
-      this.#authListeners.add(callback);
-      callback(this.#signedIn);
-      return () => this.#authListeners.delete(callback);
+    if (this.#signedIn)
+      return { error: true, errorCode: "CLIENT-AUTH-AUTHED-USER-PRESENT" };
+
+    const result = await generateOAuthRedirectURL({
+      Api: this.Api,
+      getAuthHeader,
+      dipConfig: this.dipConfig,
+      This: this,
+      providerName
+    });
+
+    if (result.error) {
+      return result;
     }
+
+    window.location.replace(result.redirectURL);
+  }
+
+  async handleOAuthCallback() {
+    await this.initialize();
+    if (this.#signedIn)
+      return { error: true, errorCode: "CLIENT-AUTH-AUTHED-USER-PRESENT" };
+
+    const result = await handleOAuthCallback({
+      Api: this.Api,
+      getAuthHeader,
+      dipConfig: this.dipConfig,
+      This: this
+    });
+
+    if (result.error) {
+      return result;
+    }
+
+    if (result.signedIn) {
+      this.setUserSignedInState(true);
+    }
+
+    return { error: false, signedIn: result.signedIn };
   }
 }
 

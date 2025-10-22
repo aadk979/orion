@@ -1,6 +1,6 @@
-const { verifyAuthenticationResponse } = require("@simplewebauthn/server");
-const { globalAccessPoint } = require("../../../GlobalAccessPoint");
-const { tryCatch } = require("../../../TryCatch");
+import { verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { tryCatch } from '../../../TryCatch.js';
 
 const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async (parameters) => {
@@ -59,4 +59,4 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
     return results;
 }
 
-module.exports = { veryifyAndCompletePasskeyAuthentication }
+export { veryifyAndCompletePasskeyAuthentication };;

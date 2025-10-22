@@ -1,5 +1,4 @@
-const cron = require('node-cron');
-const { logger } = require('./logger');
+import cron from 'node-cron';
 
 class RefreshRateLimiter {
   constructor(windowMs = 60 * 1000, maxRequests = 10, sessionTTL = 24 * 60 * 60 * 1000) {
@@ -47,4 +46,4 @@ class RefreshRateLimiter {
   }
 }
 
-module.exports = { RefreshRateLimiter }
+export { RefreshRateLimiter };;

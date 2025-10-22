@@ -1,13 +1,14 @@
-const { respondWithError, respondWithSuccess } = require("../../../Server/Response/response")
-const { hashString, verifyHash } = require("../../CryptoFunctions")
-const { getFutureUnixTime, getCurrentUnixTime } = require("../../Date&Time")
-const { globalAccessPoint } = require("../../GlobalAccessPoint")
-const { getIp } = require("../../Ip")
-const { tryCatch } = require("../../TryCatch")
-const { generateRequestId } = require("../../valueGenerator")
-const crypto = require("crypto")
-const { cronScheduler } = require("../../Cron")
-const { verifyCaptcha, generateCaptchaImage } = require("../../CustomCaptchaSystem")
+import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
+import { hashString, verifyHash } from '../../CryptoFunctions.js';
+import { getFutureUnixTime, getCurrentUnixTime } from '../../Date&Time.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { getIp } from '../../Ip.js';
+import { tryCatch } from '../../TryCatch.js';
+import { generateRequestId } from '../../valueGenerator.js';
+import crypto from 'crypto';
+import { cronScheduler } from '../../Cron.js';
+import { verifyCaptcha, generateCaptchaImage } from '../../CustomCaptchaSystem.js';
+import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
 
 const captchaSystemVersion = "[orion:v1]-[1.0.0]-[BETA]"
 
@@ -152,7 +153,7 @@ const routeHandlerGenerateNoAuthToken = async (request, response) => {
     if (callback.cookies) {
         for (let i = 0; i < callback.cookies.length; i++) {
             const cookie = callback.cookies[i];
-            response.cookie(cookie.key, JSON.stringify(cookie.data), { httpOnly: true, secure: true, sameSite: "None", maxAge: cookie.maxAge });
+            response.cookie(cookie.key, stringifyCookieData(cookie.data), { httpOnly: true, secure: true, sameSite: "None", maxAge: cookie.maxAge });
         }
     }
 
@@ -206,13 +207,13 @@ const routeHandlerDeviceHasNoAuthToken = async (request , response) => {
     const tokenType = authHeader.split(" ")[0];
 
     if( tokenType !== "NO_BEARER" ){
-        return respondWithError(response , "NO_AUTH_TOKEN-UNAUTHORIZED");
+        return respondWithError(response , "NO-AUTH-TOKEN-UNAUTHORIZED");
     }
 
-    const token = request.cookies["NO_AUTH_TOKEN"] ? JSON.parse(request.cookies["NO_AUTH_TOKEN"]) : "NONE";
+    const token = parseCookieData(request.cookies["NO_AUTH_TOKEN"]) || "NONE";
 
     if( token === "NONE" ){
-        return respondWithError(response , "NO_AUTH_TOKEN-NOT-FOUND");
+        return respondWithError(response , "NO-AUTH-TOKEN-NOT-FOUND");
     }
 
     const fingerprint = request.headers["orion-fingerprint"];
@@ -228,4 +229,4 @@ const routeHandlerDeviceHasNoAuthToken = async (request , response) => {
     return respondWithSuccess(response , 200 , { valid: true });
 }
 
-module.exports = { routeHandlerGenerateNoAuthTokenCreationTransaction , routeHandlerGenerateNoAuthToken , validateNoAuthToken , routeHandlerDeviceHasNoAuthToken };
+export { routeHandlerGenerateNoAuthTokenCreationTransaction , routeHandlerGenerateNoAuthToken , validateNoAuthToken , routeHandlerDeviceHasNoAuthToken };;

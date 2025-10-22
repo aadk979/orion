@@ -1,20 +1,20 @@
-const jwt = require('jsonwebtoken');
-const { globalAccessPoint } = require('../../GlobalAccessPoint');
-const { hashString, encrypt, decrypt, verifyHash, importKeyFromBase64 } = require('../../CryptoFunctions');
-const { generateChallenge, generateId, generateRandomNumber } = require('../../valueGenerator');
-const { getIpRange, isIpInRange } = require('../../Ip');
-const { getFutureUnixTime, isUnixExpired, parseDuration } = require('../../Date&Time');
-const { logger } = require('../../logger');
+// Orion JWT System – Version 2
+// It transitions from symmetric signing to asymmetric signing, providing stronger security
+// and enabling easier key distribution via JWKs.
+
+import jwt from 'jsonwebtoken';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { hashString, verifyHash } from '../../CryptoFunctions.js';
+import { generateId, generateRandomNumber } from '../../valueGenerator.js';
+import { getIpRange, isIpInRange } from '../../Ip.js';
+import { getFutureUnixTime, isUnixExpired } from '../../Date&Time.js';
+import { timingSafeEqual } from 'crypto';
 
 async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent , accessTokenLinkCodeExternal) {
-    const secret = globalAccessPoint.getValue("systemConfig").tokens?.secrets.accessTokens || undefined;
+    const secret = await globalAccessPoint.getValue("tokenSecretsManager").getRandomKeyPair("access");
     const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.accessTokens || "15m";
-    const encryptionKey = importKeyFromBase64(globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens) || undefined;
-
-    if (!secret || !encryptionKey) {
-        logger.error("CRITICAL: Access token secret or encryption key is not set in the system config.");
-        return { error: true, errorCode: "UNABLE-TO-GENERATE-ACCESS-TOKEN" };
-    }
+    const aud = globalAccessPoint.getValue("systemConfig").client.urls;
+    const iss = globalAccessPoint.getValue("systemConfig").server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
     const ipRange = getIpRange(ip);
@@ -23,32 +23,17 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
 
     const tokenData = {
         tokenId: generateId("ACCESS_TOKEN", 15),
-        challenge: generateChallenge(32),
         type: "ACCESS_TOKEN",
         accessTokenLinkCode: accessTokenLinkCode
     }
 
     const dbTokenData = {
         tokenId: tokenData.tokenId,
-        challenge: await hashString(tokenData.challenge),
         exp: getFutureUnixTime(expiry),
         type: tokenData.type,
         userAgent: userAgent,
-        accessTokenLinkCode: accessTokenLinkCode
-    }
-
-    const cookieData = {
-        key: generateId("COOKIE_KEY", 15),
-        challenge: generateChallenge(32)
-    }
-
-    const storageCookieData = {
-        key: cookieData.key,
-        data: {
-            challenge: await hashString(cookieData.challenge),
-            hashedDeviceFingerprint: hashedFingerprint,
-        },
-        maxAge: parseDuration(expiry) + parseDuration("15m"),
+        accessTokenLinkCode: accessTokenLinkCode,
+        hashedFingerprint
     }
 
     const payload = {
@@ -58,8 +43,13 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
         authMethod: authMethod,
         role: role,
         tokenData,
-        cookieData,
-        ipRange
+        ipRange,
+
+        // Standard JWT fields
+        jti: tokenData.tokenId,
+        aud: aud,
+        iss: iss,
+        sub: uid
     }
 
     let data = await globalAccessPoint.db().getData("Users", uid);
@@ -67,55 +57,47 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     let user = data.data;
 
     user.security.activeTokens.push(dbTokenData);
+
     const filteredArray = user.security.activeTokens.filter(value => isUnixExpired(value.exp) === false);
+
     user.security.activeTokens = filteredArray;
 
     const storage = await globalAccessPoint.db().addData("Users", uid, user);
+
     if (storage.error) {
         return { error: true, errorCode: "UNABLE-TO-GENERATE-ACCESS-TOKEN" }
     }
 
-    const token = jwt.sign(payload, secret, { expiresIn: expiry });
-    const encryptedToken = encrypt(token, encryptionKey);
+    const token = jwt.sign(payload, secret.privateKey, { expiresIn: expiry, algorithm: "RS256" , keyid: secret.keyPairId });
 
-    return { error: false, token: encryptedToken, cookies: [storageCookieData] , accessTokenLinkCode: accessTokenLinkCode };
+    return { error: false, token: token, accessTokenLinkCode: accessTokenLinkCode };
 }
 
-async function validateAccessToken(token, cookies, fingerprint, ip) {
-    const secret = globalAccessPoint.getValue("systemConfig").tokens.secrets.accessTokens || undefined;
-    const encryptionKey = importKeyFromBase64(globalAccessPoint.getValue("systemConfig").tokens?.encryptionKeys.accessTokens) || undefined;
-
-    if (!secret || !encryptionKey) {
-        logger.error("CRITICAL: Access token secret or encryption key is not set in the system config.");
-        return { error: true, errorCode: "UNABLE-TO-VALIDATE-ACCESS-TOKEN" }
-    }
-
+async function validateAccessToken(token, fingerprint, ip, clientUrl) {
     try {
-
+        console.log(clientUrl)
+        
         if (!token) {
             return { error: true, errorCode: "MISSING-AUTHENTICATION-TOKEN" }
         }
 
-        const decryptedToken = decrypt(token, encryptionKey);
-        const validatedToken = jwt.verify(decryptedToken, secret);
-        const cookieDataToken = validatedToken.cookieData;
+        const decodedHeader = jwt.decode(token, { complete: true }).header;
 
-        if (!isIpInRange(ip, validatedToken.ipRange)) {
+        const secret = await globalAccessPoint.getValue("tokenSecretsManager").getKeyPairById(decodedHeader.kid, "access");
+        const serverUrl = globalAccessPoint.getValue("systemConfig").server.myUrl;
+
+        const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
+
+        if (!validatedToken.aud.includes(clientUrl)) {
+            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-INVALID-AUD" }
+        }
+
+        if (!validatedToken.iss.includes(serverUrl)) {
+            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED" }
+        }
+
+        if (! (await isIpInRange(ip, validatedToken.ipRange))) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE" }
-        }
-
-        const cookieData = cookies[cookieDataToken.key] ? JSON.parse(cookies[cookieDataToken.key]) : undefined;
-
-        if (!cookieData) {
-            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-NOT-FOUND" };
-        }
-
-        if ((await verifyHash(cookieDataToken.challenge, cookieData.challenge)) === false) {
-            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-CHALLENGE-MISMATCH" }
-        }
-
-        if ((await verifyHash(fingerprint, cookieData.hashedDeviceFingerprint)) === false) {
-            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-COOKIE-DEVICE-FINGERPRINT-MISMATCH" }
         }
 
         let data = await globalAccessPoint.db().getData("Users", validatedToken.uid);
@@ -134,11 +116,15 @@ async function validateAccessToken(token, cookies, fingerprint, ip) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH" }
         }
 
-        if ((await verifyHash(validatedToken.tokenData.challenge, tokenData.challenge)) === false) {
+        if (!timingSafeEqual(Buffer.from(validatedToken.hashedDeviceFingerprint), Buffer.from(tokenData.hashedFingerprint))) {
+            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1" }
+        }
+
+        if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
             const newArray = activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
             user.security.activeTokens = newArray;
             await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
-            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-CHALLENGE-MISMATCH" }
+            return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2" }
         }
 
         return { error: false, valid: true, data: validatedToken }
@@ -153,4 +139,4 @@ async function validateAccessToken(token, cookies, fingerprint, ip) {
     }
 }
 
-module.exports = { generateAccessToken, validateAccessToken };
+export { generateAccessToken, validateAccessToken };

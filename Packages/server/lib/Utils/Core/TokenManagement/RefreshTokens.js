@@ -1,39 +1,33 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { globalAccessPoint } = require('../../GlobalAccessPoint');
-const { hashString, encrypt, decrypt, verifyHash, importKeyFromBase64 } = require('../../CryptoFunctions');
-const { generateChallenge, generateId } = require('../../valueGenerator');
-const { getIpRange, isIpInRange } = require('../../Ip');
-const { getFutureUnixTime, isUnixExpired } = require('../../Date&Time');
+import jwt from 'jsonwebtoken';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { hashString, verifyHash } from '../../CryptoFunctions.js';
+import { generateId } from '../../valueGenerator.js';
+import { getIpRange, isIpInRange } from '../../Ip.js';
+import { getFutureUnixTime, isUnixExpired } from '../../Date&Time.js';
+import { timingSafeEqual } from 'crypto';
 
-async function generateRefreshToken(uid, email, fingerprint, authMethod, role, ip, cookieData, userAgent, accessTokenLinkCode) {
-    const config = globalAccessPoint.getValue("systemConfig").tokens;
-    const secret = config?.secrets.refreshTokens || undefined;
-    const expiry = config?.lifespans.refreshTokens || "24h";
-    const encryptionKey = importKeyFromBase64(config?.encryptionKeys.refreshTokens) || undefined;
-
-    if (!secret || !encryptionKey) {
-        logger.error("CRITICAL: Refresh token secret or encryption key is not set in the system config.");
-        return { error: true, errorCode: "UNABLE-TO-GENERATE-REFRESH-TOKEN" };
-    }
+async function generateRefreshToken(uid, email, fingerprint, authMethod, role, ip, userAgent, accessTokenLinkCode) {
+    const secret = await await globalAccessPoint.getValue("tokenSecretsManager").getRandomKeyPair("refresh");
+    const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.refreshTokens || "15m";
+    const aud = globalAccessPoint.getValue("systemConfig").client.urls;
+    const iss = globalAccessPoint.getValue("systemConfig").server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
     const ipRange = getIpRange(ip);
 
     const tokenData = {
         tokenId: generateId("REFRESH_TOKEN", 15),
-        challenge: generateChallenge(32),
         type: "REFRESH_TOKEN",
         accessTokenLinkCode: accessTokenLinkCode
     };
 
     const dbTokenData = {
         tokenId: tokenData.tokenId,
-        challenge: await hashString(tokenData.challenge),
         exp: getFutureUnixTime(expiry),
         type: tokenData.type,
         userAgent: userAgent,
-        accessTokenLinkCode: accessTokenLinkCode
+        accessTokenLinkCode: accessTokenLinkCode,
+        hashedFingerprint
     };
 
     const payload = {
@@ -43,8 +37,13 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
         authMethod: authMethod,
         role: role,
         tokenData,
-        cookieKey: cookieData.key,
-        ipRange
+        ipRange,
+
+        // Standard JWT fields
+        jti: tokenData.tokenId,
+        aud: aud,
+        iss: iss,
+        sub: uid
     };
 
     let data = await globalAccessPoint.db().getData("Users", uid);
@@ -62,32 +61,35 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
         return { error: true, errorCode: "UNABLE-TO-GENERATE-REFRESH-TOKEN" };
     }
 
-    const token = jwt.sign(payload, secret, { expiresIn: expiry });
-    const encryptedToken = encrypt(token, encryptionKey);
+    const token = jwt.sign(payload, secret.privateKey, { expiresIn: expiry, algorithm: "RS256" , keyid: secret.keyPairId });
 
-    return { error: false, token: encryptedToken };
+    return { error: false, token: token };
 }
 
-async function validateRefreshToken(token, fingerprint, ip) {
-    const config = globalAccessPoint.getValue("systemConfig").tokens;
-    const secret = config.secrets.refreshTokens || undefined;
-    const encryptionKey = importKeyFromBase64(config?.encryptionKeys.refreshTokens) || undefined;
-
-    if (!secret || !encryptionKey) {
-        logger.error("CRITICAL: Refresh token secret or encryption key is not set in the system config.");
-        return { error: true, errorCode: "UNABLE-TO-GENERATE-REFRESH-TOKEN" };
-    }
-
+async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
     try {
-        const decryptedToken = decrypt(token, encryptionKey);
-        const validatedToken = jwt.verify(decryptedToken, secret);
-
-        if (!isIpInRange(ip, validatedToken.ipRange)) {
-            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE" };
+        
+        if (!token) {
+            return { error: true, errorCode: "MISSING-AUTHENTICATION-TOKEN" }
         }
 
-        if ((await verifyHash(fingerprint, validatedToken.hashedDeviceFingerprint)) === false) {
-            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH" };
+        const decodedHeader = jwt.decode(token, { complete: true }).header;
+
+        const secret = await globalAccessPoint.getValue("tokenSecretsManager").getKeyPairById(decodedHeader.kid, "refresh");
+        const serverUrl = globalAccessPoint.getValue("systemConfig").server.myUrl;
+
+        const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
+
+        if (!validatedToken.aud.includes(clientUrl)) {
+            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-INVALID-AUD" }
+        }
+
+        if (!validatedToken.iss.includes(serverUrl)) {
+            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED" }
+        }
+
+        if (! (await isIpInRange(ip, validatedToken.ipRange))) {
+            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE" };
         }
 
         let data = await globalAccessPoint.db().getData("Users", validatedToken.uid);
@@ -105,15 +107,15 @@ async function validateRefreshToken(token, fingerprint, ip) {
             return { error: true, errorCode: "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH" };
         }
 
-        if ((await verifyHash(validatedToken.tokenData.challenge, tokenData.challenge)) === false) {
+        if (!timingSafeEqual(Buffer.from(validatedToken.hashedDeviceFingerprint), Buffer.from(tokenData.hashedFingerprint))) {
+            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1" }
+        }
 
+        if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
             const newArray = activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
-
             user.security.activeTokens = newArray;
-
             await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
-
-            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-TOKEN-CHALLENGE-MISMATCH" };
+            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2" }
         }
 
         return { error: false, valid: true, data: validatedToken };
@@ -126,4 +128,4 @@ async function validateRefreshToken(token, fingerprint, ip) {
     }
 }
 
-module.exports = { generateRefreshToken, validateRefreshToken };
+export { generateRefreshToken, validateRefreshToken };

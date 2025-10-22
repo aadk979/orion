@@ -1,7 +1,7 @@
 // This file contains crypto fucntions for internal use
 
-const bcrypt = require('bcrypt');
-const crypto = require("crypto");
+import bcrypt from 'bcrypt';;
+import crypto from 'crypto';;
 
 function hashToBigNumber(hash) {
   return BigInt("0x" + hash); // precise, no collisions
@@ -29,6 +29,26 @@ async function verifyHash(input, hashed) {
             resolve(result);
         });
     });
+}
+
+function sha512Hash(input) {
+    if (typeof input !== 'string' || input.trim() === '') {
+        throw new Error("Invalid input to hash: must be a non-empty string");
+    }
+
+    return crypto.createHash('sha512')
+                 .update(input)
+                 .digest('hex');
+}
+
+function sha256Hash(input) {
+    if (typeof input !== 'string' || input.trim() === '') {
+        throw new Error("Invalid input to hash: must be a non-empty string");
+    }
+
+    return crypto.createHash('sha256')
+                 .update(input)
+                 .digest('hex');
 }
 
 async function generateKeyPair(keySize = 2048) {
@@ -121,7 +141,6 @@ function generateEncryptionKey() {
 }
 
 async function generateHmac(data, key) {
-  const crypto = require('crypto');
   const hmac = crypto.createHmac('sha256', key);
   hmac.update(data);
   return hmac.digest('hex');
@@ -134,4 +153,4 @@ function generateHmacKey() {
     });
 }
 
-module.exports = { generateHmacKey , generateHmac , hashString, verifyHash, generateKeyPair, publicEncrypt,exportKeyBase64, importKeyFromBase64, privateDecrypt , encrypt: encryptAESGCM , decrypt: decryptAESGCM , generateEncryptionKey , hashToBigNumber };
+export { generateHmacKey , generateHmac , hashString, verifyHash, generateKeyPair, publicEncrypt,exportKeyBase64, importKeyFromBase64, privateDecrypt , encryptAESGCM as encrypt , decryptAESGCM as decrypt , generateEncryptionKey , hashToBigNumber , sha512Hash , sha256Hash };

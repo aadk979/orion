@@ -1,6 +1,6 @@
 // This file contains crypto functions for client to server encryption
 
-const crypto = require("crypto");
+import crypto from 'crypto';
 
 async function generateKeyPairDedicated(length) {
     const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
@@ -47,7 +47,7 @@ async function decryptPrivate(encryptedData , privateKey) {
     }
 }
 
-module.exports = {
+export {
   generateKeyPairDedicated ,
   encryptPublic ,
   decryptPrivate

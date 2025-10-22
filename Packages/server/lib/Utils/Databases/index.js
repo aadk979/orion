@@ -1,5 +1,5 @@
-const { FirestoreService } = require("./firestore");
-const { MongoService } = require("./mongoDB");
+import { FirestoreService } from './firestore.js';
+import { MongoService } from './mongoDB.js';
 
 const supportedProviders = [
     "FIRESTORE",
@@ -87,4 +87,4 @@ class DatabaseManager {
     }
 }
 
-module.exports = { DatabaseManager };
+export { DatabaseManager };;

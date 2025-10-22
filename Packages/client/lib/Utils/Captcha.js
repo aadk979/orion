@@ -415,6 +415,7 @@ async function checkAndDeployCaptcha(serverURL, nameSpace) {
   );
 
   const data = await req.json();
+  
   if (!data?.data?.valid || data.error) {
     await createModalCaptcha(serverURL, nameSpace);
   }

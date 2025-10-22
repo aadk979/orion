@@ -6,5 +6,5 @@ function base64Encode(input) {
     return Buffer.from(encoded, "base64").toString("utf-8");
   }
   
-  module.exports = { base64Encode, base64Decode };
+export  { base64Encode, base64Decode };;
   

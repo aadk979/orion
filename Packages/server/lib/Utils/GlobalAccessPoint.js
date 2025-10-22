@@ -1,4 +1,4 @@
-const { logger } = require("./logger");
+import { logger } from './logger.js';
 
 class GlobalAccessPoint {
     static instance;
@@ -9,13 +9,20 @@ class GlobalAccessPoint {
         }
 
         this._values = {};
-        this._lockedKeys = new Set(["db", "systemConfig", "volatileSecretsManager"]);
+        this._lockedKeys = new Set([
+            "db",
+            "systemConfig",
+            "volatileSecretsManager",
+            "refreshRateLimiter",
+            "oAuthToolKit"
+        ]);
+
         GlobalAccessPoint.instance = this;
     }
 
     setValue(name, value) {
         if (this._lockedKeys.has(name) && this._values[name] !== undefined) {
-            logger.error(`CRITICAL: Locked value for key ${name} cannot be overwritten.`)
+            logger.error(`CRITICAL: Locked value for key ${name} cannot be overwritten.`);
             return false;
         }
 
@@ -24,14 +31,24 @@ class GlobalAccessPoint {
     }
 
     getValue(name) {
-        return this._values[name] ?? "NO-VALUE";
+        if (!(name in this._values)) {
+            logger.error(`CRITICAL: Requested value for key ${name} does not exist.`);
+            throw new Error(`GlobalAccessPoint: No value found for key "${name}"`);
+        }
+        return this._values[name];
     }
 
     removeValue(name) {
+        if (this._lockedKeys.has(name)) {
+            logger.error(`CRITICAL: Locked value for key ${name} cannot be removed.`);
+            return false;
+        }
+
         delete this._values[name];
         return true;
     }
 
+    // Convenience getters
     db() {
         return this.getValue("db");
     }
@@ -39,8 +56,13 @@ class GlobalAccessPoint {
     systemConfig() {
         return this.getValue("systemConfig");
     }
+
+    nameSpace() {
+        return "alpine";
+    }
 }
 
+// Singleton instance
 const globalAccessPoint = new GlobalAccessPoint();
 
-module.exports = { globalAccessPoint };
+export { globalAccessPoint };

@@ -1,4 +1,4 @@
-const crypto = require("crypto");
+import crypto from 'crypto';;
 
 const generateRequestId = (prefix = "NP", length = 32) => {
     const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -75,4 +75,4 @@ const generateUID = (email) => {
     return uid;
 }
 
-module.exports = { generateUID, generateChallenge, generateRequestId, generateRandomNumber, generateId }
+export { generateUID, generateChallenge, generateRequestId, generateRandomNumber, generateId }

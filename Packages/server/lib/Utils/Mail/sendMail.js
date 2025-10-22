@@ -1,5 +1,5 @@
-const { generateEmailFromTemplate } = require("./mailConstructor");
-const { sendMail } = require("./mailer");
+import { generateEmailFromTemplate } from './mailConstructor.js';
+import { sendMail } from './mailer.js';
 
 const generateAndSendMail = async (numPath, to, details) => {
     const mail = generateEmailFromTemplate(numPath, details);
@@ -9,4 +9,4 @@ const generateAndSendMail = async (numPath, to, details) => {
     return sending;
 }
 
-module.exports = { generateAndSendMail }
+export { generateAndSendMail };;

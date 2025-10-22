@@ -1,5 +1,5 @@
-const { endpointSchemas } = require("../../General/EndpointSchema");
-const { respondWithError } = require("../Response/response");
+import { endpointSchemas } from '../../General/EndpointSchema.js';
+import { respondWithError } from '../Response/response.js';
 
 const dataValidator = async (request, response, next) => {
     const endpointKey = `${request.path}`;
@@ -20,4 +20,4 @@ const dataValidator = async (request, response, next) => {
     return next();
 }
 
-module.exports = { dataValidator };
+export { dataValidator };

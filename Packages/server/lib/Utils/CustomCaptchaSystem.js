@@ -1,6 +1,6 @@
-const { createCanvas, registerFont } = require('canvas');
-const bcrypt = require('bcrypt');
-const crypto = require('crypto');
+import { createCanvas } from 'canvas';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 const SALT_ROUNDS = 12;
 const CAPTCHA_LENGTH = 8;
@@ -303,9 +303,9 @@ function createRateLimitKey(ip, userAgent) {
     .digest('hex');
 }
 
-module.exports = { 
+export { 
   generateCaptchaImage, 
   verifyCaptcha,
   generateChallengeToken,
   createRateLimitKey
-};
+};;

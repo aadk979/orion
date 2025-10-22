@@ -1,12 +1,14 @@
-const { respondWithError, respondWithSuccess } = require("../../../../../Server/Response/response");
-const { generateHmac } = require("../../../../CryptoFunctions");
-const { globalAccessPoint } = require("../../../../GlobalAccessPoint");
-const { getIp } = require("../../../../Ip");
-const { tryCatch } = require("../../../../TryCatch");
-const { generateId } = require("../../../../valueGenerator");
-const { generateAccessToken } = require("../../../TokenManagement/AccessTokens");
-const { generateRefreshToken } = require("../../../TokenManagement/RefreshTokens");
-const { veryifyAndCompletePasskeyAuthentication } = require("../completeAuthentication");
+import { respondWithError, respondWithSuccess } from '../../../../../Server/Response/response.js';
+import { generateHmac } from '../../../../CryptoFunctions.js';
+import { parseDuration } from '../../../../Date&Time.js';
+import { globalAccessPoint } from '../../../../GlobalAccessPoint.js';
+import { getIp } from '../../../../Ip.js';
+import { tryCatch } from '../../../../TryCatch.js';
+import { generateId } from '../../../../valueGenerator.js';
+import { generateAccessToken } from '../../../TokenManagement/AccessTokens.js';
+import { generateRefreshToken } from '../../../TokenManagement/RefreshTokens.js';
+import { veryifyAndCompletePasskeyAuthentication } from '../completeAuthentication.js';
+import { stringifyCookieData } from '../../../../CookieUtils.js';
 
 const signInWithPasskey = async (authenticationResponse, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip) => {
     const Function = async (parameters) => {
@@ -34,7 +36,7 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             return { error: true, errorCode: accessToken.errorCode };
         }
 
-        const refreshToken = await generateRefreshToken(user.data.credentials.uid , email , parameters.fingerprint , "PASSKEY" , "USER" , parameters.ip, accessToken.cookies[0] , parameters.userAgent , accessToken.accessTokenLinkCode);
+        const refreshToken = await generateRefreshToken(user.data.credentials.uid , email , parameters.fingerprint , "PASSKEY" , "USER" , parameters.ip , parameters.userAgent , accessToken.accessTokenLinkCode);
 
         if(refreshToken.error){
             return { error: true, errorCode: refreshToken.errorCode };
@@ -46,7 +48,7 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
 
         const SID = generateId("SID", 64);
 
-        const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0));
+        const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret);
 
         const tokenCookies = [
             { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
@@ -86,8 +88,6 @@ const routeHandlerSignInWithPasskey = async (request, response) => {
 
     const ip = getIp(request)
 
-    console.log(userAgent)
-
     const parsedClientURL = clientURL.split("//")[clientURL.split("//").length - 1];
 
     const callback = await signInWithPasskey(responseData, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip);
@@ -96,9 +96,21 @@ const routeHandlerSignInWithPasskey = async (request, response) => {
         return respondWithError(response, callback.errorCode);
     }
 
-    response.clearCookie("PASSKEY-REGISTRATION-INFO-STEP-1" , { httpOnly: true, secure: false, sameSite: "None" });
+     if (callback.cookies) {
+    for (let i = 0; i < callback.cookies.length; i++) {
+      const cookie = callback.cookies[i];
+      response.cookie(cookie.key, stringifyCookieData(cookie.data), {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        maxAge: cookie.maxAge,
+      });
+    }
+  }
+
+    response.clearCookie("PASSKEY-REGISTRATION-INFO-STEP-1" , { httpOnly: true, secure: false, sameSite: "None" , maxAge: 0 });
 
     return respondWithSuccess(response, 200, callback.data);
 }
 
-module.exports = { routeHandlerSignInWithPasskey };
+export { routeHandlerSignInWithPasskey };

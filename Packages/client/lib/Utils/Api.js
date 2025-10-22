@@ -1,3 +1,4 @@
+import { renderDeviceAuthorizationUI } from "../Flows/DeviceAuthorizationFlow.js";
 import {
   encryptAESGCM,
   encryptPublic,
@@ -6,6 +7,10 @@ import {
   generateHmac,
 } from "./CryptoModule.js";
 import { getDeviceFingerprint } from "./DevicePrint.js";
+
+const ORION_FLOW_TYPES = {
+  "FLOW-DEVICE-AUTHORIZATION": { fn: renderDeviceAuthorizationUI, params: [ "baseUrl", "nameSpace" ] }
+}
 
 class ApiInterface {
   constructor(baseUrl, nameSpace) {
@@ -57,11 +62,28 @@ class ApiInterface {
           ? encryption.encryptionRequestId
           : "NONE",
         "orion-api-system-version": "1.0.0[BETA]",
+        "Origin": window.location.origin,
         Authorization: authorization,
       },
       credentials: "include",
       body: body ? JSON.stringify(body) : undefined,
     });
+
+    const flow = response.headers.get("orion-flow-activation") || response.headers.get("Orion-Flow-Activation");
+
+    if (flow) {
+      const flowFn = ORION_FLOW_TYPES[flow];
+
+      if (!flowFn) {
+        throw new Error("Orion header flow triggered, invalid flow type!");
+      }
+
+      // dynamically extract params from 'this'
+      const args = flowFn.params.map(paramName => this[paramName]);
+
+      // call function with spread params
+      await flowFn.fn(...args);
+    }
 
     return response;
   }

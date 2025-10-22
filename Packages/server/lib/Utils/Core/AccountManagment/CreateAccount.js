@@ -1,13 +1,17 @@
-const { respondWithError, respondWithSuccess } = require("../../../Server/Response/response");
-const { hashString } = require("../../CryptoFunctions");
-const { globalAccessPoint } = require("../../GlobalAccessPoint");
-const { sanitizeString } = require("../../Sanitizer");
-const { tryCatch } = require("../../TryCatch");
-const { isValidEmail, isPasswordSafe } = require("../../Validator");
-const { generateUID } = require("../../valueGenerator");
+import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
+import { hashString } from '../../CryptoFunctions.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { sanitizeString } from '../../Sanitizer.js';
+import { tryCatch } from '../../TryCatch.js';
+import { isValidEmail, isPasswordSafe } from '../../Validator.js';
+import { generateUID } from '../../valueGenerator.js';
 
 const createAccount = async (email, password) => {
     const Function = async (parameters) => {
+        
+        console.log(requestContext.getStore());
+        
         const systemConfig = globalAccessPoint.getValue("systemConfig");
 
         if (!systemConfig.authMethods.passkey) {
@@ -61,6 +65,9 @@ const createAccount = async (email, password) => {
                 },
                 methods: [
 
+                ],
+                recognizedDevices: [
+                    
                 ]
             },
             profile: {
@@ -113,4 +120,4 @@ const routeHandlerCreateAccount = async (request , response) => {
     return respondWithSuccess(response , 201 , callback);
 }
 
-module.exports = { createAccount , routeHandlerCreateAccount };
+export { createAccount , routeHandlerCreateAccount };;

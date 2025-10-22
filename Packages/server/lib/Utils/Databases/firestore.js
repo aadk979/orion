@@ -1,5 +1,5 @@
-const admin = require('firebase-admin');
-const { logger } = require('../logger');
+import admin from 'firebase-admin';
+import { logger } from '../logger.js';
 
 class FirestoreService {
   constructor(advancedSecurityMode) {
@@ -90,4 +90,4 @@ class FirestoreService {
   }
 }
 
-module.exports = { FirestoreService };
+export { FirestoreService };;

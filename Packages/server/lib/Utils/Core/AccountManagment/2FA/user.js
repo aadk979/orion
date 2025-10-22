@@ -1,69 +1,74 @@
-const { cronScheduler } = require("../../../Cron");
-const { hashString, verifyHash } = require("../../../CryptoFunctions");
-const { isUnixExpired, getFutureUnixTime } = require("../../../Date&Time");
-const { getDeviceDetails } = require("../../../Device");
-const { globalAccessPoint } = require("../../../GlobalAccessPoint");
-const { getIpRange, isIpInRange } = require("../../../Ip");
-const { generateAndSendMail } = require("../../../Mail/sendMail");
-const { tryCatch } = require("../../../TryCatch");
-const { generateRandomNumber, generateRequestId, generateChallenge } = require("../../../valueGenerator");
+import { cronScheduler } from '../../../Cron.js';
+import { hashString, verifyHash } from '../../../CryptoFunctions.js';
+import { isUnixExpired, getFutureUnixTime } from '../../../Date&Time.js';
+import { getDeviceDetails } from '../../../Device.js';
+import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { getIpRange, isIpInRange } from '../../../Ip.js';
+import { generateAndSendMail } from '../../../Mail/sendMail.js';
+import { tryCatch } from '../../../TryCatch.js';
+import { generateRandomNumber, generateRequestId, generateChallenge, generateId } from '../../../valueGenerator.js';
+import { parseCookieData } from '../../../CookieUtils.js';
 
 const userRequires2FA = (user) => {
     return !!user.security.twoFA;
 };
 
-const isDeviceRecognizedForUserUID = async (uid, userAgent, code) => {
-    if (!code) {
+const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
+    if (!code || !deviceId) {
         return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
     }
+
+    const cleanDeviceId = parseCookieData(deviceId);
+    const cleanCode = parseCookieData(code);
 
     const user = await globalAccessPoint.db().getData("Users", uid);
-
-    const devices = user.security.recognizedDevices || [];
-
+    const devices = user.data.security.recognizedDevices || [];
     const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
+    const device = activeDevices.find(item => item.deviceId === cleanDeviceId);
 
-    for (const device of activeDevices) {
-        const match = await verifyHash(code, device.deviceCodeHash);
-        if (match) {
-
-            if (!await verifyHash(userAgent, device.userAgentHash)) {
-                return { error: true, errorCode: "DEVICE-UNRECOGNIZED" }
-            }
-
-            return { error: false };
-        }
-    }
-
-    return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
-};
-
-const isDeviceRecognizedForUserEmail = async (email, userAgent, code) => {
-    const userEmailLink = await globalAccessPoint.db().getData("Users-email", email);
-
-    if (!code) {
+    if (!device) {
         return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
     }
 
-    const user = await globalAccessPoint.db().getData("Users", userEmailLink.uid);
-
-    const devices = user.security.recognizedDevices || [];
-
-    const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
-
-    for (const device of activeDevices) {
-        const match = await verifyHash(code, device.deviceCodeHash);
-        if (match) {
-
-            if (!await verifyHash(userAgent, device.userAgentHash)) {
-                return { error: true, errorCode: "DEVICE-UNRECOGNIZED" }
-            }
-
-            return { error: false };
-        }
+    if (!(await verifyHash(cleanCode, device.deviceCodeHash))) {
+        return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
     }
 
-    return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
+    if (!(await verifyHash(userAgent, device.userAgentHash))) {
+        return { error: true, errorCode: "DEVICE-UNRECOGNIZED" }
+    }
+
+    return { error: false, valid: true };
+};
+
+const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) => {
+    if (!code || !deviceId) {
+        return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
+    }
+
+    const cleanDeviceId = parseCookieData(deviceId);
+    const cleanCode = parseCookieData(code);
+
+    const userEmailLink = await globalAccessPoint.db().getData("Users-email", email);
+    const user = await globalAccessPoint.db().getData("Users", userEmailLink.data.uid);
+    const devices = user.data.security.recognizedDevices || [];
+    const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
+
+    const device = activeDevices.find(item => item.deviceId === cleanDeviceId);
+
+    if (!device) {
+        return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
+    }
+
+    if (!(await verifyHash(cleanCode, device.deviceCodeHash))) {
+        return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
+    }
+
+    if (!(await verifyHash(userAgent, device.userAgentHash))) {
+        return { error: true, errorCode: "DEVICE-UNRECOGNIZED" }
+    }
+
+    return { error: false, valid: true };
 };
 
 const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) => {
@@ -74,7 +79,7 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
 
         const codeHash = await hashString(code);
 
-        const reqID = generateRequestId("DEVICE_AUTHORIZATION", 52);
+        const reqId = generateRequestId("DEVICE_AUTHORIZATION", 52);
 
         const payload = {
             codeHash,
@@ -84,28 +89,28 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
             email: parameters.email
         }
 
-        await globalAccessPoint.db().addData("DeviceAuthorizationRequests", reqID, payload);
+        await globalAccessPoint.db().addData("DeviceAuthorizationRequests", reqId, payload);
 
         const deletionFunction = async (parameters) => {
-            await globalAccessPoint.db().deleteData("DeviceAuthorizationRequests", parameters.reqID);
+            await globalAccessPoint.db().deleteData("DeviceAuthorizationRequests", parameters.reqId);
         }
 
         const parametersInternal = {
-            reqID
+            reqId
         }
 
-        cronScheduler.addEvent(reqID, deletionFunction, "15m", parametersInternal);
+        cronScheduler.addEvent(reqId, deletionFunction, "15m", parametersInternal);
 
         const send = await generateAndSendMail(1, to, { EMAIL: to, CODE: code, IP: parameters.ip, USERAGENT: parameters.userAgent, MODEL: getDeviceDetails(parameters.userAgent).model || "Unkown" });
 
         if (send.error) {
-            cronScheduler.cancelEvent(reqID);
+            cronScheduler.cancelEvent(reqId);
             await deletionFunction(parametersInternal);
 
             return { error: true, errorCode: "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL" };
         }
 
-        return { error: false, sent: true, reqID };
+        return { error: false, sent: true, reqId };
     }
 
     const parameters = {
@@ -122,22 +127,18 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
 
 const authorizeDeviceDirect = async (email, uid, userAgent) => {
     const Function = async (parameters) => {
-        let user = null;
-        let UID = null;
+        let user = undefined;
+        let UID = undefined;
 
-        if (parameters?.uid) {
+        if (parameters.uid) {
             const iUser = await globalAccessPoint.db().getData("Users", parameters.uid);
 
             user = iUser;
             UID = parameters.uid;
         }
 
-        if (parameters?.email) {
+        if (parameters.email) {
             const UserLink = await globalAccessPoint.db().getData("Users-email", parameters.email);
-
-            if (UserLink.data === undefined) {
-                user = UserLink;
-            }
 
             if (UserLink.data !== undefined) {
                 const iUser = await globalAccessPoint.db().getData("Users", UserLink.data.uid);
@@ -152,33 +153,35 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
 
         for (const item of authorizedDevices) {
             if (!isUnixExpired(item.exp)) {
-                if (!await verifyHash(parameters.userAgent, item.userAgentHash)) {
+                if (!(await verifyHash(parameters.userAgent, item.userAgentHash))) {
                     cleanedAuthorizedDevices.push(item);
                 }
             }
         }
 
+        const deviceId = generateId("DEVICE_ID", 32);
         const code = generateChallenge(64);
 
         const newDevice = {
-            exp: getFutureUnixTime("14d"),
+            exp: getFutureUnixTime("7d"),
             deviceCodeHash: await hashString(code),
-            userAgentHash: await hashString(userAgent)
+            userAgentHash: await hashString(parameters.userAgent),
+            deviceId
         }
 
         cleanedAuthorizedDevices.push(newDevice);
 
         user.data.security.recognizedDevices = cleanedAuthorizedDevices;
 
-        await globalAccessPoint.db().addData("Users", UID, user);
+        await globalAccessPoint.db().addData("Users", UID, user.data);
 
-        return { error: false, cookies: [ { key: "authorizedDeviceCodeNonTrackable", value: code, maxAge: 14 * 24 * 60 * 60 * 1000 } ] }
+        return { error: false, cookies: [ { key: "authorizedDeviceCode", data: code, maxAge: 7 * 24 * 60 * 60 * 1000 }, { key: "authorizedDeviceId", data: deviceId, maxAge: 7 * 24 * 60 * 60 * 1000 } ] }
     }
 
     const parameters = {
         email,
         uid,
-        email
+        userAgent    
     }
 
     const results = await tryCatch(Function, true, parameters);
@@ -188,7 +191,7 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
 
 const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) => {
     const Function = async (parameters) => {
-        const storedData = await globalAccessPoint.db().getData("DeviceAuthorizationRequests", parameters.reqID);
+        const storedData = await globalAccessPoint.db().getData("DeviceAuthorizationRequests", parseCookieData(parameters.reqID));
 
         if (storedData.data === undefined) {
             return { error: true , errorCode: "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED" };
@@ -198,19 +201,19 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
             return { error: true , errorCode: "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH" }
         }
 
-        if (!isIpInRange(parameters.ip, storedData.data.ip)) {
+        if (! (await isIpInRange(parameters.ip, storedData.data.ip))) {
             return { error: true , errorCode: "DEVICE-AUTHORIZATION-IP-MISMATCH" }
         }
 
-        if (! await verifyHash(parameters.fingerprint, storedData.data.fingerprintHash)) {
+        if (! (await verifyHash(parameters.fingerprint, storedData.data.fingerprintHash))) {
             return { error: true , errorCode: "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH" }
         }
 
-        if (! await verifyHash(parameters.code, storedData.data.codeHash)) {
+        if (! (await verifyHash(parameters.code, storedData.data.codeHash))) {
             return { error: true , errorCode: "DEVICE-AUTHORIZATION-INVALID-CODE" }
         }
 
-        const authorization = await authorizeDeviceDirect(storedData.email, null, parameters.userAgent);
+        const authorization = await authorizeDeviceDirect(storedData.data.email, undefined, parameters.userAgent);
 
         if (authorization.error) {
             return authorization;
@@ -232,4 +235,4 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
     return results;
 }
 
-module.exports = { sendDeviceAuthorizationMail, userRequires2FA, authorizeDeviceWithCode, isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID }
+export { sendDeviceAuthorizationMail, userRequires2FA, authorizeDeviceWithCode, isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID };

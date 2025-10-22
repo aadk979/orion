@@ -60,7 +60,6 @@ async function signInWithPasskey({ Api, getAuthHeader, dipConfig, This, email })
   await orionVault.setItem("USER_EMAIL", email);
 
   This.setUserSignedInState(true);
-  This.setUser(email);
 
   return { error: false, complete: true };
 }

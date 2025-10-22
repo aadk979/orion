@@ -1,14 +1,15 @@
-const { respondWithError, respondWithSuccess } = require("../../../Server/Response/response");
-const { verifyHash, generateHmac } = require("../../CryptoFunctions");
-const { parseDuration } = require("../../Date&Time");
-const { globalAccessPoint } = require("../../GlobalAccessPoint");
-const { getIp } = require("../../Ip");
-const { sanitizeString } = require("../../Sanitizer");
-const { tryCatch } = require("../../TryCatch");
-const { isValidEmail } = require("../../Validator");
-const { generateId } = require("../../valueGenerator");
-const { generateAccessToken } = require("../TokenManagement/AccessTokens");
-const { generateRefreshToken } = require("../TokenManagement/RefreshTokens");
+import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
+import { verifyHash, generateHmac } from '../../CryptoFunctions.js';
+import { parseDuration } from '../../Date&Time.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { getIp } from '../../Ip.js';
+import { sanitizeString } from '../../Sanitizer.js';
+import { tryCatch } from '../../TryCatch.js';
+import { isValidEmail } from '../../Validator.js';
+import { generateId } from '../../valueGenerator.js';
+import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
+import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
+import { stringifyCookieData } from '../../CookieUtils.js';
 
 const signInWithPassword = async (email, password, fingerprint, ip, userAgent) => {
     const Function = async (parameters) => {
@@ -37,6 +38,10 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
 
         const user = await globalAccessPoint.db().getData("Users", userExist.data.uid);
 
+        if (!user.data.credentials.password) {
+            return { error: true, errorCode: "ACC-SIGN-IN-NO-PASSWORD-SETUP" }
+        }
+
         const passwordMatch = await verifyHash(sanitizedPassword, user.data.credentials.password);
 
         if(!passwordMatch) {
@@ -49,7 +54,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             return { error: true, errorCode: accessToken.errorCode };
         }
 
-        const refreshToken = await generateRefreshToken(user.data.credentials.uid , sanitizedEmail , parameters.fingerprint , "PASSWORD" , "USER" , parameters.ip, accessToken.cookies[0] , parameters.userAgent , accessToken.accessTokenLinkCode);
+        const refreshToken = await generateRefreshToken(user.data.credentials.uid , sanitizedEmail , parameters.fingerprint , "PASSWORD" , "USER" , parameters.ip, parameters.userAgent , accessToken.accessTokenLinkCode);
 
         if(refreshToken.error){
             return { error: true, errorCode: refreshToken.errorCode };
@@ -70,7 +75,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             { key: "SID_HMAC", data: hmac, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ]
 
-        return { error: false, data: response , completed: true, cookies: [...tokenCookies, ...accessToken.cookies] };
+        return { error: false, data: response , completed: true, cookies: [...tokenCookies] };
     }
 
     const parameters = {
@@ -102,10 +107,10 @@ const routeHandlerSignInWithPassword = async (request , response) => {
         return respondWithError(response , callback.errorCode)
     }
 
-    if (callback.cookies) {
+    if (callback?.cookies) {
         for (let i = 0; i < callback.cookies.length; i++) {
             const cookie = callback.cookies[i];
-            response.cookie(cookie.key, JSON.stringify(cookie.data), { httpOnly: true, secure: true, sameSite: "None", maxAge: cookie.maxAge });
+            response.cookie(cookie.key, stringifyCookieData(cookie.data), { httpOnly: true, secure: true, sameSite: "None", maxAge: cookie.maxAge });
         }
     }
     
@@ -114,4 +119,4 @@ const routeHandlerSignInWithPassword = async (request , response) => {
     return respondWithSuccess(response , 200 , callback);
 }
 
-module.exports = { signInWithPassword , routeHandlerSignInWithPassword };
+export { signInWithPassword , routeHandlerSignInWithPassword };

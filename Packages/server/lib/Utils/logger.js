@@ -1,5 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { globalAccessPoint } from './GlobalAccessPoint.js';
 
 class CustomLogger {
   constructor(logFileName = 'app.log', shutdownLogFileName = 'shutdown.log') {
@@ -59,7 +60,6 @@ class CustomLogger {
   // Convenience: pull config from GlobalAccessPoint lazily to avoid circular require
   configureFromGlobalAccessPoint() {
     try {
-      const { globalAccessPoint } = require('./GlobalAccessPoint');
       const systemConfig = globalAccessPoint.getValue('systemConfig');
       if (systemConfig && typeof systemConfig.logToFile === 'boolean') {
         this.logToFile = systemConfig.logToFile;
@@ -127,4 +127,6 @@ class CustomLogger {
 // Export a singleton instance
 const logger = new CustomLogger();
 
-module.exports = { logger };
+globalAccessPoint.setValue("logger", logger);
+
+export { logger };

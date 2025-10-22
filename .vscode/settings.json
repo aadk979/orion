@@ -1,3 +1,34 @@
 {
-    "liveServer.settings.port": 5502
+  "liveServer.settings.port": 5502,
+  "customizeUI.font.regular": "Fira Code",
+  "customizeUI.font.monospace": "Fira Code",
+  // Required for some titlebar tweaks on macOS
+  "window.titleBarStyle": "native",
+
+  // Activity bar position
+  "customizeUI.activityBar": "bottom", // can be "top", "bottom", or "wide"
+
+  // Move statusbar below terminal/output panels
+  "customizeUI.moveStatusbar": true,
+
+  // Hide settings/account icons in activity bar
+  "customizeUI.activityBarHideSettings": true,
+
+  // Font size remapping
+  "customizeUI.fontSizeMap": {
+    "13px": "11px",
+    "12px": "11px",
+    "window-title": "12px",
+    "tab-title": "12px",
+    "monospace": "10.5px"
+  },
+
+  // Row height in file explorer, search, etc.
+  "customizeUI.listRowHeight": 20,
+
+  // Inline custom CSS
+  "customizeUI.stylesheet": {
+    ".search-view .search-widgets-container": "padding-top: 0px !important",
+    ".suggest-input-container": "padding: 3px 4px 3px !important;"
+  }
 }

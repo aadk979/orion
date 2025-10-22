@@ -1,10 +1,10 @@
-const { respondWithError, respondWithSuccess } = require("../../../Server/Response/response");
-const { cronScheduler } = require("../../Cron");
-const { generateHmacKey } = require("../../CryptoFunctions");
-const { globalAccessPoint } = require("../../GlobalAccessPoint");
-const { getIpRange, getIp } = require("../../Ip");
-const { tryCatch } = require("../../TryCatch");
-const { generateRequestId } = require("../../valueGenerator");
+import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
+import { cronScheduler } from '../../Cron.js';
+import { generateHmacKey } from '../../CryptoFunctions.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { getIpRange, getIp } from '../../Ip.js';
+import { tryCatch } from '../../TryCatch.js';
+import { generateRequestId } from '../../valueGenerator.js';
 
 const generateDipConfig = async (ip) => {
   const Function = async (parameters) => {
@@ -48,4 +48,4 @@ const routeHandlerGenerateDipConfig = async (request, response) => {
     return respondWithSuccess(response , 200 , callback.dipConfig);
 };
 
-module.exports = { routeHandlerGenerateDipConfig }
+export { routeHandlerGenerateDipConfig };;

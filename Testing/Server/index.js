@@ -1,11 +1,12 @@
-const { intitiateServer } = require("../../Packages/server/lib/Server/initiateServer");
-const { logger } = require("../../Packages/server/lib/Utils/logger");
-const { configuration } = require("./orion.config");
+import { initiateServer } from "../../Packages/server/lib/Server/initiateServer.js";
+import { sha512Hash, sha256Hash } from "../../Packages/server/lib/Utils/CryptoFunctions.js";
+import { logger } from "../../Packages/server/lib/Utils/logger.js";
+import { configuration } from "./orion.config.js";
 
 const main = async () => {
     try {
         console.clear();
-        const server = await intitiateServer(undefined , configuration);
+        const server = await initiateServer(undefined , configuration);
         server.app.listen(configuration.PORT , ()=>{
             logger.info("Server is up and running")
         })

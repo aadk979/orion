@@ -1,4 +1,4 @@
-const { respondWithSuccess, respondWithError } = require("../../../Server/Response/response");
+import { respondWithSuccess, respondWithError } from '../../../Server/Response/response.js';
 
 const routeHandlerSignOutUser = async (request, response) => {
     if (request.user) {
@@ -16,4 +16,4 @@ const routeHandlerSignOutUser = async (request, response) => {
     return;
 }
 
-module.exports = { routeHandlerSignOutUser }
+export { routeHandlerSignOutUser };;

@@ -1,7 +1,7 @@
-const nodemailer = require("nodemailer");
-const { globalAccessPoint } = require("../GlobalAccessPoint");
-const { logger } = require("../logger");
-const { tryCatch } = require("../TryCatch");
+import nodemailer from 'nodemailer';
+import { globalAccessPoint } from '../GlobalAccessPoint.js';
+import { logger } from '../logger.js';
+import { tryCatch } from '../TryCatch.js';
 
 const sendMail = async (to, subject, text) => {
     const Function = async (parameters) => {
@@ -27,9 +27,9 @@ const sendMail = async (to, subject, text) => {
                 logger.error("MAIL ERROR: " + error);
                 return { error: true , errorCode: "UNABLE-TO-SEND-MAIL" };
             }
-
-            return { error: false , sent: true }
         });
+
+        return { error: false , sent: true }
     }
 
     const parameters = {
@@ -43,4 +43,4 @@ const sendMail = async (to, subject, text) => {
     return result;
 };
 
-module.exports = { sendMail };
+export { sendMail };;

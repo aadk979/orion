@@ -1,4 +1,4 @@
-import { orionVault } from "../../Utils/OrionVault";
+import { orionVault } from "../../Utils/OrionVault.js";
 
 async function signOutUser({ Api, getAuthHeader, This, dipConfig }) {
     const authHeader = await getAuthHeader(true, "ACCESS_BEARER");
@@ -15,10 +15,9 @@ async function signOutUser({ Api, getAuthHeader, This, dipConfig }) {
     const data = await request.json();
     if (data.error) return data.errorData;
 
-    await orionVault.deleteItem("USER_EMAIL", cleanedEmail);
+    await orionVault.deleteItem("USER_EMAIL");
 
     This.setUserSignedInState(false);
-    This.setUser(null)
 
     return { error: false, complete: true };
 }

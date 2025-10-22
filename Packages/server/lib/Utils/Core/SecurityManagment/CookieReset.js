@@ -1,13 +1,4 @@
-// This route handles recovery from inconsistent or corrupted authentication states.
-// Use case: if a user manually deletes one or more critical cookies (e.g., SID, ACCESS_TOKEN)
-// while other valid cookies remain, they can end up "locked out" — unable to authenticate
-// or restore the missing cookie since all API routes block them.
-//
-// Calling this route clears all cookies (including auth-related ones), forcing the user
-// into a clean reauthentication flow. This provides a self-service way to recover without
-// waiting for cookies to naturally expire.
-
-const { respondWithSuccess } = require("../../../Server/Response/response");
+import { respondWithSuccess } from '../../../Server/Response/response.js';
 
 const routeHandlerResetCookies = async (request, response) => {
     const cookies = request.cookies;
@@ -28,4 +19,4 @@ const routeHandlerResetCookies = async (request, response) => {
     return respondWithSuccess(response, 200, { cookiesReset: true });
 }
 
-module.exports = { routeHandlerResetCookies }
+export { routeHandlerResetCookies };;

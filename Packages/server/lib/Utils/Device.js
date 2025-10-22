@@ -1,7 +1,7 @@
-const UAParser = require('ua-parser-js');
+import { UAParser } from 'ua-parser-js';;
 
 function getDeviceDetails(userAgent) {
   return new UAParser(userAgent).getResult();
 }
 
-module.exports = { getDeviceDetails }
+export { getDeviceDetails }

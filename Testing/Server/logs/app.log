@@ -1,0 +1,16 @@
+[2025-10-21T04:32:58.939Z] INFO: Token Secrets Manager: Mass-added 0 JWKs across all partitions
+[2025-10-21T04:32:59.480Z] INFO: Token Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-10-21T04:33:02.041Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-10-21T04:33:02.041Z] INFO: ✅ Service "alpine" ready
+[2025-10-21T04:33:02.041Z] INFO: 🌐 Listening on port: 3495
+[2025-10-21T04:33:02.042Z] INFO: Server is up and running
+[2025-10-21T04:33:58.654Z] INFO: Memory Monitor: 15.052GB / 31.435GB in use (47.88% usage)
+[2025-10-21T04:33:58.955Z] LOG: Token Secrets Manager: Mass-exported 2 partitions
+[2025-10-21T04:33:58.958Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Wed Oct 22 2025 12:33:58 GMT+0800 (Singapore Standard Time)
+[2025-10-21T04:34:58.663Z] INFO: Memory Monitor: 14.946GB / 31.435GB in use (47.55% usage)
+[2025-10-21T04:35:58.679Z] INFO: Memory Monitor: 14.894GB / 31.435GB in use (47.38% usage)
+[2025-10-21T04:36:58.689Z] INFO: Memory Monitor: 14.822GB / 31.435GB in use (47.15% usage)
+[2025-10-21T04:37:58.690Z] INFO: Memory Monitor: 14.863GB / 31.435GB in use (47.28% usage)
+[2025-10-21T04:38:58.700Z] INFO: Memory Monitor: 14.937GB / 31.435GB in use (47.52% usage)
+[2025-10-21T04:39:58.707Z] INFO: Memory Monitor: 14.698GB / 31.435GB in use (46.76% usage)
+[2025-10-21T04:40:58.712Z] INFO: Memory Monitor: 14.766GB / 31.435GB in use (46.97% usage)

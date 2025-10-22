@@ -41,7 +41,6 @@ async function signInUser({ Api, orionVault, email, password, dipConfig, getAuth
   await orionVault.setItem("USER_EMAIL", cleanedEmail);
 
   This.setUserSignedInState(true);
-  This.setUser(cleanedEmail)
 
   return { error: false, complete: true };
 }

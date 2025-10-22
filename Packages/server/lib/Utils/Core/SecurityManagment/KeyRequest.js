@@ -1,12 +1,12 @@
-const { respondWithSuccess, respondWithError } = require("../../../Server/Response/response");
-const { hashString } = require("../../CryptoFunctions");
-const { generateKeyPairDedicated } = require("../../dedicatedCrypto");
-const { globalAccessPoint } = require("../../GlobalAccessPoint");
-const { getIp } = require("../../Ip");
-const { generateRequestId } = require("../../valueGenerator");
+import { respondWithSuccess, respondWithError } from '../../../Server/Response/response.js';
+import { hashString } from '../../CryptoFunctions.js';
+import { generateKeyPairDedicated } from '../../dedicatedCrypto.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { getIp } from '../../Ip.js';
+import { generateRequestId } from '../../valueGenerator.js';
 
 const routeHandlerKeyRequest = async (request , response) => {
-    const keyPair = await generateKeyPairDedicated(4096);
+    const keyPair = await generateKeyPairDedicated(2048);
 
     const publicKey = keyPair.publicKey;
     const privateKey = keyPair.privateKey;
@@ -30,6 +30,6 @@ const routeHandlerKeyRequest = async (request , response) => {
     return respondWithSuccess(response, 200, { requestId: requestId, publicKey: publicKey });
 }
 
-module.exports = {
+export {
     routeHandlerKeyRequest,
-}
+};;

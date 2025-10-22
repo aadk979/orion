@@ -1,5 +1,3 @@
-import { orionVault } from "./OrionVault.js";
-
 const authConfigs = new Map([
     ["ACCESS_BEARER", "SIGNED-IN"],
     ["REFRESH_BEARER", "SIGNED-IN"],

@@ -1,5 +1,5 @@
-const cron = require('node-cron');
-const { logger } = require('./logger');
+import cron from 'node-cron';
+import { logger } from './logger.js';
 
 class EventScheduler {
     constructor() {
@@ -53,4 +53,4 @@ class EventScheduler {
 
 const cronScheduler = new EventScheduler();
 
-module.exports = { cronScheduler };
+export { cronScheduler };;

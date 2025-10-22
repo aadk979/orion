@@ -10,7 +10,7 @@ async function signUpUser({ Api, email, password, getAuthHeader, This, dipConfig
   if (cleanedPassword.length < 8) return { error: true, errorCode: "CLIENT-PASSWORD-TOO-SHORT" };
 
   const strength = checkPasswordStrength(cleanedPassword);
-  if (!strength) return { error: true, errorCode: "CLIENT-PASSWORD-TOO-WEAK" };
+  if (strength === "Weak" || strength === "Too Short") return { error: true, errorCode: "CLIENT-PASSWORD-TOO-WEAK" };
 
   const encryptedPayload = await Api.prepareDataForEncryption({ email: cleanedEmail, password: cleanedPassword });
   const authHeader = await getAuthHeader(false, "NO_AUTH_BEARER");

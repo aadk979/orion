@@ -1,7 +1,8 @@
-const { verifyRegistrationResponse } = require("@simplewebauthn/server");
-const { globalAccessPoint } = require("../../../GlobalAccessPoint");
-const { tryCatch } = require("../../../TryCatch");
-const { respondWithError, respondWithSuccess } = require("../../../../Server/Response/response");
+import { verifyRegistrationResponse } from '@simplewebauthn/server';
+import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { tryCatch } from '../../../TryCatch.js';
+import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
+import { parseCookieData } from '../../../CookieUtils.js';
 
 const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async (parameters) => {
@@ -11,7 +12,7 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
             return { error: true, errorCode: "PASSKEY-SIGN-IN-DISABLED" }
         }
         
-        const cookie = parameters.cookie ? JSON.parse(parameters.cookie) : undefined;
+        const cookie = parameters.cookie ? parseCookieData(parameters.cookie) : undefined;
 
         if (!cookie) {
             return { error: true , errorCode: "PASSKEY-REGISTRATION-EXPIRED" };
@@ -83,4 +84,4 @@ const routeHandlerVerifyAndCompletePasskeyRegistration = async (request, respons
     return respondWithSuccess(response, 200, callback.data);
 }
 
-module.exports = { routeHandlerVerifyAndCompletePasskeyRegistration }
+export { routeHandlerVerifyAndCompletePasskeyRegistration };;

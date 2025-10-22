@@ -1,12 +1,23 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Always build relative to this script’s location
 const numToPathMap = {
-    1: "./email_templates/deviceAuthorization.txt"
-}
+  1: path.join(__dirname, "email_templates", "deviceAuthorization.txt"),
+};
 
 function generateEmailFromTemplate(numPath, data) {
-  const template = fs.readFileSync(path.resolve(numToPathMap[numPath]), "utf-8");
+  const templatePath = numToPathMap[numPath];
+
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Email template not found at: ${templatePath}`);
+  }
+
+  const template = fs.readFileSync(templatePath, "utf-8");
 
   const subjectMatch = template.match(/<SUBJECT>(.*?)<\/SUBJECT>/s);
   if (!subjectMatch) {
@@ -17,11 +28,10 @@ function generateEmailFromTemplate(numPath, data) {
   let body = template.replace(subjectMatch[0], "").trim();
 
   for (const [key, value] of Object.entries(data)) {
-    const placeholder = new RegExp(`<${key}>`, "g");
-    body = body.replace(placeholder, value);
+    body = body.replace(new RegExp(`<${key}>`, "g"), value);
   }
 
   return { subject, body };
 }
 
-module.exports = { generateEmailFromTemplate }
+export { generateEmailFromTemplate };

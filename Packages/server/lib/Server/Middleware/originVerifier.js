@@ -1,5 +1,4 @@
-const { generateChallenge } = require("../../Utils/valueGenerator");
-const { respondWithError } = require("../Response/response");
+import { respondWithError } from '../Response/response.js';
 
 class originVerifier {
   static systemConfig;
@@ -84,4 +83,4 @@ class originVerifier {
   }
 }
 
-module.exports = { originVerifier };
+export { originVerifier };;

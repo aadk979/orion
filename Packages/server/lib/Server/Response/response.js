@@ -1,5 +1,5 @@
-const { internalErrors } = require("../../Errors/internal-errors");
-const { logger } = require("../../Utils/logger");
+import { internalErrors } from '../../Errors/internal-errors.js';
+import { logger } from '../../Utils/logger.js';
 
 const respondWithError = (response , errorCode) => {
     
@@ -8,6 +8,8 @@ const respondWithError = (response , errorCode) => {
     }
 
     response.header({ "orion-response-status": internalErrors[errorCode]?.customStatus || internalErrors[errorCode]?.status });
+
+    response.setHeader("Access-Control-Expose-Headers", "Orion-Flow-Activation, orion-flow-activation");
 
     const error = internalErrors[errorCode] || internalErrors["UNKNOWN-ERROR"];
     response.status(error.status).json( { error: true , errorData: { ...error } } );
@@ -24,4 +26,4 @@ const respondWithSuccess = (response , status = 200 , data, customStatus) => {
     return;
 }
 
-module.exports = { respondWithError , respondWithSuccess }
+export { respondWithError , respondWithSuccess };;

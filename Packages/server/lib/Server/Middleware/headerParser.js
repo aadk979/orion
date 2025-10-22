@@ -1,4 +1,4 @@
-const { respondWithError } = require("../Response/response");
+import { respondWithError } from '../Response/response.js';
 
 const orionHeaders = [
     "orion-fingerprint",
@@ -59,4 +59,4 @@ class headerParser {
     }
 }
 
-module.exports = { headerParser };
+export { headerParser };;

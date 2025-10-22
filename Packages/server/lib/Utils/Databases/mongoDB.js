@@ -1,6 +1,6 @@
-const { MongoClient } = require("mongodb");
-const { logger } = require("../logger");
-const { globalAccessPoint } = require("../GlobalAccessPoint");
+import { MongoClient } from 'mongodb';
+import { logger } from '../logger.js';
+import { globalAccessPoint } from "../GlobalAccessPoint.js";
 
 class MongoService {
   constructor(advancedSecurityMode) {
@@ -109,4 +109,4 @@ class MongoService {
   }
 }
 
-module.exports = { MongoService };
+export { MongoService };;
