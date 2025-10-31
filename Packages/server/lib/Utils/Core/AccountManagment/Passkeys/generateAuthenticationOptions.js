@@ -2,7 +2,7 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
-import { isValidEmail } from '../../../Validator.js';
+import { isValidEmail, isValidEmailDomain } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { stringifyCookieData } from '../../../CookieUtils.js';
 
@@ -26,6 +26,14 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (
     if (!emailValid) {
       return { error: true, errorCode: "PASSKEY-AUTH-INVALID-EMAIL" };
     }
+
+    if (globalAccessPoint.getValue("allowedEmailDomains") !== "*") {
+      const emailValidation = isValidEmailDomain(globalAccessPoint.getValue("allowedEmailDomains"), sanitizedEmail);
+
+      if (!emailValidation) {
+          return respondWithError(parameters.response, "EMAIL-DOMAIN-NOT-ALLOWED");
+      }
+  }
 
     const userLink = await globalAccessPoint
       .db()

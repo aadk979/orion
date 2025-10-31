@@ -1,8 +1,10 @@
-import { isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID, sendDeviceAuthorizationMail } from "../../Utils/Core/AccountManagment/2FA/user.js";
+import { isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID, sendDeviceAuthorizationMail } from "../../Utils/Core/AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js";
+import { userControl } from "../../Utils/Core/AccountManagment/UserControl.js";
 import { parseDuration } from "../../Utils/Date&Time.js";
 import { globalAccessPoint } from "../../Utils/GlobalAccessPoint.js";
 import { getIp } from "../../Utils/Ip.js";
 import { tryCatch } from "../../Utils/TryCatch.js"
+import { isValidEmailDomain } from "../../Utils/Validator.js";
 import { respondWithError } from "../Response/response.js";
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
@@ -15,6 +17,12 @@ const PUBLIC_ROUTES_FOR_DEVICE_CHECK = [
 
 const deviceCheckMiddlware = async (request, response, next) => {
     const Function = async (parameters) => {
+        const deviceAuthorizationEnabled = globalAccessPoint.getValue("deviceAuthorization");
+
+        if (!deviceAuthorizationEnabled) {
+            return parameters.next();
+        }
+
         const authedUser = (parameters.request?.user !== undefined) ? true : false;
 
         const headers = parameters.request.headers;
@@ -39,7 +47,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
             parameters.response.cookie("authorizedDeviceCode", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
 
-            return respondWithError(parameters.response, "DEVICE-2FA-MISSING-META-DATA");
+            return respondWithError(parameters.response, "DEVICE-MISSING-META-DATA");
         }
 
        if (authedUser === true) {
@@ -79,6 +87,20 @@ const deviceCheckMiddlware = async (request, response, next) => {
             }
 
             const email = parameters.request.body.packet.email;
+
+            if (globalAccessPoint.getValue("allowedEmailDomains") !== "*") {
+                const emailValidation = isValidEmailDomain(globalAccessPoint.getValue("allowedEmailDomains"), email);
+
+                if (!emailValidation) {
+                    return respondWithError(parameters.response, "EMAIL-DOMAIN-NOT-ALLOWED");
+                }
+            }
+
+            const userAccState = await userControl.getUserAccountState().byEmail(email);
+
+            if (userAccState.disabled) {
+                return respondWithError(parameters.response, "DEVICE-2FA-ACC-DISABLED");
+            }
 
             if (!deviceId || !deviceCode) {
                 const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(email, fingerprint, ip, userAgent);

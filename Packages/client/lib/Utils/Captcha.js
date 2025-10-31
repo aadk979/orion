@@ -416,7 +416,7 @@ async function checkAndDeployCaptcha(serverURL, nameSpace) {
 
   const data = await req.json();
   
-  if (!data?.data?.valid || data.error) {
+  if ((data.error && data.errorData.errorCode !== "NO-AUTH-TOKEN-DISABLED")) {
     await createModalCaptcha(serverURL, nameSpace);
   }
 }

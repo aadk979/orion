@@ -100,12 +100,16 @@ const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     }
 }
 
-const handleValidateTokenTypeAndpresence = (parameters, tokenType) => {
+const handleValidateTokenTypeAndpresence = (parameters, tokenType, noAuthTokenEnabled) => {
     if (!TOKEN_TYPES.includes(tokenType)) {
         return { error: true, errorCode: "INVALID-AUTHENTICATION-TOKEN-TYPE" };
     }
 
-    if (tokenType !== "NO_BEARER" && !parameters.request.cookies["NO_AUTH_TOKEN"] && !parameters.request.cookies["ACCESS_TOKEN"] && !parameters.request.cookies["REFRESH_TOKEN"]) {
+    if (tokenType !== "NO_BEARER" && tokenType !== "NO_AUTH_BEARER" && !parameters.request.cookies["ACCESS_TOKEN"] && !parameters.request.cookies["REFRESH_TOKEN"]) {
+        return { error: true, errorCode: "MISSING-AUTHENTICATION-TOKEN" };
+    }
+
+    if (tokenType === "NO_AUTH_BEARER" && !parameters.request.cookies["NO_AUTH_TOKEN"] && noAuthTokenEnabled) {
         return { error: true, errorCode: "MISSING-AUTHENTICATION-TOKEN" };
     }
 
@@ -114,6 +118,9 @@ const handleValidateTokenTypeAndpresence = (parameters, tokenType) => {
 
 const authenticationMiddleware = async (request , response , next) => {
     const Function = async (parameters) => {
+
+        // When captcha system is disabled all public routes are no longer protected and free to access
+        const noAuthTokenEnabled = globalAccessPoint.getValue("captcha");
         
         const headers = parameters.request.headers;
         const fingerprint = headers["orion-fingerprint"];
@@ -138,7 +145,7 @@ const authenticationMiddleware = async (request , response , next) => {
         setBy = verifyEndpoint.setBy;
         authRequired = verifyEndpoint.authRequired;
 
-        const softTokenValidation = handleValidateTokenTypeAndpresence(parameters, tokenType);
+        const softTokenValidation = handleValidateTokenTypeAndpresence(parameters, tokenType, noAuthTokenEnabled);
 
         if (softTokenValidation.error) {
             return  respondWithError(parameters.response, softTokenValidation.errorCode);
@@ -217,6 +224,10 @@ const authenticationMiddleware = async (request , response , next) => {
 
             case "NO_AUTH_BEARER":
 
+                if (!noAuthTokenEnabled) {
+                    return parameters.next();
+                }
+
                 if (authRequired) {
                     return respondWithError(parameters.response, "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE")
                 }
@@ -241,6 +252,10 @@ const authenticationMiddleware = async (request , response , next) => {
                 return parameters.next();
             
             case "NO_BEARER":
+
+                if (!noAuthTokenEnabled) {
+                    return parameters.next();
+                }
                 
                 if (authRequired) {
                     return respondWithError(parameters.response, "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE")

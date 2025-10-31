@@ -26,6 +26,12 @@ const dipMiddleware = async (request, response, next) => {
       return parameters.next();
     }
 
+    const dipEnabled = globalAccessPoint.getValue("dip");
+
+    if (!dipEnabled) {
+        return parameters.next();
+    }
+
     const headers = parameters.request.headers;
     const dipStateHeader = headers["orion-dip-state"] || "DEFAULT NONE";
     const dipIdHeader = headers["orion-dip-id"] || "DEFAULT NONE";

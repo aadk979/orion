@@ -8,6 +8,13 @@ import { generateRequestId } from '../../valueGenerator.js';
 
 const generateDipConfig = async (ip) => {
   const Function = async (parameters) => {
+
+    const dipEnabled = globalAccessPoint.getValue("dip");
+
+    if (!dipEnabled) {
+        return { error: true, errorCode: "DIP-DISABLED" };
+    }
+
     const signatureKey = await generateHmacKey();
     const requestId = generateRequestId("DIP");
 

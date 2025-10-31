@@ -11,10 +11,14 @@ import { logger } from '../../logger.js';
 
 class OAuthProviderToolkit {
     constructor(config) {
+
         if (OAuthProviderToolkit.instance) {
             logger.error("There can only be one instance of OAuth provider tool kit!");
             return;
         }
+
+        // This is an array of tested clients that are safe to be initilaized
+        this.allowedClients = [ "google", "github", "discord", "slack", "microsoft" ]
 
         this.config = config;
         this.clients = {};
@@ -32,17 +36,24 @@ class OAuthProviderToolkit {
                 emailUrl: 'https://api.github.com/user/emails',
                 scope: 'user:email'
             },
-            microsoft: {
-                authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-                tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-                userInfoUrl: 'https://graph.microsoft.com/v1.0/me',
-                scope: 'openid email profile User.Read'
-            },
             discord: {
                 authUrl: 'https://discord.com/api/oauth2/authorize',
                 tokenUrl: 'https://discord.com/api/oauth2/token',
                 userInfoUrl: 'https://discord.com/api/users/@me',
                 scope: 'identify email'
+            },
+            slack: {
+                authUrl: 'https://slack.com/oauth/v2/authorize',
+                tokenUrl: 'https://slack.com/api/oauth.v2.access',
+                userInfoUrl: 'https://slack.com/api/users.identity',
+                scope: 'identity.basic,identity.email,identity.avatar',
+                specialHandling: 'slack' // Uses user_scope instead of scope
+            },
+            microsoft: {
+                authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+                tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+                userInfoUrl: 'https://graph.microsoft.com/v1.0/me',
+                scope: 'openid email profile User.Read'
             },
             facebook: {
                 authUrl: 'https://www.facebook.com/v23.0/dialog/oauth',
@@ -55,13 +66,6 @@ class OAuthProviderToolkit {
                 tokenUrl: 'https://api.amazon.com/auth/o2/token',
                 userInfoUrl: 'https://api.amazon.com/user/profile',
                 scope: 'profile'
-            },
-            slack: {
-                authUrl: 'https://slack.com/oauth/v2/authorize',
-                tokenUrl: 'https://slack.com/api/oauth.v2.access',
-                userInfoUrl: 'https://slack.com/api/users.identity',
-                scope: 'identity.basic,identity.email,identity.avatar',
-                specialHandling: 'slack' // Uses user_scope instead of scope
             },
             apple: {
                 authUrl: 'https://appleid.apple.com/auth/authorize',
@@ -107,6 +111,10 @@ class OAuthProviderToolkit {
     async initializeProvider(providerName) {
         const provider = this.providers[providerName];
         const config = this.config[providerName];
+
+        if (!this.allowedClients.includes(providerName) && !config?.explicitAllow) {
+            return;
+        }
 
         if (!config) return false; // skip silently if not configured
         if (!provider) {
@@ -175,7 +183,7 @@ class OAuthProviderToolkit {
         if (tokenResponse?.error) {
             return tokenResponse;
         }
-        const accessToken = tokenResponse.access_token;
+        const accessToken = providerName !== "slack" ? tokenResponse.access_token : tokenResponse.authed_user.access_token;
 
         const userInfoResponse = await this.getUserInfo(providerName, client, accessToken);
         if (userInfoResponse?.error) {
@@ -213,7 +221,8 @@ class OAuthProviderToolkit {
             headers['Authorization'] = `Basic ${credentials}`;
             params.delete('client_id');
             params.delete('client_secret');
-        }
+        }   
+          
 
         try {
             const response = await axios.post(client.tokenUrl, params.toString(), { headers });
@@ -237,6 +246,7 @@ class OAuthProviderToolkit {
             });
             return await this.normalizeUserInfo(providerName, userResponse.data, accessToken, client);
         } catch (error) {
+            console.error(error)
             return { error: true, errorCode: "O-AUTH-USERINFO-FAILED" };
         }
     }
@@ -331,7 +341,9 @@ class OAuthProviderToolkit {
                 };
 
             case 'slack': {
+                console.log(userData)
                 const user = userData.user;
+                console.log(user)
                 return {
                     id: user.id,
                     email: user.email,
@@ -402,6 +414,11 @@ class OAuthProviderToolkit {
 
         const promises = configuredProviders.map(async (provider) => {
             try {
+
+                if (!this.allowedClients.includes(provider)) {
+                    logger.warn(`Intialization of provider ${provider} has been disabled in this release as it has not been fully tested. You may manually override this by setting explicit allow in the config object for the specific provider.`)
+                }
+
                 const initialized = await this.initializeProvider(provider);
                 if (initialized !== false) return provider;
             } catch (error) {

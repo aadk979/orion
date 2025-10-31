@@ -25,11 +25,13 @@ import { MemoryMonitoringSystem } from '../Utils/Systems/MemoryMonitoringSystem.
 import { serverStatusMiddlware } from './Middleware/serverStatus.js';
 import { handleOnStartConfiguration } from './onStartConfigurations.js';
 import { requestMetadataMiddleware } from './Middleware/requestMetadata.js';
+import { AuditTrailSystem } from '../Utils/Systems/AuditTrailSystem.js';
+import { resourceAccessMiddleware } from './Middleware/resourceAccess.js';
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
   rateLimitWindowMs: 15 * 60 * 1000,
-  maxRequests: 1000000,
+  maxRequests: 200,
   sizeLimit: '10mb',
 });
 
@@ -47,6 +49,7 @@ const buildMiddlewarePipeline = (systemConfig) => {
     cookieParser(),
     // Custom middlewares
     serverStatusMiddlware,
+    resourceAccessMiddleware,
     OriginVerifier.verifyOrigin,
     HeaderParser.verifyHeader,
     HeaderParser.parseHeader,
@@ -154,11 +157,19 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     globalAccessPoint.setValue('tokenSecretsManager', tokenSecretsManager);
     globalAccessPoint.setValue('memoryHandlerSystem', memoryHandlerSystem);
 
-    globalAccessPoint.setValue("server", { lockdown: false });
+    // Init Audit Trail System (Intialized later since it refernces system config via global access point)
+    const auditTrailSystem = new AuditTrailSystem(systemConfig?.auditTrailSystem?.enabled || false);
+    globalAccessPoint.setValue('auditTrailSystem', auditTrailSystem);
+    
+    // Initialize audit trail system (creates database and tables if needed)
+    await auditTrailSystem.initialize();
+    
+    globalAccessPoint.setValue('server', { lockdown: false });
 
     await handleOnStartConfiguration();
 
     const app = express();
+
     app.set('trust proxy', 1);
 
     // Apply rate limiter
@@ -172,12 +183,7 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     registerRoutes(app, defaultServerRoutes.endpoints);
     registerRoutes(app, mergedConfig.api?.customEndpoints || [], mergedConfig.api?.customMiddlewares || []);
 
-    // Logs
-    // Configure logger after system config is available to avoid circular require
-    if (typeof logger.configureFromGlobalAccessPoint === 'function') {
-      logger.configureFromGlobalAccessPoint();
-    }
-    logger.info(`✅ Service "${mergedConfig.name || 'Unnamed'}" ready`);
+    logger.info(`✅ Service "${mergedConfig.appName || 'Unnamed'}" ready`);
     logger.info(`🆔 Service ID: ${mergedConfig.serviceID || 'Unidentified'}`);
     logger.info(`🌐 Listening on port: ${mergedConfig.PORT || 'Not Set (dev?)'}`);
 

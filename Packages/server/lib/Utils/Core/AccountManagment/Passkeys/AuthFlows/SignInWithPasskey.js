@@ -9,22 +9,83 @@ import { generateAccessToken } from '../../../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../../../TokenManagement/RefreshTokens.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../completeAuthentication.js';
 import { stringifyCookieData } from '../../../../CookieUtils.js';
+import { requestContext } from '../../../../../Server/Middleware/requestMetadata.js';
+import { userControl } from '../../UserControl.js';
 
 const signInWithPasskey = async (authenticationResponse, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip) => {
     const Function = async (parameters) => {
+        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const requestMetadata = requestContext.getStore();
         const systemConfig = globalAccessPoint.getValue("systemConfig");
 
         if (!systemConfig.authMethods.passkey) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: parameters.fingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "PASSKEY_SIGN_IN_ATTEMPT",
+                status: "FAILED",
+                source: "SignInWithPasskey.js",
+                functionName: "signInWithPasskey",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "Passkey sign in blocked - method disabled",
+                metadata: { reason: "PASSKEY_DISABLED" },
+                errorCode: "PASSKEY-SIGN-IN-DISABLED"
+            });
             return { error: true, errorCode: "PASSKEY-SIGN-IN-DISABLED" }
+        }
+
+        const userAccState = await userControl.getUserAccountState().byEmail(parameters.email);
+
+        if (userAccState.disabled) {
+            return { error: true, errorCode: "PASSKEY-SIGN-IN-ACC-DISABLED" }
         }
 
         const verification = await veryifyAndCompletePasskeyAuthentication(parameters.authenticationResponse, parameters.cookie, parameters.email, parameters.expectedOrigin, parameters.parsedClientURL);
 
         if (verification.error) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: parameters.fingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "PASSKEY_SIGN_IN_ATTEMPT",
+                status: "FAILED",
+                source: "SignInWithPasskey.js",
+                functionName: "signInWithPasskey",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "Passkey authentication failed",
+                metadata: { 
+                    reason: "VERIFICATION_FAILED",
+                    errorCode: verification.errorCode
+                },
+                errorCode: verification.errorCode
+            });
             return { error: true, errorCode: verification.errorCode };
         }
 
         if (!verification.authenticated) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: parameters.fingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "PASSKEY_SIGN_IN_ATTEMPT",
+                status: "FAILED",
+                source: "SignInWithPasskey.js",
+                functionName: "signInWithPasskey",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "Passkey authentication failed - unable to authenticate",
+                metadata: { reason: "AUTHENTICATION_FAILED" },
+                errorCode: "PASSKEY-UNABLE-TO-AUTHENTICATE"
+            });
             return { error: true, errorCode: "PASSKEY-UNABLE-TO-AUTHENTICATE" }
         }
 
@@ -33,12 +94,50 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
         const accessToken = await generateAccessToken(user.data.credentials.uid , email , parameters.fingerprint , "PASSKEY" , "USER" , parameters.ip , parameters.userAgent);
 
         if(accessToken.error){
+            auditTrail.record({
+                user: { email: parameters.email, uid: verification.uid },
+                device: { 
+                    fingerprint: parameters.fingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "PASSKEY_SIGN_IN_ATTEMPT",
+                status: "FAILED",
+                source: "SignInWithPasskey.js",
+                functionName: "signInWithPasskey",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "Passkey sign in failed - access token generation error",
+                metadata: { 
+                    reason: "ACCESS_TOKEN_GENERATION_FAILED",
+                    errorCode: accessToken.errorCode
+                },
+                errorCode: accessToken.errorCode
+            });
             return { error: true, errorCode: accessToken.errorCode };
         }
 
         const refreshToken = await generateRefreshToken(user.data.credentials.uid , email , parameters.fingerprint , "PASSKEY" , "USER" , parameters.ip , parameters.userAgent , accessToken.accessTokenLinkCode);
 
         if(refreshToken.error){
+            auditTrail.record({
+                user: { email: parameters.email, uid: verification.uid },
+                device: { 
+                    fingerprint: parameters.fingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "PASSKEY_SIGN_IN_ATTEMPT",
+                status: "FAILED",
+                source: "SignInWithPasskey.js",
+                functionName: "signInWithPasskey",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "Passkey sign in failed - refresh token generation error",
+                metadata: { 
+                    reason: "REFRESH_TOKEN_GENERATION_FAILED",
+                    errorCode: refreshToken.errorCode
+                },
+                errorCode: refreshToken.errorCode
+            });
             return { error: true, errorCode: refreshToken.errorCode };
         }
 
@@ -56,6 +155,26 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             { key: "SID", data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
             { key: "SID_HMAC", data: hmac, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ]
+
+        auditTrail.record({
+            user: { email: parameters.email, uid: verification.uid },
+            device: { 
+                fingerprint: parameters.fingerprint,
+                userAgent: parameters.userAgent 
+            },
+            action: "PASSKEY_SIGN_IN_SUCCESS",
+            status: "SUCCESS",
+            source: "SignInWithPasskey.js",
+            functionName: "signInWithPasskey",
+            requestId: requestMetadata?.requestId,
+            ipAddress: parameters.ip,
+            impact: "User successfully signed in with passkey",
+            metadata: { 
+                method: "PASSKEY",
+                accessTokenGenerated: true,
+                refreshTokenGenerated: true
+            }
+        });
 
         return { error: false, data: response , completed: true, cookies: [...tokenCookies, ...accessToken.cookies] };
 

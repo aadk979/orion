@@ -4,17 +4,33 @@ import { hashString } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
-import { isValidEmail, isPasswordSafe } from '../../Validator.js';
+import { isValidEmail, isPasswordSafe, isValidEmailDomain } from '../../Validator.js';
 import { generateUID } from '../../valueGenerator.js';
 
 const createAccount = async (email, password) => {
     const Function = async (parameters) => {
-        
-        console.log(requestContext.getStore());
+        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const requestMetadata = requestContext.getStore();
         
         const systemConfig = globalAccessPoint.getValue("systemConfig");
 
         if (!systemConfig.authMethods.passkey) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: requestMetadata?.fingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "ACCOUNT_CREATION_ATTEMPT",
+                status: "FAILED",
+                source: "CreateAccount.js",
+                functionName: "createAccount",
+                requestId: requestMetadata?.requestId,
+                ipAddress: requestMetadata?.ip,
+                impact: "Account creation blocked - method disabled",
+                metadata: { reason: "EMAIL_PASSWORD_DISABLED" },
+                errorCode: "ACC-REG-EMAIL-PASSWORD-DISABLED"
+            });
             return { error: true, errorCode: "ACC-REG-EMAIL-PASSWORD-DISABLED" }
         }
 
@@ -26,18 +42,74 @@ const createAccount = async (email, password) => {
         const emailValid = isValidEmail(sanitizedEmail);
 
         if (!emailValid) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: requestMetadata?.fingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "ACCOUNT_CREATION_ATTEMPT",
+                status: "FAILED",
+                source: "CreateAccount.js",
+                functionName: "createAccount",
+                requestId: requestMetadata?.requestId,
+                ipAddress: requestMetadata?.ip,
+                impact: "Account creation blocked - invalid email",
+                metadata: { reason: "INVALID_EMAIL_FORMAT" },
+                errorCode: "ACC-REG-INVALID-EMAIL"
+            });
             return { error: true, errorCode: "ACC-REG-INVALID-EMAIL" }
+        }
+
+        if (globalAccessPoint.getValue("allowedEmailDomains") !== "*") {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue("allowedEmailDomains"), sanitizedEmail);
+
+            if (!emailValidation) {
+                return respondWithError(parameters.response, "EMAIL-DOMAIN-NOT-ALLOWED");
+            }
         }
 
         const user = await globalAccessPoint.db().getData("Users-email", sanitizedEmail);
 
         if (user.data !== undefined) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: requestMetadata?.fingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "ACCOUNT_CREATION_ATTEMPT",
+                status: "FAILED",
+                source: "CreateAccount.js",
+                functionName: "createAccount",
+                requestId: requestMetadata?.requestId,
+                ipAddress: requestMetadata?.ip,
+                impact: "Account creation blocked - account already exists",
+                metadata: { reason: "ACCOUNT_EXISTS" },
+                errorCode: "ACC-REG-ACC-EXISTS"
+            });
             return { error: true, errorCode: "ACC-REG-ACC-EXISTS" };
         }
 
         const passwordStrong = isPasswordSafe(sanitizedPassword);
 
         if (!passwordStrong) {
+            auditTrail.record({
+                user: { email: parameters.email },
+                device: { 
+                    fingerprint: requestMetadata?.fingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "ACCOUNT_CREATION_ATTEMPT",
+                status: "FAILED",
+                source: "CreateAccount.js",
+                functionName: "createAccount",
+                requestId: requestMetadata?.requestId,
+                ipAddress: requestMetadata?.ip,
+                impact: "Account creation blocked - weak password",
+                metadata: { reason: "WEAK_PASSWORD" },
+                errorCode: "ACC-REG-PASSWORD-WEAK"
+            });
             return { error: true, errorCode: "ACC-REG-PASSWORD-WEAK" }
         }
 
@@ -45,6 +117,7 @@ const createAccount = async (email, password) => {
         const uid = generateUID(sanitizedEmail);
 
         const userObject = {
+            role: "USER",
             credentials: {
                 password: hashedPassword,
                 passkey: {
@@ -53,7 +126,8 @@ const createAccount = async (email, password) => {
                 uid: uid,
                 providers: [
 
-                ]
+                ],
+                email: sanitizedEmail
             },
             security: {
                 emailVerified: false,
@@ -89,8 +163,48 @@ const createAccount = async (email, password) => {
         const userLinkStorage = await globalAccessPoint.db().addData("Users-email" , sanitizedEmail , userLinkObject);
 
         if(userStorage.error || userLinkStorage.error){
+            auditTrail.record({
+                user: { email: parameters.email, uid: uid },
+                device: { 
+                    fingerprint: requestMetadata?.fingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "ACCOUNT_CREATION_ATTEMPT",
+                status: "FAILED",
+                source: "CreateAccount.js",
+                functionName: "createAccount",
+                requestId: requestMetadata?.requestId,
+                ipAddress: requestMetadata?.ip,
+                impact: "Account creation failed - database error",
+                metadata: { 
+                    reason: "DATABASE_ERROR",
+                    userStorageError: userStorage.error,
+                    userLinkStorageError: userLinkStorage.error
+                },
+                errorCode: "ACC-REG-UNABLE-TO-CREATE-ACC"
+            });
             return { error: true , errorCode: "ACC-REG-UNABLE-TO-CREATE-ACC" }
         }
+
+        auditTrail.record({
+            user: { email: parameters.email, uid: uid },
+            device: { 
+                fingerprint: requestMetadata?.fingerprint,
+                userAgent: requestMetadata?.userAgent 
+            },
+            action: "ACCOUNT_CREATION_SUCCESS",
+            status: "SUCCESS",
+            source: "CreateAccount.js",
+            functionName: "createAccount",
+            requestId: requestMetadata?.requestId,
+            ipAddress: requestMetadata?.ip,
+            impact: "New account created successfully",
+            metadata: { 
+                method: "EMAIL_PASSWORD",
+                emailVerified: false,
+                twoFAEnabled: false
+            }
+        });
 
         return { error: false , completed: true }
     }

@@ -64,8 +64,8 @@ class originVerifier {
       return callback(null, false);
     }
 
-    // Allow all if configured
-    if (originVerifier.systemConfig.client.allowAll) {
+    // Allow all if configured (DEPRECATED, due to security vulneribility in token aud)
+    if (originVerifier.systemConfig.client.allowAll && false) {
       return callback(null, true);
     }
 

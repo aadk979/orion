@@ -5,9 +5,11 @@
  * DO NOT TOUCH IF YOU DO NOT KNOW WHAT YOU ARE DOING
  */
 
+import { validateRASCallbacks } from "../Utils/Core/ResourceAccessManagment/callbackBasedResources/callbackValidator.js";
 import { cronScheduler } from "../Utils/Cron.js";
 import { readFromCaller, writeToCaller } from "../Utils/FileHandler.js";
 import { globalAccessPoint } from "../Utils/GlobalAccessPoint.js"
+import { logger } from "../Utils/logger.js";
 import { generateRandomNumber } from "../Utils/valueGenerator.js";
 
 const TOKEN_SECRETS_FILE_NAME = "orion.internal.token_secrets.json";
@@ -123,10 +125,122 @@ const handleDatabaseLiveCheck = async () => {
     return;
 }
 
+const utilIsValidDomainFormat = (domain) => {
+    return typeof domain === 'string' && 
+           domain.length > 0 && 
+           !domain.includes(' ') && 
+           domain.includes('.');
+}
+
+const handleConfigValidationForEmailDomains = () => {
+    const systemConfig = globalAccessPoint.systemConfig();
+    const domains = systemConfig?.authMethods?.allowedEmailDomains;
+
+    if (!domains || domains.length === 0) {
+        globalAccessPoint.setValue("allowedEmailDomains", "*");
+        logger.warn("No email domains configured, defaulting to ALLOW ALL");
+        return;
+    }
+
+    const hasWildcard = domains.includes("*");
+    const hasSpecificDomains = domains.length > 1 || (domains.length === 1 && domains[0] !== "*");
+    
+    if (hasWildcard && hasSpecificDomains) {
+        throw new Error("Configuration conflict: Cannot mix wildcard '*' with specific domains. Use either ['*'] or specific domains like ['company.com']");
+    }
+
+    if (!hasWildcard) {
+        const invalidDomains = domains.filter(domain => !utilIsValidDomainFormat(domain));
+        if (invalidDomains.length > 0) {
+            throw new Error(`Invalid domain format: ${invalidDomains.join(', ')}`);
+        }
+    }
+
+    const firstValue = domains[0]?.trim();
+    
+    if (!firstValue) {
+        globalAccessPoint.setValue("allowedEmailDomains", "*");
+        return;
+    }
+
+    if (firstValue === "*") {
+        globalAccessPoint.setValue("allowedEmailDomains", "*");
+        return;
+    }
+
+    globalAccessPoint.setValue("allowedEmailDomains", domains);
+}
+
+const utilGetBooleanValuesForSystemSecurityConfig = (status) => {
+    return status === "DISABLED" ? false : true;
+}
+
+const handleConfigValidationForSystemSecurity = () => {
+    const currentConfigurableSystemSecurityModules = [ "dip", "captcha", "deviceAuthorization" ]
+    const systemConfig = globalAccessPoint.systemConfig();
+    const systemSecurityConfig = systemConfig?.systemSecurity || { dip: 'ENABLED', captcha: "ENABLED", deviceAuthorization: "ENABLED" };
+
+    let initalArr = currentConfigurableSystemSecurityModules.map(val => ({ key: val, enabled: true }));
+    const givenConfigKeys = Object.keys(systemSecurityConfig);
+
+    for (const key of givenConfigKeys) {
+        const val = systemSecurityConfig[key];
+        const status = utilGetBooleanValuesForSystemSecurityConfig(val);
+
+        const filtered = initalArr.filter(val => val.key !== key);
+
+        filtered.push({ key: key, enabled: status });
+
+        initalArr = filtered
+    }
+
+    for (const system of initalArr) {
+        globalAccessPoint.setValue(system.key, system.enabled);
+    }
+
+    return;
+}
+
+const handleRASValidation = () => {
+    const systemConfig = globalAccessPoint.systemConfig();
+
+    const validatedConfig = validateRASCallbacks(systemConfig?.resourceAccessConfig);
+
+    globalAccessPoint.setValue("resourceAccessSystem_Config", validatedConfig);
+
+    return;
+}
+
+const handleAllowedUserRolesConfig = () => {
+    const systemConfig = globalAccessPoint.systemConfig();
+
+    if (systemConfig?.userRoles) {
+
+        if (!Array.isArray(systemConfig.userRoles?.allowedUserRoles)) {
+            throw new Error("Configuration error: allowed custom user roles must be a valid array of roles got " + typeof systemConfig.userRoles?.allowedUserRoles);
+        }
+
+        if (systemConfig.userRoles?.allowedUserRoles.length <= 0) {
+            throw new Error("Configuration error: allowed custom user roles array is empty");
+        }
+
+        globalAccessPoint.setValue("allowedUserRoles" , systemConfig.userRoles?.allowedUserRoles.map(val => val.toUpperCase().trim()));
+
+        return;
+    }
+
+    globalAccessPoint.setValue("allowedUserRoles", null);
+
+    return;
+}
 
 const handleOnStartConfiguration = async () => {
     await handleTokenSecretsImport();
     await handleDatabaseLiveCheck();
+    handleConfigValidationForEmailDomains();
+    handleConfigValidationForSystemSecurity();
+    handleRASValidation();
+    handleAllowedUserRolesConfig()
 }
 
 export { handleOnStartConfiguration }

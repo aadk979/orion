@@ -9,10 +9,6 @@ import { tryCatch } from '../../../TryCatch.js';
 import { generateRandomNumber, generateRequestId, generateChallenge, generateId } from '../../../valueGenerator.js';
 import { parseCookieData } from '../../../CookieUtils.js';
 
-const userRequires2FA = (user) => {
-    return !!user.security.twoFA;
-};
-
 const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
     if (!code || !deviceId) {
         return { error: true, errorCode: "DEVICE-UNRECOGNIZED" };
@@ -22,6 +18,11 @@ const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
     const cleanCode = parseCookieData(code);
 
     const user = await globalAccessPoint.db().getData("Users", uid);
+
+    if (user.data == undefined) {
+        return { error: true, errorCode: "ACC-SIGN-IN-ACC-NO-EXISTS" }
+    }
+
     const devices = user.data.security.recognizedDevices || [];
     const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
     const device = activeDevices.find(item => item.deviceId === cleanDeviceId);
@@ -50,6 +51,11 @@ const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) 
     const cleanCode = parseCookieData(code);
 
     const userEmailLink = await globalAccessPoint.db().getData("Users-email", email);
+
+    if (userEmailLink.data == undefined) {
+        return { error: true, errorCode: "ACC-SIGN-IN-ACC-NO-EXISTS" }
+    }
+
     const user = await globalAccessPoint.db().getData("Users", userEmailLink.data.uid);
     const devices = user.data.security.recognizedDevices || [];
     const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
@@ -74,6 +80,12 @@ const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) 
 const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) => {
     const Function = async (parameters) => {
         const to = parameters.email;
+
+        const userExist = await globalAccessPoint.db().getData("Users-email", to);
+
+        if (userExist.data == undefined) {
+            return { error: true, errorCode: "ACC-SIGN-IN-ACC-NO-EXISTS" }
+        }
 
         const code = generateRandomNumber(6);
 
@@ -235,4 +247,4 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
     return results;
 }
 
-export { sendDeviceAuthorizationMail, userRequires2FA, authorizeDeviceWithCode, isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID };
+export { sendDeviceAuthorizationMail, authorizeDeviceWithCode, isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID };

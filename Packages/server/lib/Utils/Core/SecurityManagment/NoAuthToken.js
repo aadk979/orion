@@ -203,6 +203,12 @@ const validateNoAuthToken = async (token , ip , fingerprint , userAgent) => {
 }
 
 const routeHandlerDeviceHasNoAuthToken = async (request , response) => {
+    const noAuthTokenEnabled = globalAccessPoint.getValue("captcha");
+
+    if (!noAuthTokenEnabled) {
+        return respondWithError(response, "NO-AUTH-TOKEN-DISABLED")
+    }
+
     const authHeader = request.headers["authorization"] || "DEFAULT NONE";
     const tokenType = authHeader.split(" ")[0];
 

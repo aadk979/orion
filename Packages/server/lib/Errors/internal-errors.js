@@ -1,6 +1,6 @@
 import { AccessTokens } from './Authentication/accessTokens.js';
 import { RefreshTokens } from './Authentication/refreshTokens.js';
-import { AuthenticationMiddleware } from './Authentication/authentication.middleware.js';
+import { AuthenticationMiddleware } from './Authentication/authenticationMiddleware.js';
 import { AccountRegistration } from './Account/registration.js';
 import { AccountSignIn } from './Account/signIn.js';
 import { Passkeys } from './Account/passkeys.js';
@@ -11,6 +11,7 @@ import { NoAuthToken } from './Security/noAuthToken.js';
 import { DataValidation } from './Security/dataValidation.js';
 import { General } from './Security/general.js';
 import { Mail } from './Communication/mail.js';
+import { Dip } from './Security/dips.js';
 
 const internalErrors = {
     ...AccessTokens,
@@ -25,7 +26,8 @@ const internalErrors = {
     ...NoAuthToken,
     ...DataValidation,
     ...General,
-    ...Mail
+    ...Mail,
+    ...Dip
 };
 
 export { internalErrors };

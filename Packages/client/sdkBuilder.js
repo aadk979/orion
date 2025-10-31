@@ -2,8 +2,8 @@ import { build } from "esbuild";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { minify } from "terser";
 
-// ASCII banner
 const banner = `
 /*******************************************************************************
 *                                                                              *
@@ -17,43 +17,51 @@ const banner = `
 *******************************************************************************/
 `;
 
-async function compileSDK(entryFile, outFile, format = "esm") {
+async function compileSDK(entryFile, outFile, { format = "esm" } = {}) {
   try {
-    // Build the bundle in memory first
     const result = await build({
       entryPoints: [entryFile],
       bundle: true,
-      format,     // "esm" or "cjs"
-      sourcemap: true,
-      minify: true,
-      write: false, // don't write yet
+      format,
+      sourcemap: false,
+      minify: false, // we’ll do our own minification
+      keepNames: true,
+      write: false,
     });
 
-    // esbuild returns an array of outputs (normally 1)
-    const output = result.outputFiles[0].text;
+    let output = result.outputFiles[0].text;
 
-    // Compute SHA-256 of the output
+    // Use Terser with NO mangling
+    const minified = await minify(output, {
+      compress: {
+        dead_code: true,
+        passes: 2,
+      },
+      mangle: false, // 🚫 prevents any renaming — keeps parameter names intact
+      format: {
+        comments: false,
+      },
+    });
+
+    output = minified.code;
+
     const hash = crypto.createHash("sha256").update(output).digest("hex");
 
-    // Final SDK content = banner at top + output + hash footer
-    const finalOutput = `// Orion BETA SDK\n// Version Hash: ${hash}\n${banner}\n${output}`;
-
-    // Ensure output directory exists
+    const finalOutput = `// Orion SDK Build\n// SHA256: ${hash}\n${banner}\n${output}`;
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
-
-    // Write final bundle to file
     fs.writeFileSync(outFile, finalOutput);
 
-    console.log(`✅ SDK compiled in ${format} format: ${path.resolve(outFile)}`);
-    console.log(`🔹 SHA-256: ${hash}`);
+    console.log(`✅ SDK built → ${path.resolve(outFile)}`);
+    console.log(`🔹 SHA256: ${hash}`);
   } catch (err) {
     console.error("❌ Build failed:", err);
   }
 }
 
-// Usage: node compiler.js lib/Root.js dist/sdk.js esm
-const entry = process.argv[2] || "lib/Root.js";
-const out = process.argv[3] || "dist/sdk.js";
-const format = process.argv[4] || "esm"; // esm or cjs
-
-compileSDK(entry, out, format);
+(async () => {
+  const entry = process.argv[2] || "lib/Root.js";
+  const outDir = "dist";
+  console.log("🚀 Building Orion SDK (no mangling)...");
+  await compileSDK(entry, `${outDir}/orion.beta.sdk.js`, { format: "esm" });
+  console.log("✨ Build complete!");
+})();

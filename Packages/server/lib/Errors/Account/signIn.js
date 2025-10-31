@@ -7,7 +7,7 @@ const AccountSignIn = {
         solutions: ["Check if the email provided is in the proper format, e.g. (example@provider.com)"]
     },
     "ACC-SIGN-IN-ACC-NO-EXISTS": {
-        status: 400,
+        status: 404,
         context: "There is no user associated with the provided email",
         errorCode: "ACC-SIGN-IN-ACC-NO-EXISTS",
         fault: "CLIENT",

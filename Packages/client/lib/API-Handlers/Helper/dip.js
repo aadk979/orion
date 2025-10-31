@@ -9,13 +9,13 @@ async function getDIP({ Api, getAuthHeader, nameSpace }) {
     null,
     null
   );
+  const data = await res.json();
 
-  if (!res.ok) {
+  if (data.error && data.errorData.errorCode !== "DIP-DISABLED") {
     throw new Error("Unable to configure DIP!");
   }
 
-  const data = await res.json();
-  return data.data;
+  return data.error ? data : data.data;
 }
 
 export { getDIP }

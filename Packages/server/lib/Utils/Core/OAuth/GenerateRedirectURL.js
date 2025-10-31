@@ -6,6 +6,7 @@ import { globalAccessPoint } from "../../GlobalAccessPoint.js"
 import { getIp, getIpRange } from "../../Ip.js"
 import { tryCatch } from "../../TryCatch.js"
 import { generateChallenge, generateRequestId } from "../../valueGenerator.js"
+import { requestContext } from "../../../Server/Middleware/requestMetadata.js"
 
 const SUPPORTED_PROVIDERS = [
     "GOOGLE",
@@ -28,7 +29,29 @@ const deleteFunction = async (parameters) => {
 
 const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => {
     const Function = async (parameters) => {
+        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const requestMetadata = requestContext.getStore();
+        
         if (!SUPPORTED_PROVIDERS.includes(parameters.providerName.toUpperCase())) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "OAUTH_REDIRECT_ATTEMPT",
+                status: "FAILED",
+                source: "GenerateRedirectURL.js",
+                functionName: "generateOAuthRedirectURL",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth redirect blocked - unsupported provider",
+                metadata: { 
+                    reason: "UNSUPPORTED_PROVIDER",
+                    provider: parameters.providerName
+                },
+                errorCode: "O-AUTH-UNSUPPORTED-PROVIDER"
+            });
             return { error: true, errorCode: "O-AUTH-UNSUPPORTED-PROVIDER" }
         }
 
@@ -52,8 +75,48 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
         const redirectURLResponse = oAuthToolKit.generateAuthUrl(parameters.providerName.toLowerCase(), encodedStateForClient);
 
         if (redirectURLResponse?.error) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "OAUTH_REDIRECT_ATTEMPT",
+                status: "FAILED",
+                source: "GenerateRedirectURL.js",
+                functionName: "generateOAuthRedirectURL",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth redirect failed - URL generation error",
+                metadata: { 
+                    reason: "URL_GENERATION_FAILED",
+                    provider: parameters.providerName,
+                    requestId: requestId
+                },
+                errorCode: redirectURLResponse.errorCode
+            });
             return { error: true, errorCode: redirectURLResponse.errorCode };
         }
+
+        auditTrail.record({
+            user: {},
+            device: { 
+                fingerprint: parameters.deviceFingerprint,
+                userAgent: requestMetadata?.userAgent 
+            },
+            action: "OAUTH_REDIRECT_SUCCESS",
+            status: "SUCCESS",
+            source: "GenerateRedirectURL.js",
+            functionName: "generateOAuthRedirectURL",
+            requestId: requestMetadata?.requestId,
+            ipAddress: parameters.ip,
+            impact: "OAuth redirect URL generated successfully",
+            metadata: { 
+                provider: parameters.providerName,
+                requestId: requestId,
+                challenge: challenge
+            }
+        });
 
         return { error: false, redirectURL: redirectURLResponse.redirectURL };
     }

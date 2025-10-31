@@ -61,7 +61,11 @@ class Orion {
           nameSpace: this.systemConfig.nameSpace,
         });
 
-        this.dipConfig = dipConfig;
+        if (dipConfig.error) {
+          this.dipConfig = { disabled: true };
+        } else {
+          this.dipConfig = dipConfig;
+        }
 
         globalAccessPoint.setValue("dipConfig", dipConfig);
 
@@ -131,7 +135,7 @@ class Orion {
 
   async signUpUser(email, password) {
     await this.initialize();
-    if (!this.#signedIn)
+    if (this.#signedIn)
       return { error: true, errorCode: "CLIENT-AUTH-AUTHED-USER-PRESENT" };
 
     return await signUpUser({

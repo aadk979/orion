@@ -9,8 +9,12 @@ import { generateId, generateRandomNumber } from '../../valueGenerator.js';
 import { getIpRange, isIpInRange } from '../../Ip.js';
 import { getFutureUnixTime, isUnixExpired } from '../../Date&Time.js';
 import { timingSafeEqual } from 'crypto';
+import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 
 async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent , accessTokenLinkCodeExternal) {
+    const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+    const requestMetadata = requestContext.getStore();
+    
     const secret = await globalAccessPoint.getValue("tokenSecretsManager").getRandomKeyPair("access");
     const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.accessTokens || "15m";
     const aud = globalAccessPoint.getValue("systemConfig").client.urls;
@@ -65,19 +69,78 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     const storage = await globalAccessPoint.db().addData("Users", uid, user);
 
     if (storage.error) {
+        auditTrail.record({
+            user: { email: email, uid: uid },
+            device: { 
+                fingerprint: fingerprint,
+                userAgent: userAgent 
+            },
+            action: "ACCESS_TOKEN_GENERATION_ATTEMPT",
+            status: "FAILED",
+            source: "AccessTokens.js",
+            functionName: "generateAccessToken",
+            requestId: requestMetadata?.requestId,
+            ipAddress: ip,
+            impact: "Access token generation failed - database error",
+            metadata: { 
+                reason: "DATABASE_ERROR",
+                authMethod: authMethod,
+                role: role
+            },
+            errorCode: "UNABLE-TO-GENERATE-ACCESS-TOKEN"
+        });
         return { error: true, errorCode: "UNABLE-TO-GENERATE-ACCESS-TOKEN" }
     }
 
     const token = jwt.sign(payload, secret.privateKey, { expiresIn: expiry, algorithm: "RS256" , keyid: secret.keyPairId });
 
+    auditTrail.record({
+        user: { email: email, uid: uid },
+        device: { 
+            fingerprint: fingerprint,
+            userAgent: userAgent 
+        },
+        action: "ACCESS_TOKEN_GENERATION_SUCCESS",
+        status: "SUCCESS",
+        source: "AccessTokens.js",
+        functionName: "generateAccessToken",
+        requestId: requestMetadata?.requestId,
+        ipAddress: ip,
+        impact: "Access token generated successfully",
+        metadata: { 
+            authMethod: authMethod,
+            role: role,
+            expiry: expiry,
+            tokenId: tokenData.tokenId
+        }
+    });
+
     return { error: false, token: token, accessTokenLinkCode: accessTokenLinkCode };
 }
 
 async function validateAccessToken(token, fingerprint, ip, clientUrl) {
+    const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+    const requestMetadata = requestContext.getStore();
+    
     try {
-        console.log(clientUrl)
         
         if (!token) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: fingerprint,
+                    userAgent: requestMetadata?.userAgent 
+                },
+                action: "ACCESS_TOKEN_VALIDATION_ATTEMPT",
+                status: "FAILED",
+                source: "AccessTokens.js",
+                functionName: "validateAccessToken",
+                requestId: requestMetadata?.requestId,
+                ipAddress: ip,
+                impact: "Access token validation failed - missing token",
+                metadata: { reason: "MISSING_TOKEN" },
+                errorCode: "MISSING-AUTHENTICATION-TOKEN"
+            });
             return { error: true, errorCode: "MISSING-AUTHENTICATION-TOKEN" }
         }
 
@@ -85,6 +148,10 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
 
         const secret = await globalAccessPoint.getValue("tokenSecretsManager").getKeyPairById(decodedHeader.kid, "access");
         const serverUrl = globalAccessPoint.getValue("systemConfig").server.myUrl;
+
+        if (secret.notFound) {
+            return { error: true, errorCode: "ACCESS-TOKEN-KEY-NOT-FOUND" }
+        }
 
         const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
 
@@ -117,6 +184,9 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         }
 
         if (!timingSafeEqual(Buffer.from(validatedToken.hashedDeviceFingerprint), Buffer.from(tokenData.hashedFingerprint))) {
+            const newArray = activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
+            user.security.activeTokens = newArray;
+            await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1" }
         }
 
@@ -126,6 +196,26 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
             await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2" }
         }
+
+        auditTrail.record({
+            user: { email: validatedToken.email, uid: validatedToken.uid },
+            device: { 
+                fingerprint: fingerprint,
+                userAgent: requestMetadata?.userAgent 
+            },
+            action: "ACCESS_TOKEN_VALIDATION_SUCCESS",
+            status: "SUCCESS",
+            source: "AccessTokens.js",
+            functionName: "validateAccessToken",
+            requestId: requestMetadata?.requestId,
+            ipAddress: ip,
+            impact: "Access token validated successfully",
+            metadata: { 
+                authMethod: validatedToken.authMethod,
+                role: validatedToken.role,
+                tokenId: validatedToken.tokenData.tokenId
+            }
+        });
 
         return { error: false, valid: true, data: validatedToken }
 

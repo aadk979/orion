@@ -12,7 +12,7 @@ function generateKeyPairId() {
 
 class TokenSecretsManager {
   constructor({
-    partitions = ["access", "refresh"],
+    partitions = ["access", "refresh", "resource_access"],
     nKeysPerPartition = 10,
     keySize = 2048,
     enableAutoRotation = true,
@@ -164,43 +164,108 @@ class TokenSecretsManager {
     return { error: false, count: jwksArray.length };
   }
 
-  massGetJWKs() {
-    const bundle = { issuedAt: Date.now(), partitions: {} };
+  massGetJWKs(includePrivateKeys = false) {
+    const bundle = { 
+      issuedAt: Date.now(), 
+      partitions: {},
+      metadata: {
+        keySize: this.keySize,
+        nKeysPerPartition: this.nKeysPerPartition,
+        includesPrivateKeys: includePrivateKeys
+      }
+    };
+    
     for (const [type, pool] of this.partitions.entries()) {
-      bundle.partitions[type] = pool.oldKeys;
+      const currentKeys = Array.from(pool.keys.values());
+      
+      bundle.partitions[type] = {
+        currentKeys: currentKeys.map((key) => {
+          if (includePrivateKeys) {
+            return key; // Include everything including privateKey
+          }
+          const { privateKey, ...rest } = key;
+          return rest; // Strip private keys for security
+        }),
+        oldKeys: [...pool.oldKeys] // Copy array
+      };
     }
-    logger.log(`Token Secrets Manager: Mass-exported ${Object.keys(bundle.partitions).length} partitions`);
+    
+    logger.info(`Token Secrets Manager: Mass-exported ${Object.keys(bundle.partitions).length} partitions (privateKeys: ${includePrivateKeys})`);
     return bundle;
   }
-
+  
   massAddJWKs(jwksBundle = {}) {
     if (!jwksBundle || !jwksBundle.partitions) {
       logger.error("Token Secrets Manager: Invalid massAdd bundle format");
-      return { error: true };
+      return { error: true, message: "Invalid bundle format" };
     }
-
+  
     const now = Date.now();
-    let totalCount = 0;
-
-    for (const [type, jwksArray] of Object.entries(jwksBundle.partitions)) {
-      if (!Array.isArray(jwksArray)) continue;
-
+    let totalCurrentKeys = 0;
+    let totalOldKeys = 0;
+    const includesPrivateKeys = jwksBundle.metadata?.includesPrivateKeys || false;
+  
+    for (const [type, partitionData] of Object.entries(jwksBundle.partitions)) {
       if (!this.partitions.has(type)) {
         this.partitions.set(type, { keys: new Map(), oldKeys: [] });
-        logger.info(`Token Secrets Manager: Auto-created missing partition "${type}"`);
+        logger.info(`Token Secrets Manager: Created new partition "${type}"`);
       }
-
+  
       const pool = this.partitions.get(type);
-      jwksArray.forEach((jwk) => {
-        if (jwk.keyPairId && jwk.type) {
-          pool.oldKeys.push({ ...jwk, createdAt: jwk.createdAt || now });
-          totalCount++;
+      
+      // Handle current keys
+      if (partitionData.currentKeys && Array.isArray(partitionData.currentKeys)) {
+        if (includesPrivateKeys) {
+          // If we have private keys, restore them as current keys
+          pool.keys.clear();
+          partitionData.currentKeys.forEach((jwk, index) => {
+            if (jwk.keyPairId && jwk.type === type && jwk.privateKey) {
+              pool.keys.set(index, { 
+                ...jwk, 
+                createdAt: jwk.createdAt || now 
+              });
+              totalCurrentKeys++;
+            }
+          });
+        } else {
+          // No private keys, add to oldKeys for verification only
+          partitionData.currentKeys.forEach((jwk) => {
+            if (jwk.keyPairId && jwk.type === type) {
+              pool.oldKeys.push({ 
+                ...jwk, 
+                createdAt: jwk.createdAt || now 
+              });
+              totalOldKeys++;
+            }
+          });
         }
-      });
+      }
+      
+      // Handle old keys - always add to oldKeys
+      if (partitionData.oldKeys && Array.isArray(partitionData.oldKeys)) {
+        partitionData.oldKeys.forEach((jwk) => {
+          if (jwk.keyPairId && jwk.type === type) {
+            // Check for duplicates
+            const exists = pool.oldKeys.some(k => k.keyPairId === jwk.keyPairId);
+            if (!exists) {
+              pool.oldKeys.push({ 
+                ...jwk, 
+                createdAt: jwk.createdAt || now 
+              });
+              totalOldKeys++;
+            }
+          }
+        });
+      }
     }
-
-    logger.info(`Token Secrets Manager: Mass-added ${totalCount} JWKs across all partitions`);
-    return { error: false, count: totalCount };
+  
+    logger.info(`Token Secrets Manager: Mass-added ${totalCurrentKeys} current keys and ${totalOldKeys} old keys`);
+    return { 
+      error: false, 
+      currentKeys: totalCurrentKeys, 
+      oldKeys: totalOldKeys,
+      total: totalCurrentKeys + totalOldKeys
+    };
   }
 
   async destroyByIndex(type, index) {

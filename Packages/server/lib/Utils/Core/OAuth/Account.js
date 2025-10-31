@@ -46,6 +46,7 @@ const createAccountWithProvider = async (email, provider) => {
         const uid = generateUID(parameters.email);
 
         const userObject = {
+            role: "USER",
             credentials: {
                 password: false,
                 passkey: {
@@ -54,7 +55,8 @@ const createAccountWithProvider = async (email, provider) => {
                 uid: uid,
                 providers: [
                     parameters.provider.trim().toUpperCase()
-                ]
+                ],
+                email: parameters.email
             },
             security: {
                 emailVerified: false,

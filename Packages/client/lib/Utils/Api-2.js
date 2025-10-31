@@ -132,6 +132,10 @@ class ApiInterface {
   }
 
   async prepareDataForDIP(data, dipConfig) {
+    if (dipConfig.disabled) {
+      return { disabled: true }
+    }
+    
     const stringData = JSON.stringify(data);
 
     const saltArray = new Uint8Array(16); // 16 bytes = 128 bits

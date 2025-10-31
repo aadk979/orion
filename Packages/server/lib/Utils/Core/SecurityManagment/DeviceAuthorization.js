@@ -1,6 +1,6 @@
 import { respondWithError, respondWithSuccess } from "../../../Server/Response/response.js";
 import { getIp } from "../../Ip.js";
-import { authorizeDeviceWithCode } from "../AccountManagment/2FA/user.js";
+import { authorizeDeviceWithCode } from "../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js";
 import { stringifyCookieData, parseCookieData } from "../../CookieUtils.js";
 
 const routeHandlerDeviceAuthorization = async (request, response) => {

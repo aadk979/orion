@@ -10,4 +10,19 @@ function isPasswordSafe(password) {
     return result.score >= 3;
 }
 
-export { isValidEmail , isPasswordSafe }
+function isValidEmailDomain(validDomains, userEmail) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!emailRegex.test(userEmail)) {
+        return false;
+    }
+    
+    const emailDomain = userEmail.split('@')[1].toLowerCase();
+    
+    const normalizedValidDomains = validDomains.map(domain => domain.toLowerCase());
+    
+    return normalizedValidDomains.includes(emailDomain);
+}
+
+
+export { isValidEmail , isPasswordSafe , isValidEmailDomain }

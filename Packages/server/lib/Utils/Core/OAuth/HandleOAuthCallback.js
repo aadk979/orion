@@ -10,11 +10,18 @@ import { generateAccessToken } from "../TokenManagement/AccessTokens.js"
 import { generateRefreshToken } from "../TokenManagement/RefreshTokens.js"
 import { accountExist, checkAndAddProviderToAccount, createAccountWithProvider } from "./Account.js"
 import { generateHmac } from "../../CryptoFunctions.js"
-import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from "../AccountManagment/2FA/user.js"
+import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from "../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js"
 import { stringifyCookieData } from "../../CookieUtils.js"
+import { requestContext } from "../../../Server/Middleware/requestMetadata.js"
+import { isValidEmailDomain } from "../../Validator.js"
+import { generateResourceToken } from "../ResourceAccessManagment/callbackBasedResources/resourceTokens.js"
+import { resourceUriBuilder } from "../ResourceAccessManagment/callbackBasedResources/utils.js"
+import { userControl } from "../AccountManagment/UserControl.js"
 
 const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent, deviceId, deviceCode) => {
     const Function = async (parameters) => {
+        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const requestMetadata = requestContext.getStore();
         const oAuthToolKit = globalAccessPoint.getValue("oAuthToolKit");
 
         const stateFromClient = JSON.parse(base64Decode(parameters.state));
@@ -22,18 +29,94 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
         const stateFromServer = await globalAccessPoint.db().getData("O-AUTH-REQUESTS", stateFromClient.requestId);
 
         if (stateFromServer.data === undefined) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "OAUTH_CALLBACK_ATTEMPT",
+                status: "FAILED",
+                source: "HandleOAuthCallback.js",
+                functionName: "handleOAuthCallback",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth callback blocked - invalid or expired request",
+                metadata: { 
+                    reason: "INVALID_OR_EXPIRED_REQUEST",
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: "O-AUTH-REQUEST-INVALID-OR-EXPIRED"
+            });
             return { error: true, errorCode: "O-AUTH-REQUEST-INVALID-OR-EXPIRED" }
         }
 
         if (!(await verifyHash(parameters.deviceFingerprint, stateFromServer.data.hashedDeviceFingerprint))) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "OAUTH_CALLBACK_ATTEMPT",
+                status: "FAILED",
+                source: "HandleOAuthCallback.js",
+                functionName: "handleOAuthCallback",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth callback blocked - device fingerprint mismatch",
+                metadata: { 
+                    reason: "DEVICE_FINGERPRINT_MISMATCH",
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: "O-AUTH-DEVICE-FINGERPRINT-MISMATCH"
+            });
             return { error: true, errorCode: "O-AUTH-DEVICE-FINGERPRINT-MISMATCH" }
         }
 
         if (! (await isIpInRange(parameters.ip, stateFromServer.data.ipRange))) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "OAUTH_CALLBACK_ATTEMPT",
+                status: "FAILED",
+                source: "HandleOAuthCallback.js",
+                functionName: "handleOAuthCallback",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth callback blocked - IP address mismatch",
+                metadata: { 
+                    reason: "IP_MISMATCH",
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: "O-AUTH-IP-MISMATCH"
+            });
             return { error: true, errorCode: "O-AUTH-IP-MISMATCH" }
         }
 
         if (!(await verifyHash(stateFromClient.challenge, stateFromServer.data.hashedChallenge))) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "OAUTH_CALLBACK_ATTEMPT",
+                status: "FAILED",
+                source: "HandleOAuthCallback.js",
+                functionName: "handleOAuthCallback",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth callback blocked - invalid state challenge",
+                metadata: { 
+                    reason: "INVALID_STATE_CHALLENGE",
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: "O-AUTH-INVALID-STATE-CHALLENGE"
+            });
             return { error: true, errorCode: "O-AUTH-INVALID-STATE-CHALLENGE" }
         }
 
@@ -42,11 +125,81 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
         const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code);
 
         if (oAuthResponse?.error) {
+            auditTrail.record({
+                user: {},
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "OAUTH_CALLBACK_ATTEMPT",
+                status: "FAILED",
+                source: "HandleOAuthCallback.js",
+                functionName: "handleOAuthCallback",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth callback failed - provider error",
+                metadata: { 
+                    reason: "PROVIDER_ERROR",
+                    provider: provider,
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: oAuthResponse.errorCode
+            });
             return { error: true, errorCode: oAuthResponse.errorCode };
         }
 
         if (!oAuthResponse.verified) {
+            auditTrail.record({
+                user: { email: oAuthResponse.email },
+                device: { 
+                    fingerprint: parameters.deviceFingerprint,
+                    userAgent: parameters.userAgent 
+                },
+                action: "OAUTH_CALLBACK_ATTEMPT",
+                status: "FAILED",
+                source: "HandleOAuthCallback.js",
+                functionName: "handleOAuthCallback",
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: "OAuth callback blocked - email not verified",
+                metadata: { 
+                    reason: "EMAIL_NOT_VERIFIED",
+                    provider: provider,
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: "O-AUTH-EMAIL-NOT-VERIFIED"
+            });
             return { error: true, errorCode: "O-AUTH-EMAIL-NOT-VERIFIED" }
+        }
+
+        if (globalAccessPoint.getValue("allowedEmailDomains") !== "*") {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue("allowedEmailDomains"), oAuthResponse.email);
+
+            if (!emailValidation) {
+                
+                auditTrail.record({
+                    user: { email: oAuthResponse.email },
+                    device: { 
+                        fingerprint: parameters.deviceFingerprint,
+                        userAgent: parameters.userAgent 
+                    },
+                    action: "OAUTH_CALLBACK_ATTEMPT",
+                    status: "FAILED",
+                    source: "HandleOAuthCallback.js",
+                    functionName: "handleOAuthCallback",
+                    requestId: requestMetadata?.requestId,
+                    ipAddress: parameters.ip,
+                    impact: "OAuth callback blocked - email not verified",
+                    metadata: { 
+                        reason: "EMAIL_NOT_VERIFIED",
+                        provider: provider,
+                        requestId: stateFromClient.requestId
+                    },
+                    errorCode: "O-AUTH-EMAIL-NOT-VERIFIED"
+                });
+
+                return { error: true, errorCode: "EMAIL-DOMAIN-NOT-ALLOWED" };
+            }
         }
 
         const accountExistCheck = await accountExist(oAuthResponse.email);
@@ -75,44 +228,53 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             uid = createAccountResult.uid;
         }
 
-        if (!parameters?.deviceId || !parameters?.deviceCode) {
-            console.log("Trigger 1")
-            const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(oAuthResponse.email, parameters.deviceFingerprint, parameters.ip, parameters.userAgent);
+        const userAccState = await userControl.getUserAccountState().byEmail(oAuthResponse.email);
 
-            if (deviceAuthorizationRequest.error) {
-                return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
-            }
-
-            const headers = [
-                { key: "orion-flow-activation", value: "FLOW-DEVICE-AUTHORIZATION" }
-            ]
-
-            const cookies = [
-                { key: "deviceAuthorizationRequestId", data: deviceAuthorizationRequest.reqId, maxAge: parseDuration("15m") }
-            ]
-
-            return { error: true, errorCode: "DEVICE-UNRECOGNIZED", cookies, headers }
+        if (userAccState.disabled) {
+            return { error: true, errorCode: "O-AUTH-ACC-DISABLED" }
         }
 
-        const deviceRecognition = await isDeviceRecognizedForUserEmail(oAuthResponse.email, parameters.userAgent, parameters.deviceId, parameters.deviceCode);
+        const deviceAuthorizationEnabled = globalAccessPoint.getValue("deviceAuthorization");
 
-        if (deviceRecognition.error) {
-            console.log("Trigger 2", deviceRecognition)
-            const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(oAuthResponse.email, parameters.deviceFingerprint, parameters.ip, parameters.userAgent);
-
-            if (deviceAuthorizationRequest.error) {
-                return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
+        if (deviceAuthorizationEnabled) {
+            
+            if (!parameters?.deviceId || !parameters?.deviceCode) {
+                const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(oAuthResponse.email, parameters.deviceFingerprint, parameters.ip, parameters.userAgent);
+    
+                if (deviceAuthorizationRequest.error) {
+                    return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
+                }
+    
+                const headers = [
+                    { key: "orion-flow-activation", value: "FLOW-DEVICE-AUTHORIZATION" }
+                ]
+    
+                const cookies = [
+                    { key: "deviceAuthorizationRequestId", data: deviceAuthorizationRequest.reqId, maxAge: parseDuration("15m") }
+                ]
+    
+                return { error: true, errorCode: "DEVICE-UNRECOGNIZED", cookies, headers }
             }
-
-            const headers = [
-                { key: "orion-flow-activation", value: "FLOW-DEVICE-AUTHORIZATION" }
-            ]
-
-            const cookies = [
-                { key: "deviceAuthorizationRequestId", data: deviceAuthorizationRequest.reqId, maxAge: parseDuration("15m") }
-            ]
-
-            return { error: true, errorCode: "DEVICE-UNRECOGNIZED", cookies, headers }
+    
+            const deviceRecognition = await isDeviceRecognizedForUserEmail(oAuthResponse.email, parameters.userAgent, parameters.deviceId, parameters.deviceCode);
+    
+            if (deviceRecognition.error) {
+                const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(oAuthResponse.email, parameters.deviceFingerprint, parameters.ip, parameters.userAgent);
+    
+                if (deviceAuthorizationRequest.error) {
+                    return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
+                }
+    
+                const headers = [
+                    { key: "orion-flow-activation", value: "FLOW-DEVICE-AUTHORIZATION" }
+                ]
+    
+                const cookies = [
+                    { key: "deviceAuthorizationRequestId", data: deviceAuthorizationRequest.reqId, maxAge: parseDuration("15m") }
+                ]
+    
+                return { error: true, errorCode: "DEVICE-UNRECOGNIZED", cookies, headers }
+            }
         }
 
         const accessToken = await generateAccessToken(uid , oAuthResponse.email , parameters.deviceFingerprint , `PROVIDER-${provider.trim().toUpperCase()}` , "USER" , parameters.ip , parameters.userAgent);
@@ -141,6 +303,28 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             { key: "SID", data: SID, maxAge: parseDuration(globalAccessPoint.getValue("systemConfig").tokens.lifespans.refreshTokens) },
             { key: "SID_HMAC", data: hmac, maxAge: parseDuration(globalAccessPoint.getValue("systemConfig").tokens.lifespans.refreshTokens) }
         ]
+
+        auditTrail.record({
+            user: { email: oAuthResponse.email, uid: uid },
+            device: { 
+                fingerprint: parameters.deviceFingerprint,
+                userAgent: parameters.userAgent 
+            },
+            action: "OAUTH_SIGN_IN_SUCCESS",
+            status: "SUCCESS",
+            source: "HandleOAuthCallback.js",
+            functionName: "handleOAuthCallback",
+            requestId: requestMetadata?.requestId,
+            ipAddress: parameters.ip,
+            impact: "User successfully signed in via OAuth",
+            metadata: { 
+                provider: provider,
+                method: "OAUTH",
+                accessTokenGenerated: true,
+                refreshTokenGenerated: true,
+                requestId: stateFromClient.requestId
+            }
+        });
 
         return { error: false, data: response , completed: true, cookies: [...tokenCookies] };
     }

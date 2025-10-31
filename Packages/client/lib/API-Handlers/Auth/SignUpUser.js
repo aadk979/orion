@@ -41,7 +41,7 @@ async function signUpUser({ Api, email, password, getAuthHeader, This, dipConfig
   const data = await request.json();
   if (data.error) return data.errorData;
 
-  return { error: false, complete: data.data.signedUp };
+  return { error: false, complete: data.data.completed };
 }
 
 export { signUpUser };

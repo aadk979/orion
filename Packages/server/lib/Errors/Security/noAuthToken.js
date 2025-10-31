@@ -27,6 +27,13 @@ const NoAuthToken = {
         fault: "CLIENT",
         solutions: ["NONE"]
     },
+    "NO-AUTH-TOKEN-DISABLED": {
+        status: 503,
+        context: "The no-auth token system has been disabled",
+        errorCode: "NO-AUTH-TOKEN-DISABLED",
+        fault: "NEITHER",
+        solutions: ["NONE"]
+    },
 };
 
 export { NoAuthToken };

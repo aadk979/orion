@@ -33,6 +33,13 @@ const AccountRegistration = {
         errorCode: "ACC-REG-EMAIL-PASSWORD-DISABLED",
         fault: "CLIENT",
         solutions: ["Use an alternative registration method such as OAuth"]
+    },
+    "EMAIL-DOMAIN-NOT-ALLOWED": {
+        status: 403,
+        context: "The email domain is not allowed",
+        errorCode: "EMAIL-DOMAIN-NOT-ALLOWED",
+        fault: "CLIENT",
+        solutions: ["Use an email from an allowed domain or contact support for domain whitelist"]
     }
 };
 
