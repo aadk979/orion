@@ -3,6 +3,7 @@ import { decryptPrivate } from '../../Utils/dedicatedCrypto.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { tryCatch } from '../../Utils/TryCatch.js';
 import { respondWithError } from '../Response/response.js';
+import { fileURLToPath } from 'url';
 
 const decryptionMiddleware = async (request , response, next) => {
     const Function = async (parameters) => {
@@ -63,7 +64,8 @@ const decryptionMiddleware = async (request , response, next) => {
         next: next
     }
 
-    const result = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'decryptionMiddleware', functionSource);
 
     return;
 }

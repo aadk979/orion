@@ -6,6 +6,7 @@ import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { getIpRange, isIpInRange } from '../../../Ip.js';
 import { generateAndSendMail } from '../../../Mail/sendMail.js';
 import { tryCatch } from '../../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { generateRandomNumber, generateRequestId, generateChallenge, generateId } from '../../../valueGenerator.js';
 import { parseCookieData } from '../../../CookieUtils.js';
 
@@ -113,7 +114,7 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
 
         cronScheduler.addEvent(reqId, deletionFunction, "15m", parametersInternal);
 
-        const send = await generateAndSendMail(1, to, { EMAIL: to, CODE: code, IP: parameters.ip, USERAGENT: parameters.userAgent, MODEL: getDeviceDetails(parameters.userAgent).model || "Unkown" });
+        const send = await generateAndSendMail(1, to, { EMAIL: to, CODE: code, IP: parameters.ip, USERAGENT: parameters.userAgent, MODEL: getDeviceDetails(parameters.userAgent).device.model || "Unkown Device" });
 
         if (send.error) {
             cronScheduler.cancelEvent(reqId);
@@ -132,7 +133,8 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
         userAgent
     }
 
-    const results = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true, parameters, 'sendDeviceAuthorizationMail', functionSource);
 
     return results;
 }
@@ -196,7 +198,8 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
         userAgent    
     }
 
-    const results = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true, parameters, 'authorizeDeviceDirect', functionSource);
 
     return results;
 }
@@ -242,7 +245,8 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
         userAgent
     }
 
-    const results = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true, parameters, 'authorizeDeviceWithCode', functionSource);
 
     return results;
 }

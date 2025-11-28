@@ -13,7 +13,7 @@ class AuditTrailSystem {
       this.config = {
         host: systemConfig?.auditTrailSystem.host || "localhost",
         user: systemConfig?.auditTrailSystem.user || "root",
-        password: systemConfig?.auditTrailSystem.password || "Amelie260908",
+        password: systemConfig?.auditTrailSystem.password || "SecurePassword1234",
         database: systemConfig?.auditTrailSystem.database || "orion_audit",
         waitForConnections: true,
         connectionLimit: 10,
@@ -35,6 +35,10 @@ class AuditTrailSystem {
       logger.info("Audit Trail System disabled")
     }
 
+  }
+
+  getPool() {
+    return this.pool;
   }
 
   async createDatabaseIfNotExists() {

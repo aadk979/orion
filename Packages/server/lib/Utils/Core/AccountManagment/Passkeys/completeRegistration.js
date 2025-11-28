@@ -3,6 +3,7 @@ import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { parseCookieData } from '../../../CookieUtils.js';
+import { fileURLToPath } from 'url';
 
 const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async (parameters) => {
@@ -60,7 +61,8 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
         clientURL: parsedClientURL
     }
 
-    const results = await tryCatch(Function, true , parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true , parameters, 'veryifyAndCompletePasskeyRegistration', functionSource);
 
     return results;
 }

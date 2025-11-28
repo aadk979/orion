@@ -23,8 +23,7 @@ class headerParser {
     }
 
     verifyHeader(request, response, next) {
-        const userHeaders = headerParser.systemConfig.api.customHeaders.map(h => h.toLowerCase());
-        const requiredHeaders = [...userHeaders, ...orionHeaders];
+        const requiredHeaders = [...orionHeaders];
 
         const missingOrInvalidHeaders = requiredHeaders.filter(header => {
             const value = request.get(header);
@@ -37,26 +36,6 @@ class headerParser {
 
         next();
     }
-
-    parseHeader(request, response, next) {
-        request.userHeaders = {};
-        request.orionHeaders = {};
-
-        const userHeadersSet = new Set(headerParser.systemConfig.api.customHeaders.map(h => h.toLowerCase()));
-        const orionHeadersSet = new Set(orionHeaders.map(h => h.toLowerCase()));
-
-        for (const [key, value] of Object.entries(request.headers)) {
-            const lowerKey = key.toLowerCase();
-
-            if (userHeadersSet.has(lowerKey)) {
-                request.userHeaders[key] = value;
-            } else if (orionHeadersSet.has(lowerKey)) {
-                request.orionHeaders[key] = value;
-            }
-        }
-
-        next();
-    }
 }
 
-export { headerParser };;
+export { headerParser };

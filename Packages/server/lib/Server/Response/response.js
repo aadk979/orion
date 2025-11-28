@@ -7,9 +7,11 @@ const respondWithError = (response , errorCode) => {
         logger.warn(`Unrecognised error code: ${errorCode}`)
     }
 
-    response.header({ "orion-response-status": internalErrors[errorCode]?.customStatus || internalErrors[errorCode]?.status });
+    response.setHeader("orion-response-status", internalErrors[errorCode]?.customStatus || internalErrors[errorCode]?.status || "UNKNOWN");
 
     response.setHeader("Access-Control-Expose-Headers", "Orion-Flow-Activation, orion-flow-activation");
+
+    response.setHeader("orion-response-refresh", internalErrors[errorCode]?.refresh || false);
 
     const error = internalErrors[errorCode] || internalErrors["UNKNOWN-ERROR"];
     response.status(error.status).json( { error: true , errorData: { ...error } } );
@@ -26,4 +28,4 @@ const respondWithSuccess = (response , status = 200 , data, customStatus) => {
     return;
 }
 
-export { respondWithError , respondWithSuccess };;
+export { respondWithError , respondWithSuccess };

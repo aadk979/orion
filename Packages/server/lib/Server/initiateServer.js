@@ -17,7 +17,7 @@ import { decryptionMiddleware } from './Middleware/decryptor.js';
 import { dipMiddleware } from './Middleware/dip.js';
 import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.js';
 import { RefreshRateLimiter } from '../Utils/Systems/RefreshTokenRateLimitSystem.js';
-import { parseDuration } from '../Utils/Date&Time.js';
+import { getCurrentUnixTime, parseDuration } from '../Utils/Date&Time.js';
 import { OAuthProviderToolkit } from '../Utils/Core/OAuth/OrionOAuthToolKit.js';
 import { TokenSecretsManager } from '../Utils/Systems/TokenSecretsManager.js';
 import { deviceCheckMiddlware } from './Middleware/deviceScanner.js';
@@ -27,6 +27,8 @@ import { handleOnStartConfiguration } from './onStartConfigurations.js';
 import { requestMetadataMiddleware } from './Middleware/requestMetadata.js';
 import { AuditTrailSystem } from '../Utils/Systems/AuditTrailSystem.js';
 import { resourceAccessMiddleware } from './Middleware/resourceAccess.js';
+import { SignatureSecretsManager } from '../Utils/Systems/SignatureSecretsManager.js';
+import { serverUtilitiesMiddleware } from './Middleware/serverUtilities.js';
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
@@ -48,17 +50,17 @@ const buildMiddlewarePipeline = (systemConfig) => {
     hpp(),
     cookieParser(),
     // Custom middlewares
+    serverUtilitiesMiddleware,
+    requestMetadataMiddleware,
     serverStatusMiddlware,
     resourceAccessMiddleware,
     OriginVerifier.verifyOrigin,
     HeaderParser.verifyHeader,
-    HeaderParser.parseHeader,
     authenticationMiddleware,
     dipMiddleware,
     decryptionMiddleware,
     dataValidator,
     deviceCheckMiddlware,
-    requestMetadataMiddleware
   ];
 };
 
@@ -126,11 +128,15 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
   try {
     const mergedConfig = { ...defaultStartConfig, ...startConfig, ...systemConfig };
 
+    if (!mergedConfig?.serviceID) {
+      mergedConfig.serviceID = crypto.randomUUID();
+    }
+
     // Init DB
     const dbManager = new DatabaseManager(mergedConfig);
     
     // Init Volatile Secrets Manager
-    const volatileSecretsManager = new VolatileSecretsManager(20, 32, true); // To be made configurable later
+    const volatileSecretsManager = new VolatileSecretsManager(20, 32, true);
 
     // Init Refresh Rate Limiter
     const refreshRateLimiter = new RefreshRateLimiter(parseDuration(systemConfig.tokens.lifespans.refreshTokens), Math.floor(parseDuration(systemConfig.tokens.lifespans.refreshTokens)/parseDuration(systemConfig.tokens.lifespans.accessTokens)) + 3, parseDuration(systemConfig.tokens.lifespans.refreshTokens))
@@ -140,11 +146,14 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     await oAuthToolKit.initializeAllProviders();
 
     // Init JWT token secrets manager
-    const tokenSecretsManager = new TokenSecretsManager(8, 2048, true); // To be made configurable later
+    const tokenSecretsManager = new TokenSecretsManager(8, 10, 2048, true);
+
+    // Init Signature secrets manager
+    const signatureSecretsManager = new SignatureSecretsManager(8, true);
 
     // Init Memory Handler system
-    const memoryHandlerSystem = new MemoryMonitoringSystem(true);
-    memoryHandlerSystem.start();
+    const memoryMonitioringSystem = new MemoryMonitoringSystem(true);
+    memoryMonitioringSystem.start();
 
     globalAccessPoint.setValue('db', dbManager.db());
     globalAccessPoint.setValue('systemConfig', mergedConfig);
@@ -155,7 +164,10 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     globalAccessPoint.setValue('refreshRateLimiter', refreshRateLimiter);
     globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
     globalAccessPoint.setValue('tokenSecretsManager', tokenSecretsManager);
-    globalAccessPoint.setValue('memoryHandlerSystem', memoryHandlerSystem);
+    globalAccessPoint.setValue('signatureSecretsManager', signatureSecretsManager)
+    globalAccessPoint.setValue('memoryMonitioringSystem', memoryMonitioringSystem);
+
+    globalAccessPoint.setValue('timeOfLife', getCurrentUnixTime());
 
     // Init Audit Trail System (Intialized later since it refernces system config via global access point)
     const auditTrailSystem = new AuditTrailSystem(systemConfig?.auditTrailSystem?.enabled || false);
@@ -183,8 +195,10 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     registerRoutes(app, defaultServerRoutes.endpoints);
     registerRoutes(app, mergedConfig.api?.customEndpoints || [], mergedConfig.api?.customMiddlewares || []);
 
+    memoryMonitioringSystem.purgeSystemConfigPostSetup();
+
     logger.info(`✅ Service "${mergedConfig.appName || 'Unnamed'}" ready`);
-    logger.info(`🆔 Service ID: ${mergedConfig.serviceID || 'Unidentified'}`);
+    logger.info(`🆔 Service ID: ${mergedConfig.serviceID}`);
     logger.info(`🌐 Listening on port: ${mergedConfig.PORT || 'Not Set (dev?)'}`);
 
     return { app, dbManager };
@@ -195,4 +209,4 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
   }
 };
 
-export { initiateServer };;
+export { initiateServer };

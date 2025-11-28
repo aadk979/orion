@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { globalAccessPoint } from './GlobalAccessPoint.js';
+import { getCurrentUnixTime } from './Date&Time.js';
 
 class CustomLogger {
   constructor(logFileName = 'app.log', shutdownLogFileName = 'shutdown.log') {
@@ -79,7 +80,7 @@ class CustomLogger {
   info(...args) {
     const parsedArgs = args.map(arg => this.#parseInput(arg)).join(' ');
     const timestamp = this.#getTimestamp();
-    console.log(`[${timestamp}] INFO: ${parsedArgs}`);
+    console.log(`[${timestamp}::${getCurrentUnixTime()}] INFO: ${parsedArgs}`);
     if (this.logToFile) {
       this.#writeToFile(this.logFilePath, 'INFO', parsedArgs);
     }
@@ -88,7 +89,7 @@ class CustomLogger {
   warn(...args) {
     const parsedArgs = args.map(arg => this.#parseInput(arg)).join(' ');
     const timestamp = this.#getTimestamp();
-    console.log(`${this.colors.yellow}[${timestamp}] WARN: ${parsedArgs}${this.colors.reset}`);
+    console.log(`${this.colors.yellow}[${timestamp}::${getCurrentUnixTime()}] WARN: ${parsedArgs}${this.colors.reset}`);
     if (this.logToFile) {
       this.#writeToFile(this.logFilePath, 'WARN', parsedArgs);
     }
@@ -97,7 +98,7 @@ class CustomLogger {
   error(...args) {
     const parsedArgs = args.map(arg => this.#parseInput(arg)).join(' ');
     const timestamp = this.#getTimestamp();
-    console.log(`${this.colors.red}[${timestamp}] ERROR: ${parsedArgs}${this.colors.reset}`);
+    console.log(`${this.colors.red}[${timestamp}::${getCurrentUnixTime()}] ERROR: ${parsedArgs}${this.colors.reset}`);
     if (this.logToFile) {
       this.#writeToFile(this.logFilePath, 'ERROR', parsedArgs);
     }

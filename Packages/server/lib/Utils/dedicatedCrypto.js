@@ -1,4 +1,9 @@
-// This file contains crypto functions for client to server encryption
+/**
+ * Client-to-Server Encryption Module
+ * 
+ * Contains cryptographic functions specifically designed for secure
+ * client-to-server communication and data encryption.
+ */
 
 import crypto from 'crypto';
 

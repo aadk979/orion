@@ -1,8 +1,14 @@
 /**
- * This file contains systems that have to be configured on server start or just before
- * All functions for each system must be written seperatley and added to handleOnStartConfiguration finally
- * If an error occurs that is critical, the function must throw and error and not try to propogate the error since these are mission critical errors
- * DO NOT TOUCH IF YOU DO NOT KNOW WHAT YOU ARE DOING
+ * Server Start Configuration Handler
+ * 
+ * Contains systems that must be configured on server start or just before.
+ * All functions for each system must be written separately and added to
+ * handleOnStartConfiguration finally.
+ * 
+ * If a critical error occurs, the function must throw an error and not
+ * attempt to propagate the error, as these are mission-critical errors.
+ * 
+ * WARNING: DO NOT MODIFY THIS FILE UNLESS YOU UNDERSTAND WHAT YOU ARE DOING.
  */
 
 import { validateRASCallbacks } from "../Utils/Core/ResourceAccessManagment/callbackBasedResources/callbackValidator.js";
@@ -10,9 +16,12 @@ import { cronScheduler } from "../Utils/Cron.js";
 import { readFromCaller, writeToCaller } from "../Utils/FileHandler.js";
 import { globalAccessPoint } from "../Utils/GlobalAccessPoint.js"
 import { logger } from "../Utils/logger.js";
+import { validateClientUrls } from "../Utils/Validator.js";
 import { generateRandomNumber } from "../Utils/valueGenerator.js";
 
 const TOKEN_SECRETS_FILE_NAME = "orion.internal.token_secrets.json";
+const SIGNATURE_SECRETS_FILE_NAME = "orion.internal.signature_secrets.json";
+const PERISTANT_CLIENT_URLS_FILE_NAME = "orion.internal.persistant_client_urls.json";
 
 const utilTokenSecretsExport = async () => {
     const tokenSecretsManager = globalAccessPoint.getValue("tokenSecretsManager");
@@ -31,7 +40,8 @@ const utilTokenSecretsExport = async () => {
     return;
 }
 
-// This functions default fallback is to wipe the file by setting its value to {}, so no throw error statment is needed
+// This function's default fallback is to wipe the file by setting its value to {},
+// so no throw error statement is needed
 const handleTokenSecretsImport = async () => {
     const tokenSecretsManager = globalAccessPoint.getValue("tokenSecretsManager");
 
@@ -50,6 +60,49 @@ const handleTokenSecretsImport = async () => {
 
     if (secretsImport?.error) {
         const result2 = await writeToCaller(TOKEN_SECRETS_FILE_NAME, {});
+        return;
+    }
+
+    return;
+}
+
+const utilSignatureSecretsExport = async () => {
+    const signatureSecretsManager = globalAccessPoint.getValue("signatureSecretsManager");
+
+    const tokens = await signatureSecretsManager.massGetJWKs();
+
+    const writeOpp = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, tokens);
+
+    cronScheduler.addEvent("SIGNATURE-SECRETS-AUTO-EXPORT", utilTokenSecretsExport, "1d", {});
+
+    if (writeOpp.error) {
+        logger.error("Scheduled signature secrets write failed!");
+        return;
+    }
+
+    return;
+}
+
+// This function's default fallback is to wipe the file by setting its value to {},
+// so no throw error statement is needed
+const handleSignatureSecretsImport = async () => {
+    const signatureSecretsManager = globalAccessPoint.getValue("signatureSecretsManager");
+
+    const fileData = await readFromCaller(SIGNATURE_SECRETS_FILE_NAME);
+
+    setTimeout(() => {
+        utilSignatureSecretsExport()
+    }, 60_000)
+
+    if (fileData.errorCode === "FILE-NOT-FOUND") {
+        const result1 = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, {});
+        return;
+    }
+
+    const secretsImport = signatureSecretsManager.massAddJWKs(fileData.data);
+
+    if (secretsImport?.error) {
+        const result2 = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, {});
         return;
     }
 
@@ -124,6 +177,70 @@ const handleDatabaseLiveCheck = async () => {
 
     return;
 }
+
+const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryDelay = 1000) => {
+    let attempts = 0;
+  
+    while (attempts < maxRetries) {
+      attempts++;
+  
+      try {
+        await auditSystem.getLastHash().catch(() => {});
+  
+        const record = await auditSystem.record({
+          user: { uid: "TEST_UID", email: "test@orion.local" },
+          action: "SYSTEM-AUDIT-TEST",
+          status: "SUCCESS",
+          source: "SystemStartup",
+          functionName: "utilAuditTrailSystemLiveCheck",
+          metadata: { attempt: attempts },
+        });
+  
+        if (record.error) throw new Error("Insert failed");
+  
+        const rows = await auditSystem.query({ action: "SYSTEM-AUDIT-TEST" });
+        if (!rows || rows.length === 0) throw new Error("Read failed");
+  
+        const conn = await auditSystem.getPool().getConnection();
+        await conn.query("DELETE FROM audit_trail WHERE action = 'SYSTEM-AUDIT-TEST'");
+        conn.release();
+  
+        return { error: false, passed: true, attemptsUsed: attempts };
+      } catch (e) {
+        if (attempts < maxRetries) {
+          await new Promise(res => setTimeout(res, retryDelay));
+          continue;
+        }
+        return { error: true, failed: true, attemptsUsed: attempts, reason: e.message };
+      }
+    }
+  
+    return { error: true, failed: true, attemptsUsed: attempts };
+};
+  
+const handleAuditTrailSystemCheck = async () => {
+    const systemConfig = globalAccessPoint.systemConfig();
+    const auditSystemEnabled = systemConfig?.auditTrailSystem?.enabled ?? false;
+  
+    if (!auditSystemEnabled) {
+      logger.info("🧩 AuditTrailSystem disabled — skipping integrity test");
+      return;
+    }
+  
+    const auditSystem = globalAccessPoint.getValue("auditTrailSystem");
+  
+    if (!auditSystem) {
+      throw new Error("AuditTrailSystem instance not found in globalAccessPoint");
+    }
+  
+    const result = await utilAuditTrailSystemLiveCheck(auditSystem);
+  
+    if (result.error) {
+      throw new Error(
+        `AuditTrailSystem integrity test failed after ${result.attemptsUsed} attempts — reason: ${result.reason}`
+      );
+    }
+};  
 
 const utilIsValidDomainFormat = (domain) => {
     return typeof domain === 'string' && 
@@ -234,13 +351,66 @@ const handleAllowedUserRolesConfig = () => {
     return;
 }
 
+const handleAllowedClientUrlsConfig = async () => {
+    
+    const systemConfig = globalAccessPoint.systemConfig();
+
+    const clientUrlsFromConfig = systemConfig?.client?.urls;
+
+    if (!clientUrlsFromConfig) {
+        throw new Error("Configuration error: allowed client urls must be given to allow communication between client and server")
+    }
+
+    if (!Array.isArray(clientUrlsFromConfig) || clientUrlsFromConfig.length <= 0) {
+        throw new Error("Configuration error: allowed client urls must be a valid array with client urls present")
+    }
+
+    const runTimeUpdateAllowed = systemConfig.client?.runTimeUpdateAllowed || false;
+
+    const persistantUpdateAllowed = systemConfig.client?.persistantUpdateAllowed || false;
+
+    if (persistantUpdateAllowed && !runTimeUpdateAllowed) {
+        throw new Error("Configuration conflict: persistant updates for client urls cannot be enabled while run time client url updates are disabled")
+    }
+
+    globalAccessPoint.setValue("clientUrlsRunTimeUpdateAllowed", runTimeUpdateAllowed);
+    globalAccessPoint.setValue("clientUrlsPersistantUpdateAllowed", persistantUpdateAllowed);
+
+    if (persistantUpdateAllowed) {
+        
+        const fileData = await readFromCaller(PERISTANT_CLIENT_URLS_FILE_NAME);
+
+        if (fileData.errorCode === "FILE-NOT-FOUND") {
+            await writeToCaller(PERISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls(clientUrlsFromConfig) ] })
+        }
+
+        if (!fileData?.data?.clientUrls) {
+            // Reset corrupt file
+            await writeToCaller(PERISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls(clientUrlsFromConfig) ] })
+        }
+
+        await writeToCaller(PERISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls([ ...fileData.data.clientUrls, ...clientUrlsFromConfig ]) ] })
+
+        globalAccessPoint.setValue("allowedClientUrls", fileData?.data?.clientUrls ? [ ...validateClientUrls([ ...fileData.data.clientUrls, ...clientUrlsFromConfig ]) ] : validateClientUrls(clientUrlsFromConfig));
+
+        return;
+    }
+
+    globalAccessPoint.setValue("allowedClientUrls", validateClientUrls(clientUrlsFromConfig));
+
+    return;
+}
+
 const handleOnStartConfiguration = async () => {
-    await handleTokenSecretsImport();
     await handleDatabaseLiveCheck();
+    await handleTokenSecretsImport();
+    await handleSignatureSecretsImport();
+    await handleAllowedClientUrlsConfig();
+    await handleAuditTrailSystemCheck();
     handleConfigValidationForEmailDomains();
     handleConfigValidationForSystemSecurity();
     handleRASValidation();
-    handleAllowedUserRolesConfig()
+    handleAllowedUserRolesConfig();
 }
 
 export { handleOnStartConfiguration }

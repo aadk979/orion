@@ -136,6 +136,8 @@ async function createModalCaptcha(serverURL, nameSpace) {
     input.style.borderRadius = "8px";
     input.style.fontSize = "0.95rem";
     input.style.transition = "border-color 0.2s, box-shadow 0.2s";
+    input.style.color = "black";
+    
     input.addEventListener("focus", () => {
       input.style.borderColor = "#2563eb";
       input.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.25)";

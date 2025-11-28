@@ -4,6 +4,7 @@ import { parseDuration } from "../../Utils/Date&Time.js";
 import { globalAccessPoint } from "../../Utils/GlobalAccessPoint.js";
 import { getIp } from "../../Utils/Ip.js";
 import { tryCatch } from "../../Utils/TryCatch.js"
+import { fileURLToPath } from 'url';
 import { isValidEmailDomain } from "../../Utils/Validator.js";
 import { respondWithError } from "../Response/response.js";
 
@@ -12,8 +13,25 @@ const NAME_SPACE = globalAccessPoint.nameSpace();
 const PUBLIC_ROUTES_FOR_DEVICE_CHECK = [
     `/${NAME_SPACE}/api/v1/action/sign-in-user`,
     `/${NAME_SPACE}/api/v1/action/generate-passkey-authentication-options`,
-    `/${NAME_SPACE}/api/v1/action/complete-passkey-authentication`,
+    `/${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`,
 ]
+
+const handleCookieClearence = (response) => {
+
+    response.cookie("ACCESS_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+    response.cookie("REFRESH_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+    response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+    response.cookie("SID_SIGNATURE", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+    response.cookie("authorizedDeviceId", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+    response.cookie("authorizedDeviceCode", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+
+    return;
+}
 
 const deviceCheckMiddlware = async (request, response, next) => {
     const Function = async (parameters) => {
@@ -35,17 +53,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
         if (authedUser && (!deviceId || !deviceCode)) {
 
-            parameters.response.cookie("ACCESS_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-            parameters.response.cookie("REFRESH_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-            parameters.response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-            parameters.response.cookie("SID_HMAC", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-            parameters.response.cookie("authorizedDeviceId", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-            parameters.response.cookie("authorizedDeviceCode", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+            handleCookieClearence(parameters.response);
 
             return respondWithError(parameters.response, "DEVICE-MISSING-META-DATA");
         }
@@ -57,17 +65,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
             if (check.error) {
 
-                parameters.response.cookie("ACCESS_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-                parameters.response.cookie("REFRESH_TOKEN", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-                parameters.response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-                parameters.response.cookie("SID_HMAC", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-                parameters.response.cookie("authorizedDeviceId", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
-
-                parameters.response.cookie("authorizedDeviceCode", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+                handleCookieClearence(parameters.response);
 
                 return respondWithError(parameters.response, check.errorCode);
             }
@@ -114,6 +112,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
                 parameters.response.set("orion-flow-activation", "FLOW-DEVICE-AUTHORIZATION");
                 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
+                // Update note: the client sdk no longer listens for the error code to trigger the flow but listens for the orion-flow-activation header as to allow future support for other flows
                 return respondWithError(parameters.response, "DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED");
             }
 
@@ -149,7 +148,8 @@ const deviceCheckMiddlware = async (request, response, next) => {
         next
     }
 
-    const result = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'deviceCheckMiddlware', functionSource);
 
     return;
 }

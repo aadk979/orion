@@ -1,5 +1,30 @@
 import os from "os";
 import { logger } from "../logger.js";
+import { globalAccessPoint } from "../GlobalAccessPoint.js";
+
+function deepDelete(obj, path) {
+    let curr = obj;
+  
+    for (let i = 0; i < path.length - 1; i++) {
+      curr = curr[path[i]];
+      if (!curr) return; // path doesn't exist
+    }
+  
+    delete curr[path[path.length - 1]];
+
+    return obj;
+}
+
+function getValueByPath(obj, path) {
+    return path.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
+}
+
+function setValueByPath(obj, path, value) {
+    const keys = path.split(".");
+    let current = obj;
+    keys.slice(0, -1).forEach(k => current = current[k] ||= {});
+    current[keys[keys.length - 1]] = value;
+}  
 
 class MemoryMonitoringSystem {
     constructor(active = true) {
@@ -22,7 +47,10 @@ class MemoryMonitoringSystem {
         const free = os.freemem();
         const used = total - free;
         const usagePercent = (used / total) * 100;
-        return { total, free, used, usagePercent };
+
+        const inGB = { total: this.parseBytesToGB(total), free: this.parseBytesToGB(free), used: this.parseBytesToGB(used) };
+
+        return { total, free, used, usagePercent, inGB };
     }
 
     evaluateMemoryState() {
@@ -67,6 +95,61 @@ class MemoryMonitoringSystem {
             logger.info("Memory Monitor: Monitoring stopped");
         }
     }
+
+    purgeSystemConfigPostSetup() {
+        let purgedSystemConfig = globalAccessPoint.systemConfig();
+        
+        const purgables = [
+            "auditTrailSystem",
+            "db",
+            "api.customeMiddlewares",
+            "authMethods.oAuth",
+            "systemSecurity",
+            "resourceAccessConfig",
+            "rateLimitWindowMs",
+            "maxRequests",
+            "sizeLimit",
+            "authMethods.allowedEmailDomains",
+            "api.customEndpoints[{method,callback}]",
+        ];
+    
+        purgables.forEach(path => {
+            const match = path.match(/^(.+?)\[(.*)\]$|^(.+?)\{(.*)\}$/);
+    
+            if (match) {
+                const fullKey = match[1] || match[3];
+                const keysToRemove = (match[2] || match[4]).split(",").map(k => k.trim());
+    
+                const target = getValueByPath(purgedSystemConfig, fullKey);
+                if (!target) return;
+    
+                if (Array.isArray(target)) {
+                    target.forEach(obj => {
+                        if (typeof obj === "object") {
+                            keysToRemove.forEach(key => delete obj[key]);
+                        }
+                    });
+                } else if (typeof target === "object") {
+                    keysToRemove.forEach(key => delete target[key]);
+                }
+    
+                setValueByPath(purgedSystemConfig, fullKey, target);
+                return;
+            }
+
+            if (path.includes(".")) {
+                const keys = path.split(".");
+                const purged = deepDelete(purgedSystemConfig, keys);
+                if (purged) purgedSystemConfig = purged;
+                return;
+            }
+    
+            delete purgedSystemConfig[path];
+        });
+    
+        globalAccessPoint.setValue("systemConfig", purgedSystemConfig);
+    }
+    
 }
 
 export { MemoryMonitoringSystem };

@@ -2,6 +2,7 @@ import { fileToBase64, getFileType } from "./convertors.js";
 import path from "path";
 
 const respondWithFile = async (response, exist, filePath, viewMode = false) => {
+  
   if (!exist) {
     response.status(404).send("The requested resource could not be found! 404");
     return;

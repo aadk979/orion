@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { globalAccessPoint } from '../GlobalAccessPoint.js';
 import { logger } from '../logger.js';
 import { tryCatch } from '../TryCatch.js';
+import { fileURLToPath } from 'url';
 
 const sendMail = async (to, subject, text) => {
     const Function = async (parameters) => {
@@ -38,7 +39,8 @@ const sendMail = async (to, subject, text) => {
         text
     }
 
-    const result = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'sendMail', functionSource);
 
     return result;
 };

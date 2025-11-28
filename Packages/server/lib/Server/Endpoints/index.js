@@ -7,7 +7,6 @@ import { routeHandlerSignInWithPassword } from '../../Utils/Core/AccountManagmen
 import { routeHandlerSignOutUser } from '../../Utils/Core/AccountManagment/SignOutUser.js';
 import { routeHandlerGenerateOAuthRedirectURL } from '../../Utils/Core/OAuth/GenerateRedirectURL.js';
 import { routeHandlerHandleOAuthCallback } from '../../Utils/Core/OAuth/HandleOAuthCallback.js';
-import { routeHandlerResetCookies } from '../../Utils/Core/SecurityManagment/CookieReset.js';
 import { routeHandlerDeviceAuthorization } from '../../Utils/Core/SecurityManagment/DeviceAuthorization.js';
 import { routeHandlerGenerateDipConfig } from '../../Utils/Core/SecurityManagment/Dip.js';
 import { routeHandlerKeyRequest } from '../../Utils/Core/SecurityManagment/KeyRequest.js';
@@ -79,7 +78,7 @@ const defaultServerRoutes = {
             callback: routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser
         },
         {
-            path: `/${NAME_SPACE}/api/v1/action/complete-passkey-authentication`,
+            path: `/${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`,
             requireAuth: false,
             method: "POST",
             callback: routeHandlerSignInWithPasskey
@@ -89,12 +88,6 @@ const defaultServerRoutes = {
             requireAuth: true,
             method: "POST",
             callback: routeHandlerSignOutUser
-        },
-        {
-            path: `/${NAME_SPACE}/api/v1/action/reset-cookies`,
-            requireAuth: false,
-            method: "POST",
-            callback: routeHandlerResetCookies
         },
         {
             path: `/${NAME_SPACE}/api/v1/action/get-o-auth-redirect-url`,
@@ -117,4 +110,4 @@ const defaultServerRoutes = {
     ]
 }
 
-export { defaultServerRoutes };;
+export { defaultServerRoutes };

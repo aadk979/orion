@@ -68,6 +68,41 @@ const OAuth = {
         errorCode: "O-AUTH-USERINFO-FAILED",
         fault: "PROVIDER",
         solutions: ["Retry later; ensure access token has required scopes"]
+    },
+    "O-AUTH-REQUESTS": {
+        status: 400,
+        context: "An error occurred with OAuth requests",
+        errorCode: "O-AUTH-REQUESTS",
+        fault: "CLIENT",
+        solutions: ["Verify your OAuth request and try again"]
+    },
+    "O-AUTH": {
+        status: 400,
+        context: "An OAuth error has occurred",
+        errorCode: "O-AUTH",
+        fault: "CLIENT",
+        solutions: ["Verify your OAuth request and try again"]
+    },
+    "O-AUTH-REQUEST-INVALID-OR-EXPIRED": {
+        status: 401,
+        context: "The OAuth request is invalid or has expired",
+        errorCode: "O-AUTH-REQUEST-INVALID-OR-EXPIRED",
+        fault: "CLIENT",
+        solutions: ["Start a new OAuth request"]
+    },
+    "O-AUTH-CALLBACK-PROCESSING-FAILED": {
+        status: 500,
+        context: "Failed to process OAuth callback",
+        errorCode: "O-AUTH-CALLBACK-PROCESSING-FAILED",
+        fault: "SERVER",
+        solutions: ["Try again in 10 minutes and contact support if the issue persists"]
+    },
+    "O-AUTH-ACC-DISABLED": {
+        status: 403,
+        context: "OAuth account is disabled",
+        errorCode: "O-AUTH-ACC-DISABLED",
+        fault: "CLIENT",
+        solutions: ["Contact support to enable your account"]
     }
 };
 

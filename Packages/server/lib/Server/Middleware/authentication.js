@@ -1,4 +1,9 @@
-// Version 2
+/**
+ * Authentication Middleware – Version 1
+ * 
+ * Handles authentication validation for protected routes, including access token
+ * and refresh token verification. Provides secure authentication flow management.
+ */
 import { validateAccessToken, generateAccessToken } from '../../Utils/Core/TokenManagement/AccessTokens.js';
 import { getIp } from '../../Utils/Ip.js';
 import { respondWithError, respondWithSuccess } from '../Response/response.js';
@@ -7,7 +12,7 @@ import { validateNoAuthToken } from '../../Utils/Core/SecurityManagment/NoAuthTo
 import { defaultServerRoutes } from '../Endpoints/index.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { parseDuration } from '../../Utils/Date&Time.js';
-import { generateHmac } from '../../Utils/CryptoFunctions.js';
+import { verifySignature } from '../../Utils/CryptoFunctions.js';
 import { parseCookieData, stringifyCookieData } from '../../Utils/CookieUtils.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
@@ -23,7 +28,7 @@ const ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER = [
     `/${NAME_SPACE}/api/v1/action/sign-up-user`,
     `/${NAME_SPACE}/api/v1/request/encryption-request-key`,
     `/${NAME_SPACE}/api/v1/action/generate-passkey-authentication-options`,
-    `/${NAME_SPACE}/api/v1/action/complete-passkey-authentication`,
+    `/${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`,
     `/${NAME_SPACE}/api/v1/action/get-o-auth-redirect-url`,
     `/${NAME_SPACE}/api/v1/action/authorize-me`,
     `/${NAME_SPACE}/api/v1/action/handle-o-auth-callback`
@@ -43,11 +48,11 @@ const handleSessionClearance = (parameters) => {
 
     parameters.response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
 
-    parameters.response.cookie("SID_HMAC", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+    parameters.response.cookie("SID_SIGNATURE", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
 }
 
 const handleSessionValidation = async (parameters) => {
-    if (!parameters.request.cookies["SID"] || !parameters.request.cookies["SID_HMAC"]) {
+    if (!parameters.request.cookies["SID"] || !parameters.request.cookies["SID_SIGNATURE"]) {
 
         handleSessionClearance(parameters);
         
@@ -58,11 +63,22 @@ const handleSessionValidation = async (parameters) => {
 
     const refreshToken = parseCookieData(parameters.request.cookies["REFRESH_TOKEN"]) || "NONE";
 
-    const secretKey = globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret;
+    // Instance ID based key pair retrival is not available in this build but scaffloding has been put in place
+    const signature = parseCookieData(parameters.request.cookies["SID_SIGNATURE"]).split(":*:")[0];
+    const keyPairId = parseCookieData(parameters.request.cookies["SID_SIGNATURE"]).split(":*:")[1];
+    const instanceId = parseCookieData(parameters.request.cookies["SID_SIGNATURE"]).split(":*:")[2];
 
-    const generatedHmac = await generateHmac(sessionId + refreshToken, secretKey);
+    const signatureKeyPair = await globalAccessPoint.getValue("signatureSecretsManager").getKeyPairById(keyPairId, "internal", instanceId);
 
-    if (generatedHmac !== parseCookieData(parameters.request.cookies["SID_HMAC"])) {
+    if (signatureKeyPair.notFound) {
+        return { error: true, errorCode: "INVALID-SESSION-ID" }
+    }
+
+    const signatureVerification = verifySignature(sessionId + refreshToken, signature, signatureKeyPair.publicKey);
+    
+    console.log(signatureVerification)
+
+    if (!signatureVerification) {
 
         handleSessionClearance(parameters);
 

@@ -82,6 +82,13 @@ const Passkeys = {
         errorCode: "PASSKEY-UNABLE-TO-AUTHENTICATE",
         fault: "SERVER",
         solutions: ["Try again in 10 minutes and contact support if the issue persists"]
+    },
+    "PASSKEY-AUTH-NO-ACTIVE-PASSKEY": {
+        status: 400,
+        context: "No active passkey found for authentication",
+        errorCode: "PASSKEY-AUTH-NO-ACTIVE-PASSKEY",
+        fault: "CLIENT",
+        solutions: ["Register a passkey first or use another authentication method"]
     }
 };
 

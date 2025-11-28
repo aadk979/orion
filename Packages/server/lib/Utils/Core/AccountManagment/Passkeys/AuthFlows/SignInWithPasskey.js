@@ -1,9 +1,10 @@
 import { respondWithError, respondWithSuccess } from '../../../../../Server/Response/response.js';
-import { generateHmac } from '../../../../CryptoFunctions.js';
+import { generateSignature } from '../../../../CryptoFunctions.js';
 import { parseDuration } from '../../../../Date&Time.js';
 import { globalAccessPoint } from '../../../../GlobalAccessPoint.js';
 import { getIp } from '../../../../Ip.js';
 import { tryCatch } from '../../../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { generateId } from '../../../../valueGenerator.js';
 import { generateAccessToken } from '../../../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../../../TokenManagement/RefreshTokens.js';
@@ -51,7 +52,7 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
                 user: { email: parameters.email },
                 device: { 
                     fingerprint: parameters.fingerprint,
-                    userAgent: parameters.userAgent 
+                    userAgent: parameters.userAgent
                 },
                 action: "PASSKEY_SIGN_IN_ATTEMPT",
                 status: "FAILED",
@@ -147,13 +148,16 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
 
         const SID = generateId("SID", 64);
 
-        const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret);
+        const signatureKeyPair = globalAccessPoint.getValue("signatureSecretsManager").getRandomKeyPair("internal");
+
+        const signature = generateSignature(SID + refreshToken.token, signatureKeyPair.privateKey);
+        const cookieSignature = `${signature}:*:${signatureKeyPair.keyPairId}`
 
         const tokenCookies = [
             { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
             { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
             { key: "SID", data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: "SID_HMAC", data: hmac, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+            { key: "SID_SIGNATURE", data: cookieSignature, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ]
 
         auditTrail.record({
@@ -191,7 +195,8 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
         ip
     }
 
-    const results = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true, parameters, 'signInWithPasskey', functionSource);
 
     return results;
 }

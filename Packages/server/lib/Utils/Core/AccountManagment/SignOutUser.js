@@ -1,4 +1,4 @@
-import { respondWithSuccess, respondWithError } from '../../../Server/Response/response.js';
+import { respondWithSuccess } from '../../../Server/Response/response.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 
@@ -13,7 +13,7 @@ const routeHandlerSignOutUser = async (request, response) => {
 
         response.cookie("SID", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
 
-        response.cookie("SID_HMAC", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
+        response.cookie("SID_SIGNATURE", "" , { httpOnly: true , secure: true , sameSite: "None" , maxAge: 0 });
 
         auditTrail.record({
             user: { 
@@ -33,7 +33,7 @@ const routeHandlerSignOutUser = async (request, response) => {
             impact: "User successfully signed out",
             metadata: { 
                 method: "COOKIE_CLEAR",
-                tokensCleared: ["ACCESS_TOKEN", "REFRESH_TOKEN", "SID", "SID_HMAC"]
+                tokensCleared: ["ACCESS_TOKEN", "REFRESH_TOKEN", "SID", "SID_SIGNATURE"]
             }
         });
 

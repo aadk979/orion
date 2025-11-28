@@ -4,6 +4,7 @@ import { generateHmacKey } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIpRange, getIp } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { generateRequestId } from '../../valueGenerator.js';
 
 const generateDipConfig = async (ip) => {
@@ -39,7 +40,8 @@ const generateDipConfig = async (ip) => {
     return { error: false, dipConfig: { ...dipConfig , encryptAll: globalAccessPoint.getValue("systemConfig").api.encryptAll } };
   };
 
-  const result = await tryCatch(Function, true, { ip: ip });
+  const functionSource = fileURLToPath(import.meta.url);
+  const result = await tryCatch(Function, true, { ip: ip }, 'generateDipConfig', functionSource);
   return result;
 };
 

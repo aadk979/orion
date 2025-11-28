@@ -1,14 +1,16 @@
 /**
- * This module contains the VolatileSecretsManager (VSM).
- * It holds a specified number of secrets in memory, determined at startup,
- * and allows access via their index.
+ * Volatile Secrets Manager (VSM)
  * 
- * These secrets are intended for non-critical, temporary operations that require a secret.
- * They should only be used when the loss of a secret would not cause significant damage
- * and can be safely recovered.
+ * Manages a specified number of secrets in memory, determined at startup,
+ * and allows access via their index. These secrets are intended for
+ * non-critical, temporary operations that require a secret.
+ * 
+ * They should only be used when the loss of a secret would not cause
+ * significant damage and can be safely recovered.
  * 
  * Keys are automatically rotated every 24 hours for enhanced security.
- * CronScheduler was not used due to the nature of the secrets and a custom cron system has been implemented.
+ * CronScheduler was not used due to the nature of the secrets, and a
+ * custom cron system has been implemented.
  */
 
 import cron from 'node-cron';

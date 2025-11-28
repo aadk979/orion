@@ -15,7 +15,6 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
     const button = document.createElement("button");
     const buttonText = document.createElement("span");
     const spinner = document.createElement("div");
-    const spinnerStyle = document.createElement("style");
     const errorMsg = document.createElement("div");
     const orionTag = document.createElement("span");
 
@@ -105,6 +104,7 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
     input.style.borderRadius = "8px";
     input.style.fontSize = "0.95rem";
     input.style.transition = "border-color 0.2s, box-shadow 0.2s";
+    input.style.color = "black";
 
     input.addEventListener("focus", () => {
       input.style.borderColor = "#2563eb";
@@ -216,9 +216,8 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
       input.focus();
     };
 
-    // ✅ SUCCESS UI
     const showSuccess = () => {
-      modal.innerHTML = ""; // clear modal
+      modal.innerHTML = "";
 
       const checkContainer = document.createElement("div");
       const checkCircle = document.createElement("div");
@@ -276,7 +275,6 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
 
       modal.appendChild(checkContainer);
 
-      // countdown timer
       let seconds = 5;
       const countdown = setInterval(() => {
         seconds--;
@@ -288,8 +286,8 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
       }, 1000);
     };
 
-    // --- Main event ---
-    button.addEventListener("click", async () => {
+    // --- Main authorization handler ---
+    const handleAuthorization = async () => {
       startLoading();
       const code = input.value.trim();
 
@@ -332,7 +330,6 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
       );
 
       const data = await request.json();
-
       stopLoading();
 
       if (data.error) {
@@ -340,8 +337,17 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace) => {
         return;
       }
 
-      if (data.data.success) {
-        showSuccess();
+      if (data.data.success) showSuccess();
+    };
+
+    // Click event
+    button.addEventListener("click", handleAuthorization);
+
+    // ✅ Enter key event listener
+    input.addEventListener("keypress", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        button.click();
       }
     });
   } catch (e) {

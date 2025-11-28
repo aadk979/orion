@@ -1,6 +1,12 @@
 /**
- * During token generation both user context and device identity and fingerprints are present
- * But for the viewType "secure", these values maybe not be present so for this viewType the system will not validate the devicefingerprint
+ * Resource Token Management System
+ * 
+ * Handles generation and validation of resource access tokens. During token
+ * generation, both user context and device identity fingerprints are present.
+ * 
+ * NOTE: For the "secure" view type, device fingerprint values may not be
+ * present, so the system will not validate the device fingerprint for this
+ * view type.
  */
 
 import jwt from 'jsonwebtoken';
@@ -29,7 +35,7 @@ async function generateResourceToken(uid, email, fingerprint, ip, userAgent, vie
         return { error: true, errorCode: "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE" }
     }
 
-    if (Math.floor(parseDuration(globalAccessPoint.getValue("systemConfig").tokens?.lifespans.resourceAccessTokens || "1h") / 1 * 60 * 60 * 1000) * MAX_FILES_ACCESS_PER_HOUR < maxRetrievals) {
+    if (Math.floor(parseDuration(globalAccessPoint.getValue("systemConfig").tokens?.lifespans.resourceTokens || "1h") / 1 * 60 * 60 * 1000) * MAX_FILES_ACCESS_PER_HOUR < maxRetrievals) {
         return { error: true, errorCode: "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH" };
     }
 
@@ -38,7 +44,7 @@ async function generateResourceToken(uid, email, fingerprint, ip, userAgent, vie
     
     const secret = await globalAccessPoint.getValue("tokenSecretsManager").getRandomKeyPair("resource_access");
     const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.resourceAccessTokens || "1h";
-    const aud = globalAccessPoint.getValue("systemConfig").client.urls;
+    const aud = gglobalAccessPoint.getValue("allowedClientUrls");
     const iss = globalAccessPoint.getValue("systemConfig").server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
@@ -139,7 +145,7 @@ async function generateResourceToken(uid, email, fingerprint, ip, userAgent, vie
     return { error: false, token: token };
 }
 
-async function validateResourceToken(token, fingerprint, ip, clientUrl) {
+async function validateResourceToken(token, fingerprint = "NO_FINGERPRINT", ip, clientUrl) {
     const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
     const requestMetadata = requestContext.getStore();
     
@@ -172,7 +178,7 @@ async function validateResourceToken(token, fingerprint, ip, clientUrl) {
 
         const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
 
-        if (!validatedToken.aud.includes(clientUrl)) {
+        if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.getValue("allowedClientUrls").includes(clientUrl)) {
             return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-INVALID-AUD" }
         }
 
@@ -198,27 +204,31 @@ async function validateResourceToken(token, fingerprint, ip, clientUrl) {
             return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH" }
         }
 
-        const shouldSkipFingerprintCheck = validatedToken.shareAllowed;
+        // Feature disabled in current release, device tracking unavailable since fingerprint isnt a default http header and hence the system will only work inside custom wrappers
+        // For system ease of use, the system currently allows access without checking the fingerprint
+        // Current view modes are public and secure-0, secure supports network level share restrictions but not device based
+        // Future addition of a view mode, secure-1, will only allow custom wrapper to access the file hence being able to get the fingerprint header and track the device
+        // const shouldSkipFingerprintCheck = validatedToken.shareAllowed;
 
-        if (!shouldSkipFingerprintCheck) {
+        // if (!shouldSkipFingerprintCheck) {
 
-            if ((!timingSafeEqual(
-                Buffer.from(validatedToken.hashedDeviceFingerprint),
-                Buffer.from(tokenData.hashedFingerprint)
-            ))) {
-                const newArray = activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
-                user.security.activeTokens = newArray;
-                await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
-                return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1" }
-            }
+        //     if ((!timingSafeEqual(
+        //         Buffer.from(validatedToken.hashedDeviceFingerprint),
+        //         Buffer.from(tokenData.hashedFingerprint)
+        //     ))) {
+        //         const newArray = activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
+        //         user.security.activeTokens = newArray;
+        //         await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
+        //         return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1" }
+        //     }
 
-            if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
-                user.security.activeTokens = activeTokens.filter(v => v.tokenId !== validatedToken.tokenData.tokenId);
-                user.security.activeTokens = user.security.activeTokens.filter(val => isUnixExpired(val.exp) !== true);
-                await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
-                return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2" }
-            }
-        }
+        //     if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
+        //         user.security.activeTokens = activeTokens.filter(v => v.tokenId !== validatedToken.tokenData.tokenId);
+        //         user.security.activeTokens = user.security.activeTokens.filter(val => isUnixExpired(val.exp) !== true);
+        //         await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
+        //         return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2" }
+        //     }
+        // }
 
         if (tokenData.retrievalCount >= tokenData.maxRetrievals) {
             user.security.activeTokens = activeTokens.filter(v => v.tokenId !== validatedToken.tokenData.tokenId);

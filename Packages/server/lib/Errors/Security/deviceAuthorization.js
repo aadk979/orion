@@ -47,6 +47,20 @@ const DeviceAuthorization = {
         errorCode: "DEVICE-AUTHORIZATION-INVALID-CODE",
         fault: "CLIENT",
         solutions: ["Use the correct authorisation code from your email"]
+    },
+    "DEVICE-MISSING-META-DATA": {
+        status: 401,
+        context: "The expected device metadata is missing",
+        errorCode: "DEVICE-MISSING-META-DATA",
+        fault: "CLIENT",
+        solutions: ["NONE"]
+    },
+    "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID": {
+        status: 400,
+        context: "The expected device authorization request id is missing",
+        errorCode: "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
+        fault: "CLIENT",
+        solutions: ["NONE"]
     }
 };
 

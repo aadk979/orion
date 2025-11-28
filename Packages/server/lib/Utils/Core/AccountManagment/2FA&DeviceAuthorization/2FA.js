@@ -1,4 +1,10 @@
-// Module not implemented in current release but device authoirzation module will ensure security until then
+/**
+ * Two-Factor Authentication (2FA) Module
+ * 
+ * NOTE: This module is not fully implemented in the current release.
+ * The device authorisation module provides security coverage until 2FA
+ * implementation is complete.
+ */
 
 import { globalAccessPoint } from "../../../GlobalAccessPoint";
 

@@ -1,4 +1,4 @@
-# 🛰️ Orion Alpine (v1.0.0 Beta)
+# 🛰️ Orion Alpine (v1.0.7 Beta)
 
 Orion Alpine is a modern, production-ready authentication framework built for Node.js.  
 It provides a secure, modular, and scalable foundation for authentication, authorization, and user management — from simple web apps to enterprise-grade systems.
@@ -28,9 +28,7 @@ const callback = (req, res) => {
 
 const configuration = {
     PORT: 3495,
-    name: "alpine",
     appName: "Orion Test",
-    port: 3495,
     serviceID: "699aeb89-f221-489f-9fce-dbe972386137",
     status: "DEV",
     logToFile: true,
@@ -58,10 +56,9 @@ const configuration = {
     },
     client: {
         urls: ["http://localhost:5502", "http://localhost:5173"],
-        allowAll: false
     },
     server: {
-        urls: ["http://localhost:3495"],
+        urls: ["http://localhost:3495", "Other server urls"],
         myUrl: "http://localhost:3495"
     },
     mail: {
@@ -78,7 +75,6 @@ const configuration = {
     authMethods: {
         emailPassword: true,
         passkey: true,
-        magicLink: true,
         oAuth: {
             google: {
                 clientId: "",

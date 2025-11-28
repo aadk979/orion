@@ -4,14 +4,16 @@ const AuthenticationMiddleware = {
         context: "Either the session ID or session HMAC is missing",
         errorCode: "MISSING-SESSION-ID-OR-SESSION-HMAC",
         fault: "CLIENT",
-        solutions: ["NONE"]
+        solutions: ["NONE"],
+        logout: true
     },
     "INVALID-SESSION-ID": {
         status: 401,
         context: "The session ID or session HMAC is invalid or has been tampered with",
         errorCode: "INVALID-SESSION-ID",
         fault: "CLIENT",
-        solutions: ["Ensure the email is correct or create a new account"]
+        solutions: ["NONE"],
+        logout: true
     },
     "INVALID-AUTHENTICATION-TOKEN-TYPE": {
         status: 401,
@@ -32,7 +34,8 @@ const AuthenticationMiddleware = {
         context: "The provided refresh token has reached its maximum limit of allowed refreshes",
         errorCode: "REFRESH-TOKEN-LIMIT-HIT",
         fault: "CLIENT",
-        solutions: ["NONE"]
+        solutions: ["NONE"],
+        logout: true
     },
     "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE": {
         status: 401,

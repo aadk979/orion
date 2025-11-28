@@ -1,21 +1,19 @@
 import { respondWithError, respondWithSuccess } from "../../../Server/Response/response.js"
-import { verifyHash } from "../../CryptoFunctions.js"
+import { generateSignature, verifyHash } from "../../CryptoFunctions.js"
 import { parseDuration } from "../../Date&Time.js"
 import { base64Decode } from "../../Encoders.js"
 import { globalAccessPoint } from "../../GlobalAccessPoint.js"
 import { getIp, isIpInRange } from "../../Ip.js"
 import { tryCatch } from "../../TryCatch.js"
+import { fileURLToPath } from 'url';
 import { generateId } from "../../valueGenerator.js"
 import { generateAccessToken } from "../TokenManagement/AccessTokens.js"
 import { generateRefreshToken } from "../TokenManagement/RefreshTokens.js"
 import { accountExist, checkAndAddProviderToAccount, createAccountWithProvider } from "./Account.js"
-import { generateHmac } from "../../CryptoFunctions.js"
 import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from "../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js"
 import { stringifyCookieData } from "../../CookieUtils.js"
 import { requestContext } from "../../../Server/Middleware/requestMetadata.js"
 import { isValidEmailDomain } from "../../Validator.js"
-import { generateResourceToken } from "../ResourceAccessManagment/callbackBasedResources/resourceTokens.js"
-import { resourceUriBuilder } from "../ResourceAccessManagment/callbackBasedResources/utils.js"
 import { userControl } from "../AccountManagment/UserControl.js"
 
 const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent, deviceId, deviceCode) => {
@@ -295,13 +293,17 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
 
         const SID = generateId("SID", 64);
 
-        const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret);
+        const signatureKeyPair = await globalAccessPoint.getValue("signatureSecretsManager").getRandomKeyPair("internal");
+        const systemConfig = globalAccessPoint.systemConfig();
+
+        const signature = generateSignature(SID + refreshToken.token, signatureKeyPair.privateKey);
+        const cookieSignature = `${signature}:*:${signatureKeyPair.keyPairId}`
 
         const tokenCookies = [
-            { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(globalAccessPoint.getValue("systemConfig").tokens.lifespans.accessTokens) },
-            { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(globalAccessPoint.getValue("systemConfig").tokens.lifespans.refreshTokens) },
-            { key: "SID", data: SID, maxAge: parseDuration(globalAccessPoint.getValue("systemConfig").tokens.lifespans.refreshTokens) },
-            { key: "SID_HMAC", data: hmac, maxAge: parseDuration(globalAccessPoint.getValue("systemConfig").tokens.lifespans.refreshTokens) }
+            { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
+            { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
+            { key: "SID", data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
+            { key: "SID_SIGNATURE", data: cookieSignature, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ]
 
         auditTrail.record({
@@ -339,7 +341,8 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
         deviceCode
     }
 
-    const results = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true, parameters, 'handleOAuthCallback', functionSource);
 
     if (results.error && results.errorCode === "UNKNOWN-ERROR") {
         return { error: true, errorCode: "O-AUTH-CALLBACK-PROCESSING-FAILED" };

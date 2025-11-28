@@ -1,3 +1,4 @@
+import { getCurrentUnixTime, getFutureUnixTime, isUnixExpired } from './Date&Time.js';
 import { logger } from './logger.js';
 
 class GlobalAccessPoint {
@@ -16,12 +17,21 @@ class GlobalAccessPoint {
             "refreshRateLimiter",
             "oAuthToolKit"
         ]);
+        this._postBootUpdateAllowedKeys = [ "systemConfig" ];
+        this._postBootUpdateAllowedDurationAfterBoot = "1m";
+        this._postBootUpdateAllowedExpiry = getFutureUnixTime(this._postBootUpdateAllowedDurationAfterBoot);
 
         GlobalAccessPoint.instance = this;
     }
 
     setValue(name, value) {
-        if (this._lockedKeys.has(name) && this._values[name] !== undefined) {
+        let lockOverride = false;
+
+        if (!isUnixExpired(this._postBootUpdateAllowedExpiry) && this._postBootUpdateAllowedKeys.includes(name)) {
+            lockOverride = true;
+        }
+
+        if (this._lockedKeys.has(name) && this._values[name] !== undefined && !lockOverride) {
             logger.error(`CRITICAL: Locked value for key ${name} cannot be overwritten.`);
             return false;
         }
@@ -31,10 +41,16 @@ class GlobalAccessPoint {
     }
 
     getValue(name) {
-        if (!(name in this._values)) {
+
+        if (!(name in this._values) && this._lockedKeys.has(name)) {
             logger.error(`CRITICAL: Requested value for key ${name} does not exist.`);
             throw new Error(`GlobalAccessPoint: No value found for key "${name}"`);
         }
+
+        if (!(name in this._values)) {
+            return undefined;
+        }
+
         return this._values[name];
     }
 

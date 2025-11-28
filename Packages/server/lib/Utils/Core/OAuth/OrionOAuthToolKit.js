@@ -1,13 +1,15 @@
-import axios from 'axios';
-import { logger } from '../../logger.js';
-
 /**
  * Multi-Provider OAuth Toolkit for Orion
- * Supports: Google, GitHub, Microsoft, Discord, Facebook, Amazon, Slack,
- *          Apple, Twitter/X, LinkedIn, Reddit, Spotify
  * 
- * All providers use standard OAuth 2.0 flow for simplicity and consistency
+ * Provides unified OAuth 2.0 authentication support for multiple providers:
+ * Google, GitHub, Microsoft, Discord, Facebook, Amazon, Slack, Apple, Twitter/X,
+ * LinkedIn, Reddit, and Spotify.
+ * 
+ * All providers utilise standard OAuth 2.0 flow for simplicity and consistency.
  */
+
+import axios from 'axios';
+import { logger } from '../../logger.js';
 
 class OAuthProviderToolkit {
     constructor(config) {
@@ -246,7 +248,6 @@ class OAuthProviderToolkit {
             });
             return await this.normalizeUserInfo(providerName, userResponse.data, accessToken, client);
         } catch (error) {
-            console.error(error)
             return { error: true, errorCode: "O-AUTH-USERINFO-FAILED" };
         }
     }
@@ -341,9 +342,7 @@ class OAuthProviderToolkit {
                 };
 
             case 'slack': {
-                console.log(userData)
                 const user = userData.user;
-                console.log(user)
                 return {
                     id: user.id,
                     email: user.email,

@@ -1,4 +1,6 @@
+import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { respondWithError } from '../Response/response.js';
+import { logger } from '../../Utils/logger.js';
 
 class originVerifier {
   static systemConfig;
@@ -17,7 +19,7 @@ class originVerifier {
         return response.sendStatus(204); // No Content, stop here
       }
 
-      const clientOrigin = request.get("origin");
+      const clientOrigin = request.headers.origin || request.headers.referer || `${request.protocol}://${request.get('host')}`;
 
       // To be updated in prod to only allow HTTPS (Remove && false flag to activate)
       if (
@@ -32,12 +34,8 @@ class originVerifier {
         return respondWithError(response, "UNKNOWN-ORIGIN");
       }
 
-      if (originVerifier.systemConfig.client.allowAll) {
-        return next();
-      }
-
       if (
-        originVerifier.systemConfig.client.urls.some((url) =>
+        globalAccessPoint.getValue("allowedClientUrls").some((url) =>
           clientOrigin.endsWith(url)
         )
       ) {
@@ -46,7 +44,7 @@ class originVerifier {
 
       return respondWithError(response, "UNKNOWN-ORIGIN");
     } catch (e) {
-      console.error(e);
+      logger.error("Origin verification error:", e);
       return respondWithError(response, "INTERNAL-SERVER-ERROR");
     }
   }
@@ -64,14 +62,9 @@ class originVerifier {
       return callback(null, false);
     }
 
-    // Allow all if configured (DEPRECATED, due to security vulneribility in token aud)
-    if (originVerifier.systemConfig.client.allowAll && false) {
-      return callback(null, true);
-    }
-
     // Check allowed URLs
     if (
-      originVerifier.systemConfig.client.urls.some((url) =>
+      globalAccessPoint.getValue("allowedClientUrls").some((url) =>
         origin.endsWith(url)
       )
     ) {
@@ -83,4 +76,4 @@ class originVerifier {
   }
 }
 
-export { originVerifier };;
+export { originVerifier };

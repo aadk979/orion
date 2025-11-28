@@ -4,6 +4,7 @@ import { hashString } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { isValidEmail, isPasswordSafe, isValidEmailDomain } from '../../Validator.js';
 import { generateUID } from '../../valueGenerator.js';
 
@@ -70,6 +71,8 @@ const createAccount = async (email, password) => {
         }
 
         const user = await globalAccessPoint.db().getData("Users-email", sanitizedEmail);
+
+        console.log(user, user?.data === undefined)
 
         if (user.data !== undefined) {
             auditTrail.record({
@@ -206,6 +209,12 @@ const createAccount = async (email, password) => {
             }
         });
 
+        try{
+            systemConfig?.onUserCreation(sanitizedEmail, uid);
+        }catch(e) {
+            logger.error("An error occurred in the onUserCreation callback: " + e);
+        }
+
         return { error: false , completed: true }
     }
 
@@ -214,7 +223,8 @@ const createAccount = async (email, password) => {
         password: password
     }
 
-    const result = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'createAccount', functionSource);
 
     return result;
 }

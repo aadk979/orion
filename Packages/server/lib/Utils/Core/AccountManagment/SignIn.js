@@ -1,10 +1,11 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
-import { verifyHash, generateHmac } from '../../CryptoFunctions.js';
+import { verifyHash, generateHmac, generateSignature } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIp } from '../../Ip.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../Validator.js';
 import { generateId } from '../../valueGenerator.js';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
@@ -100,11 +101,13 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             return { error: true, errorCode: "ACC-SIGN-IN-ACC-DISABLED" }
         }
 
-        const user = await globalAccessPoint.db().getData("Users", userExist.data.uid);
+        const uid = await userControl.getUserUidByEmail(sanitizedEmail);
+
+        const user = await globalAccessPoint.db().getData("Users", uid.uid);
 
         if (!user.data.credentials.password) {
             auditTrail.record({
-                user: { email: parameters.email, uid: userExist.data.uid },
+                user: { email: parameters.email, uid: uid.uid },
                 device: { 
                     fingerprint: parameters.fingerprint,
                     userAgent: parameters.userAgent 
@@ -126,7 +129,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
 
         if(!passwordMatch) {
             auditTrail.record({
-                user: { email: parameters.email, uid: userExist.data.uid },
+                user: { email: parameters.email, uid: uid.uid },
                 device: { 
                     fingerprint: parameters.fingerprint,
                     userAgent: parameters.userAgent 
@@ -194,13 +197,16 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
 
         const SID = generateId("SID", 64);
 
-        const hmac = await generateHmac(SID + refreshToken.token, globalAccessPoint.getValue("volatileSecretsManager").getKey(0).secret);
+        const signatureKeyPair = globalAccessPoint.getValue("signatureSecretsManager").getRandomKeyPair("internal");
+
+        const signature = generateSignature(SID + refreshToken.token, signatureKeyPair.privateKey);
+        const cookieSignature = `${signature}:*:${signatureKeyPair.keyPairId}`
 
         const tokenCookies = [
             { key: "ACCESS_TOKEN", data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
             { key: "REFRESH_TOKEN", data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
             { key: "SID", data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: "SID_HMAC", data: hmac, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+            { key: "SID_SIGNATURE", data: cookieSignature, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ]
 
         auditTrail.record({
@@ -234,7 +240,8 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         userAgent
     }
 
-    const result = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'signInWithPassword', functionSource);
 
     return result;
 }

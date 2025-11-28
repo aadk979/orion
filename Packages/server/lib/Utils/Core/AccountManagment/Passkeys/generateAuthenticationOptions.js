@@ -2,6 +2,7 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { stringifyCookieData } from '../../../CookieUtils.js';
@@ -88,7 +89,8 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (
     clientURL,
   };
 
-  const results = await tryCatch(Function, true, parameters);
+  const functionSource = fileURLToPath(import.meta.url);
+  const results = await tryCatch(Function, true, parameters, 'generatePasskeyAuthenticationOptionsExistingUser', functionSource);
 
   return results;
 };

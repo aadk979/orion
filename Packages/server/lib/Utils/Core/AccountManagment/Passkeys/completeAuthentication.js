@@ -1,6 +1,7 @@
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { tryCatch } from '../../../TryCatch.js';
+import { fileURLToPath } from 'url';
 
 const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async (parameters) => {
@@ -54,7 +55,8 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
         clientURL: parsedClientURL
     }
 
-    const results = await tryCatch(Function, true , parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true , parameters, 'veryifyAndCompletePasskeyAuthentication', functionSource);
 
     return results;
 }

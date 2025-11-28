@@ -2,6 +2,7 @@ import ipaddr from 'ipaddr.js';
 import geoip from 'geoip-lite';
 import crypto from 'crypto';
 import asnLookup from 'ip-to-asn';
+import { logger } from './logger.js';
 
 /**
  * Configuration for risk assessment scoring
@@ -237,7 +238,7 @@ async function isIpInRange(ip, cidr, options = {}) {
     const assessment = await assessRisk(ip, referenceIp, options);
     return assessment.accepted;
   } catch (e) {
-    console.error('IP validation error:', e.message);
+    logger.error('IP validation error:', e.message);
     return false;
   }
 }
@@ -272,6 +273,12 @@ function verifyIpFingerprint(ip, userId, fingerprint, secret) {
          crypto.timingSafeEqual(Buffer.from(fingerprint), Buffer.from(expected));
 }
 
+const packageExports = {
+  getIpRange,
+  getIp,
+  isIpInRange
+}
+
 export {
   getIpRange,
   getIp,
@@ -279,5 +286,6 @@ export {
   getIpRiskAssessment,
   generateIpFingerprint,
   verifyIpFingerprint,
-  RISK_CONFIG
+  RISK_CONFIG,
+  packageExports
 };

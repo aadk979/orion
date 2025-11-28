@@ -1,6 +1,7 @@
 import { globalAccessPoint } from "../../GlobalAccessPoint.js"
 import { tryCatch } from "../../TryCatch.js";
 import { generateUID } from "../../valueGenerator.js";
+import { fileURLToPath } from 'url';
 
 const accountExist = async (email) => {
     const Function = async (parameters) => {
@@ -14,7 +15,8 @@ const accountExist = async (email) => {
     };
 
     const parameters = { email };
-    return await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    return await tryCatch(Function, true, parameters, 'accountExist', functionSource);
 };
 
 const checkAndAddProviderToAccount = async (email, provider) => {
@@ -38,7 +40,8 @@ const checkAndAddProviderToAccount = async (email, provider) => {
         provider
     }
 
-    return await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    return await tryCatch(Function, true, parameters, 'checkAndAddProviderToAccount', functionSource);
 }
 
 const createAccountWithProvider = async (email, provider) => {
@@ -103,7 +106,8 @@ const createAccountWithProvider = async (email, provider) => {
         provider
     }
 
-    return await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    return await tryCatch(Function, true, parameters, 'createAccountWithProvider', functionSource);
 }
 
 export { createAccountWithProvider, checkAndAddProviderToAccount, accountExist }

@@ -4,6 +4,7 @@ import { getFutureUnixTime, getCurrentUnixTime } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIp } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
+import { fileURLToPath } from 'url';
 import { generateRequestId } from '../../valueGenerator.js';
 import crypto from 'crypto';
 import { cronScheduler } from '../../Cron.js';
@@ -47,7 +48,8 @@ const generateNoAuthTokenCreationTransaction = async (ip, fingerprint, userAgent
         userAgent: userAgent
     }
 
-    const result = await tryCatch(Function, true, parameters)
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'generateNoAuthTokenCreationTransaction', functionSource)
     return result;
 }
 
@@ -131,7 +133,8 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
         transactionId: transactionId
     }
 
-    const result = await tryCatch(Function, true, parameters)
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'generateNoAuthToken', functionSource)
     return result;
 }
 
@@ -198,7 +201,8 @@ const validateNoAuthToken = async (token , ip , fingerprint , userAgent) => {
         token: token
     }
 
-    const result = await tryCatch(Function, true, parameters)
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'validateNoAuthToken', functionSource)
     return result;
 }
 

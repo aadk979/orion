@@ -5,6 +5,7 @@ import { base64Encode } from "../../Encoders.js"
 import { globalAccessPoint } from "../../GlobalAccessPoint.js"
 import { getIp, getIpRange } from "../../Ip.js"
 import { tryCatch } from "../../TryCatch.js"
+import { fileURLToPath } from 'url';
 import { generateChallenge, generateRequestId } from "../../valueGenerator.js"
 import { requestContext } from "../../../Server/Middleware/requestMetadata.js"
 
@@ -127,7 +128,8 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
         ip
     }
 
-    const results = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const results = await tryCatch(Function, true, parameters, 'generateOAuthRedirectURL', functionSource);
 
     if (results.error && results.errorCode === "UNKNOWN-ERROR") {
         return { error: true, errorCode: "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL" };

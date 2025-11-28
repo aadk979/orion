@@ -1,4 +1,4 @@
-// This is the same code as Api.js but a secondary one was created to prevent ciruclar dependency in some modules
+// This is functionaly the same code as Api.js but a secondary one was created to prevent ciruclar dependency in some modules
 
 import {
   encryptAESGCM,
@@ -9,37 +9,10 @@ import {
 } from "./CryptoModule.js";
 import { getDeviceFingerprint } from "./DevicePrint.js";
 
-const ORION_FLOW_TYPES = {
-  "FLOW-DEVICE-AUTHORIZATION": null,
-};
-
 class ApiInterface {
   constructor(baseUrl, nameSpace) {
     this.baseUrl = baseUrl;
     this.nameSpace = nameSpace;
-  }
-
-  async getData(endpoint, params = {}) {
-    const url = new URL(`${this.baseUrl}${endpoint}`);
-    Object.keys(params).forEach((key) =>
-      url.searchParams.append(key, params[key])
-    );
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "orion-fingerprint": await getDeviceFingerprint(),
-        "orion-user-agent": navigator.userAgent,
-      },
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      return { error: true, errorCode: "CLIENT-UNABLE-TO-GET-RESOURCE" };
-    }
-
-    return response;
   }
 
   async fetch(endpoint, method, authorization, body = {}, dip, encryption) {
@@ -70,16 +43,14 @@ class ApiInterface {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const flow = response.headers.get("orion-flow-activation");
+    const refresh = response.headers.get("orion-response-refresh") || response.headers.get("Orion-Response-Refresh");
 
-    if (flow) {
-      const flowFn = ORION_FLOW_TYPES[flow];
+    if (refresh) {
 
-      if (!flowFn) {
-        throw new Error("Orion header flow triggered, invalid flow type!");
+      if (String(refresh) === "true") {
+        window.location.reload();
       }
-
-      await flowFn();
+      
     }
 
     return response;

@@ -50,4 +50,77 @@ function parseDuration(str) {
   return totalMs;
 }
 
-export { isUnixExpired , getCurrentUnixTime , getFutureUnixTime , parseDuration };;
+function formatTime(ms) {
+  if (ms === 0) return '0ms';
+  if (ms < 1) return `${ms.toFixed(3)}ms`;
+  
+  const units = [
+      { label: 'd', ms: 86400000 },
+      { label: 'h', ms: 3600000 },
+      { label: 'min', ms: 60000 },
+      { label: 'sec', ms: 1000 },
+      { label: 'ms', ms: 1 }
+  ];
+  
+  const parts = [];
+  let remaining = ms;
+  
+  for (const unit of units) {
+      if (remaining >= unit.ms) {
+          const value = Math.floor(remaining / unit.ms);
+          remaining %= unit.ms;
+          
+          // For seconds and below, include decimals for precision when small
+          if (unit.label === 'sec' && remaining > 0 && value < 60) {
+              const preciseValue = (value + remaining / unit.ms).toFixed(2);
+              parts.push(`${preciseValue}${unit.label}`);
+              break;
+          } else if (unit.label === 'ms' && parts.length === 0) {
+              // If we only have milliseconds, show decimals
+              parts.push(`${(ms).toFixed(2)}${unit.label}`);
+          } else {
+              parts.push(`${value}${unit.label}`);
+          }
+      }
+  }
+  
+  return parts.join(' ');
+}
+
+function formatTimePrecise(ms) {
+  if (ms === 0) return '0ms';
+  
+  const units = [
+      { label: 'd', ms: 86400000 },
+      { label: 'h', ms: 3600000 },
+      { label: 'min', ms: 60000 },
+      { label: 's', ms: 1000 },
+      { label: 'ms', ms: 1 }
+  ];
+  
+  const parts = [];
+  let remaining = ms;
+  
+  for (let i = 0; i < units.length; i++) {
+      const unit = units[i];
+      if (remaining >= unit.ms || (i === units.length - 1 && parts.length === 0)) {
+          const value = remaining / unit.ms;
+          
+          if (i === units.length - 1 || remaining < units[i + 1].ms * 10) {
+              const decimalPlaces = unit.label === 'ms' ? 2 : (value < 10 ? 2 : 1);
+              parts.push(`${value.toFixed(decimalPlaces)}${unit.label}`);
+              break;
+          } else {
+              const wholeValue = Math.floor(value);
+              parts.push(`${wholeValue}${unit.label}`);
+              remaining -= wholeValue * unit.ms;
+          }
+      }
+  }
+  
+  return parts.join(' ');
+}
+
+const packageExports =  { isUnixExpired , getCurrentUnixTime , getFutureUnixTime , parseDuration , formatTime , formatTimePrecise };
+
+export { isUnixExpired , getCurrentUnixTime , getFutureUnixTime , formatTime , formatTimePrecise , parseDuration , packageExports };;

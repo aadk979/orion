@@ -15,7 +15,6 @@ const routeHandlerKeyRequest = async (request , response) => {
 
     const data = {
         requestId: requestId,
-        publicKey: publicKey,
         privateKey: privateKey,
         ip: getIp(request),
         fingerprint: await hashString(request.headers["orion-fingerprint"]),
@@ -30,6 +29,4 @@ const routeHandlerKeyRequest = async (request , response) => {
     return respondWithSuccess(response, 200, { requestId: requestId, publicKey: publicKey });
 }
 
-export {
-    routeHandlerKeyRequest,
-};;
+export { routeHandlerKeyRequest };

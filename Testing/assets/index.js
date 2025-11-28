@@ -108,7 +108,7 @@ async function yurrrr() {
                 console.log('User not signed in, initiating Google OAuth...');
                 
                 // Generate OAuth redirect URL for Google
-                const redirectResult = await orion.generateOAuthRedirectURLAndRedirect('MICROSOFT');
+                const redirectResult = await orion.generateOAuthRedirectURLAndRedirect('GITHUB');
                 
                 if (redirectResult.error) {
                     console.error('Failed to generate OAuth redirect URL:', redirectResult.errorCode);

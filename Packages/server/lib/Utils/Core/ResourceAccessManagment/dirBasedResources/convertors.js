@@ -1,6 +1,7 @@
 import fs from "fs";
 import { fileTypeFromBuffer } from "file-type";
 import mime from "mime-types";
+import { logger } from '../../../logger.js';
 
 const fileToBase64 = (filePath) => {
   try {
@@ -99,7 +100,7 @@ const getFileType = async (base64File, filePath) => {
 
     return "application/octet-stream";
   } catch (err) {
-    console.error("Error detecting file type:", err);
+    logger.error("Error detecting file type:", err);
     return "application/octet-stream";
   }
 };

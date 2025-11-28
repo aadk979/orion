@@ -45,7 +45,7 @@ async function signInWithPasskey({ Api, getAuthHeader, dipConfig, This, email })
   };
 
   const finalRes = await Api.fetch(
-    `/${This.systemConfig.nameSpace}/api/v1/action/complete-passkey-authentication`,
+    `/${This.systemConfig.nameSpace}/api/v1/action/sign-in-with-passkey-authentication`,
     "POST",
     authHeader.authHead,
     postEncryptionPayload,

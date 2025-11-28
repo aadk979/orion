@@ -33,7 +33,14 @@ const AccountSignIn = {
         errorCode: "ACC-SIGN-IN-NO-PASSWORD-SETUP",
         fault: "CLIENT",
         solutions: ["Set up a password first or use an alternative sign-in method"]
-    }
+    },
+    "ACC-SIGN-IN-ACC-DISABLED": {
+        status: 403,
+        context: "The provided users account has been disabled by an admin",
+        errorCode: "ACC-SIGN-IN-ACC-DISABLED",
+        fault: "CLIENT",
+        solutions: ["Contact support"]
+    },
 };
 
 export { AccountSignIn };

@@ -7,7 +7,7 @@ const MAX_KEYS_PER_PARTITION = 15;
 const VALID_KEY_SIZES = [2048, 3072, 4096];
 
 function generateKeyPairId() {
-  return generateId("KEY_PAIR");
+  return generateId("TOKEN_KEY_PAIR");
 }
 
 class TokenSecretsManager {

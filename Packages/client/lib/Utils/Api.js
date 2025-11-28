@@ -18,29 +18,6 @@ class ApiInterface {
     this.nameSpace = nameSpace;
   }
 
-  async getData(endpoint, params = {}) {
-    const url = new URL(`${this.baseUrl}${endpoint}`);
-    Object.keys(params).forEach((key) =>
-      url.searchParams.append(key, params[key])
-    );
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "orion-fingerprint": await getDeviceFingerprint(),
-        "orion-user-agent": navigator.userAgent,
-      },
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      return { error: true, errorCode: "CLIENT-UNABLE-TO-GET-RESOURCE" };
-    }
-
-    return response;
-  }
-
   async fetch(endpoint, method, authorization, body = {}, dip, encryption) {
     const url = `${this.baseUrl}${endpoint}`;
 
@@ -68,6 +45,16 @@ class ApiInterface {
       credentials: "include",
       body: body ? JSON.stringify(body) : undefined,
     });
+
+    const refresh = response.headers.get("orion-response-refresh") || response.headers.get("Orion-Response-Refresh");
+
+    if (refresh) {
+
+      if (String(refresh) === "true") {
+        window.location.reload();
+      }
+      
+    }
 
     const flow = response.headers.get("orion-flow-activation") || response.headers.get("Orion-Flow-Activation");
 

@@ -1,7 +1,3 @@
-// Orion JWT System – Version 2
-// It transitions from symmetric signing to asymmetric signing, providing stronger security
-// and enabling easier key distribution via JWKs.
-
 import jwt from 'jsonwebtoken';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
@@ -17,7 +13,7 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     
     const secret = await globalAccessPoint.getValue("tokenSecretsManager").getRandomKeyPair("access");
     const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.accessTokens || "15m";
-    const aud = globalAccessPoint.getValue("systemConfig").client.urls;
+    const aud = globalAccessPoint.getValue("allowedClientUrls");
     const iss = globalAccessPoint.getValue("systemConfig").server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
@@ -155,7 +151,7 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
 
         const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
 
-        if (!validatedToken.aud.includes(clientUrl)) {
+        if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.getValue("allowedClientUrls").includes(clientUrl)) {
             return { error: true, errorCode: "INVALID-ACCESS-TOKEN-INVALID-AUD" }
         }
 
@@ -223,8 +219,7 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         if (e.message === "jwt expired") {
             return { error: true, errorCode: "ACCESS-TOKEN-EXPIRED" }
         }
-
-        console.error(e)
+        
         return { error: true, errorCode: "UNABLE-TO-VALIDATE-ACCESS-TOKEN" }
     }
 }

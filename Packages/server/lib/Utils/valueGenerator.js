@@ -38,6 +38,13 @@ const generateChallenge = (byteLength) => {
     return value;
 }
 
+const packageExports = {
+    generateRequestId,
+    generateId,
+    generateRandomNumber,
+    generateChallenge
+}
+
 const emailPrefixList = {
     "gmail.com": "GM",
     "googlemail.com": "GM-B",
@@ -75,4 +82,4 @@ const generateUID = (email) => {
     return uid;
 }
 
-export { generateUID, generateChallenge, generateRequestId, generateRandomNumber, generateId }
+export { generateUID, generateChallenge, generateRequestId, generateRandomNumber, generateId, packageExports }

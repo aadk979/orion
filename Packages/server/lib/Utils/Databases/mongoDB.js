@@ -8,11 +8,6 @@ class MongoService {
     this.db = null;
     this.initialized = false;
     this.advancedSecurityMode = advancedSecurityMode;
-
-    const systemConfig = globalAccessPoint.getValue("systemConfig");
-    const keys = systemConfig.db.securityKeys;
-
-    globalAccessPoint.setValue("databaseSecurityKeys", keys);
   }
 
   async initialize(cred, dbName = "default") {
@@ -23,10 +18,7 @@ class MongoService {
         throw new Error("Missing or invalid MongoDB URI");
       }
 
-      this.client = new MongoClient(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
+      this.client = new MongoClient(uri);
 
       await this.client.connect();
       this.db = this.client.db(dbName);
@@ -69,10 +61,10 @@ class MongoService {
       this.ensureInitialized();
 
       const collection = this.db.collection(collectionName);
-      const doc = await collection.findOne({ _id: docId });
-
+      let doc = await collection.findOne({ _id: docId });
+      
       if (!doc) {
-        return undefined;
+        doc = undefined
       }
 
       return { error: false, data: doc, completed: true };

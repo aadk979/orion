@@ -26,6 +26,8 @@ class Orion {
       );
     }
 
+    systemConfig.nameSpace = "alpine";
+
     Orion.systemConfig = systemConfig;
 
     this.systemConfig = systemConfig;

@@ -4,6 +4,7 @@ import { fileExists, getSafePath } from "../../Utils/Core/ResourceAccessManagmen
 import { globalAccessPoint } from "../../Utils/GlobalAccessPoint.js";
 import { getIp } from "../../Utils/Ip.js";
 import { tryCatch } from "../../Utils/TryCatch.js"
+import { fileURLToPath } from 'url';
 
 const resourceAccessMiddleware = async (request, response, next) => {
 
@@ -37,7 +38,7 @@ const resourceAccessMiddleware = async (request, response, next) => {
             return;
         }
 
-        if (accessType.toLowerCase().trim() === "secure") {
+        if (accessType.toLowerCase().trim() === "secure-0") {
             const filePath = parameters.request.query["path"] || "NONE";
             const token = parameters.request.query["token"];
 
@@ -115,7 +116,8 @@ const resourceAccessMiddleware = async (request, response, next) => {
         next
     }
 
-    const result = await tryCatch(Function, true, parameters);
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, parameters, 'resourceAccessMiddleware', functionSource);
 }
 
 export { resourceAccessMiddleware }

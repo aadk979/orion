@@ -13,7 +13,7 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
 
     const secret = await globalAccessPoint.getValue("tokenSecretsManager").getRandomKeyPair("refresh");
     const expiry = globalAccessPoint.getValue("systemConfig").tokens?.lifespans.refreshTokens || "15m";
-    const aud = globalAccessPoint.getValue("systemConfig").client.urls;
+    const aud = globalAccessPoint.getValue("allowedClientUrls");
     const iss = globalAccessPoint.getValue("systemConfig").server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
@@ -140,7 +140,7 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
 
         const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ["RS256"] });
 
-        if (!validatedToken.aud.includes(clientUrl)) {
+        if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.getValue("allowedClientUrls").includes(clientUrl)) {
             return { error: true, errorCode: "INVALID-REFRESH-TOKEN-INVALID-AUD" };
         }
 

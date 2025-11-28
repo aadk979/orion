@@ -1,3 +1,4 @@
+// Cipher 1
 import { createCanvas } from 'canvas';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -283,7 +284,6 @@ async function generateCaptchaImage() {
     hashedCode,
     // Additional security metadata
     timestamp: Date.now(),
-    complexity: 'maximum'
   };
 }
 

@@ -11,7 +11,7 @@ class FirestoreService {
   initialize(cred) {
     try {
       if (!cred || typeof cred !== 'object') {
-        throw new Error('Missing or invalid credentials object');
+        throw new Error('Missing or invalid firestore credentials object');
       }
 
       admin.initializeApp({

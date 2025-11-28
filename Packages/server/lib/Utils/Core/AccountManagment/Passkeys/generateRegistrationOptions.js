@@ -5,6 +5,7 @@ import { tryCatch } from '../../../TryCatch.js';
 import { isValidEmail } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { stringifyCookieData } from '../../../CookieUtils.js';
+import { fileURLToPath } from 'url';
 
 const generatePasskeyRegistrationOptionsExistingUser = async (
   email,
@@ -81,7 +82,8 @@ const generatePasskeyRegistrationOptionsExistingUser = async (
     clientURL,
   };
 
-  const results = await tryCatch(Function, true, parameters);
+  const functionSource = fileURLToPath(import.meta.url);
+  const results = await tryCatch(Function, true, parameters, 'generatePasskeyRegistrationOptionsExistingUser', functionSource);
 
   return results;
 };

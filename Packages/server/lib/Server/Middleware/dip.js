@@ -1,12 +1,21 @@
-// DIP (Data Integrity Protocol) middleware.
-// The DIP middleware is a key component of data validation and tamper proofing in the Orion system.
-// Removing it or modifying it without a deep understanding of its purpose and functionality can lead to data integrity issues and security vulnerabilities.
-
-// DO NOT TOUCH THIS FILE UNLESS YOU ARE SURE OF WHAT YOU ARE DOING.
+/**
+ * Data Integrity Protocol (DIP) Middleware
+ * 
+ * The DIP middleware is a key component of data validation and tamper-proofing
+ * in the Orion system. It ensures data integrity and prevents unauthorised
+ * modifications.
+ * 
+ * WARNING: Removing or modifying this middleware without a thorough understanding
+ * of its purpose and functionality can lead to data integrity issues and security
+ * vulnerabilities.
+ * 
+ * DO NOT MODIFY THIS FILE UNLESS YOU ARE CERTAIN OF WHAT YOU ARE DOING.
+ */
 
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { tryCatch } from '../../Utils/TryCatch.js';
 import { respondWithError } from '../../Server/Response/response.js';
+import { fileURLToPath } from 'url';
 import { isIpInRange, getIp } from '../../Utils/Ip.js';
 import { generateHmac } from '../../Utils/CryptoFunctions.js';
 
@@ -123,8 +132,9 @@ const dipMiddleware = async (request, response, next) => {
     next: next,
   };
 
-  const result = await tryCatch(Function, true, parameters);
+  const functionSource = fileURLToPath(import.meta.url);
+  const result = await tryCatch(Function, true, parameters, 'dipMiddleware', functionSource);
   return;
 };
 
-export { dipMiddleware };;
+export { dipMiddleware };

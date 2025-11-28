@@ -35,7 +35,7 @@ const endpointSchemas = {
     Joi.object({
       email: Joi.string().email().required(),
     }),
-  [`/${NAME_SPACE}/api/v1/action/complete-passkey-authentication`]: Joi.object({
+  [`/${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`]: Joi.object({
     authenticationResponse: Joi.object().min(1).required(),
     email: Joi.string().email().required(),
   }),
