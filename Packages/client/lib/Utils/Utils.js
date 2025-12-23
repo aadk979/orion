@@ -26,4 +26,15 @@ function sanitizeInput(input) {
   return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
 }
 
-export { isValidEmail, checkPasswordStrength, sanitizeInput };
+function generateNonce() {
+  const timestamp = Date.now();
+  let counter = Math.floor(Math.random() * 1e6);
+
+  return function () {
+    counter++;
+    const randomPart = Math.floor(Math.random() * 1e6);
+    return `${timestamp}-${counter}-${randomPart}`;
+  };
+}
+
+export { isValidEmail, checkPasswordStrength, sanitizeInput, generateNonce };

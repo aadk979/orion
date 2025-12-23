@@ -1,6 +1,8 @@
+import { __Status__, __Version__ } from "../../orion.meta.js";
 import { routeHandlerResetCookies } from "../../Utils/Core/SecurityManagment/CookieReset.js";
 import { formatTime, getCurrentUnixTime } from "../../Utils/Date&Time.js";
 import { globalAccessPoint } from "../../Utils/GlobalAccessPoint.js";
+import { respondWithError } from "../Response/response.js";
 
 const serverUtilitiesMiddleware = async (request, response, next) => {
 
@@ -28,7 +30,11 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
                 serviceId: systemConfig.serviceID, 
                 memoryUsage: memData, 
                 uptime, 
-                timestamp: getCurrentUnixTime().toString("") 
+                timestamp: getCurrentUnixTime(),
+                orionSystemInfo: {
+                    __Version__,
+                    __Status__
+                }
             };
 
             response.status(200).json(returnData);
@@ -43,6 +49,8 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
             return routeHandlerResetCookies(request, response);
 
         }
+
+        return respondWithError(response, "UNKNOWN-API-ROUTE")
 
     }
 

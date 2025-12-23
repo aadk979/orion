@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 // Always build relative to this script’s location
 const numToPathMap = {
   1: path.join(__dirname, "email_templates", "deviceAuthorization.txt"),
+  2: path.join(__dirname, "email_templates", "passwordReset.txt"),
 };
 
 function generateEmailFromTemplate(numPath, data) {

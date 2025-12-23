@@ -38,6 +38,77 @@ async function importPublicKey(pem) {
     );
 }
 
+async function generateKeyPairECC(size = "P-256") {
+  return crypto.subtle.generateKey(
+    {
+      name: "ECDH",
+      namedCurve: size,
+    },
+    true,
+    ["deriveKey", "deriveBits"]
+  );
+}
+
+// Export public key for sending
+async function exportPublicKeyECC(key) {
+  const raw = await crypto.subtle.exportKey("raw", key);
+  return new Uint8Array(raw);
+}
+
+// Import peer public key
+async function importPublicKeyECC(rawKey, size = "P-256") {
+  return crypto.subtle.importKey(
+    "raw",
+    rawKey,
+    { name: "ECDH", namedCurve: size },
+    true,
+    []
+  );
+}
+
+// Derive shared secret
+async function deriveSharedSecret(privateKey, peerPublicKey) {
+  const sharedSecret = await crypto.subtle.deriveBits(
+    {
+      name: "ECDH",
+      public: peerPublicKey,
+    },
+    privateKey,
+    256
+  );
+  return new Uint8Array(sharedSecret);
+}
+
+// HKDF to derive symmetric key
+async function deriveKey(sharedSecret, salt = new Uint8Array(16), info = new Uint8Array(0)) {
+  // Import the shared secret as raw key material
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    sharedSecret,
+    "HKDF",
+    false,
+    ["deriveKey"]
+  );
+
+  // Derive an AES-GCM key
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: salt,
+      info: info
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    true, // extractable so we can export it
+    ["encrypt", "decrypt"]
+  );
+
+  // Export the key as raw bytes
+  const rawKey = await crypto.subtle.exportKey("raw", derivedKey);
+  return new Uint8Array(rawKey); // now this is a usable byte array
+}
+
 async function generateHmac(data, key) {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(key);
@@ -120,4 +191,109 @@ function importKeyFromBase64(base64Key) {
   return Uint8Array.from(binary, c => c.charCodeAt(0)); // Uint8Array to feed into importKey
 }
 
-export { generateHmac , encryptPublic , encryptAESGCM , decryptAESGCM , generateAES256Key , exportKeyBase64 , importKeyFromBase64 }
+// 1. Stable stringify: deterministic serialization
+function stableStringify(obj) {
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}';
+}
+
+// 2. Convert ArrayBuffer to hex
+function bufferToHex(buffer) {
+  return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// 3. Generate checksum (async)
+async function getChecksum(obj) {
+  const str = stableStringify(obj);
+  const encoded = new TextEncoder().encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+  return bufferToHex(hashBuffer);
+}
+
+// 4. Validate checksum (async)
+async function validateChecksum(obj, checksum) {
+  const objHash = await getChecksum(obj);
+  return objHash === checksum;
+}
+
+async function getSupportedEncryptionAlgs() {
+  const supported = [];
+
+  if (!window.crypto || !window.crypto.subtle) {
+    return supported;
+  }
+
+  const subtle = window.crypto.subtle;
+
+  try {
+    await subtle.generateKey(
+      {
+        name: "ECDH",
+        namedCurve: "P-256",
+      },
+      true,
+      ["deriveKey", "deriveBits"]
+    );
+    supported.push("ECC_256");
+  } catch (_) {}
+
+  try {
+    await subtle.generateKey(
+      {
+        name: "ECDH",
+        namedCurve: "P-384",
+      },
+      true,
+      ["deriveKey", "deriveBits"]
+    );
+    supported.push("ECC_384");
+  } catch (_) {}
+
+  try {
+    await subtle.generateKey(
+      {
+        name: "RSA-OAEP",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    supported.push("RSA_2048");
+  } catch (_) {}
+
+  try {
+    await subtle.generateKey(
+      {
+        name: "RSA-OAEP",
+        modulusLength: 3072,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    supported.push("RSA_3072");
+  } catch (_) {}
+
+  try {
+    await subtle.generateKey(
+      {
+        name: "RSA-OAEP",
+        modulusLength: 4096,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    supported.push("RSA_4096");
+  } catch (_) {}
+
+  return supported;
+}
+
+export { generateHmac , encryptPublic , encryptAESGCM , decryptAESGCM , generateAES256Key , exportKeyBase64 , importKeyFromBase64 , getSupportedEncryptionAlgs , getChecksum , validateChecksum , deriveKey , generateKeyPairECC , exportPublicKeyECC , importPublicKeyECC , deriveSharedSecret }

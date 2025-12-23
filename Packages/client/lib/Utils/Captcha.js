@@ -1,6 +1,6 @@
 import { getDeviceFingerprint } from "./DevicePrint.js"; // Import the fingerprint function
 
-async function createModalCaptcha(serverURL, nameSpace) {
+async function createModalCaptcha(serverURL, nameSpace, slug) {
   (function async() {
     // --- Elements ---
     const overlay = document.createElement("div");
@@ -24,7 +24,7 @@ async function createModalCaptcha(serverURL, nameSpace) {
     let startTime = 0;
 
     // --- Configuration ---
-    const API_BASE_URL = `${serverURL}/${nameSpace}/api/v1`;
+    const API_BASE_URL = `${serverURL}${slug !== "" ? "/" + slug : ""}/${nameSpace}/api/v1`;
     const GENERATE_ENDPOINT = `${API_BASE_URL}/action/generate-no-auth-token-transaction`;
     const VERIFY_ENDPOINT = `${API_BASE_URL}/action/generate-no-auth-token`;
 
@@ -393,9 +393,9 @@ async function createModalCaptcha(serverURL, nameSpace) {
   })();
 }
 
-async function checkAndDeployCaptcha(serverURL, nameSpace) {
+async function checkAndDeployCaptcha(serverURL, nameSpace, slug) {
   const req = await fetch(
-    `${serverURL}/${nameSpace}/api/v1/request/have-no-auth-token`,
+    `${serverURL}${slug !== "" ? "/" + slug : ""}/${nameSpace}/api/v1/request/have-no-auth-token`,
     {
       method: "POST",
       headers: {
@@ -419,7 +419,7 @@ async function checkAndDeployCaptcha(serverURL, nameSpace) {
   const data = await req.json();
   
   if ((data.error && data.errorData.errorCode !== "NO-AUTH-TOKEN-DISABLED")) {
-    await createModalCaptcha(serverURL, nameSpace);
+    await createModalCaptcha(serverURL, nameSpace, slug);
   }
 }
 

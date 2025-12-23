@@ -17,11 +17,14 @@ import { readFromCaller, writeToCaller } from "../Utils/FileHandler.js";
 import { globalAccessPoint } from "../Utils/GlobalAccessPoint.js"
 import { logger } from "../Utils/logger.js";
 import { validateClientUrls } from "../Utils/Validator.js";
-import { generateRandomNumber } from "../Utils/valueGenerator.js";
-
-const TOKEN_SECRETS_FILE_NAME = "orion.internal.token_secrets.json";
-const SIGNATURE_SECRETS_FILE_NAME = "orion.internal.signature_secrets.json";
-const PERISTANT_CLIENT_URLS_FILE_NAME = "orion.internal.persistant_client_urls.json";
+import { generateId, generateRandomNumber } from "../Utils/valueGenerator.js";
+import { PERSISTANT_CLIENT_URLS_FILE_NAME, SIGNATURE_SECRETS_FILE_NAME, TOKEN_SECRETS_FILE_NAME } from "../orion.meta.js";
+import { EphemeralDatabaseManager } from "../Utils/Databases/EphemeralDatabases/index.js";
+import { generateHmacKey } from "../Utils/CryptoFunctions.js";
+import { generateKeyPairDedicated } from "../Utils/dedicatedCrypto.js";
+import { getFutureUnixTime } from "../Utils/Date&Time.js";
+import { populateEphemeralConfigs } from "../Utils/Databases/EphemeralDatabases/configPopulator.js";
+import { generateNumberedStringsFromTemplate, getRandomElement } from "../Utils/ArrayUtilities.js";
 
 const utilTokenSecretsExport = async () => {
     const tokenSecretsManager = globalAccessPoint.getValue("tokenSecretsManager");
@@ -73,7 +76,7 @@ const utilSignatureSecretsExport = async () => {
 
     const writeOpp = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, tokens);
 
-    cronScheduler.addEvent("SIGNATURE-SECRETS-AUTO-EXPORT", utilTokenSecretsExport, "1d", {});
+    cronScheduler.addEvent("SIGNATURE-SECRETS-AUTO-EXPORT", utilSignatureSecretsExport, "1d", {});
 
     if (writeOpp.error) {
         logger.error("Scheduled signature secrets write failed!");
@@ -220,7 +223,7 @@ const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryD
   
 const handleAuditTrailSystemCheck = async () => {
     const systemConfig = globalAccessPoint.systemConfig();
-    const auditSystemEnabled = systemConfig?.auditTrailSystem?.enabled ?? false;
+    const auditSystemEnabled = systemConfig?.utilities?.auditTrailSystem?.enabled ?? false;
   
     if (!auditSystemEnabled) {
       logger.info("🧩 AuditTrailSystem disabled — skipping integrity test");
@@ -295,7 +298,11 @@ const utilGetBooleanValuesForSystemSecurityConfig = (status) => {
 const handleConfigValidationForSystemSecurity = () => {
     const currentConfigurableSystemSecurityModules = [ "dip", "captcha", "deviceAuthorization" ]
     const systemConfig = globalAccessPoint.systemConfig();
-    const systemSecurityConfig = systemConfig?.systemSecurity || { dip: 'ENABLED', captcha: "ENABLED", deviceAuthorization: "ENABLED" };
+    const systemSecurityConfig = systemConfig?.utilities?.systemSecurity || { dip: 'ENABLED', captcha: "ENABLED", deviceAuthorization: "ENABLED" };
+
+    const slug = systemConfig?.api?.slug || "";
+
+    globalAccessPoint.setValue("apiSlug", slug);
 
     let initalArr = currentConfigurableSystemSecurityModules.map(val => ({ key: val, enabled: true }));
     const givenConfigKeys = Object.keys(systemSecurityConfig);
@@ -321,7 +328,7 @@ const handleConfigValidationForSystemSecurity = () => {
 const handleRASValidation = () => {
     const systemConfig = globalAccessPoint.systemConfig();
 
-    const validatedConfig = validateRASCallbacks(systemConfig?.resourceAccessConfig);
+    const validatedConfig = validateRASCallbacks(systemConfig?.api?.resourceAccessConfig);
 
     globalAccessPoint.setValue("resourceAccessSystem_Config", validatedConfig);
 
@@ -331,17 +338,17 @@ const handleRASValidation = () => {
 const handleAllowedUserRolesConfig = () => {
     const systemConfig = globalAccessPoint.systemConfig();
 
-    if (systemConfig?.userRoles) {
+    if (systemConfig?.utilities?.userRoles) {
 
-        if (!Array.isArray(systemConfig.userRoles?.allowedUserRoles)) {
+        if (!Array.isArray(systemConfig?.utilities?.userRoles?.allowedUserRoles)) {
             throw new Error("Configuration error: allowed custom user roles must be a valid array of roles got " + typeof systemConfig.userRoles?.allowedUserRoles);
         }
 
-        if (systemConfig.userRoles?.allowedUserRoles.length <= 0) {
+        if (systemConfig.utilities?.userRoles?.allowedUserRoles.length <= 0) {
             throw new Error("Configuration error: allowed custom user roles array is empty");
         }
 
-        globalAccessPoint.setValue("allowedUserRoles" , systemConfig.userRoles?.allowedUserRoles.map(val => val.toUpperCase().trim()));
+        globalAccessPoint.setValue("allowedUserRoles" , systemConfig.utilites?.userRoles?.allowedUserRoles.map(val => val.toUpperCase().trim()));
 
         return;
     }
@@ -378,18 +385,18 @@ const handleAllowedClientUrlsConfig = async () => {
 
     if (persistantUpdateAllowed) {
         
-        const fileData = await readFromCaller(PERISTANT_CLIENT_URLS_FILE_NAME);
+        const fileData = await readFromCaller(PERSISTANT_CLIENT_URLS_FILE_NAME);
 
         if (fileData.errorCode === "FILE-NOT-FOUND") {
-            await writeToCaller(PERISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls(clientUrlsFromConfig) ] })
+            await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls(clientUrlsFromConfig) ] })
         }
 
         if (!fileData?.data?.clientUrls) {
             // Reset corrupt file
-            await writeToCaller(PERISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls(clientUrlsFromConfig) ] })
+            await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls(clientUrlsFromConfig) ] })
         }
 
-        await writeToCaller(PERISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls([ ...fileData.data.clientUrls, ...clientUrlsFromConfig ]) ] })
+        await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [ ...validateClientUrls([ ...fileData.data.clientUrls, ...clientUrlsFromConfig ]) ] })
 
         globalAccessPoint.setValue("allowedClientUrls", fileData?.data?.clientUrls ? [ ...validateClientUrls([ ...fileData.data.clientUrls, ...clientUrlsFromConfig ]) ] : validateClientUrls(clientUrlsFromConfig));
 
@@ -401,6 +408,88 @@ const handleAllowedClientUrlsConfig = async () => {
     return;
 }
 
+const handleEphemeralDatabaseSetup = async () => {
+
+    const dipActive  = globalAccessPoint.getValue("dip");
+    const encryptionActive = true;
+
+    const configExp = getFutureUnixTime("24h");
+    const systemConfig = globalAccessPoint.systemConfig();
+    
+    const ephemeralDB = systemConfig?.utilities?.ephemeralDB || { provider: "LOCAL_DB" };
+
+    if (!ephemeralDB?.provider || (!ephemeralDB?.credentials && ephemeralDB.provider !== "LOCAL_DB")) {
+        throw new Error("Configuration error: Ephemeral database object present but missing 'provider' or 'credentials'");
+    }
+
+    let numberOfDipConfigs = 10;
+    let numberOfEncryptionConfigs = 10;
+
+    if (systemConfig?.utilities?.numberOfDipConfigs && !Number.isNaN(Number(systemConfig?.utilities?.numberOfDipConfigs))) {
+        const n = Math.ceil(Number(systemConfig.utilities.numberOfDipConfigs) / 5) * 5;
+        numberOfDipConfigs = Math.max(numberOfDipConfigs, n);
+    }
+
+    if (systemConfig?.utilities?.numberOfEncryptionConfigs && !Number.isNaN(Number(systemConfig?.utilities?.numberOfEncryptionConfigs))) {
+        const n = Math.ceil(Number(systemConfig.utilities.numberOfEncryptionConfigs) / 5) * 5;
+        numberOfEncryptionConfigs = Math.max(numberOfEncryptionConfigs, n);
+    }
+
+    const dbManager = new EphemeralDatabaseManager(ephemeralDB.provider, ephemeralDB.credentials);
+    const db = dbManager.db();
+
+    if (ephemeralDB.provider === "LOCAL_DB") {
+
+        globalAccessPoint.setValue("ephemeralDB", db);
+
+        globalAccessPoint.setValue("dipConfigsAvailable", generateNumberedStringsFromTemplate("DIP_GROUP[<i>]", numberOfDipConfigs / 5));
+        globalAccessPoint.setValue("encryptionConfigsAvailable", generateNumberedStringsFromTemplate("ENCRYPTION_GROUP[<i>]", numberOfEncryptionConfigs / 5));
+
+        const population = await populateEphemeralConfigs({ db, values: { dipActive, encryptionActive, numberOfDipConfigs, numberOfEncryptionConfigs, configExp } });
+
+        return population;
+    }
+
+    if (ephemeralDB.provider === "REDIS") {
+
+        // The redis instance is the reagional instance shared by the nodes and is populated and rotated by the orchestrator
+        // For redis option, the system pulls configs from redis and creates a new local in mem db
+        // The system will then periodically run this function every 10 min and overwrite the old configs in mem db if any changes
+        // Direct redis integration wasnt used for speed and batch updates every 10 min
+        // This way both types local and redis use the same system locally
+
+        const dbManagerLocal = new EphemeralDatabaseManager("LOCAL_DB");
+
+        const configKeys = await db.keys();
+        const dipConfigKeys = configKeys.data.filter(val => val.startsWith("DIP_GROUP"));
+        const encryptionConfigKeys = configKeys.data.filter(val => val.startsWith("ENCRYPTION_GROUP"));
+
+        for (const dipGroup of dipConfigKeys) {
+
+            const data = await db.getData(dipGroup);
+
+            dbManagerLocal.db().addData(dipGroup, data.data);
+
+        }
+
+        for (const encryptionGroup of encryptionConfigKeys) {
+
+            const data = await db.getData(encryptionGroup);
+
+            dbManagerLocal.db().addData(encryptionGroup, data.data);
+            
+        }
+
+        globalAccessPoint.setValue("ephemeralDB", dbManagerLocal.db());
+        globalAccessPoint.setValue("dipConfigsAvailable", generateNumberedStringsFromTemplate("DIP_GROUP[<i>]", dipConfigKeys.length));
+        globalAccessPoint.setValue("encryptionConfigsAvailable", generateNumberedStringsFromTemplate("ENCRYPTION_GROUP[<i>]", encryptionConfigKeys.length));
+
+        return;
+    }
+
+    return;
+};
+
 const handleOnStartConfiguration = async () => {
     await handleDatabaseLiveCheck();
     await handleTokenSecretsImport();
@@ -411,6 +500,7 @@ const handleOnStartConfiguration = async () => {
     handleConfigValidationForSystemSecurity();
     handleRASValidation();
     handleAllowedUserRolesConfig();
+    await handleEphemeralDatabaseSetup();
 }
 
 export { handleOnStartConfiguration }

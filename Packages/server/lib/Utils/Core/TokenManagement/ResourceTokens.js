@@ -10,14 +10,14 @@
  */
 
 import jwt from 'jsonwebtoken';
-import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
-import { hashString, verifyHash } from '../../../CryptoFunctions.js';
-import { generateId } from '../../../valueGenerator.js';
-import { getIpRange, isIpInRange } from '../../../Ip.js';
-import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../../Date&Time.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { hashString, verifyHash } from '../../CryptoFunctions.js';
+import { generateId } from '../../valueGenerator.js';
+import { getIpRange, isIpInRange } from '../../Ip.js';
+import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time.js';
 import { timingSafeEqual } from 'crypto';
-import { requestContext } from '../../../../Server/Middleware/requestMetadata.js';
-import { SUPPORTED_TOKENS } from '../configs.js';
+import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { SUPPORTED_TOKENS } from '../ResourceAccessManagment/configs.js';
 
 const MAX_FILES_ACCESS_PER_HOUR = 25;
 

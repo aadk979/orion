@@ -16,8 +16,9 @@ import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { tryCatch } from '../../Utils/TryCatch.js';
 import { respondWithError } from '../../Server/Response/response.js';
 import { fileURLToPath } from 'url';
-import { isIpInRange, getIp } from '../../Utils/Ip.js';
 import { generateHmac } from '../../Utils/CryptoFunctions.js';
+import { slugParser } from '../../Utils/Parsers.js';
+import { getCurrentUnixTime } from '../../Utils/Date&Time.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -29,9 +30,13 @@ const nonDipRequiredRoutes = [
   `/${NAME_SPACE}/api/v1/request/encryption-request-key`,
 ];
 
+const setDipFailureHeader = (response) => {
+  response.set("orion-dip-failure", "true");
+}
+
 const dipMiddleware = async (request, response, next) => {
   const Function = async (parameters) => {
-    if (nonDipRequiredRoutes.includes(parameters.request.path)) {
+    if (nonDipRequiredRoutes.includes(slugParser(parameters.request.path))) {
       return parameters.next();
     }
 
@@ -50,8 +55,6 @@ const dipMiddleware = async (request, response, next) => {
     const userAgent = headers["orion-user-agent"];
     const deviceFingerprint = headers["orion-fingerprint"]
 
-    const ip = getIp(parameters.request);
-
     if (dipStateHeader === "DEFAULT NONE" || dipStateHeader === "NO DATA") {
       const body = parameters.request.body;
 
@@ -60,10 +63,7 @@ const dipMiddleware = async (request, response, next) => {
       // If DIP state is NO-DATA then the body should also be empty
 
       if (body && Object.keys(body).length > 0) {
-        return respondWithError(
-          parameters.response,
-          "DIP-STATE-BODY-DATA-PRESENT"
-        );
+        return respondWithError(parameters.response, "DIP-STATE-BODY-DATA-PRESENT");
       }
 
       return parameters.next();
@@ -76,51 +76,69 @@ const dipMiddleware = async (request, response, next) => {
       );
     }
 
-    const dipStorage = await globalAccessPoint.db().getData("dip", dipIdHeader);
 
-    if (dipStorage.data === undefined) {
+    // Grabbing the value for the config group (first part of the id)
+    const dipStorage = await globalAccessPoint.getValue("ephemeralDB").getData(dipIdHeader.split(":*:")[0] || "DEFAULT")
+
+    // Checking if the fgroup exists in the db
+    if (dipStorage.exist === false) {
+      setDipFailureHeader(parameters.response);
       return respondWithError(parameters.response, "DIP-TIMEDOUT-OR-ID-HEADER-INVALID");
     }
 
-    if (!(await isIpInRange(ip, dipStorage.data.ip))) {
-      return respondWithError(parameters.response, "DIP-STATE-IP-MISMATCH");
+    // Grabbing the specific config according to the id
+    const config = dipStorage.data.find(config => config.dipId === dipIdHeader);
+
+    // Checking if the specific config exists in the array
+    if (!config) {
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-TIMEDOUT-OR-ID-HEADER-INVALID");
     }
 
     if (!dipSignatureHeader || dipSignatureHeader === "DEFAULT NONE") {
-      return respondWithError(
-        parameters.response,
-        "DIP-STATE-SIGNATURE-HEADER-MISSING"
-      );
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-SIGNATURE-HEADER-MISSING");
     }
 
     const payload = parameters.request.body;
 
     // Check if the payload is empty or not and reject if data is not present as at this point we have estableshed that the payload should not be empty
-
     if (!payload || Object.keys(payload).length <= 0) {
-      return respondWithError(
-        parameters.response,
-        "DIP-STATE-BODY-DATA-NOT-PRESENT"
-      );
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-BODY-DATA-NOT-PRESENT");
     }
 
     if (dipSaltHeader === "DEFAULT NONE") {
-        return respondWithError(parameters.response, "DIP-STATE-MISSING-SALT");
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-MISSING-SALT");
     }
 
     if (dipTimestampHeader === "DEFAULT NONE") {
-        return respondWithError(parameters.response, "DIP-STATE-MISSING-TIMESTAMP");
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-MISSING-TIMESTAMP-TYPE-1");
+    }
+
+    const currentUnix = getCurrentUnixTime();
+
+    const check = (currentUnix - Number(dipTimestampHeader.split("Unix:")[1] || 0));
+
+    if (check === currentUnix) {
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-MISSING-TIMESTAMP-TYPE-2");
+    }
+    
+    if (check >= 30) {
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-WINDOWN-EXPIRED")
     }
 
     const stringPayload = JSON.stringify(payload);
 
-    const hmac = await generateHmac(stringPayload + dipSaltHeader + dipTimestampHeader + userAgent + deviceFingerprint, dipStorage.data.signatureKey);
+    const hmac = await generateHmac(stringPayload + dipSaltHeader + dipTimestampHeader + userAgent + deviceFingerprint, config.signatureKey);
 
     if (hmac !== dipSignatureHeader) {
-      return respondWithError(
-        parameters.response,
-        "DIP-STATE-SIGNATURE-MISMATCH"
-      );
+      setDipFailureHeader(parameters.response)
+      return respondWithError(parameters.response, "DIP-STATE-SIGNATURE-MISMATCH");
     }
 
     return parameters.next();
@@ -134,6 +152,12 @@ const dipMiddleware = async (request, response, next) => {
 
   const functionSource = fileURLToPath(import.meta.url);
   const result = await tryCatch(Function, true, parameters, 'dipMiddleware', functionSource);
+  
+  if (result?.error) {
+    setDipFailureHeader(parameters.response)
+    return respondWithError(response, result.errorCode);
+  }
+
   return;
 };
 

@@ -3,7 +3,7 @@ import { generateEmailFromTemplate } from './mailConstructor.js';
 import { sendMail } from './mailer.js';
 
 const generateAndSendMail = async (numPath, to, details) => {
-    details.APPNAME = globalAccessPoint.systemConfig().appName || "Orion";
+    details.APPNAME = globalAccessPoint.systemConfig()?.app?.appName || "Orion";
 
     const mail = generateEmailFromTemplate(numPath, details);
 
@@ -12,4 +12,4 @@ const generateAndSendMail = async (numPath, to, details) => {
     return sending;
 }
 
-export { generateAndSendMail };;
+export { generateAndSendMail };

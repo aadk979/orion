@@ -7,6 +7,70 @@
 
 import crypto from 'crypto';
 
+async function generateKeyPairECC(size = "P-256") {
+  return crypto.webcrypto.subtle.generateKey(
+    {
+      name: 'ECDH',
+      namedCurve: size,
+    },
+    true,
+    ['deriveKey', 'deriveBits']
+  );
+}
+
+async function exportPublicKeyECC(key) {
+  const raw = await crypto.webcrypto.subtle.exportKey('raw', key);
+  return new Uint8Array(raw);
+}
+
+async function importPublicKeyECC(rawKey, size = "P-256") {
+  return crypto.webcrypto.subtle.importKey(
+    'raw',
+    rawKey,
+    { name: 'ECDH', namedCurve: size },
+    true,
+    []
+  );
+}
+
+async function deriveSharedSecret(privateKey, peerPublicKey) {
+  const sharedSecret = await crypto.webcrypto.subtle.deriveBits(
+    {
+      name: 'ECDH',
+      public: peerPublicKey,
+    },
+    privateKey,
+    256
+  );
+  return new Uint8Array(sharedSecret);
+}
+
+async function deriveKey(sharedSecret, salt = new Uint8Array(16), info = new Uint8Array(0)) {
+  const keyMaterial = await crypto.webcrypto.subtle.importKey(
+    'raw',
+    sharedSecret,
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+
+  const derivedKey = await crypto.webcrypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt,
+      info,
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  );
+
+  const rawKey = await crypto.webcrypto.subtle.exportKey('raw', derivedKey);
+  return new Uint8Array(rawKey);
+}
+
 async function generateKeyPairDedicated(length) {
     const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
         modulusLength: length || 4096,
@@ -55,5 +119,10 @@ async function decryptPrivate(encryptedData , privateKey) {
 export {
   generateKeyPairDedicated ,
   encryptPublic ,
-  decryptPrivate
+  decryptPrivate,
+  generateKeyPairECC,
+  exportPublicKeyECC,
+  importPublicKeyECC,
+  deriveKey,
+  deriveSharedSecret
 }

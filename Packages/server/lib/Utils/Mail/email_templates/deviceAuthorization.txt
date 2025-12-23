@@ -10,7 +10,7 @@ To authorize this device and allow it access to your account, please enter the c
 
 Thank you for helping us keep your account secure.
 
-If you do **not** recognize this device, **no action is required** — we’ve blocked the attempt automatically.
+If you do not recognize this device, no action is required — we’ve blocked the attempt automatically.
 
 –––––––––––––––––––––––––
 📱 Device Details:

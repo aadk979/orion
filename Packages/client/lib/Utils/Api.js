@@ -1,25 +1,24 @@
 import { renderDeviceAuthorizationUI } from "../Flows/DeviceAuthorizationFlow.js";
-import {
-  encryptAESGCM,
-  encryptPublic,
-  exportKeyBase64,
-  generateAES256Key,
-  generateHmac,
-} from "./CryptoModule.js";
+import { deriveKey, deriveSharedSecret, encryptAESGCM, encryptPublic, exportKeyBase64, exportPublicKeyECC, generateAES256Key, generateHmac, generateKeyPairECC, getSupportedEncryptionAlgs, importPublicKeyECC } from "./CryptoModule.js";
+import { getCurrentUnixTime } from "./Date&Time.js";
 import { getDeviceFingerprint } from "./DevicePrint.js";
+import { base64DecodeToUint8, base64EncodeUint8 } from "./Encoders.js";
+import { orionVault } from "./OrionVault.js";
+import { generateNonce } from "./Utils.js";
 
 const ORION_FLOW_TYPES = {
-  "FLOW-DEVICE-AUTHORIZATION": { fn: renderDeviceAuthorizationUI, params: [ "baseUrl", "nameSpace" ] }
+  "FLOW-DEVICE-AUTHORIZATION": { fn: renderDeviceAuthorizationUI, params: [ "baseUrl", "nameSpace", "slug" ] }
 }
 
 class ApiInterface {
-  constructor(baseUrl, nameSpace) {
+  constructor(baseUrl, nameSpace, slug) {
     this.baseUrl = baseUrl;
     this.nameSpace = nameSpace;
+    this.slug = slug;
   }
 
   async fetch(endpoint, method, authorization, body = {}, dip, encryption) {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = `${this.baseUrl}${this.slug !== "" ? "/" + this.slug : ""}${endpoint}`;
 
     const response = await fetch(url, {
       method: method,
@@ -32,12 +31,9 @@ class ApiInterface {
         "orion-dip-signature": dip ? dip?.dipSignature : "DEFAULT NONE",
         "orion-dip-salt": dip ? dip?.salt : "DEFAULT NONE",
         "orion-dip-timestamp": dip ? dip?.timestamp : "DEFAULT NONE",
-        "orion-encryption-status": encryption
-          ? encryption.encryptionStatus
-          : "NONE",
-        "orion-encryption-request-id": encryption
-          ? encryption.encryptionRequestId
-          : "NONE",
+        "orion-encryption-status": encryption ? encryption.encryptionStatus : "NONE",
+        "orion-encryption-request-id": encryption ? encryption.encryptionRequestId : "NONE",
+        "orion-encryption-alg": encryption ? encryption.encryptionAlg : "NONE",
         "orion-api-system-version": "1.0.0[BETA]",
         "Origin": window.location.origin,
         Authorization: authorization,
@@ -51,6 +47,17 @@ class ApiInterface {
     if (refresh) {
 
       if (String(refresh) === "true") {
+        window.location.reload();
+      }
+      
+    }
+
+    const dipFailure = response.headers.get("orion-dip-failure") || response.headers.get("Orion-Dip-Failure");
+
+    if (dipFailure) {
+
+      if (String(dipFailure) === "true") {
+        await orionVault.deleteItem("CACHE:*:ORION_DIP_CONFIG");
         window.location.reload();
       }
       
@@ -76,11 +83,10 @@ class ApiInterface {
   }
 
   async prepareDataForEncryption(data) {
-    const key = await this.fetch(
-      `/${this.nameSpace}/api/v1/request/encryption-request-key`,
-      "POST",
-      "NO_AUTH_BEARER"
-    );
+
+    const algs = await getSupportedEncryptionAlgs();
+
+    const key = await this.fetch(`/${this.nameSpace}/api/v1/request/encryption-request-key`, "POST", "NO_AUTH_BEARER", { packet: { algs } } );
 
     if (!key.ok) {
       return { error: true, errorCode: "CLIENT-UNABLE-TO-GET-KEY" };
@@ -88,41 +94,93 @@ class ApiInterface {
 
     const dataServer = await key.json();
 
+    const algorithm = dataServer.data.alg;
+
     const pubKey = dataServer.data.publicKey;
 
-    const secureTransportEncryptionKey = await generateAES256Key();
+    // The system support two encyrption algs ECC and RSA and have different working mechanics and paylod structures
+    if (algorithm === "RSA") {
 
-    const str = JSON.stringify(data);
+        const secureTransportEncryptionKey = await generateAES256Key();
 
-    const encryptedClientPayload = await encryptAESGCM(
-      str,
-      secureTransportEncryptionKey
-    );
+        const str = JSON.stringify(data);
 
-    const exportableKey = exportKeyBase64(secureTransportEncryptionKey);
+        const encryptedClientPayload = await encryptAESGCM(str, secureTransportEncryptionKey);
 
-    const encryptedSecureTransportEncryptionKey = await encryptPublic(
-      exportableKey,
-      pubKey
-    );
+        const exportableKey = exportKeyBase64(secureTransportEncryptionKey);
 
-    const compressedPayload = JSON.stringify({
-      payload: encryptedClientPayload,
-      encryptedSecureTransportEncryptionKey:
-        encryptedSecureTransportEncryptionKey,
-    });
+        const encryptedSecureTransportEncryptionKey = await encryptPublic(exportableKey, pubKey);
 
-    return {
-      encryptedString: compressedPayload,
-      encryption: {
-        encryptionStatus: "ENCRYPTED",
-        encryptionRequestId: dataServer.data.requestId,
-      },
-    };
+        const compressedPayload = JSON.stringify({
+            payload: encryptedClientPayload,
+            encryptedSecureTransportEncryptionKey: encryptedSecureTransportEncryptionKey,
+        });
+
+        return {
+            encryptedString: compressedPayload,
+            encryption: {
+                encryptionStatus: "ENCRYPTED",
+                encryptionRequestId: dataServer.data.encryptionId,
+                encryptionAlg: "RSA"
+            },
+        };
+    }
+
+    if (algorithm === "ECC") {
+
+        const size = `P-${dataServer.data.size}`;
+
+        const info = "ORION_ECC_ENCRYPTION_TAG";
+
+        const serverPubKey = base64DecodeToUint8(pubKey)
+
+        const secureTransportEncryptionKey = await generateAES256Key();
+
+        const str = JSON.stringify(data);
+
+        const nonceFn = generateNonce();
+
+        const nonce = nonceFn();
+
+        const encryptedClientPayload = await encryptAESGCM(str, secureTransportEncryptionKey);
+
+        const exportableKey = exportKeyBase64(secureTransportEncryptionKey);
+
+        const keyPairClient = await generateKeyPairECC(size);
+
+        const sharedKey = await deriveSharedSecret(keyPairClient.privateKey, await importPublicKeyECC(serverPubKey, size));
+
+        const derivedKey = await deriveKey(sharedKey, new TextEncoder().encode(nonce), new TextEncoder().encode(info));
+
+        const encryptedKey = await encryptAESGCM(exportableKey, derivedKey);
+
+        const exportedClientPubKey = await exportPublicKeyECC(keyPairClient.publicKey);
+
+        const compressedPayload = JSON.stringify({
+            payload: encryptedClientPayload,
+            encryptedSecureTransportEncryptionKey: encryptedKey,
+            eccSpecificData: {
+                clientPublicKey: base64EncodeUint8(exportedClientPubKey),
+                salt: nonce,
+                info: info
+            }
+        });
+
+        return {
+            encryptedString: compressedPayload,
+            encryption: {
+                encryptionStatus: "ENCRYPTED",
+                encryptionRequestId: dataServer.data.encryptionId,
+                encryptionAlg: "ECC"
+            }
+        };
+
+    }
+
   }
 
   async prepareDataForDIP(data, dipConfig) {
-    if (dipConfig.disabled) {
+    if (dipConfig?.disabled) {
       return { disabled: true }
     }
 
@@ -148,8 +206,14 @@ class ApiInterface {
       3
     )}|Epoch:${date.getTime()}`;
 
+    const unix = getCurrentUnixTime()
+
+    const nonceFn = generateNonce();
+
+    const nonce = nonceFn();
+
     const randomBits = crypto.getRandomValues(new Uint32Array(1))[0];
-    const fullTimestamp = `${timestamp}|Rand:${randomBits}`;
+    const fullTimestamp = `${timestamp}|Rand:${randomBits}|Nonce:${nonce}|Unix:${unix}`;
 
     const signature = await generateHmac(
       stringData +

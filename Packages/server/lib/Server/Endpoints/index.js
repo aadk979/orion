@@ -11,6 +11,7 @@ import { routeHandlerDeviceAuthorization } from '../../Utils/Core/SecurityManagm
 import { routeHandlerGenerateDipConfig } from '../../Utils/Core/SecurityManagment/Dip.js';
 import { routeHandlerKeyRequest } from '../../Utils/Core/SecurityManagment/KeyRequest.js';
 import { routeHandlerGenerateNoAuthTokenCreationTransaction, routeHandlerGenerateNoAuthToken, routeHandlerDeviceHasNoAuthToken } from '../../Utils/Core/SecurityManagment/NoAuthToken.js';
+import { routeHandlerInitiatePasswordReset, routeHandlerCompletePasswordReset } from '../../Utils/Core/AccountManagment/PasswordReset.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
@@ -28,6 +29,18 @@ const defaultServerRoutes = {
             requireAuth: false,
             method: "POST",
             callback: routeHandlerSignInWithPassword
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/initiate-password-reset`,
+            requireAuth: false,
+            method: "POST",
+            callback: routeHandlerInitiatePasswordReset
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/complete-password-reset`,
+            requireAuth: false,
+            method: "POST",
+            callback: routeHandlerCompletePasswordReset
         },
         {
             path: `/${NAME_SPACE}/api/v1/action/generate-no-auth-token-transaction`,

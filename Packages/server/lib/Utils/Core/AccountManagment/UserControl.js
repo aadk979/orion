@@ -1,3 +1,4 @@
+import { hashString } from "../../CryptoFunctions.js";
 import { globalAccessPoint } from "../../GlobalAccessPoint.js";
 
 class OrionUserControl {
@@ -681,6 +682,90 @@ class OrionUserControl {
         });
 
         return { error: false, updated: true }
+    }
+
+    async updateUserPassword(uid, newPassword) {
+        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+
+        if (!uid) {
+            auditTrail.record({
+                user: {},
+                device: {},
+                action: "USER_PASSWORD_UPDATE_ATTEMPT",
+                status: "FAILED",
+                source: "UserControl.js",
+                functionName: "updateUserPassword",
+                requestId: "LOCAL-SYSTEM",
+                ipAddress: "LOCAL-SYSTEM",
+                impact: "User password update failed - no UID provided",
+                metadata: { reason: "NO_UID_PROVIDED" },
+                errorCode: "USER-CONTROL-NO-UID-PROVIDED"
+            });
+            return { error: true, errorCode: "USER-CONTROL-NO-UID-PROVIDED" };
+        }
+
+        if (!newPassword) {
+            auditTrail.record({
+                user: { uid: uid },
+                device: {},
+                action: "USER_PASSWORD_UPDATE_ATTEMPT",
+                status: "FAILED",
+                source: "UserControl.js",
+                functionName: "updateUserPassword",
+                requestId: "LOCAL-SYSTEM",
+                ipAddress: "LOCAL-SYSTEM",
+                impact: "User password update failed - no password provided",
+                metadata: { uid: uid, reason: "NO_PASSWORD_PROVIDED" },
+                errorCode: "USER-CONTROL-NO-PASSWORD-PROVIDED"
+            });
+            return { error: true, errorCode: "USER-CONTROL-NO-PASSWORD-PROVIDED" }
+        }
+
+        const userExist = await this.checkUserExist().byUid(uid);
+
+        if (userExist.error) {
+            return userExist;
+        }
+
+        if (!userExist.exist) {
+            auditTrail.record({
+                user: { uid: uid },
+                device: {},
+                action: "USER_PASSWORD_UPDATE_ATTEMPT",
+                status: "FAILED",
+                source: "UserControl.js",
+                functionName: "updateUserPassword",
+                requestId: "LOCAL-SYSTEM",
+                ipAddress: "LOCAL-SYSTEM",
+                impact: "User password update failed - user does not exist",
+                metadata: { uid: uid, reason: "USER_NOT_FOUND" },
+                errorCode: "USER-CONTROL-NO-SUCH-USER"
+            });
+            return { error: true, errorCode: "USER-CONTROL-NO-SUCH-USER" }
+        }
+
+        let user = await globalAccessPoint.db().getData("Users", uid);
+
+        const newPasswordHash = await hashString(newPassword);
+
+        user.data.credentials.password = newPasswordHash;
+
+        await globalAccessPoint.db().addData("Users", uid, user.data);
+
+        auditTrail.record({
+            user: { email: user.data.credentials?.email, uid: uid },
+            device: {},
+            action: "USER_PASSWORD_UPDATED",
+            status: "SUCCESS",
+            source: "UserControl.js",
+            functionName: "updateUserPassword",
+            requestId: "LOCAL-SYSTEM",
+            ipAddress: "LOCAL-SYSTEM",
+            impact: "User password has been updated",
+            metadata: { uid: uid, email: user.data.credentials?.email }
+        });
+
+        return { error: false, updated: true };
     }
 }
 

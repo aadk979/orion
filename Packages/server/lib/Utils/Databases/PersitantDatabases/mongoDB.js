@@ -1,6 +1,5 @@
 import { MongoClient } from 'mongodb';
-import { logger } from '../logger.js';
-import { globalAccessPoint } from "../GlobalAccessPoint.js";
+import { logger } from '../../logger.js';
 
 class MongoService {
   constructor(advancedSecurityMode) {

@@ -6,6 +6,15 @@ function base64Decode(encoded) {
   return Buffer.from(encoded, "base64").toString("utf-8");
 }
 
+// ---------- uint8 to Base64 ----------
+function base64EncodeUint8(uint8) {
+  return Buffer.from(uint8).toString("base64");
+}
+
+function base64DecodeToUint8(base64) {
+  return new Uint8Array(Buffer.from(base64, "base64"));
+}
+
 // ---------- Hex ----------
 function hexEncode(input) {
   return Buffer.from(input, "utf-8").toString("hex");
@@ -64,7 +73,9 @@ function urlDecode(encoded) {
 
 const packageExports = {
   base64Encode,
+  base64EncodeUint8,
   base64Decode,
+  base64DecodeToUint8,
   hexEncode,
   hexDecode,
   binaryEncode,
@@ -83,7 +94,9 @@ const packageExports = {
 
 export {
   base64Encode,
+  base64EncodeUint8,
   base64Decode,
+  base64DecodeToUint8,
   hexEncode,
   hexDecode,
   binaryEncode,

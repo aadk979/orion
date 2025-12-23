@@ -14,6 +14,45 @@ function hashToBigNumber(hash) {
 
 const SALT_ROUNDS = 10;
 
+function sha512Hash(input) {
+  if (typeof input !== "string" || input.trim() === "") {
+    throw new Error("Invalid input to hash: must be a non-empty string");
+  }
+
+  return crypto.createHash("sha512").update(input).digest("hex");
+}
+
+function sha256Hash(input) {
+  if (typeof input !== "string" || input.trim() === "") {
+    throw new Error("Invalid input to hash: must be a non-empty string");
+  }
+
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
+
+function blake2bHash(input) {
+  if (typeof input !== "string" || input.trim() === "") throw new Error("Invalid input");
+  return crypto.createHash("blake2b512").update(input).digest("hex");
+}
+
+function blake2sHash(input) {
+  if (typeof input !== "string" || input.trim() === "") throw new Error("Invalid input");
+  return crypto.createHash("blake2s256").update(input).digest("hex");
+}
+
+function pbkdf2Hash(password, salt = crypto.randomBytes(16).toString("hex")) {
+  const iterations = 100000;
+  const keylen = 64;
+  const digest = "sha512";
+  return crypto.pbkdf2Sync(password, salt, iterations, keylen, digest).toString("hex");
+}
+
+function scryptHash(password, salt = crypto.randomBytes(16).toString("hex")) {
+  const keylen = 64;
+  return crypto.scryptSync(password, salt, keylen).toString("hex");
+}
+
+
 async function hashString(input) {
   if (typeof input !== "string" || input.trim() === "") {
     throw new Error("Invalid input to hash: must be a non-empty string");
@@ -36,20 +75,73 @@ async function verifyHash(input, hashed) {
   });
 }
 
-function sha512Hash(input) {
+function hashStringSync(input, alg = "sha256") {
   if (typeof input !== "string" || input.trim() === "") {
-    throw new Error("Invalid input to hash: must be a non-empty string");
+    throw new Error("Invalid input");
   }
 
-  return crypto.createHash("sha512").update(input).digest("hex");
+  const salt = crypto.randomBytes(16).toString("hex");
+
+  let hash;
+  switch (alg) {
+    case "sha256":
+      hash = sha256Hash(input + salt);
+      break;
+    case "sha512":
+      hash = sha512Hash(input + salt);
+      break;
+    case "blake2b":
+      hash = blake2bHash(input + salt);
+      break;
+    case "blake2s":
+      hash = blake2sHash(input + salt);
+      break;
+    case "pbkdf2":
+      hash = pbkdf2Hash(input, salt);
+      break;
+    case "scrypt":
+      hash = scryptHash(input, salt);
+      break;
+    default:
+      throw new Error("Unsupported algorithm");
+  }
+
+  return `${hash}:*:${salt}`;
 }
 
-function sha256Hash(input) {
+function verifyHashSync(input, hashed, alg = "sha256") {
   if (typeof input !== "string" || input.trim() === "") {
-    throw new Error("Invalid input to hash: must be a non-empty string");
+    throw new Error("Invalid input");
   }
 
-  return crypto.createHash("sha256").update(input).digest("hex");
+  const [hash, salt] = hashed.split(":*:");
+  if (!hash || !salt) throw new Error("Invalid hash format");
+
+  let computedHash;
+  switch (alg) {
+    case "sha256":
+      computedHash = sha256Hash(input + salt);
+      break;
+    case "sha512":
+      computedHash = sha512Hash(input + salt);
+      break;
+    case "blake2b":
+      computedHash = blake2bHash(input + salt);
+      break;
+    case "blake2s":
+      computedHash = blake2sHash(input + salt);
+      break;
+    case "pbkdf2":
+      computedHash = pbkdf2Hash(input, salt);
+      break;
+    case "scrypt":
+      computedHash = scryptHash(input, salt);
+      break;
+    default:
+      throw new Error("Unsupported algorithm");
+  }
+
+  return hash === computedHash;
 }
 
 async function generateKeyPair(keySize = 2048) {
@@ -220,6 +312,12 @@ const packageExports = {
   hashToBigNumber,
   sha512Hash,
   sha256Hash,
+  blake2bHash,
+  blake2sHash,
+  pbkdf2Hash,
+  scryptHash,
+  hashStringSync,
+  verifyHashSync,
   generateSignatureKeyPair,
   generateSignature,
   verifySignature,
@@ -245,4 +343,10 @@ export {
   generateSignatureKeyPair,
   generateSignature,
   verifySignature,
+  blake2bHash,
+  blake2sHash,
+  pbkdf2Hash,
+  scryptHash,
+  hashStringSync,
+  verifyHashSync,
 };

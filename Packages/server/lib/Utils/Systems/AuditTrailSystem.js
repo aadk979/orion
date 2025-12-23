@@ -11,10 +11,10 @@ class AuditTrailSystem {
       this.enabled = true;
 
       this.config = {
-        host: systemConfig?.auditTrailSystem.host || "localhost",
-        user: systemConfig?.auditTrailSystem.user || "root",
-        password: systemConfig?.auditTrailSystem.password || "SecurePassword1234",
-        database: systemConfig?.auditTrailSystem.database || "orion_audit",
+        host: systemConfig?.utilities?.auditTrailSystem?.host || "localhost",
+        user: systemConfig?.utilities?.auditTrailSystem?.user || "root",
+        password: systemConfig?.utilities?.auditTrailSystem?.password || "SecurePassword1234",
+        database: systemConfig?.utilities?.auditTrailSystem?.database || "orion_audit",
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,

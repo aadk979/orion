@@ -103,6 +103,7 @@ class MemoryMonitoringSystem {
             "auditTrailSystem",
             "db",
             "api.customeMiddlewares",
+            "api.slug",
             "authMethods.oAuth",
             "systemSecurity",
             "resourceAccessConfig",

@@ -8,15 +8,17 @@ import {
   generateHmac,
 } from "./CryptoModule.js";
 import { getDeviceFingerprint } from "./DevicePrint.js";
+import { generateNonce } from "./Utils.js";
 
 class ApiInterface {
-  constructor(baseUrl, nameSpace) {
+  constructor(baseUrl, nameSpace, slug) {
     this.baseUrl = baseUrl;
     this.nameSpace = nameSpace;
+    this.slug = slug;
   }
 
   async fetch(endpoint, method, authorization, body = {}, dip, encryption) {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = `${this.baseUrl}${this.slug !== "" ? "/" + this.slug : ""}${endpoint}`;
 
     const response = await fetch(url, {
       method: method,
@@ -103,7 +105,7 @@ class ApiInterface {
   }
 
   async prepareDataForDIP(data, dipConfig) {
-    if (dipConfig.disabled) {
+    if (dipConfig?.disabled) {
       return { disabled: true }
     }
     
@@ -129,8 +131,12 @@ class ApiInterface {
       3
     )}|Epoch:${date.getTime()}`;
 
+    const nonceFn = generateNonce();
+
+    const nonce = nonceFn();
+
     const randomBits = crypto.getRandomValues(new Uint32Array(1))[0];
-    const fullTimestamp = `${timestamp}|Rand:${randomBits}`;
+    const fullTimestamp = `${timestamp}|Rand:${randomBits}|Nonce:${nonce}`;
 
     const signature = await generateHmac(
       stringData +

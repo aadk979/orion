@@ -1,4 +1,5 @@
 import { globalAccessPoint } from "../GlobalAccessPoint.js";
+import { logger } from "../logger.js";
 import { generateId } from "../valueGenerator.js";
 
 const THRESHOLDS = {

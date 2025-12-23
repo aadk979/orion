@@ -1,54 +1,37 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
-import { cronScheduler } from '../../Cron.js';
-import { generateHmacKey } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
-import { getIpRange, getIp } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
-import { generateRequestId } from '../../valueGenerator.js';
+import { getRandomElement } from '../../ArrayUtilities.js';
 
-const generateDipConfig = async (ip) => {
-  const Function = async (parameters) => {
+const generateDipConfig = async () => {
+    const Function = async (parameters) => {
 
-    const dipEnabled = globalAccessPoint.getValue("dip");
+      const dipEnabled = globalAccessPoint.getValue("dip");
 
-    if (!dipEnabled) {
-        return { error: true, errorCode: "DIP-DISABLED" };
-    }
+      if (!dipEnabled) {
+          return { error: true, errorCode: "DIP-DISABLED" };
+      }
 
-    const signatureKey = await generateHmacKey();
-    const requestId = generateRequestId("DIP");
+      const dipConfigsAvailable = globalAccessPoint.getValue("dipConfigsAvailable");
 
-    const dipConfig = {
-      dipId: requestId,
-      signatureKey: signatureKey,
-      ip: getIpRange(parameters.ip)
+      const selectedGroup = getRandomElement(dipConfigsAvailable);
+
+      const group = globalAccessPoint.getValue("ephemeralDB").getData(selectedGroup);
+
+      const config = getRandomElement(group.data);
+
+      return { error: false, dipConfig: { ...config } };
     };
 
-    await globalAccessPoint.db().addData("dip", requestId, dipConfig);
-
-    const deletionFunction = (parameters) => {
-      globalAccessPoint.db().deleteData("dip", parameters.requestId);
-    };
-
-    cronScheduler.addEvent(requestId, deletionFunction, "3h", {
-      requestId: requestId,
-    });
-
-    delete dipConfig.ip;
-
-    return { error: false, dipConfig: { ...dipConfig , encryptAll: globalAccessPoint.getValue("systemConfig").api.encryptAll } };
-  };
-
-  const functionSource = fileURLToPath(import.meta.url);
-  const result = await tryCatch(Function, true, { ip: ip }, 'generateDipConfig', functionSource);
-  return result;
+    const functionSource = fileURLToPath(import.meta.url);
+    const result = await tryCatch(Function, true, { }, 'generateDipConfig', functionSource);
+    return result;
 };
 
 const routeHandlerGenerateDipConfig = async (request, response) => {
-    const ip = getIp(request);
-
-    const callback = await generateDipConfig(ip);
+  
+    const callback = await generateDipConfig();
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);
@@ -57,4 +40,4 @@ const routeHandlerGenerateDipConfig = async (request, response) => {
     return respondWithSuccess(response , 200 , callback.dipConfig);
 };
 
-export { routeHandlerGenerateDipConfig };;
+export { routeHandlerGenerateDipConfig };

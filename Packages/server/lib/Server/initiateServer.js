@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import { logger } from '../Utils/logger.js';
 import { originVerifier } from './Middleware/originVerifier.js';
 import { headerParser } from './Middleware/headerParser.js';
-import { DatabaseManager } from '../Utils/Databases/index.js';
+import { PersistantDatabaseManager } from '../Utils/Databases/PersitantDatabases/index.js';
 import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
 import { defaultServerRoutes } from './Endpoints/index.js';
 import { dataValidator } from './Middleware/dataValidator.js';
@@ -115,10 +115,10 @@ const registerRoutes = (app, routes, middlewares) => {
 
     // Register route with filtered middlewares (if any), then callback
     if (middlewareCallbacks.length > 0) {
-      app[routeMethod](path, ...middlewareCallbacks, callback);
+      app[routeMethod](`${globalAccessPoint.getValue("apiSlug") ? "/" + globalAccessPoint.getValue("apiSlug") : ""}${path}`, ...middlewareCallbacks, callback);
     } else {
       // No middleware to apply, just register the route with callback only
-      app[routeMethod](path, callback);
+      app[routeMethod](`${globalAccessPoint.getValue("apiSlug") ? "/" + globalAccessPoint.getValue("apiSlug") : ""}${path}`, callback);
     }
   });
 };
@@ -128,12 +128,12 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
   try {
     const mergedConfig = { ...defaultStartConfig, ...startConfig, ...systemConfig };
 
-    if (!mergedConfig?.serviceID) {
-      mergedConfig.serviceID = crypto.randomUUID();
+    if (!mergedConfig?.app.serviceID) {
+      mergedConfig.app.serviceID = crypto.randomUUID();
     }
 
     // Init DB
-    const dbManager = new DatabaseManager(mergedConfig);
+    const dbManager = new PersistantDatabaseManager(mergedConfig);
     
     // Init Volatile Secrets Manager
     const volatileSecretsManager = new VolatileSecretsManager(20, 32, true);
@@ -152,7 +152,7 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     const signatureSecretsManager = new SignatureSecretsManager(8, true);
 
     // Init Memory Handler system
-    const memoryMonitioringSystem = new MemoryMonitoringSystem(true);
+    const memoryMonitioringSystem = new MemoryMonitoringSystem(false);
     memoryMonitioringSystem.start();
 
     globalAccessPoint.setValue('db', dbManager.db());
@@ -170,7 +170,7 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
     globalAccessPoint.setValue('timeOfLife', getCurrentUnixTime());
 
     // Init Audit Trail System (Intialized later since it refernces system config via global access point)
-    const auditTrailSystem = new AuditTrailSystem(systemConfig?.auditTrailSystem?.enabled || false);
+    const auditTrailSystem = new AuditTrailSystem(systemConfig?.utilities?.auditTrailSystem?.enabled || false);
     globalAccessPoint.setValue('auditTrailSystem', auditTrailSystem);
     
     // Initialize audit trail system (creates database and tables if needed)
@@ -193,17 +193,18 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
 
     // Register endpoints
     registerRoutes(app, defaultServerRoutes.endpoints);
-    registerRoutes(app, mergedConfig.api?.customEndpoints || [], mergedConfig.api?.customMiddlewares || []);
+    registerRoutes(app, mergedConfig?.api?.customEndpoints || [], mergedConfig?.api?.customMiddlewares || []);
 
     memoryMonitioringSystem.purgeSystemConfigPostSetup();
 
-    logger.info(`✅ Service "${mergedConfig.appName || 'Unnamed'}" ready`);
-    logger.info(`🆔 Service ID: ${mergedConfig.serviceID}`);
-    logger.info(`🌐 Listening on port: ${mergedConfig.PORT || 'Not Set (dev?)'}`);
+    logger.info(`✅ Service "${mergedConfig.app.appName || 'Unnamed'}" ready`);
+    logger.info(`🆔 Service ID: ${mergedConfig.app.serviceID}`);
+    logger.info(`🌐 Listening on port: ${mergedConfig.app.PORT || 'Not Set (dev?)'}`);
 
-    return { app, dbManager };
+    return { app, dbManager, PORT: mergedConfig.app.PORT || 58944 };
 
   } catch (err) {
+    console.error(err)
     logger.error(`💥 Server boot failure: ${err.message}`);
     throw new Error(`Server init error: ${err.message}`);
   }

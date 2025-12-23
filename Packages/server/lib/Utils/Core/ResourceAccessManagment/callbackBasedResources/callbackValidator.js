@@ -9,31 +9,27 @@ const validateRASCallbacks = (config = []) => {
         callback: "function",
     }
 
-    const allowedCallbacks = [];
-
-    for (const callback of config) {
-
-        let mistakeCount = 0;
-
-        if (callback?.callbackPath.trim() === "" || typeof callback?.callbackPath !== configTypeSchema.callbackPath) {
-            mistakeCount ++;
-            logger.warn(`Invalid callback path, "${callback?.callbackPath}", refused to register callback!`)
+    return config.filter(callback => {
+        
+        if (typeof callback?.callbackPath !== configTypeSchema.callbackPath || !callback?.callbackPath.trim()) {
+            logger.warn(`Invalid callback path "${callback?.callbackPath}", refused to register callback!`);
+            return false;
         }
 
-        if (!SUPPORTED_TOKENS.find(val => val.tokenType === callback?.accessType.toUpperCase().trim())) {
-            mistakeCount ++;
-            logger.warn(`Invalid access type, "${callback?.accessType}", refused to register callback!`)
+        const accessType = callback?.accessType?.toUpperCase().trim();
+        const isSupported = SUPPORTED_TOKENS.find(val => val.tokenType === accessType);
+        if (!isSupported) {
+            logger.warn(`Invalid access type "${callback?.accessType}", refused to register callback!`);
+            return false;
         }
 
         if (typeof callback.callback !== configTypeSchema.callback) {
-            mistakeCount ++;
-            logger.warn(`Given callback is not of type function, "${typeof callback?.callback}", refused to register callback!`)
+            logger.warn(`Given callback is not of type function, "${typeof callback?.callback}", refused to register callback!`);
+            return false;
         }
 
-        allowedCallbacks.push(mistakeCount > 0 ? null : callback);
-    }
-
-    return allowedCallbacks.filter(val => val !== null);
+        return true;
+    });
 }
 
 export { validateRASCallbacks }

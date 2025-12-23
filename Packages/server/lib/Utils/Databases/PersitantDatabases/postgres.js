@@ -1,6 +1,6 @@
 import pkg from 'pg';
 const { Pool } = pkg;
-import { logger } from '../logger.js';
+import { logger } from '../../logger.js';
 
 class PostgresService {
   constructor() {

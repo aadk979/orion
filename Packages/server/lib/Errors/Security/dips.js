@@ -25,16 +25,14 @@ const Dip = {
         context: "The dip configuration has either expired or is invalid",
         errorCode: "DIP-TIMEDOUT-OR-ID-HEADER-INVALID",
         fault: "CLIENT",
-        solutions: ["NONE"],
-        refresh: true
+        solutions: ["NONE"]
     },
     "DIP-STATE-IP-MISMATCH": {
         status: 400,
         context: "The ip range for the stored dip configuration does not match",
         errorCode: "DIP-STATE-IP-MISMATCH",
         fault: "CLIENT",
-        solutions: ["NONE"],
-        refresh: true
+        solutions: ["NONE"]
     },
     "DIP-STATE-SIGNATURE-HEADER-MISSING": {
         status: 400,
@@ -57,10 +55,17 @@ const Dip = {
         fault: "CLIENT",
         solutions: ["NONE"]
     },
-    "DIP-STATE-MISSING-TIMESTAMP": {
+    "DIP-STATE-MISSING-TIMESTAMP-TYPE-1": {
         status: 400,
         context: "The required dip timestamp is missing",
-        errorCode: "DIP-STATE-MISSING-TIMESTAMP",
+        errorCode: "DIP-STATE-MISSING-TIMESTAMP-TYPE-1",
+        fault: "CLIENT",
+        solutions: ["NONE"]
+    },
+    "DIP-STATE-MISSING-TIMESTAMP-TYPE-2": {
+        status: 400,
+        context: "The required dip timestamps sub unix value is missing",
+        errorCode: "DIP-STATE-MISSING-TIMESTAMP-TYPE-2",
         fault: "CLIENT",
         solutions: ["NONE"]
     },
@@ -69,8 +74,7 @@ const Dip = {
         context: "The provided dip signature and generated one do not match",
         errorCode: "DIP-STATE-SIGNATURE-MISMATCH",
         fault: "CLIENT",
-        solutions: ["NONE"],
-        refresh: true
+        solutions: ["NONE"]
     }
 }
 

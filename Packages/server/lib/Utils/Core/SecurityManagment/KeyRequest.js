@@ -1,32 +1,82 @@
-import { respondWithSuccess, respondWithError } from '../../../Server/Response/response.js';
-import { hashString } from '../../CryptoFunctions.js';
-import { generateKeyPairDedicated } from '../../dedicatedCrypto.js';
+import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
+import { getRandomElement } from '../../ArrayUtilities.js';
+import { exportPublicKeyECC } from '../../dedicatedCrypto.js';
+import { base64EncodeUint8 } from '../../Encoders.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
-import { getIp } from '../../Ip.js';
-import { generateRequestId } from '../../valueGenerator.js';
+
+// Orion prefers the ECC system for smaller key sizes and speed
+const systemSupportedAlgs = [ "ECC_256", "ECC_384", "RSA_2048", "RSA_3072", "RSA_4096" ];
 
 const routeHandlerKeyRequest = async (request , response) => {
-    const keyPair = await generateKeyPairDedicated(2048);
 
-    const publicKey = keyPair.publicKey;
-    const privateKey = keyPair.privateKey;
+    // Use prefered primary of no algs given
+    let availableAlgs = request?.body?.packet?.algs || [ "ECC_224" ];
+    let cleanedAlgs = [];
 
-    const requestId = generateRequestId("ENCRYPTION-KEY");
+    // Prefered primary alg is the first element
+    if (availableAlgs.includes(systemSupportedAlgs[0])) {
 
-    const data = {
-        requestId: requestId,
-        privateKey: privateKey,
-        ip: getIp(request),
-        fingerprint: await hashString(request.headers["orion-fingerprint"]),
+        const encryptionConfigsAvailable = globalAccessPoint.getValue("encryptionConfigsAvailable").filter(val => !val.includes("RSA") && !val.includes("ECC"));
+
+        const selectedGroup = getRandomElement(encryptionConfigsAvailable);
+
+        const group = globalAccessPoint.getValue("ephemeralDB").getData(selectedGroup);
+
+        const config = getRandomElement(group.data);
+
+        if (config.alg === "ECC") {
+
+            const exportableKey = await exportPublicKeyECC(config.publicKey);
+
+            config.publicKey = base64EncodeUint8(exportableKey);
+            
+        }
+
+        delete config.privateKey;
+
+        return respondWithSuccess(response, 200, { ...config });
+
     }
 
-    const storage = await globalAccessPoint.db().addData("encryptionRequests", requestId, data);
+    for (const alg of availableAlgs) {
 
-    if (storage.error) {
-        return respondWithError(response, storage.errorCode);
+        if (systemSupportedAlgs.includes(alg)) {
+            cleanedAlgs.push(alg)
+        }
+
     }
 
-    return respondWithSuccess(response, 200, { requestId: requestId, publicKey: publicKey });
+    if (cleanedAlgs.length === 0) {
+        return respondWithError(response, "ENCRYPTION-ALGS-NOT-SUPPORTED")
+    }
+
+    for (const alg of cleanedAlgs) {
+
+        if (systemSupportedAlgs.includes(alg)) {
+            
+            const encryptionConfigsAvailable = globalAccessPoint.getValue("encryptionConfigsAvailable").filter(val => val.includes(alg));
+
+            const selectedGroup = getRandomElement(encryptionConfigsAvailable);
+
+            const group = globalAccessPoint.getValue("ephemeralDB").getData(selectedGroup);
+
+            const config = getRandomElement(group.data);
+
+            if (config.alg === "ECC") {
+
+                const exportableKey = await exportPublicKeyECC(config.publicKey);
+
+                config.publicKey = base64EncodeUint8(exportableKey);
+
+            }
+
+            delete config.privateKey;
+
+            return respondWithSuccess(response, 200, { ...config });
+        }
+
+    }
+
 }
 
 export { routeHandlerKeyRequest };

@@ -62,12 +62,10 @@ class CustomLogger {
   configureFromGlobalAccessPoint() {
     try {
       const systemConfig = globalAccessPoint.getValue('systemConfig');
-      if (systemConfig && typeof systemConfig.logToFile === 'boolean') {
-        this.logToFile = systemConfig.logToFile;
+      if (systemConfig && typeof systemConfig?.utilities?.logToFile === 'boolean') {
+        this.logToFile = systemConfig?.utilities?.logToFile || false;
       }
-    } catch (e) {
-      // Swallow errors silently to avoid crashing during early boot
-    }
+    } catch (e) {}
   }
 
   log(...args) {

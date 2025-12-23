@@ -2,3 +2,8 @@ Testing/Server/orion.config.js
 
 # Ignore all node_modules everywhere
 node_modules/
+
+1.js
+
+
+*.log

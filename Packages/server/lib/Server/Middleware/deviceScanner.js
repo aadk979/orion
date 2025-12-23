@@ -7,6 +7,7 @@ import { tryCatch } from "../../Utils/TryCatch.js"
 import { fileURLToPath } from 'url';
 import { isValidEmailDomain } from "../../Utils/Validator.js";
 import { respondWithError } from "../Response/response.js";
+import { slugParser } from "../../Utils/Parsers.js";
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -78,7 +79,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
         }
 
         if (authedUser === false) {
-            const path = parameters.request.path;
+            const path = slugParser(parameters.request.path);
 
             if(!PUBLIC_ROUTES_FOR_DEVICE_CHECK.includes(path)) {
                 return parameters.next();
@@ -150,6 +151,10 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
     const functionSource = fileURLToPath(import.meta.url);
     const result = await tryCatch(Function, true, parameters, 'deviceCheckMiddlware', functionSource);
+
+    if (result?.error) {
+        return respondWithError(response, result.errorCode);
+    }
 
     return;
 }

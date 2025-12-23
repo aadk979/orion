@@ -1,6 +1,6 @@
 {
-  "totalMatches": 182,
-  "generatedAt": "2025-11-06T16:20:55.658Z",
+  "totalMatches": 195,
+  "generatedAt": "2025-12-09T13:37:28.858Z",
   "groupedByDirectory": {
     "root": [
       "MISSING-SESSION-ID-OR-SESSION-HMAC",
@@ -35,15 +35,18 @@
       "INVALID-PROTOCOL",
       "UNKNOWN-ORIGIN",
       "INTERNAL-SERVER-ERROR",
-      "UN-AUTHED",
       "RESOURCE-TOKEN-EXPIRED",
       "RESOURCE-TOKEN-VALIDATION-FAILED",
       "RESOURCE-TOKEN-INVALID",
       "RESOURCE-TOKEN-NOT-AUTHORIZED",
       "SERVER-LOCKDOWN",
+      "SERVER-UNHEALTHY",
       "SERVER-INITIALIZING",
+      "UNKNOWN-API-ROUTE",
       "TOKEN-SECRETS-AUTO-EXPORT",
       "FILE-NOT-FOUND",
+      "SIGNATURE-SECRETS-AUTO-EXPORT",
+      "SYSTEM-AUDIT-TEST",
       "UNKNOWN-ERROR",
       "DEVICE-UNRECOGNIZED",
       "ACC-SIGN-IN-ACC-NO-EXISTS",
@@ -79,6 +82,14 @@
       "PASSKEY-REG-INVALID-EMAIL",
       "PASSKEY-ACC-NO-EXIST",
       "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED",
+      "ACC-PASSWORD-RESET-INVALID-EMAIL",
+      "EMAIL-DOMAIN-NOT-ALLOWED",
+      "ACC-SIGN-IN-ACC-NO-EXISTS",
+      "UNABLE-TO-SEND-PASSWORD-RESET-EMAIL",
+      "ACC-PASSWORD-RESET-REQUEST-EXPIRED",
+      "ACC-PASSWORD-RESET-USERAGENT-MISMATCH",
+      "ACC-PASSWORD-RESET-INVALID-CODE",
+      "ACC-PASSWORD-RESET-MISSING-REQUEST-ID",
       "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
       "ACC-SIGN-IN-INVALID-EMAIL",
       "EMAIL-DOMAIN-NOT-ALLOWED",
@@ -87,6 +98,7 @@
       "ACC-SIGN-IN-ACC-DISABLED",
       "ACC-SIGN-IN-NO-PASSWORD-SETUP",
       "ACC-SIGN-IN-INVALID-PASSWORD",
+      "LOCAL-SYSTEM",
       "USER-CONTROL-NO-EMAIL-PROVIDED",
       "USER-CONTROL-NO-UID-PROVIDED",
       "USER-CONTROL-NO-SUCH-USER",
@@ -94,6 +106,7 @@
       "USER-CONTROL-NOT-STANDARD-ROLE",
       "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED",
       "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
+      "USER-CONTROL-NO-PASSWORD-PROVIDED",
       "ACC-REG-UNABLE-TO-CREATE-ACC",
       "O-AUTH-REQUESTS",
       "O-AUTH-UNSUPPORTED-PROVIDER",
@@ -117,21 +130,6 @@
       "O-AUTH-PROVIDER-NOT-INITIALIZED",
       "O-AUTH-TOKEN-EXCHANGE-FAILED",
       "O-AUTH-USERINFO-FAILED",
-      "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
-      "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
-      "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
-      "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
-      "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
-      "MISSING-RESOURCE-TOKEN",
-      "RESOURCE-TOKEN-KEY-NOT-FOUND",
-      "INVALID-RESOURCE-TOKEN-INVALID-AUD",
-      "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
-      "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
-      "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
-      "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
-      "MAX-RESOURCE-RETRIEVALS-HIT",
-      "RESOURCE-TOKEN-EXPIRED",
-      "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
       "PATH-TRAVERSAL-ATTEMPT",
       "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
       "DIP-DISABLED",
@@ -168,6 +166,21 @@
       "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH",
       "REFRESH-TOKEN-EXPIRED",
       "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
+      "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
+      "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
+      "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
+      "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
+      "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
+      "MISSING-RESOURCE-TOKEN",
+      "RESOURCE-TOKEN-KEY-NOT-FOUND",
+      "INVALID-RESOURCE-TOKEN-INVALID-AUD",
+      "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
+      "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
+      "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
+      "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
+      "MAX-RESOURCE-RETRIEVALS-HIT",
+      "RESOURCE-TOKEN-EXPIRED",
+      "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
       "DB-FAIL",
       "MONGO-DB",
       "DB-FAIL",
@@ -317,10 +330,6 @@
       "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
     },
     {
-      "code": "UN-AUTHED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\requestMetadata.js"
-    },
-    {
       "code": "RESOURCE-TOKEN-EXPIRED",
       "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
     },
@@ -341,8 +350,16 @@
       "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
     },
     {
+      "code": "SERVER-UNHEALTHY",
+      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
+    },
+    {
       "code": "SERVER-INITIALIZING",
       "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
+    },
+    {
+      "code": "UNKNOWN-API-ROUTE",
+      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverUtilities.js"
     },
     {
       "code": "TOKEN-SECRETS-AUTO-EXPORT",
@@ -350,6 +367,14 @@
     },
     {
       "code": "FILE-NOT-FOUND",
+      "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
+    },
+    {
+      "code": "SIGNATURE-SECRETS-AUTO-EXPORT",
+      "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
+    },
+    {
+      "code": "SYSTEM-AUDIT-TEST",
       "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
     },
     {
@@ -493,6 +518,38 @@
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
     },
     {
+      "code": "ACC-PASSWORD-RESET-INVALID-EMAIL",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "UNABLE-TO-SEND-PASSWORD-RESET-EMAIL",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "ACC-PASSWORD-RESET-REQUEST-EXPIRED",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "ACC-PASSWORD-RESET-USERAGENT-MISMATCH",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "ACC-PASSWORD-RESET-INVALID-CODE",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
+      "code": "ACC-PASSWORD-RESET-MISSING-REQUEST-ID",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+    },
+    {
       "code": "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
     },
@@ -525,6 +582,10 @@
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
     },
     {
+      "code": "LOCAL-SYSTEM",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+    },
+    {
       "code": "USER-CONTROL-NO-EMAIL-PROVIDED",
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
     },
@@ -550,6 +611,10 @@
     },
     {
       "code": "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+    },
+    {
+      "code": "USER-CONTROL-NO-PASSWORD-PROVIDED",
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
     },
     {
@@ -643,66 +708,6 @@
     {
       "code": "O-AUTH-USERINFO-FAILED",
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "MISSING-RESOURCE-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-KEY-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-INVALID-AUD",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "MAX-RESOURCE-RETRIEVALS-HIT",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\callbackBasedResources\\resourceTokens.js"
     },
     {
       "code": "PATH-TRAVERSAL-ATTEMPT",
@@ -847,6 +852,66 @@
     {
       "code": "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
       "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+    },
+    {
+      "code": "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "MISSING-RESOURCE-TOKEN",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "RESOURCE-TOKEN-KEY-NOT-FOUND",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "INVALID-RESOURCE-TOKEN-INVALID-AUD",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "MAX-RESOURCE-RETRIEVALS-HIT",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "RESOURCE-TOKEN-EXPIRED",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+    },
+    {
+      "code": "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
+      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
     },
     {
       "code": "DB-FAIL",

@@ -14,6 +14,7 @@ import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { parseDuration } from '../../Utils/Date&Time.js';
 import { verifySignature } from '../../Utils/CryptoFunctions.js';
 import { parseCookieData, stringifyCookieData } from '../../Utils/CookieUtils.js';
+import { slugParser } from '../../Utils/Parsers.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -89,12 +90,12 @@ const handleSessionValidation = async (parameters) => {
 }
 
 const handleIsAuthStateCheck = (parameters) => {
-    return parameters.request.path.split("/")[parameters.request.path.split("/").length -1] === "get-current-auth-state";
+    return slugParser(parameters.request.path).split("/")[slugParser(parameters.request.path).split("/").length -1] === "get-current-auth-state";
 }
 
 const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
-    const endpoint = defaultServerRoutes.endpoints.find(item => item.path === parameters.request.path);
-    const endpointBackUp = globalAccessPoint.getValue("systemConfig").api.customEndpoints.find(item => item.path === parameters.request.path);
+    const endpoint = defaultServerRoutes.endpoints.find(item => item.path === slugParser(parameters.request.path));
+    const endpointBackUp = globalAccessPoint.getValue("systemConfig").api.customEndpoints.find(item => item.path === slugParser(parameters.request.path));
 
     if (!endpoint && !endpointBackUp && !reqIsAuthStateCheck) {
         return { error: true, errorCode: "UNKOWN-API-ROUTE" };
@@ -111,7 +112,7 @@ const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     }
 
     // Special virtual endpoint that will not be found in the endpoint registry
-    if (parameters.request.path === `/${globalAccessPoint.nameSpace()}/api/v1/action/get-current-auth-state`) {
+    if (slugParser(parameters.request.path) === `/${globalAccessPoint.nameSpace()}/api/v1/action/get-current-auth-state`) {
         return { error: false, setBy: 1, authRequired: true };
     }
 }
@@ -248,7 +249,7 @@ const authenticationMiddleware = async (request , response , next) => {
                     return respondWithError(parameters.response, "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE")
                 }
 
-                const path = parameters.request.path;
+                const path = slugParser(parameters.request.path);
 
                 // Check if route exists in the accessible routes for no auth bearer, if not and the route is set by default, return an error. Else verify route was set by the user via setBy and allow access.
                 if(!ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER.includes(path) && setBy === 1) {
@@ -277,7 +278,7 @@ const authenticationMiddleware = async (request , response , next) => {
                     return respondWithError(parameters.response, "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE")
                 }
 
-                if(!ROUTES_ACCESSIBLE_WITH_NO_BEARER.includes(parameters.request.path)) {
+                if(!ROUTES_ACCESSIBLE_WITH_NO_BEARER.includes(slugParser(parameters.request.path))) {
                     return respondWithError(parameters.response , "INVALID-BEARER-FOR-CURRENT-ROUTE");
                 }
 
@@ -295,6 +296,12 @@ const authenticationMiddleware = async (request , response , next) => {
     }
 
     const result = await Function(parameters);
+
+    if (result?.error) {
+        return respondWithError(response, result.errorCode);
+    }
+
+    return;
 }
 
 export { authenticationMiddleware };

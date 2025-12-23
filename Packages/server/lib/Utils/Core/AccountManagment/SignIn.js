@@ -1,5 +1,5 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
-import { verifyHash, generateHmac, generateSignature } from '../../CryptoFunctions.js';
+import { verifyHash, generateSignature } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIp } from '../../Ip.js';

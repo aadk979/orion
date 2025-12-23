@@ -22,6 +22,7 @@ import { generateResourceToken } from "./lib/Utils/Core/ResourceAccessManagment/
 import { requestContext } from "./lib/Server/Middleware/requestMetadata.js";
 import { logger } from "./lib/Utils/logger.js";
 import { userControl } from "./lib/Utils/Core/AccountManagment/UserControl.js";
+import { __Status__, __Version__ } from "./lib/orion.meta.js";
 
 const validators = o;
 const ipUtils = r;
@@ -36,8 +37,8 @@ const tokens = { generateResourceToken };
 const valueGenerators = i;
 const orionCrypto = b;
 
-const __Version__ = "1.0.0";
-const __Status__ = "Beta";
+const __Version__ = __Version__;
+const __Status__ = __Status__;
 
 const orionInfo = { __Version__, __Status__ }
 
