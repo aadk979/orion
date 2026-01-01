@@ -34,7 +34,7 @@ function scanDir(dir) {
                     const content = fs.readFileSync(fullPath, 'utf8');
                     const matches = [...content.matchAll(regex)].map(m => ({
                         file: fullPath,
-                        match: m[2],
+                        match: m[2]
                     }));
                     results.push(...getUniqueObjects(matches, 'match'));
                 } catch (err) {
@@ -69,7 +69,7 @@ if (found.length === 0) {
         totalMatches: found.length,
         generatedAt: new Date().toISOString(),
         groupedByDirectory: grouped,
-        allMatches: found.map(({ match, file }) => ({ code: match, file })),
+        allMatches: found.map(({ match, file }) => ({ code: match, file }))
     };
 
     fs.writeFileSync(outputFile, JSON.stringify(jsonOutput, null, 2), 'utf8');

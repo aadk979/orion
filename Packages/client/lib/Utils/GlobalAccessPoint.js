@@ -3,11 +3,11 @@ class GlobalAccessPoint {
 
     constructor() {
         if (GlobalAccessPoint.instance) {
-            throw new Error("There can only be one instance of global access point!");
+            throw new Error('There can only be one instance of global access point!');
         }
 
         this._values = {};
-        this._lockedKeys = new Set([ "systemConfig" ]);
+        this._lockedKeys = new Set(['systemConfig']);
 
         GlobalAccessPoint.instance = this;
     }
@@ -41,11 +41,11 @@ class GlobalAccessPoint {
     }
 
     systemConfig() {
-        return this.getValue("systemConfig");
+        return this.getValue('systemConfig');
     }
 
     nameSpace() {
-        return this.getValue("systemConfig")?.nameSpace || "alpine";
+        return this.getValue('systemConfig')?.nameSpace || 'alpine';
     }
 }
 

@@ -1,8 +1,8 @@
 {
-  "devDependencies": {
-    "esbuild": "^0.25.10"
-  },
-  "dependencies": {
-    "terser": "^5.44.0"
-  }
+    "devDependencies": {
+        "esbuild": "^0.25.10"
+    },
+    "dependencies": {
+        "terser": "^5.44.0"
+    }
 }

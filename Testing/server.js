@@ -15,10 +15,10 @@ app.use(express.static(path.join(__dirname, 'assets')));
 
 // Optional: root route to confirm server is running
 app.get('/', (req, res) => {
-  res.send('<h2>Static file server is running on port 5502 🚀</h2>');
+    res.send('<h2>Static file server is running on port 5502 🚀</h2>');
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-  console.log(`📁 Serving static files from: ${path.join(__dirname, 'assets')}`);
+    console.log(`✅ Server running at http://localhost:${PORT}`);
+    console.log(`📁 Serving static files from: ${path.join(__dirname, 'assets')}`);
 });

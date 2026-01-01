@@ -1,0 +1,25 @@
+<SUBJECT>New Device Sign-In Attempt Detected</SUBJECT>
+
+Dear <EMAIL>,
+
+We noticed an attempt to sign in to your account from a device we didn’t recognize.
+
+To authorize this device and allow it access to your account, please enter the code shown below on the device:
+
+🔐 Authorization Code: <CODE>
+
+Thank you for helping us keep your account secure.
+
+If you do not recognize this device, no action is required — we’ve blocked the attempt automatically.
+
+–––––––––––––––––––––––––
+📱 Device Details:
+• IP Address: <IP>
+• Device Model: <MODEL>
+• User Agent: <USERAGENT>
+–––––––––––––––––––––––––
+
+Stay safe,  
+– The <APPNAME> Security System
+
+This is an auto-generated email. Please do not reply.

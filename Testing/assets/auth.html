@@ -1,82 +1,78 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Auth Box</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="flex items-center justify-center min-h-screen bg-gray-100">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Auth Box</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="flex items-center justify-center min-h-screen bg-gray-100">
+        <div class="w-full max-w-md p-8 bg-white rounded-2xl shadow-lg">
+            <h2 id="form-title" class="text-2xl font-bold text-center mb-6">Login</h2>
 
-    <div class="w-full max-w-md p-8 bg-white rounded-2xl shadow-lg">
-      <h2 id="form-title" class="text-2xl font-bold text-center mb-6">Login</h2>
-      
-      <form id="auth-form" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Email</label>
-          <input id="email" type="email" class="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Email</label>
+                    <input id="email" type="email" class="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                    <input id="password" type="password" class="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+                <button id="btn" type="submit" class="w-full py-2 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition">
+                    Continue
+                </button>
+            </form>
+
+            <p class="mt-4 text-sm text-center text-gray-600">
+                <span id="toggle-text">Don't have an account?</span>
+                <button id="toggler" class="text-blue-600 hover:underline ml-1 font-medium" id="toggle-button">Sign up</button>
+            </p>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Password</label>
-          <input id="password" type="password" class="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
+        <script type="module">
+            import { orion } from '../../Packages/client/lib/Root.js';
+            const formTitle = document.getElementById('form-title');
+            const toggleText = document.getElementById('toggle-text');
+            const toggleButton = document.getElementById('toggle-button');
+            let isLogin = true;
 
-        <button id="btn" type="submit" class="w-full py-2 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition">
-          Continue
-        </button>
-      </form>
+            orion.initialize();
 
-      <p class="mt-4 text-sm text-center text-gray-600">
-        <span id="toggle-text">Don't have an account?</span>
-        <button id="toggler" class="text-blue-600 hover:underline ml-1 font-medium" id="toggle-button">Sign up</button>
-      </p>
-    </div>
+            document.getElementById('toggler').addEventListener('click', () => {
+                toggleForm();
+            });
 
-    <script type="module">
-      import { orion } from "../../Packages/client/lib/Root.js"
-      const formTitle = document.getElementById('form-title');
-      const toggleText = document.getElementById('toggle-text');
-      const toggleButton = document.getElementById('toggle-button');
-      let isLogin = true;
+            orion.authState(user => {
+                if (user) window.alert('Signed In!');
+            });
 
-      orion.initialize()
+            function toggleForm() {
+                isLogin = !isLogin;
 
-      document.getElementById("toggler").addEventListener("click", () => {
-        toggleForm();
-      })
+                if (isLogin) {
+                    formTitle.textContent = 'Login';
+                    toggleText.textContent = "Don't have an account?";
+                    toggleButton.textContent = 'Sign up';
+                } else {
+                    formTitle.textContent = 'Sign Up';
+                    toggleText.textContent = 'Already have an account?';
+                    toggleButton.textContent = 'Login';
+                }
+            }
 
-      orion.authState((user)=>{
-        if (user) window.alert("Signed In!")
-      })
+            document.getElementById('btn').addEventListener('click', async e => {
+                e.preventDefault();
+                if (isLogin) {
+                    orion.signInUser(document.getElementById('email').value, document.getElementById('password').value);
+                }
 
-      function toggleForm() {
-        isLogin = !isLogin;
-
-        if (isLogin) {
-          formTitle.textContent = 'Login';
-          toggleText.textContent = "Don't have an account?";
-          toggleButton.textContent = 'Sign up';
-        } else {
-          formTitle.textContent = 'Sign Up';
-          toggleText.textContent = 'Already have an account?';
-          toggleButton.textContent = 'Login';
-        }
-      }
-
-
-      document.getElementById("btn").addEventListener("click", async (e) => {
-        e.preventDefault()
-        if (isLogin) {
-            orion.signInUser(document.getElementById("email").value, document.getElementById("password").value)
-        }
-
-        if (!isLogin) {
-            orion.signUpUser(document.getElementById("email").value, document.getElementById("password").value)
-        }
-      } )
-
-
-    </script>
-  </body>
+                if (!isLogin) {
+                    orion.signUpUser(document.getElementById('email').value, document.getElementById('password').value);
+                }
+            });
+        </script>
+    </body>
 </html>

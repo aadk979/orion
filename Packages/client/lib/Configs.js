@@ -1,6 +1,5 @@
 const clientCacheTTLs = {
-    dipConfig: "15m",
-    encryptionConfig: "5m"
-}
+    dipConfig: '15m'
+};
 
 export { clientCacheTTLs };

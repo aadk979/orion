@@ -1,985 +1,985 @@
 {
-  "totalMatches": 195,
-  "generatedAt": "2025-12-09T13:37:28.858Z",
-  "groupedByDirectory": {
-    "root": [
-      "MISSING-SESSION-ID-OR-SESSION-HMAC",
-      "INVALID-SESSION-ID",
-      "UNKOWN-API-ROUTE",
-      "INVALID-AUTHENTICATION-TOKEN-TYPE",
-      "MISSING-AUTHENTICATION-TOKEN",
-      "ACCESS-TOKEN-EXPIRED",
-      "REFRESH-TOKEN-LIMIT-HIT",
-      "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE",
-      "INVALID-BEARER-FOR-CURRENT-ROUTE",
-      "DV-INVALID-DATA",
-      "NOT-ENCRYPTED",
-      "ENCRYPTION-REQUEST-ID-MISSING",
-      "ENCRYPTION-REQUEST-ID-INVALID",
-      "ENCRYPTED-STRING-MISSING",
-      "ENCRYPTION-STATUS-INVALID",
-      "DEVICE-MISSING-META-DATA",
-      "DEVICE-UNRECOGNIZED",
-      "EMAIL-DOMAIN-NOT-ALLOWED",
-      "FLOW-DEVICE-AUTHORIZATION",
-      "DIP-STATE-BODY-DATA-PRESENT",
-      "DIP-STATE-ID-HEADER-MISSING",
-      "DIP-TIMEDOUT-OR-ID-HEADER-INVALID",
-      "DIP-STATE-IP-MISMATCH",
-      "DIP-STATE-SIGNATURE-HEADER-MISSING",
-      "DIP-STATE-BODY-DATA-NOT-PRESENT",
-      "DIP-STATE-MISSING-SALT",
-      "DIP-STATE-MISSING-TIMESTAMP",
-      "DIP-STATE-SIGNATURE-MISMATCH",
-      "HEADERS-INVALID",
-      "INVALID-PROTOCOL",
-      "UNKNOWN-ORIGIN",
-      "INTERNAL-SERVER-ERROR",
-      "RESOURCE-TOKEN-EXPIRED",
-      "RESOURCE-TOKEN-VALIDATION-FAILED",
-      "RESOURCE-TOKEN-INVALID",
-      "RESOURCE-TOKEN-NOT-AUTHORIZED",
-      "SERVER-LOCKDOWN",
-      "SERVER-UNHEALTHY",
-      "SERVER-INITIALIZING",
-      "UNKNOWN-API-ROUTE",
-      "TOKEN-SECRETS-AUTO-EXPORT",
-      "FILE-NOT-FOUND",
-      "SIGNATURE-SECRETS-AUTO-EXPORT",
-      "SYSTEM-AUDIT-TEST",
-      "UNKNOWN-ERROR",
-      "DEVICE-UNRECOGNIZED",
-      "ACC-SIGN-IN-ACC-NO-EXISTS",
-      "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL",
-      "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED",
-      "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH",
-      "DEVICE-AUTHORIZATION-IP-MISMATCH",
-      "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH",
-      "DEVICE-AUTHORIZATION-INVALID-CODE",
-      "ACC-REG-EMAIL-PASSWORD-DISABLED",
-      "ACC-REG-INVALID-EMAIL",
-      "EMAIL-DOMAIN-NOT-ALLOWED",
-      "ACC-REG-ACC-EXISTS",
-      "ACC-REG-PASSWORD-WEAK",
-      "ACC-REG-UNABLE-TO-CREATE-ACC",
-      "PASSKEY-SIGN-IN-DISABLED",
-      "PASSKEY-SIGN-IN-ACC-DISABLED",
-      "PASSKEY-UNABLE-TO-AUTHENTICATE",
-      "PASSKEY-SIGN-IN-DISABLED",
-      "PASSKEY-AUTH-EXPIRED",
-      "PASSKEY-AUTH-EMAIL-MISMATCH",
-      "PASSKEY-AUTH-FAILED",
-      "PASSKEY-SIGN-IN-DISABLED",
-      "PASSKEY-REGISTRATION-EXPIRED",
-      "PASSKEY-REGISTRATION-EMAIL-MISMATCH",
-      "PASSKEY-REGISTRATION-FAILED",
-      "PASSKEY-SIGN-IN-DISABLED",
-      "PASSKEY-AUTH-INVALID-EMAIL",
-      "EMAIL-DOMAIN-NOT-ALLOWED",
-      "PASSKEY-ACC-NO-EXIST",
-      "PASSKEY-AUTH-NO-ACTIVE-PASSKEY",
-      "PASSKEY-SIGN-IN-DISABLED",
-      "PASSKEY-REG-INVALID-EMAIL",
-      "PASSKEY-ACC-NO-EXIST",
-      "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED",
-      "ACC-PASSWORD-RESET-INVALID-EMAIL",
-      "EMAIL-DOMAIN-NOT-ALLOWED",
-      "ACC-SIGN-IN-ACC-NO-EXISTS",
-      "UNABLE-TO-SEND-PASSWORD-RESET-EMAIL",
-      "ACC-PASSWORD-RESET-REQUEST-EXPIRED",
-      "ACC-PASSWORD-RESET-USERAGENT-MISMATCH",
-      "ACC-PASSWORD-RESET-INVALID-CODE",
-      "ACC-PASSWORD-RESET-MISSING-REQUEST-ID",
-      "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
-      "ACC-SIGN-IN-INVALID-EMAIL",
-      "EMAIL-DOMAIN-NOT-ALLOWED",
-      "USER-CONTROL-NO-SUCH-USER",
-      "ACC-SIGN-IN-ACC-NO-EXISTS",
-      "ACC-SIGN-IN-ACC-DISABLED",
-      "ACC-SIGN-IN-NO-PASSWORD-SETUP",
-      "ACC-SIGN-IN-INVALID-PASSWORD",
-      "LOCAL-SYSTEM",
-      "USER-CONTROL-NO-EMAIL-PROVIDED",
-      "USER-CONTROL-NO-UID-PROVIDED",
-      "USER-CONTROL-NO-SUCH-USER",
-      "USER-CONTROL-NO-USER-ROLE-PROVIDED",
-      "USER-CONTROL-NOT-STANDARD-ROLE",
-      "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED",
-      "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
-      "USER-CONTROL-NO-PASSWORD-PROVIDED",
-      "ACC-REG-UNABLE-TO-CREATE-ACC",
-      "O-AUTH-REQUESTS",
-      "O-AUTH-UNSUPPORTED-PROVIDER",
-      "O-AUTH",
-      "UNKNOWN-ERROR",
-      "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL",
-      "O-AUTH-REQUESTS",
-      "O-AUTH-REQUEST-INVALID-OR-EXPIRED",
-      "O-AUTH-DEVICE-FINGERPRINT-MISMATCH",
-      "O-AUTH-IP-MISMATCH",
-      "O-AUTH-INVALID-STATE-CHALLENGE",
-      "O-AUTH-EMAIL-NOT-VERIFIED",
-      "EMAIL-DOMAIN-NOT-ALLOWED",
-      "O-AUTH-ACC-DISABLED",
-      "FLOW-DEVICE-AUTHORIZATION",
-      "DEVICE-UNRECOGNIZED",
-      "UNKNOWN-ERROR",
-      "O-AUTH-CALLBACK-PROCESSING-FAILED",
-      "O-AUTH-UNSUPPORTED-PROVIDER",
-      "O-AUTH-INVALID-PROVIDER-CONFIG",
-      "O-AUTH-PROVIDER-NOT-INITIALIZED",
-      "O-AUTH-TOKEN-EXCHANGE-FAILED",
-      "O-AUTH-USERINFO-FAILED",
-      "PATH-TRAVERSAL-ATTEMPT",
-      "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
-      "DIP-DISABLED",
-      "ENCRYPTION-KEY",
-      "INVALID-CAPTCHA-RESPONSE",
-      "INVALID-CAPTCHA-TRANSACTION-ID",
-      "CAPTCHA-SYSTEM-VERSION-ERROR",
-      "INVALID-CAPTCHA-TRANSACTION-IP",
-      "INVALID-CAPTCHA-TRANSACTION-FINGERPRINT",
-      "INVALID-CAPTCHA-TRANSACTION-USERAGENT",
-      "INVALID-CAPTCHA-CODE",
-      "INVALID-NO-AUTH-TOKEN",
-      "EXPIRED-NO-AUTH-TOKEN",
-      "NO-AUTH-TOKEN-DISABLED",
-      "NO-AUTH-TOKEN-UNAUTHORIZED",
-      "NO-AUTH-TOKEN-NOT-FOUND",
-      "UNABLE-TO-GENERATE-ACCESS-TOKEN",
-      "MISSING-AUTHENTICATION-TOKEN",
-      "ACCESS-TOKEN-KEY-NOT-FOUND",
-      "INVALID-ACCESS-TOKEN-INVALID-AUD",
-      "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED",
-      "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE",
-      "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND",
-      "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH",
-      "ACCESS-TOKEN-EXPIRED",
-      "UNABLE-TO-VALIDATE-ACCESS-TOKEN",
-      "UNABLE-TO-GENERATE-REFRESH-TOKEN",
-      "MISSING-AUTHENTICATION-TOKEN",
-      "REFRESH-TOKEN-KEY-NOT-FOUND",
-      "INVALID-REFRESH-TOKEN-INVALID-AUD",
-      "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED",
-      "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE",
-      "INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND",
-      "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH",
-      "REFRESH-TOKEN-EXPIRED",
-      "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
-      "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
-      "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
-      "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
-      "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
-      "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
-      "MISSING-RESOURCE-TOKEN",
-      "RESOURCE-TOKEN-KEY-NOT-FOUND",
-      "INVALID-RESOURCE-TOKEN-INVALID-AUD",
-      "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
-      "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
-      "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
-      "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
-      "MAX-RESOURCE-RETRIEVALS-HIT",
-      "RESOURCE-TOKEN-EXPIRED",
-      "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
-      "DB-FAIL",
-      "MONGO-DB",
-      "DB-FAIL",
-      "DB-FAIL",
-      "DB-FAIL",
-      "CALLER-DIRECTORY-NOT-FOUND",
-      "PERMISSION-DENIED",
-      "DIRECTORY-NOT-FOUND",
-      "WRITE-OPERATION-FAILED",
-      "FILE-NOT-FOUND",
-      "READ-OPERATION-FAILED",
-      "UNABLE-TO-SEND-MAIL",
-      "AUDIT-SYSTEM-NOT-INITIALIZED",
-      "AUDIT-INSERT-FAILED",
-      "UNKNOWN-ERROR",
-      "GM-B",
-      "PM-B"
+    "totalMatches": 195,
+    "generatedAt": "2025-12-09T13:37:28.858Z",
+    "groupedByDirectory": {
+        "root": [
+            "MISSING-SESSION-ID-OR-SESSION-HMAC",
+            "INVALID-SESSION-ID",
+            "UNKOWN-API-ROUTE",
+            "INVALID-AUTHENTICATION-TOKEN-TYPE",
+            "MISSING-AUTHENTICATION-TOKEN",
+            "ACCESS-TOKEN-EXPIRED",
+            "REFRESH-TOKEN-LIMIT-HIT",
+            "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE",
+            "INVALID-BEARER-FOR-CURRENT-ROUTE",
+            "DV-INVALID-DATA",
+            "NOT-ENCRYPTED",
+            "ENCRYPTION-REQUEST-ID-MISSING",
+            "ENCRYPTION-REQUEST-ID-INVALID",
+            "ENCRYPTED-STRING-MISSING",
+            "ENCRYPTION-STATUS-INVALID",
+            "DEVICE-MISSING-META-DATA",
+            "DEVICE-UNRECOGNIZED",
+            "EMAIL-DOMAIN-NOT-ALLOWED",
+            "FLOW-DEVICE-AUTHORIZATION",
+            "DIP-STATE-BODY-DATA-PRESENT",
+            "DIP-STATE-ID-HEADER-MISSING",
+            "DIP-TIMEDOUT-OR-ID-HEADER-INVALID",
+            "DIP-STATE-IP-MISMATCH",
+            "DIP-STATE-SIGNATURE-HEADER-MISSING",
+            "DIP-STATE-BODY-DATA-NOT-PRESENT",
+            "DIP-STATE-MISSING-SALT",
+            "DIP-STATE-MISSING-TIMESTAMP",
+            "DIP-STATE-SIGNATURE-MISMATCH",
+            "HEADERS-INVALID",
+            "INVALID-PROTOCOL",
+            "UNKNOWN-ORIGIN",
+            "INTERNAL-SERVER-ERROR",
+            "RESOURCE-TOKEN-EXPIRED",
+            "RESOURCE-TOKEN-VALIDATION-FAILED",
+            "RESOURCE-TOKEN-INVALID",
+            "RESOURCE-TOKEN-NOT-AUTHORIZED",
+            "SERVER-LOCKDOWN",
+            "SERVER-UNHEALTHY",
+            "SERVER-INITIALIZING",
+            "UNKNOWN-API-ROUTE",
+            "TOKEN-SECRETS-AUTO-EXPORT",
+            "FILE-NOT-FOUND",
+            "SIGNATURE-SECRETS-AUTO-EXPORT",
+            "SYSTEM-AUDIT-TEST",
+            "UNKNOWN-ERROR",
+            "DEVICE-UNRECOGNIZED",
+            "ACC-SIGN-IN-ACC-NO-EXISTS",
+            "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL",
+            "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED",
+            "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH",
+            "DEVICE-AUTHORIZATION-IP-MISMATCH",
+            "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH",
+            "DEVICE-AUTHORIZATION-INVALID-CODE",
+            "ACC-REG-EMAIL-PASSWORD-DISABLED",
+            "ACC-REG-INVALID-EMAIL",
+            "EMAIL-DOMAIN-NOT-ALLOWED",
+            "ACC-REG-ACC-EXISTS",
+            "ACC-REG-PASSWORD-WEAK",
+            "ACC-REG-UNABLE-TO-CREATE-ACC",
+            "PASSKEY-SIGN-IN-DISABLED",
+            "PASSKEY-SIGN-IN-ACC-DISABLED",
+            "PASSKEY-UNABLE-TO-AUTHENTICATE",
+            "PASSKEY-SIGN-IN-DISABLED",
+            "PASSKEY-AUTH-EXPIRED",
+            "PASSKEY-AUTH-EMAIL-MISMATCH",
+            "PASSKEY-AUTH-FAILED",
+            "PASSKEY-SIGN-IN-DISABLED",
+            "PASSKEY-REGISTRATION-EXPIRED",
+            "PASSKEY-REGISTRATION-EMAIL-MISMATCH",
+            "PASSKEY-REGISTRATION-FAILED",
+            "PASSKEY-SIGN-IN-DISABLED",
+            "PASSKEY-AUTH-INVALID-EMAIL",
+            "EMAIL-DOMAIN-NOT-ALLOWED",
+            "PASSKEY-ACC-NO-EXIST",
+            "PASSKEY-AUTH-NO-ACTIVE-PASSKEY",
+            "PASSKEY-SIGN-IN-DISABLED",
+            "PASSKEY-REG-INVALID-EMAIL",
+            "PASSKEY-ACC-NO-EXIST",
+            "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED",
+            "ACC-PASSWORD-RESET-INVALID-EMAIL",
+            "EMAIL-DOMAIN-NOT-ALLOWED",
+            "ACC-SIGN-IN-ACC-NO-EXISTS",
+            "UNABLE-TO-SEND-PASSWORD-RESET-EMAIL",
+            "ACC-PASSWORD-RESET-REQUEST-EXPIRED",
+            "ACC-PASSWORD-RESET-USERAGENT-MISMATCH",
+            "ACC-PASSWORD-RESET-INVALID-CODE",
+            "ACC-PASSWORD-RESET-MISSING-REQUEST-ID",
+            "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
+            "ACC-SIGN-IN-INVALID-EMAIL",
+            "EMAIL-DOMAIN-NOT-ALLOWED",
+            "USER-CONTROL-NO-SUCH-USER",
+            "ACC-SIGN-IN-ACC-NO-EXISTS",
+            "ACC-SIGN-IN-ACC-DISABLED",
+            "ACC-SIGN-IN-NO-PASSWORD-SETUP",
+            "ACC-SIGN-IN-INVALID-PASSWORD",
+            "LOCAL-SYSTEM",
+            "USER-CONTROL-NO-EMAIL-PROVIDED",
+            "USER-CONTROL-NO-UID-PROVIDED",
+            "USER-CONTROL-NO-SUCH-USER",
+            "USER-CONTROL-NO-USER-ROLE-PROVIDED",
+            "USER-CONTROL-NOT-STANDARD-ROLE",
+            "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED",
+            "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
+            "USER-CONTROL-NO-PASSWORD-PROVIDED",
+            "ACC-REG-UNABLE-TO-CREATE-ACC",
+            "O-AUTH-REQUESTS",
+            "O-AUTH-UNSUPPORTED-PROVIDER",
+            "O-AUTH",
+            "UNKNOWN-ERROR",
+            "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL",
+            "O-AUTH-REQUESTS",
+            "O-AUTH-REQUEST-INVALID-OR-EXPIRED",
+            "O-AUTH-DEVICE-FINGERPRINT-MISMATCH",
+            "O-AUTH-IP-MISMATCH",
+            "O-AUTH-INVALID-STATE-CHALLENGE",
+            "O-AUTH-EMAIL-NOT-VERIFIED",
+            "EMAIL-DOMAIN-NOT-ALLOWED",
+            "O-AUTH-ACC-DISABLED",
+            "FLOW-DEVICE-AUTHORIZATION",
+            "DEVICE-UNRECOGNIZED",
+            "UNKNOWN-ERROR",
+            "O-AUTH-CALLBACK-PROCESSING-FAILED",
+            "O-AUTH-UNSUPPORTED-PROVIDER",
+            "O-AUTH-INVALID-PROVIDER-CONFIG",
+            "O-AUTH-PROVIDER-NOT-INITIALIZED",
+            "O-AUTH-TOKEN-EXCHANGE-FAILED",
+            "O-AUTH-USERINFO-FAILED",
+            "PATH-TRAVERSAL-ATTEMPT",
+            "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
+            "DIP-DISABLED",
+            "ENCRYPTION-KEY",
+            "INVALID-CAPTCHA-RESPONSE",
+            "INVALID-CAPTCHA-TRANSACTION-ID",
+            "CAPTCHA-SYSTEM-VERSION-ERROR",
+            "INVALID-CAPTCHA-TRANSACTION-IP",
+            "INVALID-CAPTCHA-TRANSACTION-FINGERPRINT",
+            "INVALID-CAPTCHA-TRANSACTION-USERAGENT",
+            "INVALID-CAPTCHA-CODE",
+            "INVALID-NO-AUTH-TOKEN",
+            "EXPIRED-NO-AUTH-TOKEN",
+            "NO-AUTH-TOKEN-DISABLED",
+            "NO-AUTH-TOKEN-UNAUTHORIZED",
+            "NO-AUTH-TOKEN-NOT-FOUND",
+            "UNABLE-TO-GENERATE-ACCESS-TOKEN",
+            "MISSING-AUTHENTICATION-TOKEN",
+            "ACCESS-TOKEN-KEY-NOT-FOUND",
+            "INVALID-ACCESS-TOKEN-INVALID-AUD",
+            "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED",
+            "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE",
+            "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND",
+            "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH",
+            "ACCESS-TOKEN-EXPIRED",
+            "UNABLE-TO-VALIDATE-ACCESS-TOKEN",
+            "UNABLE-TO-GENERATE-REFRESH-TOKEN",
+            "MISSING-AUTHENTICATION-TOKEN",
+            "REFRESH-TOKEN-KEY-NOT-FOUND",
+            "INVALID-REFRESH-TOKEN-INVALID-AUD",
+            "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED",
+            "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE",
+            "INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND",
+            "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH",
+            "REFRESH-TOKEN-EXPIRED",
+            "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
+            "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
+            "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
+            "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
+            "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
+            "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
+            "MISSING-RESOURCE-TOKEN",
+            "RESOURCE-TOKEN-KEY-NOT-FOUND",
+            "INVALID-RESOURCE-TOKEN-INVALID-AUD",
+            "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
+            "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
+            "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
+            "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
+            "MAX-RESOURCE-RETRIEVALS-HIT",
+            "RESOURCE-TOKEN-EXPIRED",
+            "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
+            "DB-FAIL",
+            "MONGO-DB",
+            "DB-FAIL",
+            "DB-FAIL",
+            "DB-FAIL",
+            "CALLER-DIRECTORY-NOT-FOUND",
+            "PERMISSION-DENIED",
+            "DIRECTORY-NOT-FOUND",
+            "WRITE-OPERATION-FAILED",
+            "FILE-NOT-FOUND",
+            "READ-OPERATION-FAILED",
+            "UNABLE-TO-SEND-MAIL",
+            "AUDIT-SYSTEM-NOT-INITIALIZED",
+            "AUDIT-INSERT-FAILED",
+            "UNKNOWN-ERROR",
+            "GM-B",
+            "PM-B"
+        ]
+    },
+    "allMatches": [
+        {
+            "code": "MISSING-SESSION-ID-OR-SESSION-HMAC",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "INVALID-SESSION-ID",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "UNKOWN-API-ROUTE",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "INVALID-AUTHENTICATION-TOKEN-TYPE",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "MISSING-AUTHENTICATION-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "ACCESS-TOKEN-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "REFRESH-TOKEN-LIMIT-HIT",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "INVALID-BEARER-FOR-CURRENT-ROUTE",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
+        },
+        {
+            "code": "DV-INVALID-DATA",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dataValidator.js"
+        },
+        {
+            "code": "NOT-ENCRYPTED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
+        },
+        {
+            "code": "ENCRYPTION-REQUEST-ID-MISSING",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
+        },
+        {
+            "code": "ENCRYPTION-REQUEST-ID-INVALID",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
+        },
+        {
+            "code": "ENCRYPTED-STRING-MISSING",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
+        },
+        {
+            "code": "ENCRYPTION-STATUS-INVALID",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
+        },
+        {
+            "code": "DEVICE-MISSING-META-DATA",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
+        },
+        {
+            "code": "DEVICE-UNRECOGNIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
+        },
+        {
+            "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
+        },
+        {
+            "code": "FLOW-DEVICE-AUTHORIZATION",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
+        },
+        {
+            "code": "DIP-STATE-BODY-DATA-PRESENT",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-ID-HEADER-MISSING",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-TIMEDOUT-OR-ID-HEADER-INVALID",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-IP-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-SIGNATURE-HEADER-MISSING",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-BODY-DATA-NOT-PRESENT",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-MISSING-SALT",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-MISSING-TIMESTAMP",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "DIP-STATE-SIGNATURE-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
+        },
+        {
+            "code": "HEADERS-INVALID",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\headerParser.js"
+        },
+        {
+            "code": "INVALID-PROTOCOL",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
+        },
+        {
+            "code": "UNKNOWN-ORIGIN",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
+        },
+        {
+            "code": "INTERNAL-SERVER-ERROR",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
+        },
+        {
+            "code": "RESOURCE-TOKEN-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
+        },
+        {
+            "code": "RESOURCE-TOKEN-VALIDATION-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
+        },
+        {
+            "code": "RESOURCE-TOKEN-INVALID",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
+        },
+        {
+            "code": "RESOURCE-TOKEN-NOT-AUTHORIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
+        },
+        {
+            "code": "SERVER-LOCKDOWN",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
+        },
+        {
+            "code": "SERVER-UNHEALTHY",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
+        },
+        {
+            "code": "SERVER-INITIALIZING",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
+        },
+        {
+            "code": "UNKNOWN-API-ROUTE",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverUtilities.js"
+        },
+        {
+            "code": "TOKEN-SECRETS-AUTO-EXPORT",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
+        },
+        {
+            "code": "FILE-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
+        },
+        {
+            "code": "SIGNATURE-SECRETS-AUTO-EXPORT",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
+        },
+        {
+            "code": "SYSTEM-AUDIT-TEST",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
+        },
+        {
+            "code": "UNKNOWN-ERROR",
+            "file": "..\\..\\Packages\\server\\lib\\Server\\Response\\response.js"
+        },
+        {
+            "code": "DEVICE-UNRECOGNIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "DEVICE-AUTHORIZATION-IP-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "DEVICE-AUTHORIZATION-INVALID-CODE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
+        },
+        {
+            "code": "ACC-REG-EMAIL-PASSWORD-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
+        },
+        {
+            "code": "ACC-REG-INVALID-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
+        },
+        {
+            "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
+        },
+        {
+            "code": "ACC-REG-ACC-EXISTS",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
+        },
+        {
+            "code": "ACC-REG-PASSWORD-WEAK",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
+        },
+        {
+            "code": "ACC-REG-UNABLE-TO-CREATE-ACC",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
+        },
+        {
+            "code": "PASSKEY-SIGN-IN-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\AuthFlows\\SignInWithPasskey.js"
+        },
+        {
+            "code": "PASSKEY-SIGN-IN-ACC-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\AuthFlows\\SignInWithPasskey.js"
+        },
+        {
+            "code": "PASSKEY-UNABLE-TO-AUTHENTICATE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\AuthFlows\\SignInWithPasskey.js"
+        },
+        {
+            "code": "PASSKEY-SIGN-IN-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
+        },
+        {
+            "code": "PASSKEY-AUTH-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
+        },
+        {
+            "code": "PASSKEY-AUTH-EMAIL-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
+        },
+        {
+            "code": "PASSKEY-AUTH-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
+        },
+        {
+            "code": "PASSKEY-SIGN-IN-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
+        },
+        {
+            "code": "PASSKEY-REGISTRATION-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
+        },
+        {
+            "code": "PASSKEY-REGISTRATION-EMAIL-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
+        },
+        {
+            "code": "PASSKEY-REGISTRATION-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
+        },
+        {
+            "code": "PASSKEY-SIGN-IN-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
+        },
+        {
+            "code": "PASSKEY-AUTH-INVALID-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
+        },
+        {
+            "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
+        },
+        {
+            "code": "PASSKEY-ACC-NO-EXIST",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
+        },
+        {
+            "code": "PASSKEY-AUTH-NO-ACTIVE-PASSKEY",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
+        },
+        {
+            "code": "PASSKEY-SIGN-IN-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
+        },
+        {
+            "code": "PASSKEY-REG-INVALID-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
+        },
+        {
+            "code": "PASSKEY-ACC-NO-EXIST",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
+        },
+        {
+            "code": "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
+        },
+        {
+            "code": "ACC-PASSWORD-RESET-INVALID-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "UNABLE-TO-SEND-PASSWORD-RESET-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "ACC-PASSWORD-RESET-REQUEST-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "ACC-PASSWORD-RESET-USERAGENT-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "ACC-PASSWORD-RESET-INVALID-CODE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "ACC-PASSWORD-RESET-MISSING-REQUEST-ID",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-INVALID-EMAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "USER-CONTROL-NO-SUCH-USER",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-ACC-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-NO-PASSWORD-SETUP",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "ACC-SIGN-IN-INVALID-PASSWORD",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
+        },
+        {
+            "code": "LOCAL-SYSTEM",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-NO-EMAIL-PROVIDED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-NO-UID-PROVIDED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-NO-SUCH-USER",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-NO-USER-ROLE-PROVIDED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-NOT-STANDARD-ROLE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "USER-CONTROL-NO-PASSWORD-PROVIDED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
+        },
+        {
+            "code": "ACC-REG-UNABLE-TO-CREATE-ACC",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\Account.js"
+        },
+        {
+            "code": "O-AUTH-REQUESTS",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
+        },
+        {
+            "code": "O-AUTH-UNSUPPORTED-PROVIDER",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
+        },
+        {
+            "code": "O-AUTH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
+        },
+        {
+            "code": "UNKNOWN-ERROR",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
+        },
+        {
+            "code": "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
+        },
+        {
+            "code": "O-AUTH-REQUESTS",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-REQUEST-INVALID-OR-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-DEVICE-FINGERPRINT-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-IP-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-INVALID-STATE-CHALLENGE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-EMAIL-NOT-VERIFIED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "EMAIL-DOMAIN-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-ACC-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "FLOW-DEVICE-AUTHORIZATION",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "DEVICE-UNRECOGNIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "UNKNOWN-ERROR",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-CALLBACK-PROCESSING-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
+        },
+        {
+            "code": "O-AUTH-UNSUPPORTED-PROVIDER",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
+        },
+        {
+            "code": "O-AUTH-INVALID-PROVIDER-CONFIG",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
+        },
+        {
+            "code": "O-AUTH-PROVIDER-NOT-INITIALIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
+        },
+        {
+            "code": "O-AUTH-TOKEN-EXCHANGE-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
+        },
+        {
+            "code": "O-AUTH-USERINFO-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
+        },
+        {
+            "code": "PATH-TRAVERSAL-ATTEMPT",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\dirBasedResources\\utils.js"
+        },
+        {
+            "code": "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\DeviceAuthorization.js"
+        },
+        {
+            "code": "DIP-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\Dip.js"
+        },
+        {
+            "code": "ENCRYPTION-KEY",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\KeyRequest.js"
+        },
+        {
+            "code": "INVALID-CAPTCHA-RESPONSE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "INVALID-CAPTCHA-TRANSACTION-ID",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "CAPTCHA-SYSTEM-VERSION-ERROR",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "INVALID-CAPTCHA-TRANSACTION-IP",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "INVALID-CAPTCHA-TRANSACTION-FINGERPRINT",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "INVALID-CAPTCHA-TRANSACTION-USERAGENT",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "INVALID-CAPTCHA-CODE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "INVALID-NO-AUTH-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "EXPIRED-NO-AUTH-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "NO-AUTH-TOKEN-DISABLED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "NO-AUTH-TOKEN-UNAUTHORIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "NO-AUTH-TOKEN-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
+        },
+        {
+            "code": "UNABLE-TO-GENERATE-ACCESS-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "MISSING-AUTHENTICATION-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "ACCESS-TOKEN-KEY-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "INVALID-ACCESS-TOKEN-INVALID-AUD",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "ACCESS-TOKEN-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "UNABLE-TO-VALIDATE-ACCESS-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
+        },
+        {
+            "code": "UNABLE-TO-GENERATE-REFRESH-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "MISSING-AUTHENTICATION-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "REFRESH-TOKEN-KEY-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "INVALID-REFRESH-TOKEN-INVALID-AUD",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "REFRESH-TOKEN-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
+        },
+        {
+            "code": "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "MISSING-RESOURCE-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "RESOURCE-TOKEN-KEY-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "INVALID-RESOURCE-TOKEN-INVALID-AUD",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "MAX-RESOURCE-RETRIEVALS-HIT",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "RESOURCE-TOKEN-EXPIRED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
+        },
+        {
+            "code": "DB-FAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\firestore.js"
+        },
+        {
+            "code": "MONGO-DB",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\index.js"
+        },
+        {
+            "code": "DB-FAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\mongoDB.js"
+        },
+        {
+            "code": "DB-FAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\postgres.js"
+        },
+        {
+            "code": "DB-FAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\redis.js"
+        },
+        {
+            "code": "CALLER-DIRECTORY-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
+        },
+        {
+            "code": "PERMISSION-DENIED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
+        },
+        {
+            "code": "DIRECTORY-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
+        },
+        {
+            "code": "WRITE-OPERATION-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
+        },
+        {
+            "code": "FILE-NOT-FOUND",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
+        },
+        {
+            "code": "READ-OPERATION-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
+        },
+        {
+            "code": "UNABLE-TO-SEND-MAIL",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Mail\\mailer.js"
+        },
+        {
+            "code": "AUDIT-SYSTEM-NOT-INITIALIZED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Systems\\AuditTrailSystem.js"
+        },
+        {
+            "code": "AUDIT-INSERT-FAILED",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\Systems\\AuditTrailSystem.js"
+        },
+        {
+            "code": "UNKNOWN-ERROR",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\TryCatch.js"
+        },
+        {
+            "code": "GM-B",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\valueGenerator.js"
+        },
+        {
+            "code": "PM-B",
+            "file": "..\\..\\Packages\\server\\lib\\Utils\\valueGenerator.js"
+        }
     ]
-  },
-  "allMatches": [
-    {
-      "code": "MISSING-SESSION-ID-OR-SESSION-HMAC",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "INVALID-SESSION-ID",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "UNKOWN-API-ROUTE",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "INVALID-AUTHENTICATION-TOKEN-TYPE",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "MISSING-AUTHENTICATION-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "ACCESS-TOKEN-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "REFRESH-TOKEN-LIMIT-HIT",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "INVALID-BEARER-FOR-CURRENT-ROUTE",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\authentication.js"
-    },
-    {
-      "code": "DV-INVALID-DATA",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dataValidator.js"
-    },
-    {
-      "code": "NOT-ENCRYPTED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
-    },
-    {
-      "code": "ENCRYPTION-REQUEST-ID-MISSING",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
-    },
-    {
-      "code": "ENCRYPTION-REQUEST-ID-INVALID",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
-    },
-    {
-      "code": "ENCRYPTED-STRING-MISSING",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
-    },
-    {
-      "code": "ENCRYPTION-STATUS-INVALID",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\decryptor.js"
-    },
-    {
-      "code": "DEVICE-MISSING-META-DATA",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
-    },
-    {
-      "code": "DEVICE-UNRECOGNIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
-    },
-    {
-      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
-    },
-    {
-      "code": "FLOW-DEVICE-AUTHORIZATION",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\deviceScanner.js"
-    },
-    {
-      "code": "DIP-STATE-BODY-DATA-PRESENT",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-ID-HEADER-MISSING",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-TIMEDOUT-OR-ID-HEADER-INVALID",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-IP-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-SIGNATURE-HEADER-MISSING",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-BODY-DATA-NOT-PRESENT",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-MISSING-SALT",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-MISSING-TIMESTAMP",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "DIP-STATE-SIGNATURE-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\dip.js"
-    },
-    {
-      "code": "HEADERS-INVALID",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\headerParser.js"
-    },
-    {
-      "code": "INVALID-PROTOCOL",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
-    },
-    {
-      "code": "UNKNOWN-ORIGIN",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
-    },
-    {
-      "code": "INTERNAL-SERVER-ERROR",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\originVerifier.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-VALIDATION-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-INVALID",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-NOT-AUTHORIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\resourceAccess.js"
-    },
-    {
-      "code": "SERVER-LOCKDOWN",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
-    },
-    {
-      "code": "SERVER-UNHEALTHY",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
-    },
-    {
-      "code": "SERVER-INITIALIZING",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverStatus.js"
-    },
-    {
-      "code": "UNKNOWN-API-ROUTE",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Middleware\\serverUtilities.js"
-    },
-    {
-      "code": "TOKEN-SECRETS-AUTO-EXPORT",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
-    },
-    {
-      "code": "FILE-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
-    },
-    {
-      "code": "SIGNATURE-SECRETS-AUTO-EXPORT",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
-    },
-    {
-      "code": "SYSTEM-AUDIT-TEST",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\onStartConfigurations.js"
-    },
-    {
-      "code": "UNKNOWN-ERROR",
-      "file": "..\\..\\Packages\\server\\lib\\Server\\Response\\response.js"
-    },
-    {
-      "code": "DEVICE-UNRECOGNIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "DEVICE-AUTHORIZATION-IP-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "DEVICE-AUTHORIZATION-INVALID-CODE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\2FA&DeviceAuthorization\\DeviceAuthorization.js"
-    },
-    {
-      "code": "ACC-REG-EMAIL-PASSWORD-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
-    },
-    {
-      "code": "ACC-REG-INVALID-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
-    },
-    {
-      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
-    },
-    {
-      "code": "ACC-REG-ACC-EXISTS",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
-    },
-    {
-      "code": "ACC-REG-PASSWORD-WEAK",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
-    },
-    {
-      "code": "ACC-REG-UNABLE-TO-CREATE-ACC",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\CreateAccount.js"
-    },
-    {
-      "code": "PASSKEY-SIGN-IN-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\AuthFlows\\SignInWithPasskey.js"
-    },
-    {
-      "code": "PASSKEY-SIGN-IN-ACC-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\AuthFlows\\SignInWithPasskey.js"
-    },
-    {
-      "code": "PASSKEY-UNABLE-TO-AUTHENTICATE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\AuthFlows\\SignInWithPasskey.js"
-    },
-    {
-      "code": "PASSKEY-SIGN-IN-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
-    },
-    {
-      "code": "PASSKEY-AUTH-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
-    },
-    {
-      "code": "PASSKEY-AUTH-EMAIL-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
-    },
-    {
-      "code": "PASSKEY-AUTH-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeAuthentication.js"
-    },
-    {
-      "code": "PASSKEY-SIGN-IN-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
-    },
-    {
-      "code": "PASSKEY-REGISTRATION-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
-    },
-    {
-      "code": "PASSKEY-REGISTRATION-EMAIL-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
-    },
-    {
-      "code": "PASSKEY-REGISTRATION-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\completeRegistration.js"
-    },
-    {
-      "code": "PASSKEY-SIGN-IN-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
-    },
-    {
-      "code": "PASSKEY-AUTH-INVALID-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
-    },
-    {
-      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
-    },
-    {
-      "code": "PASSKEY-ACC-NO-EXIST",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
-    },
-    {
-      "code": "PASSKEY-AUTH-NO-ACTIVE-PASSKEY",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateAuthenticationOptions.js"
-    },
-    {
-      "code": "PASSKEY-SIGN-IN-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
-    },
-    {
-      "code": "PASSKEY-REG-INVALID-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
-    },
-    {
-      "code": "PASSKEY-ACC-NO-EXIST",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
-    },
-    {
-      "code": "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\Passkeys\\generateRegistrationOptions.js"
-    },
-    {
-      "code": "ACC-PASSWORD-RESET-INVALID-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "UNABLE-TO-SEND-PASSWORD-RESET-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "ACC-PASSWORD-RESET-REQUEST-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "ACC-PASSWORD-RESET-USERAGENT-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "ACC-PASSWORD-RESET-INVALID-CODE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "ACC-PASSWORD-RESET-MISSING-REQUEST-ID",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\PasswordReset.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-INVALID-EMAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "USER-CONTROL-NO-SUCH-USER",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-ACC-NO-EXISTS",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-ACC-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-NO-PASSWORD-SETUP",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "ACC-SIGN-IN-INVALID-PASSWORD",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\SignIn.js"
-    },
-    {
-      "code": "LOCAL-SYSTEM",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-NO-EMAIL-PROVIDED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-NO-UID-PROVIDED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-NO-SUCH-USER",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-NO-USER-ROLE-PROVIDED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-NOT-STANDARD-ROLE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "USER-CONTROL-NO-PASSWORD-PROVIDED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\AccountManagment\\UserControl.js"
-    },
-    {
-      "code": "ACC-REG-UNABLE-TO-CREATE-ACC",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\Account.js"
-    },
-    {
-      "code": "O-AUTH-REQUESTS",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
-    },
-    {
-      "code": "O-AUTH-UNSUPPORTED-PROVIDER",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
-    },
-    {
-      "code": "O-AUTH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
-    },
-    {
-      "code": "UNKNOWN-ERROR",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
-    },
-    {
-      "code": "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\GenerateRedirectURL.js"
-    },
-    {
-      "code": "O-AUTH-REQUESTS",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-REQUEST-INVALID-OR-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-DEVICE-FINGERPRINT-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-IP-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-INVALID-STATE-CHALLENGE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-EMAIL-NOT-VERIFIED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "EMAIL-DOMAIN-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-ACC-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "FLOW-DEVICE-AUTHORIZATION",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "DEVICE-UNRECOGNIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "UNKNOWN-ERROR",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-CALLBACK-PROCESSING-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\HandleOAuthCallback.js"
-    },
-    {
-      "code": "O-AUTH-UNSUPPORTED-PROVIDER",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
-    },
-    {
-      "code": "O-AUTH-INVALID-PROVIDER-CONFIG",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
-    },
-    {
-      "code": "O-AUTH-PROVIDER-NOT-INITIALIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
-    },
-    {
-      "code": "O-AUTH-TOKEN-EXCHANGE-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
-    },
-    {
-      "code": "O-AUTH-USERINFO-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\OAuth\\OrionOAuthToolKit.js"
-    },
-    {
-      "code": "PATH-TRAVERSAL-ATTEMPT",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\ResourceAccessManagment\\dirBasedResources\\utils.js"
-    },
-    {
-      "code": "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\DeviceAuthorization.js"
-    },
-    {
-      "code": "DIP-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\Dip.js"
-    },
-    {
-      "code": "ENCRYPTION-KEY",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\KeyRequest.js"
-    },
-    {
-      "code": "INVALID-CAPTCHA-RESPONSE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "INVALID-CAPTCHA-TRANSACTION-ID",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "CAPTCHA-SYSTEM-VERSION-ERROR",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "INVALID-CAPTCHA-TRANSACTION-IP",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "INVALID-CAPTCHA-TRANSACTION-FINGERPRINT",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "INVALID-CAPTCHA-TRANSACTION-USERAGENT",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "INVALID-CAPTCHA-CODE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "INVALID-NO-AUTH-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "EXPIRED-NO-AUTH-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "NO-AUTH-TOKEN-DISABLED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "NO-AUTH-TOKEN-UNAUTHORIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "NO-AUTH-TOKEN-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\SecurityManagment\\NoAuthToken.js"
-    },
-    {
-      "code": "UNABLE-TO-GENERATE-ACCESS-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "MISSING-AUTHENTICATION-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "ACCESS-TOKEN-KEY-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "INVALID-ACCESS-TOKEN-INVALID-AUD",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "ACCESS-TOKEN-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-VALIDATE-ACCESS-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\AccessTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-GENERATE-REFRESH-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "MISSING-AUTHENTICATION-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "REFRESH-TOKEN-KEY-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "INVALID-REFRESH-TOKEN-INVALID-AUD",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "REFRESH-TOKEN-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\RefreshTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "MISSING-RESOURCE-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-KEY-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-INVALID-AUD",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "MAX-RESOURCE-RETRIEVALS-HIT",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "RESOURCE-TOKEN-EXPIRED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Core\\TokenManagement\\ResourceTokens.js"
-    },
-    {
-      "code": "DB-FAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\firestore.js"
-    },
-    {
-      "code": "MONGO-DB",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\index.js"
-    },
-    {
-      "code": "DB-FAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\mongoDB.js"
-    },
-    {
-      "code": "DB-FAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\postgres.js"
-    },
-    {
-      "code": "DB-FAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Databases\\redis.js"
-    },
-    {
-      "code": "CALLER-DIRECTORY-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
-    },
-    {
-      "code": "PERMISSION-DENIED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
-    },
-    {
-      "code": "DIRECTORY-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
-    },
-    {
-      "code": "WRITE-OPERATION-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
-    },
-    {
-      "code": "FILE-NOT-FOUND",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
-    },
-    {
-      "code": "READ-OPERATION-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\FileHandler.js"
-    },
-    {
-      "code": "UNABLE-TO-SEND-MAIL",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Mail\\mailer.js"
-    },
-    {
-      "code": "AUDIT-SYSTEM-NOT-INITIALIZED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Systems\\AuditTrailSystem.js"
-    },
-    {
-      "code": "AUDIT-INSERT-FAILED",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\Systems\\AuditTrailSystem.js"
-    },
-    {
-      "code": "UNKNOWN-ERROR",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\TryCatch.js"
-    },
-    {
-      "code": "GM-B",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\valueGenerator.js"
-    },
-    {
-      "code": "PM-B",
-      "file": "..\\..\\Packages\\server\\lib\\Utils\\valueGenerator.js"
-    }
-  ]
 }

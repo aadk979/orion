@@ -26,3 +26,316 @@
 [2025-12-23T16:28:42.737Z] INFO: 🌐 Listening on port: 3495
 [2025-12-23T16:28:42.739Z] INFO: Server is up and running
 [2025-12-23T16:28:43.168Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T07:43:30.868Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T07:43:30.881Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T07:43:31.185Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T07:43:31.190Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T07:43:31.249Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 2850 old keys
+[2025-12-24T07:43:31.259Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 1900 old keys
+[2025-12-24T07:43:31.267Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T07:43:31.274Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T07:43:34.061Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 14:43:34 GMT+0800 (Singapore Standard Time)
+[2025-12-24T07:43:34.067Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T07:43:34.067Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T07:43:34.067Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T07:43:34.069Z] INFO: Server is up and running
+[2025-12-24T07:43:34.964Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T07:43:53.337Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:43:53.464Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:43:53.558Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:43:54.417Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:43:54.545Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:43:54.556Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:44:01.496Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:01.666Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:02.116Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:02.292Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:02.302Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:44:31.242Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T07:44:31.251Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 15:44:31 GMT+0800 (Singapore Standard Time)
+[2025-12-24T07:44:31.257Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T07:44:31.262Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 15:44:31 GMT+0800 (Singapore Standard Time)
+[2025-12-24T07:44:42.824Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:42.947Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:44.454Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:44.618Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:44.628Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:44:49.659Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:49.819Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:50.836Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:51.005Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:51.013Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:44:53.001Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:53.194Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:53.926Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:54.090Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:44:54.097Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:45:09.434Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T07:45:09.444Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T07:45:09.768Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T07:45:09.771Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T07:45:09.825Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 2880 old keys
+[2025-12-24T07:45:09.835Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 1920 old keys
+[2025-12-24T07:45:09.842Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T07:45:09.846Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T07:45:13.533Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 14:45:13 GMT+0800 (Singapore Standard Time)
+[2025-12-24T07:45:13.539Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T07:45:13.539Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T07:45:13.539Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T07:45:13.540Z] INFO: Server is up and running
+[2025-12-24T07:45:14.652Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T07:45:17.173Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:17.334Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:18.425Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:18.595Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:18.711Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:18.773Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:18.890Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:19.429Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:19.585Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:19.597Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:45:22.047Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:22.220Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:22.671Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:22.830Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:22.838Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:45:24.080Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:24.238Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:24.812Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:24.977Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:24.987Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:45:29.454Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:29.613Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:30.273Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:30.417Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:30.427Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:45:32.518Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:32.691Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:33.641Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:33.808Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T07:45:33.817Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T07:46:09.816Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T07:46:09.826Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 15:46:09 GMT+0800 (Singapore Standard Time)
+[2025-12-24T07:46:09.831Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T07:46:09.837Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 15:46:09 GMT+0800 (Singapore Standard Time)
+[2025-12-24T09:20:24.917Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:20:24.980Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:20:25.100Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:20:26.060Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:20:26.220Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:20:26.229Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T09:43:15.252Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:43:15.412Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:43:15.518Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:43:16.454Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:43:16.628Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T09:43:16.640Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T10:30:08.713Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:30:08.726Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:30:09.041Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:30:09.047Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:30:09.125Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 2910 old keys
+[2025-12-24T10:30:09.137Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 1940 old keys
+[2025-12-24T10:30:09.146Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:30:09.152Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:30:12.232Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:30:12 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:30:12.237Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:30:12.238Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:30:12.238Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:30:12.240Z] INFO: Server is up and running
+[2025-12-24T10:30:13.541Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:30:15.570Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:30:15.765Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:30:15.767Z] ERROR: Error while executing function: generateDipConfig
+[2025-12-24T10:30:15.768Z] ERROR: Error occurred in:     at generateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:42:26)
+    at routeHandlerGenerateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:54:28)
+    at Layer.handleRequest (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\node_modules\router\lib\layer.js:152:17)
+[2025-12-24T10:30:15.768Z] ERROR: Error stack: RangeError: Invalid key length
+    at Cipheriv.createCipherBase (node:internal/crypto/cipher:121:19)
+    at Cipheriv.createCipherWithIV (node:internal/crypto/cipher:133:3)
+    at new Cipheriv (node:internal/crypto/cipher:234:3)
+    at Object.createCipheriv (node:crypto:143:10)
+[2025-12-24T10:30:15.769Z] ERROR: ETS Error Id: ID_ETS_ERROR-dLC12J01q9XIXVCvTkollYFNTrdF7K4XEmrI
+[2025-12-24T10:30:15.768Z] ERROR: Error message: Invalid key length
+[2025-12-24T10:30:15.768Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\lib\Utils\Core\SecurityManagment\Dip.js
+[2025-12-24T10:31:09.117Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T10:31:09.125Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:31:09 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:31:09.133Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T10:31:09.138Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:31:09 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:31:52.473Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:31:52.487Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:31:52.770Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:31:52.776Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:31:52.834Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 2940 old keys
+[2025-12-24T10:31:52.846Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 1960 old keys
+[2025-12-24T10:31:52.854Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:31:52.860Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:31:55.925Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:31:55 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:31:55.930Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:31:55.931Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:31:55.931Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:31:55.934Z] INFO: Server is up and running
+[2025-12-24T10:31:56.397Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:31:57.947Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:31:58.033Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:31:58.036Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\lib\Utils\Core\SecurityManagment\Dip.js
+[2025-12-24T10:31:58.036Z] ERROR: Error occurred in:     at generateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:44:26)
+    at routeHandlerGenerateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:56:28)
+    at Layer.handleRequest (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\node_modules\router\lib\layer.js:152:17)
+[2025-12-24T10:31:58.035Z] ERROR: Error while executing function: generateDipConfig
+[2025-12-24T10:31:58.036Z] ERROR: Error stack: RangeError: Invalid key length
+    at Cipheriv.createCipherBase (node:internal/crypto/cipher:121:19)
+    at Cipheriv.createCipherWithIV (node:internal/crypto/cipher:133:3)
+    at new Cipheriv (node:internal/crypto/cipher:234:3)
+    at Object.createCipheriv (node:crypto:143:10)
+[2025-12-24T10:31:58.037Z] ERROR: ETS Error Id: ID_ETS_ERROR-IAur0pf8305b9g6mKrZLBCR3bnzicEfzAe2x
+[2025-12-24T10:31:58.036Z] ERROR: Error message: Invalid key length
+[2025-12-24T10:32:52.837Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T10:32:52.838Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T10:32:52.848Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:32:52 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:32:52.848Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:32:52 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:33:07.458Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:33:07.471Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:33:07.747Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:33:07.751Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:33:07.814Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 2970 old keys
+[2025-12-24T10:33:07.827Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 1980 old keys
+[2025-12-24T10:33:07.836Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:33:07.842Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:33:10.290Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:33:10 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:33:10.295Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:33:10.296Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:33:10.296Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:33:10.298Z] INFO: Server is up and running
+[2025-12-24T10:33:11.214Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:33:13.082Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:33:13.218Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:33:13.221Z] ERROR: Error while executing function: generateDipConfig
+[2025-12-24T10:33:13.222Z] ERROR: Error occurred in:     at generateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:44:26)
+    at routeHandlerGenerateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:56:28)
+    at Layer.handleRequest (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\node_modules\router\lib\layer.js:152:17)
+[2025-12-24T10:33:13.222Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\lib\Utils\Core\SecurityManagment\Dip.js
+[2025-12-24T10:33:13.222Z] ERROR: Error message: Invalid key length
+[2025-12-24T10:33:13.222Z] ERROR: Error stack: RangeError: Invalid key length
+    at Cipheriv.createCipherBase (node:internal/crypto/cipher:121:19)
+    at Cipheriv.createCipherWithIV (node:internal/crypto/cipher:133:3)
+    at new Cipheriv (node:internal/crypto/cipher:234:3)
+    at Object.createCipheriv (node:crypto:143:10)
+[2025-12-24T10:33:13.223Z] ERROR: ETS Error Id: ID_ETS_ERROR-AOxussuz0Vj8MSfiAnmqevtL4SAIfjkQsBg6
+[2025-12-24T10:33:41.575Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:33:41.591Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:33:41.816Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:33:41.822Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:33:41.877Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 2970 old keys
+[2025-12-24T10:33:41.887Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 1980 old keys
+[2025-12-24T10:33:41.896Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:33:41.902Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:33:45.925Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:33:45 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:33:45.930Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:33:45.931Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:33:45.931Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:33:45.933Z] INFO: Server is up and running
+[2025-12-24T10:33:47.206Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:33:48.039Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:33:48.157Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:33:48.159Z] ERROR: Error while executing function: generateDipConfig
+[2025-12-24T10:33:48.159Z] ERROR: Error occurred in:     at generateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:42:26)
+    at routeHandlerGenerateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:54:28)
+    at Layer.handleRequest (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\node_modules\router\lib\layer.js:152:17)
+[2025-12-24T10:33:48.160Z] ERROR: Error stack: RangeError: Invalid key length
+    at Cipheriv.createCipherBase (node:internal/crypto/cipher:121:19)
+    at Cipheriv.createCipherWithIV (node:internal/crypto/cipher:133:3)
+    at new Cipheriv (node:internal/crypto/cipher:234:3)
+    at Object.createCipheriv (node:crypto:143:10)
+[2025-12-24T10:33:48.160Z] ERROR: ETS Error Id: ID_ETS_ERROR-toGWGQX2iMnMVxqXkyWNVkD68k6T2bzpic4b
+[2025-12-24T10:33:48.159Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\lib\Utils\Core\SecurityManagment\Dip.js
+[2025-12-24T10:33:48.160Z] ERROR: Error message: Invalid key length
+[2025-12-24T10:34:41.872Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T10:34:41.881Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T10:34:41.880Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:34:41 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:34:41.886Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:34:41 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:34:56.477Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:34:56.490Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:34:56.887Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:34:56.891Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:34:56.947Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 3000 old keys
+[2025-12-24T10:34:56.958Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 2000 old keys
+[2025-12-24T10:34:56.965Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:34:56.970Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:35:01.317Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:35:01 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:35:01.323Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:35:01.323Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:35:01.323Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:35:01.325Z] INFO: Server is up and running
+[2025-12-24T10:35:02.309Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:35:03.615Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:35:03.725Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:35:03.727Z] ERROR: Error while executing function: generateDipConfig
+[2025-12-24T10:35:03.727Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\lib\Utils\Core\SecurityManagment\Dip.js
+[2025-12-24T10:35:03.728Z] ERROR: Error occurred in:     at generateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:44:26)
+    at routeHandlerGenerateDipConfig (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/lib/Utils/Core/SecurityManagment/Dip.js:56:28)
+    at Layer.handleRequest (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\node_modules\router\lib\layer.js:152:17)
+[2025-12-24T10:35:03.728Z] ERROR: Error message: Invalid key length
+[2025-12-24T10:35:03.728Z] ERROR: Error stack: RangeError: Invalid key length
+    at Cipheriv.createCipherBase (node:internal/crypto/cipher:121:19)
+    at Cipheriv.createCipherWithIV (node:internal/crypto/cipher:133:3)
+    at new Cipheriv (node:internal/crypto/cipher:234:3)
+    at Object.createCipheriv (node:crypto:143:10)
+[2025-12-24T10:35:03.728Z] ERROR: ETS Error Id: ID_ETS_ERROR-35jBe4Su8hahtUnD2xcYOFC0NKATQ8wGs1o9
+[2025-12-24T10:35:56.942Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T10:35:56.949Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T10:35:56.954Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:35:56 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:35:56.955Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:35:56 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:36:22.256Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:36:22.268Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:36:22.559Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:36:22.563Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:36:22.617Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 3030 old keys
+[2025-12-24T10:36:22.628Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 2020 old keys
+[2025-12-24T10:36:22.893Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:36:22.898Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:36:25.527Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:36:25 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:36:25.533Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:36:25.533Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:36:25.533Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:36:25.536Z] INFO: Server is up and running
+[2025-12-24T10:36:26.039Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:36:29.411Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:36:29.549Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:36:29.670Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:36:30.258Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:36:30.429Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:36:30.445Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T10:37:03.144Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:03.311Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:03.806Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:03.972Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:03.983Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T10:37:11.738Z] INFO: Signature Secrets Manager: Initialized 2 partitions with 10 keys each
+[2025-12-24T10:37:11.755Z] INFO: ✅ MongoDB connected to 'default'
+[2025-12-24T10:37:12.117Z] INFO: ✅ Audit database 'orion_audit' already exists
+[2025-12-24T10:37:12.121Z] INFO: ✅ AuditTrail table initialized
+[2025-12-24T10:37:12.175Z] INFO: Token Secrets Manager: Mass-added 0 current keys and 3030 old keys
+[2025-12-24T10:37:12.187Z] INFO: Signature Secrets Manager: Mass-added 0 current keys and 2020 old keys
+[2025-12-24T10:37:12.196Z] INFO: [AUDIT] SYSTEM-AUDIT-TEST - SUCCESS
+[2025-12-24T10:37:12.201Z] WARN: Invalid access type "secure", refused to register callback!
+[2025-12-24T10:37:16.003Z] LOG: Scheduled event "configPopulation[dip,encryption]" to run at Thu Dec 25 2025 17:37:16 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:37:16.008Z] INFO: ✅ Service "Orion Test" ready
+[2025-12-24T10:37:16.009Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2025-12-24T10:37:16.009Z] INFO: 🌐 Listening on port: 3495
+[2025-12-24T10:37:16.012Z] INFO: Server is up and running
+[2025-12-24T10:37:17.142Z] INFO: Token Secrets Manager: Initialized 3 partitions with 10 keys each
+[2025-12-24T10:37:18.909Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:19.066Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:19.916Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:20.087Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:20.204Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:20.315Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:20.431Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:21.013Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:21.166Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2025-12-24T10:37:21.179Z] INFO: [AUDIT] ACCOUNT_CREATION_ATTEMPT - FAILED
+[2025-12-24T10:38:12.174Z] INFO: Token Secrets Manager: Mass-exported 3 partitions (privateKeys: false)
+[2025-12-24T10:38:12.181Z] INFO: Signature Secrets Manager: Mass-exported 2 partitions (privateKeys: false)
+[2025-12-24T10:38:12.186Z] LOG: Scheduled event "TOKEN-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:38:12 GMT+0800 (Singapore Standard Time)
+[2025-12-24T10:38:12.186Z] LOG: Scheduled event "SIGNATURE-SECRETS-AUTO-EXPORT" to run at Thu Dec 25 2025 18:38:12 GMT+0800 (Singapore Standard Time)

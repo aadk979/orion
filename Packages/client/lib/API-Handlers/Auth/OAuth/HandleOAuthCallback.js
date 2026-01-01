@@ -5,7 +5,7 @@ async function handleOAuthCallback({ Api, getAuthHeader, dipConfig, This }) {
     const state = urlParams.get('state');
 
     if (!code || !state) {
-        return { error: true, errorCode: "CLIENT-OAUTH-MISSING-CALLBACK-PARAMETERS" };
+        return { error: true, errorCode: 'CLIENT-OAUTH-MISSING-CALLBACK-PARAMETERS' };
     }
 
     const packet = {
@@ -19,22 +19,15 @@ async function handleOAuthCallback({ Api, getAuthHeader, dipConfig, This }) {
 
     const dipOptions = {
         ...dipConfig,
-        dipState: "ACTIVE",
+        dipState: 'ACTIVE',
         dipSignature: dipSignature.dipSignature,
         salt: dipSignature.salt,
         timestamp: dipSignature.timestamp
     };
 
-    const authHeader = await getAuthHeader(false, "NO_AUTH_BEARER");
+    const authHeader = await getAuthHeader(false, 'NO_AUTH_BEARER');
 
-    const res = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/handle-o-auth-callback`,
-        "POST",
-        authHeader.authHead,
-        packet,
-        dipOptions,
-        null
-    );
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/handle-o-auth-callback`, 'POST', authHeader.authHead, packet, dipOptions, null);
 
     const data = await res.json();
 

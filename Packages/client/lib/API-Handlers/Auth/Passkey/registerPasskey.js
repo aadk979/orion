@@ -1,52 +1,52 @@
-import { startRegistration } from "../../../External-Scripts/webAuthn.js";
+import { startRegistration } from '../../../External-Scripts/webAuthn.js';
 
 async function registerPasskey({ Api, getAuthHeader, dipConfig, This }) {
-  const authHeader = await getAuthHeader(true, "ACCESS_BEARER");
+    const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
-  const res = await Api.fetch(
-    `/${This.systemConfig.nameSpace}/api/v1/action/generate-passkey-registration-options`,
-    "POST",
-    authHeader.authHead,
-    {},
-    null,
-    null
-  );
+    const res = await Api.fetch(
+        `/${This.systemConfig.nameSpace}/api/v1/action/generate-passkey-registration-options`,
+        'POST',
+        authHeader.authHead,
+        {},
+        null,
+        null
+    );
 
-  const data = await res.json();
-  
-  if (data.error) return { error: true, errorCode: "CLIENT-PASSKEY-REG-OPTIONS-FAILED" };
+    const data = await res.json();
 
-  const passkeyRegistration = await startRegistration({ optionsJSON: data.data.options });
+    if (data.error) return { error: true, errorCode: 'CLIENT-PASSKEY-REG-OPTIONS-FAILED' };
 
-  const encryptedPayload = await Api.prepareDataForEncryption({ registrationResponse: passkeyRegistration });
+    const passkeyRegistration = await startRegistration({ optionsJSON: data.data.options });
 
-  const postEncryptionPayload = {
-    packet: { encryptedString: encryptedPayload.encryptedString }
-  };
+    const encryptedPayload = await Api.prepareDataForEncryption({ registrationResponse: passkeyRegistration });
 
-  const dipSignature = await Api.prepareDataForDIP(postEncryptionPayload, dipConfig);
+    const postEncryptionPayload = {
+        packet: { encryptedString: encryptedPayload.encryptedString }
+    };
 
-  const dipOptions = {
-    ...dipConfig,
-    dipState: "ACTIVE",
-    dipSignature: dipSignature.dipSignature,
-    salt: dipSignature.salt,
-    timestamp: dipSignature.timestamp
-  };
+    const dipSignature = await Api.prepareDataForDIP(postEncryptionPayload, dipConfig);
 
-  const finalRes = await Api.fetch(
-    `/${This.systemConfig.nameSpace}/api/v1/action/complete-passkey-registration`,
-    "POST",
-    authHeader.authHead,
-    postEncryptionPayload,
-    dipOptions,
-    encryptedPayload.encryption
-  );
+    const dipOptions = {
+        ...dipConfig,
+        dipState: 'ACTIVE',
+        dipSignature: dipSignature.dipSignature,
+        salt: dipSignature.salt,
+        timestamp: dipSignature.timestamp
+    };
 
-  const data2 = await finalRes.json();
-  if (data2.error) return { error: true, errorCode: "CLIENT-UNABLE-TO-REGISTER-PASSKEY" };
+    const finalRes = await Api.fetch(
+        `/${This.systemConfig.nameSpace}/api/v1/action/complete-passkey-registration`,
+        'POST',
+        authHeader.authHead,
+        postEncryptionPayload,
+        dipOptions,
+        encryptedPayload.encryption
+    );
 
-  return { error: false, complete: true };
+    const data2 = await finalRes.json();
+    if (data2.error) return { error: true, errorCode: 'CLIENT-UNABLE-TO-REGISTER-PASSKEY' };
+
+    return { error: false, complete: true };
 }
 
 export { registerPasskey };
