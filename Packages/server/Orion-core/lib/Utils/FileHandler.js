@@ -42,13 +42,15 @@ async function readFromCaller(filename) {
         const data = await fs.promises.readFile(targetPath, 'utf8');
 
         let parsed;
+        let json = false;
         try {
             parsed = JSON.parse(data);
+            json = true;
         } catch {
             parsed = data;
         }
 
-        return { error: false, data: parsed };
+        return { error: false, data: parsed, json };
     } catch (err) {
         if (err.code === 'ENOENT') return { error: true, errorCode: 'FILE-NOT-FOUND' };
         if (err.code === 'EACCES') return { error: true, errorCode: 'PERMISSION-DENIED' };
@@ -56,4 +58,22 @@ async function readFromCaller(filename) {
     }
 }
 
-export { writeToCaller, readFromCaller };
+async function removeFromCaller(filename) {
+    try {
+        const callerDir = getCallerDirectory();
+        if (!callerDir) return { error: true, errorCode: 'CALLER-DIRECTORY-NOT-FOUND' };
+
+        const targetPath = path.resolve(callerDir, filename);
+        await fs.promises.access(targetPath, fs.constants.F_OK);
+        await fs.promises.unlink(targetPath);
+
+        return { error: false, path: targetPath };
+    } catch (err) {
+        if (err.code === 'ENOENT') return { error: true, errorCode: 'FILE-NOT-FOUND' };
+        if (err.code === 'EACCES') return { error: true, errorCode: 'PERMISSION-DENIED' };
+        if (err.code === 'EISDIR') return { error: true, errorCode: 'IS-DIRECTORY' };
+        return { error: true, errorCode: 'DELETE-OPERATION-FAILED' };
+    }
+}
+
+export { writeToCaller, readFromCaller, removeFromCaller };

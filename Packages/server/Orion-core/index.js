@@ -1,7 +1,7 @@
 /**
  * Orion Package Exports
  *
- * Main entry point for the Orion Alpine authentication framework.
+ * Main entry point for the Orion (Alpine) authentication framework.
  * Exports all public APIs, utilities, and core functionality.
  */
 
@@ -18,7 +18,7 @@ import { cronScheduler } from './lib/Utils/Cron.js';
 import { sanitizeString } from './lib/Utils/Sanitizer.js';
 import { getCookie, parseCookieData, setCookie } from './lib/Utils/CookieUtils.js';
 import { readFromCaller, writeToCaller } from './lib/Utils/FileHandler.js';
-import { generateResourceToken } from './Orion-core/lib/Utils/Core/ResourceAccessManagment/callbackBasedResources/resourceTokens.js';
+import { generateResourceToken } from './lib/Utils/Core/TokenManagement/ResourceTokens.js';
 import { requestContext } from './lib/Server/Middleware/requestMetadata.js';
 import { logger } from './lib/Utils/logger.js';
 import { userControl } from './lib/Utils/Core/AccountManagment/UserControl.js';
@@ -36,9 +36,6 @@ const fileIO = { writeToCaller, readFromCaller };
 const tokens = { generateResourceToken };
 const valueGenerators = i;
 const orionCrypto = b;
-
-const __Version__ = __Version__;
-const __Status__ = __Status__;
 
 const orionInfo = { __Version__, __Status__ };
 

@@ -17,57 +17,13 @@ import { readFromCaller, writeToCaller } from '../Utils/FileHandler.js';
 import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
 import { logger } from '../Utils/logger.js';
 import { validateClientUrls } from '../Utils/Validator.js';
-import { generateId, generateRandomNumber } from '../Utils/valueGenerator.js';
-import { PERSISTANT_CLIENT_URLS_FILE_NAME, SIGNATURE_SECRETS_FILE_NAME, TOKEN_SECRETS_FILE_NAME } from '../orion.meta.js';
+import { generateRandomNumber } from '../Utils/valueGenerator.js';
+import { PERSISTANT_CLIENT_URLS_FILE_NAME, SIGNATURE_SECRETS_FILE_NAME } from '../orion.meta.js';
 import { EphemeralDatabaseManager } from '../Utils/Databases/EphemeralDatabases/index.js';
-import { generateHmacKey } from '../Utils/CryptoFunctions.js';
-import { generateKeyPairDedicated } from '../Utils/dedicatedCrypto.js';
 import { getFutureUnixTime } from '../Utils/Date&Time.js';
 import { populateEphemeralConfigs } from '../Utils/Databases/EphemeralDatabases/configPopulator.js';
 import { generateNumberedStringsFromTemplate, getRandomElement } from '../Utils/ArrayUtilities.js';
-
-const utilTokenSecretsExport = async () => {
-    const tokenSecretsManager = globalAccessPoint.getValue('tokenSecretsManager');
-
-    const tokens = await tokenSecretsManager.massGetJWKs();
-
-    const writeOpp = await writeToCaller(TOKEN_SECRETS_FILE_NAME, tokens);
-
-    cronScheduler.addEvent('TOKEN-SECRETS-AUTO-EXPORT', utilTokenSecretsExport, '1d', {});
-
-    if (writeOpp.error) {
-        logger.error('Scheduled token secrets write failed!');
-        return;
-    }
-
-    return;
-};
-
-// This function's default fallback is to wipe the file by setting its value to {},
-// so no throw error statement is needed
-const handleTokenSecretsImport = async () => {
-    const tokenSecretsManager = globalAccessPoint.getValue('tokenSecretsManager');
-
-    const fileData = await readFromCaller(TOKEN_SECRETS_FILE_NAME);
-
-    setTimeout(() => {
-        utilTokenSecretsExport();
-    }, 60_000);
-
-    if (fileData.errorCode === 'FILE-NOT-FOUND') {
-        const result1 = await writeToCaller(TOKEN_SECRETS_FILE_NAME, {});
-        return;
-    }
-
-    const secretsImport = tokenSecretsManager.massAddJWKs(fileData.data);
-
-    if (secretsImport?.error) {
-        const result2 = await writeToCaller(TOKEN_SECRETS_FILE_NAME, {});
-        return;
-    }
-
-    return;
-};
+import { TokenSecretsManager } from "../Utils/Systems/TokenSecretsManager.js";
 
 const utilSignatureSecretsExport = async () => {
     const signatureSecretsManager = globalAccessPoint.getValue('signatureSecretsManager');
@@ -135,7 +91,7 @@ const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
 
         if (readCheck.error) {
             // Cleanup before retry
-            await db.deleteData('Test', randomKey).catch(() => {});
+            await db.deleteData('Test', randomKey).catch(() => { });
             if (attempts < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
@@ -166,23 +122,28 @@ const handleDatabaseLiveCheck = async () => {
     const NUMBER_OF_TESTS = 15;
     const PASS_PERCENTAGE = 100;
 
-    for (let i = 0; i < NUMBER_OF_TESTS; i++) {
-        const test = await utilDatabaseLiveCheck(db);
-        testData.push(test);
-    }
+    // The initialization of a db is an async operation executed in a sync manner and hence maybe not be fully completed before test begins hence the timeout
+    return await new Promise((resolve) => {
+        setTimeout(async () => {
+            for (let i = 0; i < NUMBER_OF_TESTS; i++) {
+                const test = await utilDatabaseLiveCheck(db);
+                testData.push(test);
+            }
 
-    const passedTests = testData.filter(item => item?.passed === true);
-    const passedPercentage = (passedTests.length / NUMBER_OF_TESTS) * 100;
+            const passedTests = testData.filter(item => item?.passed === true);
+            const passedPercentage = (passedTests.length / NUMBER_OF_TESTS) * 100;
 
-    if (passedPercentage < PASS_PERCENTAGE) {
-        throw new Error(
-            'Unable to certify database as operational, pass rate for db check test: ' +
-                passedPercentage +
-                '%. Database must be fully operational before server start.'
-        );
-    }
+            if (passedPercentage < PASS_PERCENTAGE) {
+                throw new Error(
+                    'Unable to certify database as operational, pass rate for db check test: ' +
+                    passedPercentage +
+                    '%. Database must be fully operational before server start.'
+                );
+            }
 
-    return;
+            resolve();
+        }, 3000)
+    });
 };
 
 const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryDelay = 1000) => {
@@ -192,9 +153,9 @@ const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryD
         attempts++;
 
         try {
-            await auditSystem.getLastHash().catch(() => {});
+            await auditSystem.getLastHash().catch(() => { });
 
-            const record = await auditSystem.record({
+            const record = auditSystem.record({
                 user: { uid: 'TEST_UID', email: 'test@orion.local' },
                 action: 'SYSTEM-AUDIT-TEST',
                 status: 'SUCCESS',
@@ -204,6 +165,9 @@ const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryD
             });
 
             if (record.error) throw new Error('Insert failed');
+
+            // Force flush the buffered record to the database before querying
+            await auditSystem.forceFlush();
 
             const rows = await auditSystem.query({ action: 'SYSTEM-AUDIT-TEST' });
             if (!rows || rows.length === 0) throw new Error('Read failed');
@@ -397,7 +361,9 @@ const handleAllowedClientUrlsConfig = async () => {
             await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [...validateClientUrls(clientUrlsFromConfig)] });
         }
 
-        await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])] });
+        if (fileData?.data) {
+            await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])] });
+        }
 
         globalAccessPoint.setValue(
             'allowedClientUrls',
@@ -427,8 +393,8 @@ const handleEphemeralDatabaseSetup = async () => {
         throw new Error("Configuration error: Ephemeral database object present but missing 'provider' or 'credentials'");
     }
 
-    let numberOfDipConfigs = 10;
-    let numberOfEncryptionConfigs = 10;
+    let numberOfDipConfigs = 5;
+    let numberOfEncryptionConfigs = 5;
 
     if (systemConfig?.utilities?.numberOfDipConfigs && !Number.isNaN(Number(systemConfig?.utilities?.numberOfDipConfigs))) {
         const n = Math.ceil(Number(systemConfig.utilities.numberOfDipConfigs) / 5) * 5;
@@ -449,10 +415,7 @@ const handleEphemeralDatabaseSetup = async () => {
         globalAccessPoint.setValue('dipConfigsAvailable', generateNumberedStringsFromTemplate('DIP_GROUP[<i>]', numberOfDipConfigs / 5));
         globalAccessPoint.setValue('encryptionConfigsAvailable', generateNumberedStringsFromTemplate('ENCRYPTION_GROUP[<i>]', numberOfEncryptionConfigs / 5));
 
-        const population = await populateEphemeralConfigs({
-            db,
-            values: { dipActive, encryptionActive, numberOfDipConfigs, numberOfEncryptionConfigs, configExp }
-        });
+        const population = await populateEphemeralConfigs({ db, values: { dipActive, encryptionActive, numberOfDipConfigs, numberOfEncryptionConfigs, configExp }});
 
         return population;
     }
@@ -482,6 +445,8 @@ const handleEphemeralDatabaseSetup = async () => {
             dbManagerLocal.db().addData(encryptionGroup, data.data);
         }
 
+        globalAccessPoint.setValue('clusterMode', true);
+        globalAccessPoint.setValue('redisInstance', db);
         globalAccessPoint.setValue('ephemeralDB', dbManagerLocal.db());
         globalAccessPoint.setValue('dipConfigsAvailable', generateNumberedStringsFromTemplate('DIP_GROUP[<i>]', dipConfigKeys.length));
         globalAccessPoint.setValue('encryptionConfigsAvailable', generateNumberedStringsFromTemplate('ENCRYPTION_GROUP[<i>]', encryptionConfigKeys.length));
@@ -492,9 +457,38 @@ const handleEphemeralDatabaseSetup = async () => {
     return;
 };
 
+const handleTokenSecretsSetup = async () => {
+    
+    const defaultDomains = ["access", "refresh", "resource"];
+
+    const token_security_tier = globalAccessPoint.getValue("systemConfig")?.tokens?.security_tier;
+
+    globalAccessPoint.setValue("token_security_tier", `TIER_${token_security_tier || 4}`)
+
+    let arr = [];
+
+    for (let i = 0; i<defaultDomains.length; i++) {
+        const domain = defaultDomains[i];
+
+        const token_secrets_manager = new TokenSecretsManager(domain, "ES256", 2);
+
+        arr.push({ domain, token_secrets_manager });
+    }
+
+    const initialization = await Promise.all(arr.map(async val => {
+        await val.token_secrets_manager.initialize();
+    }));
+
+    arr.forEach(val => {
+        globalAccessPoint.setValue(`TOKEN_SECRETS_MANAGER_${val.domain}`, val.token_secrets_manager);
+    });
+
+    return initialization;
+
+}
+
 const handleOnStartConfiguration = async () => {
     await handleDatabaseLiveCheck();
-    await handleTokenSecretsImport();
     await handleSignatureSecretsImport();
     await handleAllowedClientUrlsConfig();
     await handleAuditTrailSystemCheck();
@@ -503,6 +497,7 @@ const handleOnStartConfiguration = async () => {
     handleRASValidation();
     handleAllowedUserRolesConfig();
     await handleEphemeralDatabaseSetup();
+    await handleTokenSecretsSetup();
 };
 
 export { handleOnStartConfiguration };

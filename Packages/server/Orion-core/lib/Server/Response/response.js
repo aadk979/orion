@@ -21,7 +21,9 @@ const respondWithError = (response, errorCode) => {
 
     const error = internalErrors[errorCode] || internalErrors['UNKNOWN-ERROR'];
 
-    response.status(error.status).json({ error: true, errorData: { ...error } });
+    // The error trigger field is for quick dev testing where new error codes have not been populated in the error registry and minimize confusion of what the true error is
+    response.status(error.status).json({ error: true, errorData: { ...error }, errorTrigger: errorCode });
+
     return;
 };
 

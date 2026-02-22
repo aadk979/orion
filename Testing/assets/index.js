@@ -10,7 +10,8 @@ async function yurrrr() {
     // Initialize Orion
     await orion.initialize();
 
-    await orion.signUpUser('aadk979@gmail.com', 'Amelie260908');
+    const x = await orion.generateOAuthRedirectURLAndRedirect("GOOGLE");
+    console.log(x)
 }
 
 yurrrr();

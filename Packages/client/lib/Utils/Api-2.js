@@ -42,6 +42,7 @@ class ApiInterface {
                 'orion-dip-timestamp': dip ? dip?.timestamp : 'DEFAULT NONE',
                 'orion-encryption-status': encryption ? encryption.encryptionStatus : 'NONE',
                 'orion-encryption-request-id': encryption ? encryption.encryptionRequestId : 'NONE',
+                'orion-encryption-alg': encryption ? encryption.encryptionAlg : 'NONE',
                 'orion-api-system-version': '1.0.0[BETA]',
                 Origin: window.location.origin,
                 Authorization: authorization

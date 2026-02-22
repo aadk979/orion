@@ -2,6 +2,7 @@ import { __Status__, __Version__ } from '../../orion.meta.js';
 import { routeHandlerResetCookies } from '../../Utils/Core/SecurityManagment/CookieReset.js';
 import { formatTime, getCurrentUnixTime } from '../../Utils/Date&Time.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
+import { errorTrackerSystem } from '../../Utils/Systems/ErrorTrackerSystem.js';
 import { respondWithError } from '../Response/response.js';
 
 const serverUtilitiesMiddleware = async (request, response, next) => {
@@ -32,7 +33,8 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
                 orionSystemInfo: {
                     __Version__,
                     __Status__
-                }
+                },
+                errors: errorTrackerSystem.massExport()
             };
 
             response.status(200).json(returnData);

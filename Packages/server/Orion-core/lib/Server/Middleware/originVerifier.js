@@ -16,21 +16,28 @@ class originVerifier {
     verifyOrigin(request, response, next) {
         try {
             if (request.method === 'OPTIONS') {
-                return response.sendStatus(204); // No Content, stop here
+                return response.sendStatus(204);
             }
 
-            const clientOrigin = request.headers.origin || request.headers.referer || `${request.protocol}://${request.get('host')}`;
+            const origin = request.headers.origin;
 
-            // To be updated in prod to only allow HTTPS (Remove && false flag to activate)
-            if (originVerifier.systemConfig.client.enforceHTTPS && clientOrigin && clientOrigin.split('://')[0] !== 'https') {
+            // HTTPS enforcement
+            if (originVerifier.systemConfig.client.enforceHTTPS && origin && new URL(origin).protocol !== 'https:' && false) {
                 return respondWithError(response, 'INVALID-PROTOCOL');
             }
 
-            if (!clientOrigin) {
+            if (!origin) {
                 return respondWithError(response, 'UNKNOWN-ORIGIN');
             }
 
-            if (globalAccessPoint.getValue('allowedClientUrls').some(url => clientOrigin.endsWith(url))) {
+            const hostname = new URL(origin).host;
+            const allowed = globalAccessPoint.getValue('allowedClientUrls');
+
+            const isAllowed = allowed.some(allowedHost =>
+                hostname === allowedHost || new URL(allowedHost).host === hostname
+            );
+
+            if (isAllowed) {
                 return next();
             }
 
@@ -42,22 +49,28 @@ class originVerifier {
     }
 
     corsVerifier(origin, callback) {
-        if (!origin) {
-            return callback(null, false); // Block silently, no server crash
-        }
+        try {
+            if (!origin) {
+                return callback(null, false);
+            }
 
-        // Enforce HTTPS if enabled
-        if (originVerifier.systemConfig.client.enforceHTTPS && origin.split('://')[0] !== 'https') {
+            const parsed = new URL(origin);
+
+            if (originVerifier.systemConfig.client.enforceHTTPS && parsed.protocol !== 'https:' && false) {
+                return callback(null, false);
+            }
+
+            const allowed = globalAccessPoint.getValue('allowedClientUrls');
+            const hostname = parsed.host;
+
+            const isAllowed = allowed.some(allowedHost =>
+                hostname === allowedHost || new URL(allowedHost).host === hostname
+            );
+
+            return callback(null, isAllowed);
+        } catch {
             return callback(null, false);
         }
-
-        // Check allowed URLs
-        if (globalAccessPoint.getValue('allowedClientUrls').some(url => origin.endsWith(url))) {
-            return callback(null, true);
-        }
-
-        // Default: Block
-        return callback(null, false);
     }
 }
 

@@ -1,4 +1,4 @@
-import { getCurrentUnixTime, getFutureUnixTime, isUnixExpired } from './Date&Time.js';
+import { getFutureUnixTime, isUnixExpired } from './Date&Time.js';
 import { logger } from './logger.js';
 
 class GlobalAccessPoint {
@@ -10,7 +10,7 @@ class GlobalAccessPoint {
         }
 
         this._values = {};
-        this._lockedKeys = new Set(['db', 'systemConfig', 'volatileSecretsManager', 'refreshRateLimiter', 'oAuthToolKit']);
+        this._lockedKeys = new Set(['db', 'systemConfig', 'volatileSecretsManager', 'refreshRateLimiter', 'oAuthToolKit', 'clusterMode']);
         this._postBootUpdateAllowedKeys = ['systemConfig'];
         this._postBootUpdateAllowedDurationAfterBoot = '1m';
         this._postBootUpdateAllowedExpiry = getFutureUnixTime(this._postBootUpdateAllowedDurationAfterBoot);

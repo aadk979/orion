@@ -1,5 +1,5 @@
 /**
- * Authentication Middleware – Version 1
+ * Authentication Middleware – Version 2
  *
  * Handles authentication validation for protected routes, including access token
  * and refresh token verification. Provides secure authentication flow management.
@@ -140,8 +140,7 @@ const authenticationMiddleware = async (request, response, next) => {
         const userAgent = headers['orion-user-agent'];
         const ip = getIp(parameters.request);
         const authHeader = headers['authorization'] || 'DEFAULT NONE';
-        const clientUrl =
-            parameters.request.headers.origin || parameters.request.headers.referer || `${parameters.request.protocol}://${parameters.request.get('host')}`;
+        const clientUrl = parameters.request.headers.origin || parameters.request.headers.referer || `${parameters.request.protocol}://${parameters.request.get('host')}`;
 
         const reqIsAuthStateCheck = handleIsAuthStateCheck(parameters);
 
@@ -199,6 +198,8 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, 'REFRESH-TOKEN-LIMIT-HIT');
                         }
 
+                        console.log(refreshVerification)
+
                         const newAccessToken = await generateAccessToken(
                             refreshVerification.data.uid,
                             refreshVerification.data.email,
@@ -207,7 +208,7 @@ const authenticationMiddleware = async (request, response, next) => {
                             refreshVerification.data.role,
                             ip,
                             userAgent,
-                            refreshVerification.data.tokenData.accessTokenLinkCode
+                            refreshVerification.data?.tokenData?.accessTokenLinkCode || refreshVerification.data?.accessTokenLinkCode
                         );
 
                         if (newAccessToken.error) {

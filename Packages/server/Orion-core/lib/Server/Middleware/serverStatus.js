@@ -13,7 +13,7 @@ const serverStatusMiddlware = (request, response, next) => {
         return respondWithError(response, 'SERVER-UNHEALTHY');
     }
 
-    const systemsReady = globalAccessPoint.getValue('volatileSecretsManager').ready() && globalAccessPoint.getValue('tokenSecretsManager').ready();
+    const systemsReady = globalAccessPoint.getValue('volatileSecretsManager').ready();
 
     if (!systemsReady) {
         return respondWithError(response, 'SERVER-INITIALIZING');

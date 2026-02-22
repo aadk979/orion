@@ -94,6 +94,14 @@ const AccessTokens = {
         fault: 'NEITHER',
         solutions: ['NONE'],
         logout: true
+    },
+    "INVALID-ACCESS-TOKEN-TIER-CONFLICT": {
+        status: 401,
+        context: 'The access token key could not be found',
+        errorCode: 'INVALID-ACCESS-TOKEN-TIER-CONFLICT',
+        fault: 'NEITHER',
+        solutions: ['NONE'],
+        logout: true
     }
 };
 

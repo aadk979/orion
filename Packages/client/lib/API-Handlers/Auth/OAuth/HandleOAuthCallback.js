@@ -1,3 +1,5 @@
+import { globalAccessPoint } from "../../../Utils/GlobalAccessPoint.js";
+
 async function handleOAuthCallback({ Api, getAuthHeader, dipConfig, This }) {
     // Extract code and state from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -35,11 +37,9 @@ async function handleOAuthCallback({ Api, getAuthHeader, dipConfig, This }) {
         return data.errorData;
     }
 
-    // Clear URL parameters after successful callback processing
-    const url = new URL(window.location);
-    url.searchParams.delete('code');
-    url.searchParams.delete('state');
-    window.history.replaceState({}, '', url.toString());
+    const { postAuthRedirect = window.location.origin } = globalAccessPoint.getValue("systemConfig");
+
+    window.history.replaceState({}, '', postAuthRedirect.toString());
 
     return { error: false, signedIn: data.data.signedIn };
 }

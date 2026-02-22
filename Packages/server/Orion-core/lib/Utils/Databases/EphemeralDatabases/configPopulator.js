@@ -114,6 +114,8 @@ const populateEphemeralConfigs = async params => {
         await db.addData(groupId, group, configExp);
     }
 
+    globalAccessPoint.setValue('clusterMode', false);
+
     const encryptionConfigsAvailable = globalAccessPoint.getValue('encryptionConfigsAvailable');
 
     encryptionConfigsAvailable.push('ENCRYPTION_GROUP[ECC_384]', 'ENCRYPTION_GROUP[RSA_2048]', 'ENCRYPTION_GROUP[RSA_3072]', 'ENCRYPTION_GROUP[RSA_4096]');

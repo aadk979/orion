@@ -19,8 +19,8 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace, slug) => {
         const orionTag = document.createElement('span');
 
         // --- Configuration ---
-        const Api = new ApiInterface(serverURL, nameSpace);
-        const DEVICE_AUTHORIZATION_ENDPOINT = `${slug !== '' ? '/' + slug : ''}/${nameSpace}/api/v1/action/authorize-me`;
+        const Api = new ApiInterface(serverURL, nameSpace, slug);
+        const DEVICE_AUTHORIZATION_ENDPOINT = `/${nameSpace}/api/v1/action/authorize-me`;
 
         // Overlay
         overlay.style.position = 'fixed';

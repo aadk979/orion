@@ -87,6 +87,8 @@ class ApiInterface {
             await flowFn.fn(...args);
         }
 
+        console.log(response)
+
         return response;
     }
 

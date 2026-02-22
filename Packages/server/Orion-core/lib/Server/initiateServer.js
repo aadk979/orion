@@ -19,7 +19,6 @@ import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.
 import { RefreshRateLimiter } from '../Utils/Systems/RefreshTokenRateLimitSystem.js';
 import { getCurrentUnixTime, parseDuration } from '../Utils/Date&Time.js';
 import { OAuthProviderToolkit } from '../Utils/Core/OAuth/OrionOAuthToolKit.js';
-import { TokenSecretsManager } from '../Utils/Systems/TokenSecretsManager.js';
 import { deviceCheckMiddlware } from './Middleware/deviceScanner.js';
 import { MemoryMonitoringSystem } from '../Utils/Systems/MemoryMonitoringSystem.js';
 import { serverStatusMiddlware } from './Middleware/serverStatus.js';
@@ -155,9 +154,6 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         const oAuthToolKit = new OAuthProviderToolkit(systemConfig.authMethods?.oAuth || {});
         await oAuthToolKit.initializeAllProviders();
 
-        // Init JWT token secrets manager
-        const tokenSecretsManager = new TokenSecretsManager(8, 10, 2048, true);
-
         // Init Signature secrets manager
         const signatureSecretsManager = new SignatureSecretsManager(8, true);
 
@@ -173,7 +169,6 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.setValue('volatileSecretsManager', volatileSecretsManager);
         globalAccessPoint.setValue('refreshRateLimiter', refreshRateLimiter);
         globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
-        globalAccessPoint.setValue('tokenSecretsManager', tokenSecretsManager);
         globalAccessPoint.setValue('signatureSecretsManager', signatureSecretsManager);
         globalAccessPoint.setValue('memoryMonitioringSystem', memoryMonitioringSystem);
 
