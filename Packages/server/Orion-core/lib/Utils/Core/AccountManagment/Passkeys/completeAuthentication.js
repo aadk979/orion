@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.passkey) {
             return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
@@ -23,6 +23,12 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
 
         let user = await globalAccessPoint.db().getData('Users', cookie.uid);
 
+        // MongoDB stores the publicKey as a Binary object, but @simplewebauthn expects a Uint8Array
+        const storedPublicKey = user.data.credentials.passkey.creds.publicKey;
+        const publicKeyUint8 = storedPublicKey.buffer
+            ? new Uint8Array(storedPublicKey.buffer)
+            : new Uint8Array(storedPublicKey);
+
         const verification = await verifyAuthenticationResponse({
             response: parameters.authenticationResponse,
             expectedChallenge: cookie.challenge,
@@ -30,7 +36,7 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
             expectedRPID: parameters.clientURL,
             credential: {
                 id: user.data.credentials.passkey.creds.id,
-                publicKey: user.data.credentials.passkey.creds.publicKey,
+                publicKey: publicKeyUint8,
                 counter: user.data.credentials.passkey.creds.counter,
                 transports: user.data.credentials.passkey.creds.transports
             }

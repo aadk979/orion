@@ -3,11 +3,9 @@ import { getRandomElement } from "../ArrayUtilities.js";
 import { isUnixExpired } from "../Date&Time.js";
 import { readFromCaller, removeFromCaller, writeToCaller } from "../FileHandler.js";
 import { logger } from "../logger.js";
-import { Snapshotter } from "./SnapShotter.js";
-import { TokenSecretsCrypto } from "./TokenSecretsCrypto.js";
+import { Snapshotter } from "./Snapshotter.js";
+import { SecretsCrypto } from "./SecretsCrypto.js";
 
-// FIX: Added `algorithm` field to RSA entries so generateRSAKey can derive
-// the correct hash (SHA-256/384/512) per algorithm instead of always using SHA-256.
 const KEY_TYPES = [
     { algorithm: "ES256", size: 256, type: "ECDSA" },
     { algorithm: "ES384", size: 384, type: "ECDSA" },
@@ -37,17 +35,14 @@ class TokenSecretsManager {
         this.domain = domain;
         this.algorithm = algorithm;
         this.nPairs = nPairs;
-        this.instanceType = globalAccessPoint.getValue("clusterMode") ? "CLUSTER" : "SINGLE";
+        this.instanceType = globalAccessPoint.clusterMode() ? "CLUSTER" : "SINGLE";
 
-        this.tokenSecretsCrypto = new TokenSecretsCrypto(this.domain);
+        this.tokenSecretsCrypto = new SecretsCrypto(this.domain);
         this.TOKEN_SECRETS_FILE_NAME = `orion.internal.token_secrets_manager.${this.domain}.json`;
 
         this.signingPairs = [];
         this.verificationPairs = [];
 
-        // FIX: rotationLock is now a Promise (or null), not a boolean.
-        // This eliminates the TOCTOU race in waitForLock where the lock could
-        // be set between the check and the queue push, causing callers to hang forever.
         this._lockPromise = null;
         this._lockResolve = null;
 
@@ -55,15 +50,12 @@ class TokenSecretsManager {
         this.checkExpAndRepopulate = this.checkExpAndRepopulate.bind(this);
     }
 
-    // FIX: Lock is now a proper async mutex based on a chained Promise.
-    // Callers always await the current lock promise before proceeding,
-    // with no window for the race condition that existed with the boolean + queue approach.
     _acquireLock() {
         const previous = this._lockPromise;
         let resolve;
         this._lockPromise = new Promise(r => { resolve = r; });
         this._lockResolve = resolve;
-        return previous; // caller awaits this
+        return previous;
     }
 
     _releaseLock() {
@@ -74,15 +66,11 @@ class TokenSecretsManager {
     }
 
     async _waitForLock() {
-        // Spin-wait on the chain: if a lock is held, this awaits it.
-        // New lock acquisitions chain on top, preserving FIFO order.
         while (this._lockPromise) {
             const current = this._lockPromise;
             await current;
-            // After awaiting, if _lockPromise changed it means someone else
-            // acquired a new lock — loop and wait again.
+
             if (this._lockPromise === current) {
-                // The promise that just resolved was the last one, lock is free.
                 break;
             }
         }
@@ -95,7 +83,6 @@ class TokenSecretsManager {
             await this._initializeCluster();
         }
 
-        // Auto prune verification pairs — runs inside its own safe lock
         setInterval(() => this.pruneVerificationPairs(), AUTO_PRUNE_INTERVAL);
     }
 
@@ -123,9 +110,6 @@ class TokenSecretsManager {
         }
 
         if (!fileRead?.data) {
-            // FIX: On first boot, persist signing pairs (public portion only) so they
-            // are available for verification after a restart, consistent with what
-            // checkExpAndRepopulate writes (both verification + signing public keys).
             const cleanedKeys = this.signingPairs.map(this._stripRuntimeKeys);
             await writeToCaller(this.TOKEN_SECRETS_FILE_NAME, { keys: cleanedKeys });
         }
@@ -144,13 +128,17 @@ class TokenSecretsManager {
     }
 
     async _initializeCluster() {
-        const redisInstance = globalAccessPoint.getValue("redisInstance");
+        const redisInstance = globalAccessPoint.redisInstance();
 
-        // FIX: Renamed variables clearly to avoid collision and accidental overwrite.
-        const redisKeyNames = redisInstance.keys() || [];
+        const redisKeysResult = await redisInstance.keys();
+        const redisKeyNames = redisKeysResult?.data || [];
         const filteredKeyNames = redisKeyNames.filter(k => k.startsWith(`${CLUSTER_KEY_START_PREFIX}_${this.domain}`));
         const regionalKeyData = await Promise.all(filteredKeyNames.map(k => redisInstance.getData(k)));
-        const importedVerificationKeys = await Promise.all(regionalKeyData.map(k => this._importPublicKey(k)));
+        const importedVerificationKeys = await Promise.all(
+            regionalKeyData
+                .filter(r => !r.error && r.data !== undefined)
+                .map(r => this._importPublicKey(r.data))
+        );
         this.verificationPairs = importedVerificationKeys;
 
         const config = KEY_TYPES.find(obj => obj.algorithm === this.algorithm);
@@ -167,9 +155,6 @@ class TokenSecretsManager {
             cleanedKeys.map(k => redisInstance.addData(`${CLUSTER_KEY_START_PREFIX}_${this.domain}_${k.keyPairId}`, k, k.publicKeyExp))
         );
 
-        // FIX: Cluster mode now schedules rotation, matching SINGLE behaviour.
-        // Without this, private keys expire after 7 days and getRandomSigningKeyPair
-        // silently returns null forever.
         cron.addEvent(`TOKEN_SECRETS_MANAGER_CHECK_ROTATE_${this.domain}`, this.checkExpAndRepopulate, "30s", {});
 
         this.initialized = true;
@@ -186,12 +171,9 @@ class TokenSecretsManager {
         return copy;
     }
 
-    // FIX: _importPublicKey no longer mutates its input.
-    // It works on a shallow copy so that source data (Redis, file reads) is not altered.
     async _importPublicKey(key) {
         if (!key || !key.generationConfig) return key;
 
-        // Shallow clone to avoid mutating the original object
         const safeKey = { ...key, keys: { ...key.keys, public: { ...key.keys.public } } };
 
         let imported;
@@ -221,14 +203,14 @@ class TokenSecretsManager {
         if (searchPast) return searchPast;
 
         if (this.instanceType === "CLUSTER") {
-            const redisInstance = globalAccessPoint.getValue("redisInstance");
+            const redisInstance = globalAccessPoint.redisInstance();
             const redisKey = `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${keyPairId}`;
             const key = await redisInstance.getData(redisKey);
-            if (!key?.data || isUnixExpired(key.publicKeyExp)) {
+            if (!key?.data || isUnixExpired(key.data.publicKeyExp)) {
                 redisInstance.deleteData(redisKey);
                 return null;
             }
-            const imported = await this._importPublicKey(key);
+            const imported = await this._importPublicKey(key.data);
             this.verificationPairs.push(imported);
             return imported;
         }
@@ -236,7 +218,6 @@ class TokenSecretsManager {
         return null;
     }
 
-    // FIX: Returns a descriptive error instead of silent null when no signing keys are available.
     async getRandomSigningKeyPair() {
         if (!this.initialized) {
             logger.warn(`Token Secrets Manager: Initialize manager before use for domain ${this.domain}`);
@@ -259,9 +240,6 @@ class TokenSecretsManager {
             const active = this.signingPairs.filter(k => !isUnixExpired(k.privateKeyExp));
             const expired = this.signingPairs.filter(k => isUnixExpired(k.privateKeyExp));
 
-            // FIX: Merge expired (now demoted) into verificationPairs and enforce the
-            // MAX_VERIFICATION_PAIRS cap immediately during rotation, not only at the
-            // next prune interval. Sort by publicKeyExp descending to keep the freshest.
             const mergedVerification = [
                 ...this.verificationPairs.filter(k => !isUnixExpired(k.publicKeyExp)),
                 ...expired.map(this._stripRuntimeKeys)
@@ -272,9 +250,6 @@ class TokenSecretsManager {
             this.verificationPairs = mergedVerification;
             this.signingPairs = active;
 
-            // FIX: Only generate enough new keys to bring the pool back up to nPairs,
-            // rather than always generating nPairs regardless of how many are still active.
-            // This prevents the signingPairs array from growing unboundedly across rotations.
             const needed = this.nPairs - active.length;
             if (needed > 0) {
                 const config = KEY_TYPES.find(k => k.algorithm === this.algorithm);
@@ -286,7 +261,6 @@ class TokenSecretsManager {
                 this.signingPairs.push(...newKeys);
             }
 
-            // Persist the updated state: verification (public only) + signing (public only)
             const formattedVerification = this.verificationPairs.map(this._stripRuntimeKeys);
             const formattedSigning = this.signingPairs.map(this._stripRuntimeKeys);
             await writeToCaller(this.TOKEN_SECRETS_FILE_NAME, { keys: [...formattedVerification, ...formattedSigning] });
@@ -298,9 +272,6 @@ class TokenSecretsManager {
     async pruneVerificationPairs() {
         if (!this.initialized) return;
 
-        // FIX: pruneVerificationPairs now runs inside _safeRotation so it has
-        // snapshot protection and participates in the same lock as rotation,
-        // preventing torn state from a concurrent rotation + prune.
         await this._safeRotation(async () => {
             this.verificationPairs = this.verificationPairs
                 .filter(k => !isUnixExpired(k.publicKeyExp))
@@ -310,8 +281,6 @@ class TokenSecretsManager {
     }
 
     async _safeRotation(fn) {
-        // Acquire the mutex before taking the snapshot so that concurrent
-        // callers queue up cleanly and the snapshot reflects stable state.
         const waitFor = this._acquireLock();
         await waitFor;
 
@@ -334,11 +303,6 @@ class TokenSecretsManager {
             snapshot.revert();
             logger.error("TokenSecretsManager rotation failed, reverted to snapshot", err);
         } finally {
-            // FIX: Release the lock unconditionally in finally.
-            // The old implementation restored `queue` from the snapshot on revert,
-            // which discarded any resolvers that had queued during the failed rotation,
-            // causing those callers to hang forever. Now the lock is Promise-based and
-            // callers chain on the promise directly — releasing it here unblocks all waiters.
             this._releaseLock();
         }
     }

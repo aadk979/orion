@@ -61,6 +61,20 @@ const DeviceAuthorization = {
         errorCode: 'DEVICE-AUTHORIZATION-MISSING-REQUEST-ID',
         fault: 'CLIENT',
         solutions: ['NONE']
+    },
+    'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET': {
+        status: 400,
+        context: 'The expected device authorization email offset is missing',
+        errorCode: 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET',
+        fault: 'CLIENT',
+        solutions: ['NONE']
+    },
+    'DEVICE-AUTHORIZATION-INVALID-TOTP': {
+        status: 401,
+        context: 'The TOTP code provided for device authorization is invalid',
+        errorCode: 'DEVICE-AUTHORIZATION-INVALID-TOTP',
+        fault: 'CLIENT',
+        solutions: ['Check the code in your authenticator app and try again']
     }
 };
 

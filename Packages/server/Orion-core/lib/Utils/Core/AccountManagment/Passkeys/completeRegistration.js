@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.passkey) {
             return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
@@ -47,6 +47,7 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
 
         user.data.credentials.passkey.exist = true;
         user.data.credentials.passkey.creds = storageObj;
+        user.data.security.twoFA = true;
 
         await globalAccessPoint.db().addData('Users', cookie.uid, user.data);
 

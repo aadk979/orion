@@ -66,20 +66,9 @@ const emailPrefixList = {
     'fastmail.com': 'FM'
 };
 
-const generateUID = email => {
-    const split = email.split('@');
-    const split1 = split[1];
-
-    const mailPrefix = emailPrefixList[split1] || 'UKM';
-    const hash = crypto.createHash('sha256');
-    hash.update(email);
-    const userPrefix = hash.digest('hex');
-
-    const randomId = crypto.randomUUID();
-
-    const uid = `${userPrefix}-${randomId.split('-').join('')}-${mailPrefix}`;
-
-    return uid;
+const generateUID = () => {
+    const randomId = crypto.randomUUID();;
+    return randomId;
 };
 
-export { generateUID, generateChallenge, generateRequestId, generateRandomNumber, generateId, packageExports };
+export { generateUID, generateChallenge, generateRequestId, generateRandomNumber, generateId, emailPrefixList, packageExports };

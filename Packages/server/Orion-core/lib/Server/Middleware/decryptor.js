@@ -49,7 +49,7 @@ const decryptionMiddleware = async (request, response, next) => {
             return respondWithError(parameters.response, 'ENCRYPTION-REQUEST-ID-MISSING');
         }
 
-        const encryptionRequest = await globalAccessPoint.getValue('ephemeralDB').getData(encryptionRequestId.split(':*:')[0]);
+        const encryptionRequest = await globalAccessPoint.ephemeralDB().getData(encryptionRequestId.split(':*:')[0]);
 
         if (encryptionRequest.data === undefined) {
             return respondWithError(parameters.response, 'ENCRYPTION-REQUEST-ID-INVALID');

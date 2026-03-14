@@ -10,6 +10,44 @@ import { fileURLToPath } from 'url';
 import { generateRandomNumber, generateRequestId, generateChallenge, generateId } from '../../../valueGenerator.js';
 import { parseCookieData } from '../../../CookieUtils.js';
 
+const cleanUpDevices = async (uid) => {
+    const Function = async (parameters) => {
+        const data = await globalAccessPoint.db().getData('Users', parameters.uid);
+
+        if (data.error || !data.data || !data.data.security) {
+            return { error: false, completed: true, skipped: true };
+        }
+
+        const user = data.data;
+        const recognizedDevices = user.security.recognizedDevices || [];
+
+        let hasChanges = false;
+        const validDevices = [];
+
+        for (const deviceMeta of recognizedDevices) {
+            if (isUnixExpired(deviceMeta.exp)) {
+                // Delete the actual device document asynchronously
+                globalAccessPoint.db().deleteData('RecognizedDevices', deviceMeta.deviceId).catch(() => { });
+                hasChanges = true;
+            } else {
+                validDevices.push(deviceMeta);
+            }
+        }
+
+        if (hasChanges) {
+            user.security.recognizedDevices = validDevices;
+            await globalAccessPoint.db().addData('Users', parameters.uid, user);
+        }
+
+        return { error: false, completed: true };
+    };
+
+    const parameters = { uid };
+    const functionSource = fileURLToPath(import.meta.url);
+
+    return await tryCatch(Function, false, parameters, 'cleanUpDevices', functionSource);
+};
+
 const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
     if (!code || !deviceId) {
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
@@ -26,17 +64,33 @@ const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
 
     const devices = user.data.security.recognizedDevices || [];
     const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
-    const device = activeDevices.find(item => item.deviceId === cleanDeviceId);
+    const deviceRef = activeDevices.find(item => item.deviceId === cleanDeviceId);
+
+    if (!deviceRef) {
+        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+    }
+
+    const deviceData = await globalAccessPoint.db().getData('RecognizedDevices', deviceRef.deviceId);
+    const device = deviceData.data;
 
     if (!device) {
+        // Ghost object, sync invalidation
+        user.data.security.recognizedDevices = user.data.security.recognizedDevices.filter(d => d.deviceId !== deviceRef.deviceId);
+        await globalAccessPoint.db().addData('Users', uid, user.data);
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
     }
 
     if (!(await verifyHash(cleanCode, device.deviceCodeHash))) {
+        await globalAccessPoint.db().deleteData('RecognizedDevices', device.deviceId);
+        user.data.security.recognizedDevices = user.data.security.recognizedDevices.filter(d => d.deviceId !== device.deviceId);
+        await globalAccessPoint.db().addData('Users', uid, user.data);
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
     }
 
     if (!(await verifyHash(userAgent, device.userAgentHash))) {
+        await globalAccessPoint.db().deleteData('RecognizedDevices', device.deviceId);
+        user.data.security.recognizedDevices = user.data.security.recognizedDevices.filter(d => d.deviceId !== device.deviceId);
+        await globalAccessPoint.db().addData('Users', uid, user.data);
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
     }
 
@@ -61,17 +115,35 @@ const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) 
     const devices = user.data.security.recognizedDevices || [];
     const activeDevices = devices.filter(item => !isUnixExpired(item.exp));
 
-    const device = activeDevices.find(item => item.deviceId === cleanDeviceId);
+    const deviceRef = activeDevices.find(item => item.deviceId === cleanDeviceId);
+
+    const uid = userEmailLink.data.uid;
+
+    if (!deviceRef) {
+        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+    }
+
+    const deviceData = await globalAccessPoint.db().getData('RecognizedDevices', deviceRef.deviceId);
+    const device = deviceData.data;
 
     if (!device) {
+        // Ghost object, sync invalidation
+        user.data.security.recognizedDevices = user.data.security.recognizedDevices.filter(d => d.deviceId !== deviceRef.deviceId);
+        await globalAccessPoint.db().addData('Users', uid, user.data);
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
     }
 
     if (!(await verifyHash(cleanCode, device.deviceCodeHash))) {
+        await globalAccessPoint.db().deleteData('RecognizedDevices', device.deviceId);
+        user.data.security.recognizedDevices = user.data.security.recognizedDevices.filter(d => d.deviceId !== device.deviceId);
+        await globalAccessPoint.db().addData('Users', uid, user.data);
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
     }
 
     if (!(await verifyHash(userAgent, device.userAgentHash))) {
+        await globalAccessPoint.db().deleteData('RecognizedDevices', device.deviceId);
+        user.data.security.recognizedDevices = user.data.security.recognizedDevices.filter(d => d.deviceId !== device.deviceId);
+        await globalAccessPoint.db().addData('Users', uid, user.data);
         return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
     }
 
@@ -173,23 +245,47 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
 
         for (const item of authorizedDevices) {
             if (!isUnixExpired(item.exp)) {
-                if (!(await verifyHash(parameters.userAgent, item.userAgentHash))) {
+                const deviceData = await globalAccessPoint.db().getData('RecognizedDevices', item.deviceId);
+                const device = deviceData.data;
+
+                if (device && device.userAgentHash) {
+                    if (!(await verifyHash(parameters.userAgent || '', device.userAgentHash))) {
+                        cleanedAuthorizedDevices.push(item);
+                    } else {
+                        await globalAccessPoint.db().deleteData('RecognizedDevices', item.deviceId).catch(() => {});
+                    }
+                } else if (!device) {
+                    // Drop ghost reference
+                } else {
                     cleanedAuthorizedDevices.push(item);
                 }
             }
         }
 
         const deviceId = generateId('DEVICE_ID', 32);
-        const code = generateChallenge(64);
+        const code = generateChallenge(32);
+
+        const exp = getFutureUnixTime('7d');
 
         const newDevice = {
-            exp: getFutureUnixTime('7d'),
+            exp: exp,
             deviceCodeHash: await hashString(code),
             userAgentHash: await hashString(parameters.userAgent),
-            deviceId
+            deviceId,
+            uid: UID
         };
 
-        cleanedAuthorizedDevices.push(newDevice);
+        // Clean up expired devices asynchronously
+        cleanUpDevices(UID);
+
+        // Add full device object to RecognizedDevices collection
+        await globalAccessPoint.db().addData('RecognizedDevices', deviceId, newDevice);
+
+        // Keep lightweight reference in User document
+        cleanedAuthorizedDevices.push({
+            deviceId,
+            exp
+        });
 
         user.data.security.recognizedDevices = cleanedAuthorizedDevices;
 
@@ -263,4 +359,4 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
     return results;
 };
 
-export { sendDeviceAuthorizationMail, authorizeDeviceWithCode, isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID };
+export { sendDeviceAuthorizationMail, authorizeDeviceWithCode, isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID, authorizeDeviceDirect };

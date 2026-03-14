@@ -3,18 +3,14 @@ import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 
 const routeHandlerSignOutUser = async (request, response) => {
-    const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+    const auditTrail = globalAccessPoint.auditTrailSystem();
     const requestMetadata = requestContext.getStore();
 
     if (request.user) {
-        
+
         response.cookie('ACCESS_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
         response.cookie('REFRESH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
-        response.cookie('SID', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
-        response.cookie('SID_SIGNATURE', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
         auditTrail.record({
             user: {
@@ -34,7 +30,7 @@ const routeHandlerSignOutUser = async (request, response) => {
             impact: 'User successfully signed out',
             metadata: {
                 method: 'COOKIE_CLEAR',
-                tokensCleared: ['ACCESS_TOKEN', 'REFRESH_TOKEN', 'SID', 'SID_SIGNATURE']
+                tokensCleared: ['ACCESS_TOKEN', 'REFRESH_TOKEN']
             }
         });
 

@@ -9,7 +9,7 @@ import { stringifyCookieData } from '../../../CookieUtils.js';
 
 const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.passkey) {
             return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
@@ -25,8 +25,8 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
             return { error: true, errorCode: 'PASSKEY-AUTH-INVALID-EMAIL' };
         }
 
-        if (globalAccessPoint.getValue('allowedEmailDomains') !== '*') {
-            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue('allowedEmailDomains'), sanitizedEmail);
+        if (globalAccessPoint.allowedEmailDomains() !== '*') {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
                 return respondWithError(parameters.response, 'EMAIL-DOMAIN-NOT-ALLOWED');

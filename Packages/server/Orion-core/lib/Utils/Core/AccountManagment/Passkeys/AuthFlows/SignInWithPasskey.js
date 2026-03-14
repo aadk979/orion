@@ -1,11 +1,9 @@
 import { respondWithError, respondWithSuccess } from '../../../../../Server/Response/response.js';
-import { generateSignature } from '../../../../CryptoFunctions.js';
 import { parseDuration } from '../../../../Date&Time.js';
 import { globalAccessPoint } from '../../../../GlobalAccessPoint.js';
 import { getIp } from '../../../../Ip.js';
 import { tryCatch } from '../../../../TryCatch.js';
 import { fileURLToPath } from 'url';
-import { generateId } from '../../../../valueGenerator.js';
 import { generateAccessToken } from '../../../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../../../TokenManagement/RefreshTokens.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../completeAuthentication.js';
@@ -15,9 +13,9 @@ import { userControl } from '../../UserControl.js';
 
 const signInWithPasskey = async (authenticationResponse, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.passkey) {
             auditTrail.record({
@@ -169,18 +167,9 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             signedIn: true
         };
 
-        const SID = generateId('SID', 64);
-
-        const signatureKeyPair = globalAccessPoint.getValue('signatureSecretsManager').getRandomKeyPair('internal');
-
-        const signature = generateSignature(SID + refreshToken.token, signatureKeyPair.privateKey);
-        const cookieSignature = `${signature}:*:${signatureKeyPair.keyPairId}`;
-
         const tokenCookies = [
             { key: 'ACCESS_TOKEN', data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
-            { key: 'REFRESH_TOKEN', data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: 'SID', data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: 'SID_SIGNATURE', data: cookieSignature, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+            { key: 'REFRESH_TOKEN', data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ];
 
         auditTrail.record({
@@ -203,7 +192,7 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             }
         });
 
-        return { error: false, data: response, completed: true, cookies: [...tokenCookies, ...accessToken.cookies] };
+        return { error: false, data: response, completed: true, cookies: [...tokenCookies, ...(accessToken.cookies || [])] };
     };
 
     const parameters = {

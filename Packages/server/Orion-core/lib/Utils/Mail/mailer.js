@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 const sendMail = async (to, subject, text) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         const transporter = nodemailer.createTransport({
             service: systemConfig.mail.service,

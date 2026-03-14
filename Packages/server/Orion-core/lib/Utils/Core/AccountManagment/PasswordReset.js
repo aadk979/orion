@@ -17,7 +17,7 @@ import { getDeviceDetails } from '../../Device.js';
 const createPasswordResetRequest = async (email, ip, userAgent) => {
     const Function = async parameters => {
         const to = parameters.email.toLowerCase();
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
         const sanitizedEmail = sanitizeString(to);
@@ -26,8 +26,8 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-INVALID-EMAIL' };
         }
 
-        if (globalAccessPoint.getValue('allowedEmailDomains') !== '*') {
-            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue('allowedEmailDomains'), sanitizedEmail);
+        if (globalAccessPoint.allowedEmailDomains() !== '*') {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
                 return { error: true, errorCode: 'EMAIL-DOMAIN-NOT-ALLOWED' };
@@ -104,7 +104,7 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
 
 const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, userAgent) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
         const cleanReqId = parseCookieData(parameters.reqId);

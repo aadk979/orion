@@ -1,6 +1,7 @@
 import { ApiInterface } from '../Utils/Api-2.js';
 import { getAuthHeader } from '../Utils/Authorisation.js';
 import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
+import { startAuthentication } from '../External-Scripts/webAuthn.js';
 
 const renderDeviceAuthorizationUI = async (serverURL, nameSpace, slug) => {
     try {
@@ -8,19 +9,16 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace, slug) => {
         const overlay = document.createElement('div');
         const modal = document.createElement('div');
         const style = document.createElement('style');
-        const title = document.createElement('h2');
-        const description = document.createElement('p');
-        const inputContainer = document.createElement('div');
-        const input = document.createElement('input');
-        const button = document.createElement('button');
-        const buttonText = document.createElement('span');
-        const spinner = document.createElement('div');
-        const errorMsg = document.createElement('div');
-        const orionTag = document.createElement('span');
 
         // --- Configuration ---
         const Api = new ApiInterface(serverURL, nameSpace, slug);
-        const DEVICE_AUTHORIZATION_ENDPOINT = `/${nameSpace}/api/v1/action/authorize-me`;
+        const ENDPOINTS = {
+            METHODS: `/${nameSpace}/api/v1/request/available-2fa-methods`,
+            SEND_EMAIL: `/${nameSpace}/api/v1/action/send-device-authorization-email`,
+            AUTH_EMAIL: `/${nameSpace}/api/v1/action/authorize-me`,
+            AUTH_PASSKEY: `/${nameSpace}/api/v1/action/authorize-device-with-passkey`,
+            AUTH_TOTP: `/${nameSpace}/api/v1/action/authorize-device-with-totp`
+        };
 
         // Overlay
         overlay.style.position = 'fixed';
@@ -32,7 +30,7 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace, slug) => {
         overlay.style.backdropFilter = 'blur(6px)';
         overlay.style.zIndex = '9998';
 
-        // Modal
+        // Modal base
         modal.style.position = 'fixed';
         modal.style.top = '50%';
         modal.style.left = '50%';
@@ -73,210 +71,87 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace, slug) => {
         60% { transform: scale(1.1); opacity: 1; }
         100% { transform: scale(1); }
       }
+      .orion-btn {
+        width: 100%; min-height: 2.5rem; padding: 0.85rem;
+        background-color: #2563eb; color: #ffffff;
+        border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+        cursor: pointer; transition: background-color 0.2s, opacity 0.2s;
+        display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      }
+      .orion-btn:hover:not(:disabled) { background-color: #1d4ed8; }
+      .orion-btn-secondary {
+        background-color: #f3f4f6; color: #374151;
+      }
+      .orion-btn-secondary:hover:not(:disabled) { background-color: #e5e7eb; }
+      .orion-input {
+        width: 100%; padding: 0.75rem 1rem; border: 1px solid #e5e7eb;
+        border-radius: 8px; font-size: 0.95rem; transition: border-color 0.2s, box-shadow 0.2s;
+        color: black; box-sizing: border-box;
+      }
+      .orion-input:focus {
+        border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25); outline: none;
+      }
+      .spinner {
+        width: 0.95rem; height: 0.95rem; border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%; border-top-color: inherit; animation: spin 1s linear infinite;
+      }
     `;
         document.head.appendChild(style);
-
-        // Title
-        title.textContent = 'Device Authorization';
-        title.style.margin = '0';
-        title.style.color = '#1a202c';
-        title.style.fontSize = '1.25rem';
-        title.style.fontWeight = '600';
-        title.style.textAlign = 'center';
-
-        // Description
-        description.textContent = 'Please type in the authorization code sent to your email.';
-        description.style.margin = '0';
-        description.style.color = '#4a5568';
-        description.style.fontSize = '0.95rem';
-        description.style.textAlign = 'center';
-
-        // Input
-        input.type = 'text';
-        input.placeholder = 'Enter Authorization Code';
-        input.setAttribute('autocomplete', 'off');
-        input.setAttribute('spellcheck', 'false');
-        input.style.width = '100%';
-        input.style.padding = '0.75rem 1rem';
-        input.style.border = '1px solid #e5e7eb';
-        input.style.borderRadius = '8px';
-        input.style.fontSize = '0.95rem';
-        input.style.transition = 'border-color 0.2s, box-shadow 0.2s';
-        input.style.color = 'black';
-
-        input.addEventListener('focus', () => {
-            input.style.borderColor = '#2563eb';
-            input.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.25)';
-            errorMsg.textContent = '';
-        });
-
-        input.addEventListener('blur', () => {
-            input.style.borderColor = '#e5e7eb';
-            input.style.boxShadow = 'none';
-        });
-
-        // Button text span
-        buttonText.textContent = 'Authorize Device';
-        buttonText.style.display = 'inline-block';
-        buttonText.style.backgroundColor = 'transparent';
-        buttonText.style.color = 'inherit';
-        buttonText.style.boxShadow = 'none';
-        buttonText.style.padding = '0px';
-
-        // Verify button
-        button.style.width = '100%';
-        button.style.minHeight = '2.5rem';
-        button.style.padding = '0.85rem';
-        button.style.backgroundColor = '#2563eb';
-        button.style.color = '#ffffff';
-        button.style.border = 'none';
-        button.style.borderRadius = '8px';
-        button.style.fontSize = '0.95rem';
-        button.style.fontWeight = '600';
-        button.style.cursor = 'pointer';
-        button.style.transition = 'background-color 0.2s, opacity 0.2s';
-        button.style.position = 'relative';
-        button.style.display = 'flex';
-        button.style.flexDirection = 'row';
-        button.style.alignItems = 'center';
-        button.style.justifyContent = 'center';
-        button.style.gap = '0.5rem';
-
-        button.onmouseenter = () => {
-            if (!button.disabled) button.style.backgroundColor = '#1d4ed8';
-        };
-
-        button.onmouseleave = () => {
-            if (!button.disabled) button.style.backgroundColor = '#2563eb';
-        };
-
-        // Spinner
-        spinner.style.display = 'none';
-        spinner.style.width = '0.95rem';
-        spinner.style.height = '0.95rem';
-        spinner.style.border = '3px solid rgba(255,255,255,0.3)';
-        spinner.style.borderRadius = '50%';
-        spinner.style.borderTopColor = '#fff';
-        spinner.style.animation = 'spin 1s linear infinite';
-
-        // Error text
-        errorMsg.style.color = '#dc2626';
-        errorMsg.style.fontSize = '0.85rem';
-        errorMsg.style.minHeight = '1rem';
-        errorMsg.style.textAlign = 'center';
-
-        // Orion branding
-        orionTag.textContent = 'Secured by Orion';
-        orionTag.style.fontSize = '0.75rem';
-        orionTag.style.color = '#a0aec0';
-        orionTag.style.textAlign = 'center';
-        orionTag.style.marginTop = '0.5rem';
-
-        // Structure
-        inputContainer.appendChild(input);
-        button.appendChild(buttonText);
-        button.appendChild(spinner);
-        modal.appendChild(title);
-        modal.appendChild(description);
-        modal.appendChild(inputContainer);
-        modal.appendChild(button);
-        modal.appendChild(errorMsg);
-        modal.appendChild(orionTag);
-
         document.body.appendChild(overlay);
         document.body.appendChild(modal);
 
-        setTimeout(() => input.focus(), 100);
+        // API Helpers
+        const apiCall = async (endpoint, payload = null, encryptKeys = []) => {
+            const dipConfig = globalAccessPoint.getValue('dipConfig');
+            const authHeader = await getAuthHeader(false, 'NO_AUTH_BEARER');
 
-        // Helper functions
-        const startLoading = () => {
-            input.disabled = true;
-            button.disabled = true;
-            button.style.opacity = '0.7';
-            buttonText.style.display = 'none';
-            spinner.style.display = 'block';
+            let reqPayload = payload ? { packet: payload } : null;
+            let encryptionMeta = null;
+
+            if (payload && encryptKeys.length > 0) {
+                const encryptedData = await Api.prepareDataForEncryption(payload);
+                reqPayload = { packet: { encryptedString: encryptedData.encryptedString } };
+                encryptionMeta = encryptedData.encryption;
+            }
+
+            let dipOptions = null;
+            if (reqPayload) {
+                const signature = await Api.prepareDataForDIP(reqPayload, dipConfig);
+                dipOptions = {
+                    ...dipConfig, dipState: 'ACTIVE',
+                    dipSignature: signature.dipSignature, salt: signature.salt, timestamp: signature.timestamp
+                };
+            }
+
+            const req = await Api.fetch(endpoint, 'POST', authHeader.authHead, reqPayload, dipOptions, encryptionMeta);
+            return await req.json();
         };
 
-        const stopLoading = () => {
-            input.disabled = false;
-            button.disabled = false;
-            button.style.opacity = '1';
-            buttonText.style.display = 'inline-block';
-            spinner.style.display = 'none';
+        // --- View Renderers ---
+        const renderLoading = (text) => {
+            modal.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; gap:1rem; padding: 2rem 0;">
+                    <div class="spinner" style="border-top-color: #2563eb; border-color: rgba(37, 99, 235, 0.2); width: 2rem; height: 2rem; border-width: 4px;"></div>
+                    <p style="color: #4b5563; font-size: 0.95rem; margin:0;">${text}</p>
+                </div>
+            `;
         };
 
-        const showError = message => {
-            errorMsg.textContent = message || 'Invalid code. Please try again.';
-            modal.classList.remove('shake');
-            void modal.offsetWidth;
-            modal.classList.add('shake');
-            input.value = '';
-            input.focus();
-        };
-
-        const showSuccess = () => {
-            modal.innerHTML = '';
-
-            const checkContainer = document.createElement('div');
-            const checkCircle = document.createElement('div');
-            const checkmark = document.createElement('div');
-            const successText = document.createElement('h3');
-            const countdownText = document.createElement('p');
-            const reloadButton = document.createElement('button');
-
-            checkContainer.style.display = 'flex';
-            checkContainer.style.flexDirection = 'column';
-            checkContainer.style.alignItems = 'center';
-            checkContainer.style.justifyContent = 'center';
-            checkContainer.style.gap = '1rem';
-
-            checkCircle.style.width = '80px';
-            checkCircle.style.height = '80px';
-            checkCircle.style.borderRadius = '50%';
-            checkCircle.style.backgroundColor = '#22c55e';
-            checkCircle.style.display = 'flex';
-            checkCircle.style.alignItems = 'center';
-            checkCircle.style.justifyContent = 'center';
-            checkCircle.style.animation = 'pop 0.4s ease-out';
-
-            checkmark.style.width = '35px';
-            checkmark.style.height = '18px';
-            checkmark.style.borderLeft = '4px solid #fff';
-            checkmark.style.borderBottom = '4px solid #fff';
-            checkmark.style.transform = 'rotate(-45deg)';
-
-            successText.textContent = 'Device Authorized';
-            successText.style.color = '#16a34a';
-            successText.style.fontSize = '1.25rem';
-            successText.style.fontWeight = '600';
-            successText.style.textAlign = 'center';
-
-            countdownText.textContent = 'Reloading in 5 seconds...';
-            countdownText.style.color = '#4b5563';
-            countdownText.style.fontSize = '0.95rem';
-            countdownText.style.textAlign = 'center';
-
-            reloadButton.textContent = 'Reload Now';
-            reloadButton.style.backgroundColor = '#2563eb';
-            reloadButton.style.color = '#fff';
-            reloadButton.style.border = 'none';
-            reloadButton.style.padding = '0.7rem 1.2rem';
-            reloadButton.style.borderRadius = '8px';
-            reloadButton.style.cursor = 'pointer';
-            reloadButton.onclick = () => location.reload();
-
-            checkCircle.appendChild(checkmark);
-            checkContainer.appendChild(checkCircle);
-            checkContainer.appendChild(successText);
-            checkContainer.appendChild(countdownText);
-            checkContainer.appendChild(reloadButton);
-
-            modal.appendChild(checkContainer);
-
+        const renderSuccess = () => {
+            modal.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background-color: #22c55e; display: flex; align-items: center; justify-content: center; animation: pop 0.4s ease-out;">
+                        <div style="width: 35px; height: 18px; border-left: 4px solid #fff; border-bottom: 4px solid #fff; transform: rotate(-45deg);"></div>
+                    </div>
+                    <h3 style="color: #16a34a; font-size: 1.25rem; font-weight: 600; margin: 0; text-align: center;">Device Authorized</h3>
+                    <p id="countdown-text" style="color: #4b5563; font-size: 0.95rem; margin: 0; text-align: center;">Reloading in 5 seconds...</p>
+                    <button class="orion-btn" onclick="location.reload()">Reload Now</button>
+                </div>
+            `;
             let seconds = 5;
+            const textElement = document.getElementById('countdown-text');
             const countdown = setInterval(() => {
                 seconds--;
-                countdownText.textContent = `Reloading in ${seconds} seconds...`;
                 if (seconds <= 0) {
                     clearInterval(countdown);
                     location.reload();
@@ -284,67 +159,142 @@ const renderDeviceAuthorizationUI = async (serverURL, nameSpace, slug) => {
             }, 1000);
         };
 
-        // --- Main authorization handler ---
-        const handleAuthorization = async () => {
-            startLoading();
-            const code = input.value.trim();
+        const renderError = (msg, retryCallback) => {
+            modal.classList.remove('shake');
+            void modal.offsetWidth;
+            modal.classList.add('shake');
 
-            if (code === '') {
-                showError('No authorization code provided!');
-                stopLoading();
-                return;
+            const errDiv = document.getElementById('error-msg');
+            if (errDiv) {
+                errDiv.textContent = msg;
+            } else {
+                modal.innerHTML = `
+                    <h2 style="margin: 0; color: #1a202c; font-size: 1.25rem; font-weight: 600; text-align: center;">Error</h2>
+                    <p style="margin: 0; color: #dc2626; font-size: 0.95rem; text-align: center;">${msg}</p>
+                    <button class="orion-btn" id="retry-btn">Try Again</button>
+                    <span style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 0.5rem;">Secured by Orion</span>
+                `;
+                document.getElementById('retry-btn').onclick = retryCallback;
             }
-
-            const dipConfig = globalAccessPoint.getValue('dipConfig');
-            const encryptedPayload = await Api.prepareDataForEncryption({
-                authorizationCode: code
-            });
-            const authHeader = await getAuthHeader(false, 'NO_AUTH_BEARER');
-
-            const postEncryptionPayload = {
-                packet: { encryptedString: encryptedPayload.encryptedString }
-            };
-
-            const dipSignature = await Api.prepareDataForDIP(postEncryptionPayload, dipConfig);
-
-            const dipOptions = {
-                ...dipConfig,
-                dipState: 'ACTIVE',
-                dipSignature: dipSignature.dipSignature,
-                salt: dipSignature.salt,
-                timestamp: dipSignature.timestamp
-            };
-
-            const request = await Api.fetch(
-                DEVICE_AUTHORIZATION_ENDPOINT,
-                'POST',
-                authHeader.authHead,
-                postEncryptionPayload,
-                dipOptions,
-                encryptedPayload.encryption
-            );
-
-            const data = await request.json();
-            stopLoading();
-
-            if (data.error) {
-                showError(data.errorData?.context[0] || 'Unable to authorize device, try again!');
-                return;
-            }
-
-            if (data.data.success) showSuccess();
         };
 
-        // Click event
-        button.addEventListener('click', handleAuthorization);
+        const renderCodeInput = (title, description, submitHandler, backHandler) => {
+            modal.innerHTML = `
+                    <h2 style="margin: 0; color: #1a202c; font-size: 1.25rem; font-weight: 600; text-align: center;">${title}</h2>
+                <p style="margin: 0; color: #4a5568; font-size: 0.95rem; text-align: center;">${description}</p>
+                <div><input type="text" id="auth-code-input" class="orion-input" placeholder="Enter Code" autocomplete="off" spellcheck="false" /></div>
+                <button class="orion-btn" id="submit-code-btn"><span>Verify</span><div class="spinner" style="display:none;"></div></button>
+                <button class="orion-btn orion-btn-secondary" id="back-btn">Back to Methods</button>
+                <div id="error-msg" style="color: #dc2626; font-size: 0.85rem; min-height: 1rem; text-align: center;"></div>
+                <span style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 0.5rem;">Secured by Orion</span>
+                `;
+            const input = document.getElementById('auth-code-input');
+            const btn = document.getElementById('submit-code-btn');
+            const backBtn = document.getElementById('back-btn');
 
-        // ✅ Enter key event listener
-        input.addEventListener('keypress', event => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                button.click();
+            setTimeout(() => input.focus(), 100);
+
+            const onSubmit = async () => {
+                const code = input.value.trim();
+                if (!code) return renderError('Please enter a code.');
+                input.disabled = true;
+                btn.disabled = true;
+                backBtn.disabled = true;
+                btn.querySelector('span').style.display = 'none';
+                btn.querySelector('.spinner').style.display = 'block';
+
+                await submitHandler(code);
+
+                if (document.body.contains(btn)) {
+                    input.disabled = false;
+                    btn.disabled = false;
+                    backBtn.disabled = false;
+                    btn.querySelector('span').style.display = 'block';
+                    btn.querySelector('.spinner').style.display = 'none';
+                    input.value = '';
+                    input.focus();
+                }
+            };
+
+            btn.onclick = onSubmit;
+            backBtn.onclick = backHandler;
+            input.onkeypress = (e) => { if (e.key === 'Enter') onSubmit(); };
+        };
+
+        const renderMethodSelection = (methods) => {
+            let buttonsHtml = '';
+
+            if (methods.passkey) {
+                buttonsHtml += `<button class="orion-btn" id="btn-passkey" style="background-color: #10b981;">Use Passkey</button>`;
             }
-        });
+            if (methods.totp) {
+                buttonsHtml += `<button class="orion-btn" id="btn-totp" style="background-color: #8b5cf6;">Authenticator App (TOTP)</button>`;
+            }
+            if (methods['email-code']) {
+                buttonsHtml += `<button class="orion-btn" id="btn-email">Email Code</button>`;
+            }
+
+            modal.innerHTML = `
+                    <h2 style="margin: 0; color: #1a202c; font-size: 1.25rem; font-weight: 600; text-align: center;">Verify it's you</h2>
+                    <p style="margin: 0; color: #4a5568; font-size: 0.95rem; text-align: center;">Select a 2FA method to authorize this device.</p>
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    ${buttonsHtml}
+                </div>
+                <div id="error-msg" style="color: #dc2626; font-size: 0.85rem; min-height: 1rem; text-align: center;"></div>
+                <span style="font-size: 0.75rem; color: #a0aec0; text-align: center; margin-top: 0.5rem;">Secured by Orion</span>
+                `;
+
+            if (methods.passkey) {
+                document.getElementById('btn-passkey').onclick = async () => {
+                    renderLoading('Waiting for Passkey...');
+                    try {
+                        const passkeyResponse = await startAuthentication({});
+                        const verifyData = await apiCall(ENDPOINTS.AUTH_PASSKEY, { authenticationResponse: passkeyResponse }, ['authenticationResponse']);
+                        if (verifyData.error) throw new Error(verifyData.errorData?.context[0] || 'Passkey verification failed');
+                        renderSuccess();
+                    } catch (e) {
+                        renderError(e.message, () => renderMethodSelection(methods));
+                    }
+                };
+            }
+
+            if (methods.totp) {
+                document.getElementById('btn-totp').onclick = () => {
+                    renderCodeInput('Authenticator App', 'Enter the 6-digit code from your authenticator app.', async (code) => {
+                        const res = await apiCall(ENDPOINTS.AUTH_TOTP, { totpCode: code }, ['totpCode']);
+                        if (res.error) renderError(res.errorData?.context[0] || 'Invalid TOTP code.');
+                        else renderSuccess();
+                    }, () => renderMethodSelection(methods));
+                };
+            }
+
+            if (methods['email-code']) {
+                document.getElementById('btn-email').onclick = async () => {
+                    renderLoading('Sending email...');
+                    const res = await apiCall(ENDPOINTS.SEND_EMAIL);
+                    if (res.error) {
+                        renderError(res.errorData?.context[0] || 'Failed to send email.', () => renderMethodSelection(methods));
+                        return;
+                    }
+                    renderCodeInput('Email Code', 'Enter the authorization code sent to your email.', async (code) => {
+                        const verifyRes = await apiCall(ENDPOINTS.AUTH_EMAIL, { authorizationCode: code }, ['authorizationCode']);
+                        if (verifyRes.error) renderError(verifyRes.errorData?.context[0] || 'Invalid email code.');
+                        else renderSuccess();
+                    }, () => renderMethodSelection(methods));
+                };
+            }
+        };
+
+        // --- Initialization ---
+        renderLoading('Loading security methods...');
+        const methodsRes = await apiCall(ENDPOINTS.METHODS);
+
+        if (methodsRes.error) {
+            renderError('Unable to load 2FA methods.', () => renderDeviceAuthorizationUI(serverURL, nameSpace, slug));
+        } else {
+            renderMethodSelection(methodsRes.data.methods);
+        }
+
     } catch (e) {
         throw new Error(e);
     }

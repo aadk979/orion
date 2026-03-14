@@ -70,7 +70,7 @@ const resourceAccessMiddleware = async (request, response, next) => {
                     .json({ status: 'error', code: 'RESOURCE-TOKEN-NOT-AUTHORIZED', message: 'Access denied. You are not authorized to view this resource.' });
             }
 
-            const callbacks = globalAccessPoint.getValue('resourceAccessSystem_Config');
+            const callbacks = globalAccessPoint.resourceAccessSystem_Config();
 
             const callbackConfig = callbacks.find(val => val.callbackPath === filePath);
 

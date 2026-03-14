@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.passkey) {
             return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };

@@ -1,7 +1,6 @@
 import {
     isDeviceRecognizedForUserEmail,
-    isDeviceRecognizedForUserUID,
-    sendDeviceAuthorizationMail
+    isDeviceRecognizedForUserUID
 } from '../../Utils/Core/AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
 import { userControl } from '../../Utils/Core/AccountManagment/UserControl.js';
 import { parseDuration } from '../../Utils/Date&Time.js';
@@ -26,10 +25,6 @@ const handleCookieClearence = response => {
 
     response.cookie('REFRESH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
-    response.cookie('SID', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
-    response.cookie('SID_SIGNATURE', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
     response.cookie('authorizedDeviceId', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
     response.cookie('authorizedDeviceCode', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
@@ -39,7 +34,7 @@ const handleCookieClearence = response => {
 
 const deviceCheckMiddlware = async (request, response, next) => {
     const Function = async parameters => {
-        const deviceAuthorizationEnabled = globalAccessPoint.getValue('deviceAuthorization');
+        const deviceAuthorizationEnabled = globalAccessPoint.deviceAuthorization();
 
         if (!deviceAuthorizationEnabled) {
             return parameters.next();
@@ -88,8 +83,8 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
             const email = parameters.request.body.packet.email;
 
-            if (globalAccessPoint.getValue('allowedEmailDomains') !== '*') {
-                const emailValidation = isValidEmailDomain(globalAccessPoint.getValue('allowedEmailDomains'), email);
+            if (globalAccessPoint.allowedEmailDomains() !== '*') {
+                const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), email);
 
                 if (!emailValidation) {
                     return respondWithError(parameters.response, 'EMAIL-DOMAIN-NOT-ALLOWED');
@@ -103,16 +98,12 @@ const deviceCheckMiddlware = async (request, response, next) => {
             }
 
             if (!deviceId || !deviceCode) {
-                const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(email, fingerprint, ip, userAgent);
 
-                if (deviceAuthorizationRequest.error) {
-                    return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
-                }
-
-                parameters.response.cookie('deviceAuthorizationRequestId', deviceAuthorizationRequest.reqId, {
+                parameters.response.cookie('deviceAuthEmailOffset', email, {
                     httpOnly: true,
                     secure: true,
                     sameSite: 'None',
+                    path: '/',
                     maxAge: parseDuration('15m')
                 });
 
@@ -126,20 +117,16 @@ const deviceCheckMiddlware = async (request, response, next) => {
             const check = await isDeviceRecognizedForUserEmail(email, userAgent, deviceId, deviceCode);
 
             if (check.error) {
-                parameters.response.cookie('authorizedDeviceId', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
-                parameters.response.cookie('authorizedDeviceCode', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+                parameters.response.cookie('authorizedDeviceId', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
 
-                const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(email, fingerprint, ip, userAgent);
+                parameters.response.cookie('authorizedDeviceCode', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
 
-                if (deviceAuthorizationRequest.error) {
-                    return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
-                }
-
-                parameters.response.cookie('deviceAuthorizationRequestId', deviceAuthorizationRequest.reqId, {
+                parameters.response.cookie('deviceAuthEmailOffset', email, {
                     httpOnly: true,
                     secure: true,
                     sameSite: 'None',
+                    path: '/',
                     maxAge: parseDuration('15m')
                 });
 

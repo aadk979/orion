@@ -9,6 +9,9 @@ import { signInWithPasskey } from './API-Handlers/Auth/Passkey/SignInWithPasskey
 import { signOutUser } from './API-Handlers/Auth/SignOutUser.js';
 import { generateOAuthRedirectURL } from './API-Handlers/Auth/OAuth/GenerateOAuthRedirectURL.js';
 import { handleOAuthCallback } from './API-Handlers/Auth/OAuth/HandleOAuthCallback.js';
+import { setupTOTP, verifyAndEnableTOTP } from './API-Handlers/Auth/SetupTOTP.js';
+import { initiate2FAMethodRemoval, complete2FAMethodRemoval } from './API-Handlers/Auth/Remove2FAMethod.js';
+import { getUserProfile } from './API-Handlers/Auth/GetUserProfile.js';
 import { globalAccessPoint } from './Utils/GlobalAccessPoint.js';
 import { DIPCacheManager } from './DipCacheManager.js';
 
@@ -208,6 +211,69 @@ class Orion {
         }
 
         return { error: false, signedIn: result.signedIn };
+    }
+
+    async setupTOTP() {
+        await this.initialize();
+        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await setupTOTP({
+            Api: this.Api,
+            getAuthHeader,
+            dipConfig: this.dipConfig,
+            This: this
+        });
+    }
+
+    async verifyAndEnableTOTP(totpCode) {
+        await this.initialize();
+        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await verifyAndEnableTOTP({
+            Api: this.Api,
+            getAuthHeader,
+            dipConfig: this.dipConfig,
+            This: this,
+            totpCode
+        });
+    }
+
+    async initiate2FAMethodRemoval(method) {
+        await this.initialize();
+        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await initiate2FAMethodRemoval({
+            Api: this.Api,
+            getAuthHeader,
+            dipConfig: this.dipConfig,
+            This: this,
+            method
+        });
+    }
+
+    async complete2FAMethodRemoval(code) {
+        await this.initialize();
+        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await complete2FAMethodRemoval({
+            Api: this.Api,
+            getAuthHeader,
+            dipConfig: this.dipConfig,
+            This: this,
+            code
+        });
+    }
+
+    async getUserProfile() {
+        await this.initialize();
+        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await getUserProfile({
+            Api: this.Api,
+            getAuthHeader,
+            dipConfig: this.dipConfig,
+            This: this
+        });
     }
 }
 

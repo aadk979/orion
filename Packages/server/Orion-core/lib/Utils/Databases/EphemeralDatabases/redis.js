@@ -1,9 +1,5 @@
-import Redis from 'ioredis';
+import { createClient } from 'redis';
 import { logger } from '../../logger.js';
-
-function buildRedisURI({ host, port, password }) {
-    return `redis://:${encodeURIComponent(password)}@${host}:${port}`;
-}
 
 class RedisService {
     constructor() {
@@ -12,29 +8,26 @@ class RedisService {
         this.collectionName = 'orion-configs';
     }
 
-    initialize(cred) {
+    async initialize(cred) {
         try {
             if (!cred || typeof cred !== 'object' || !cred.password) {
                 throw new Error('Missing or invalid Redis credentials object');
             }
 
-            const uri = buildRedisURI({
-                host: cred?.host || 'localhost',
-                port: cred?.PORT || 6379,
-                password: cred?.password
+            this.client = createClient({
+                username: cred.username || 'default',
+                password: cred.password,
+                socket: {
+                    host: cred.host || 'localhost',
+                    port: cred.PORT || 6379
+                },
+                pingInterval: 60000 // Send a PING every 60 seconds to prevent idle timeouts
             });
 
-            this.client = new Redis(uri, {
-                lazyConnect: false,
-                maxRetriesPerRequest: 3,
-                reconnectOnError: err => {
-                    logger.error('Redis reconnect triggered:', err.message);
-                    return true;
-                }
-            });
-
+            this.client.on('error', err => logger.error('Redis Client Error:', err));
             this.client.on('connect', () => logger.info('✅ Redis connected successfully'));
-            this.client.on('error', err => logger.error('Redis Error:', err));
+
+            await this.client.connect();
 
             this.initialized = true;
             return true;
@@ -69,7 +62,7 @@ class RedisService {
                     return { error: false, expired: true, completed: true };
                 }
 
-                await this.client.setex(key, expiresIn, value);
+                await this.client.set(key, value, { EX: expiresIn });
             } else {
                 await this.client.set(key, value);
             }
@@ -156,7 +149,7 @@ class RedisService {
     }
 
     async close() {
-        if (this.client) await this.client.quit();
+        if (this.client) await this.client.disconnect();
         this.initialized = false;
         logger.info('Redis connection closed');
         return { error: false, completed: true };

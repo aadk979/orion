@@ -27,6 +27,29 @@ async function importPublicKeyECC(rawKey, size = 'P-256') {
     return crypto.webcrypto.subtle.importKey('raw', rawKey, { name: 'ECDH', namedCurve: size }, true, []);
 }
 
+/**
+ * Exports an ECC private CryptoKey to a pkcs8 Uint8Array so it can be
+ * safely serialized (e.g. base64-encoded) before storing in Redis.
+ */
+async function exportPrivateKeyECC(key) {
+    const pkcs8 = await crypto.webcrypto.subtle.exportKey('pkcs8', key);
+    return new Uint8Array(pkcs8);
+}
+
+/**
+ * Re-imports an ECC private key from a pkcs8 Uint8Array (as produced by
+ * exportPrivateKeyECC) back into a usable CryptoKey for the given curve.
+ */
+async function importPrivateKeyECC(pkcs8Bytes, size = 'P-256') {
+    return crypto.webcrypto.subtle.importKey(
+        'pkcs8',
+        pkcs8Bytes,
+        { name: 'ECDH', namedCurve: size },
+        true,
+        ['deriveKey', 'deriveBits']
+    );
+}
+
 async function deriveSharedSecret(privateKey, peerPublicKey) {
     const sharedSecret = await crypto.webcrypto.subtle.deriveBits(
         {
@@ -103,4 +126,4 @@ async function decryptPrivate(encryptedData, privateKey) {
     }
 }
 
-export { generateKeyPairDedicated, encryptPublic, decryptPrivate, generateKeyPairECC, exportPublicKeyECC, importPublicKeyECC, deriveKey, deriveSharedSecret };
+export { generateKeyPairDedicated, encryptPublic, decryptPrivate, generateKeyPairECC, exportPublicKeyECC, importPublicKeyECC, exportPrivateKeyECC, importPrivateKeyECC, deriveKey, deriveSharedSecret };

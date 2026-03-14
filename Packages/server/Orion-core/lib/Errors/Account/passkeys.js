@@ -89,6 +89,13 @@ const Passkeys = {
         errorCode: 'PASSKEY-AUTH-NO-ACTIVE-PASSKEY',
         fault: 'CLIENT',
         solutions: ['Register a passkey first or use another authentication method']
+    },
+    'PASSKEY-SIGN-IN-ACC-DISABLED': {
+        status: 403,
+        context: 'This account has been disabled',
+        errorCode: 'PASSKEY-SIGN-IN-ACC-DISABLED',
+        fault: 'CLIENT',
+        solutions: ['Contact support to reactivate your account']
     }
 };
 

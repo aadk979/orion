@@ -7,18 +7,18 @@ import { respondWithError } from '../Response/response.js';
 
 const serverUtilitiesMiddleware = async (request, response, next) => {
     const systemConfig = globalAccessPoint.systemConfig();
-    const server = globalAccessPoint.getValue('server');
+    const server = globalAccessPoint.server();
 
     const path = request.path;
 
     if (path.startsWith('/server-utilities')) {
         if (path.startsWith('/server-utilities/health')) {
 
-            const memData = globalAccessPoint.getValue('memoryMonitioringSystem').getMemoryStats();
+            const memData = globalAccessPoint.memoryMonitioringSystem().getMemoryStats();
 
-            const etsLockdown = globalAccessPoint.getValue('ETS_LOCKDOWN');
+            const etsLockdown = globalAccessPoint.ETS_LOCKDOWN();
 
-            const timeOfLife = globalAccessPoint.getValue('timeOfLife');
+            const timeOfLife = globalAccessPoint.timeOfLife();
 
             const uptime = formatTime((getCurrentUnixTime() - timeOfLife) * 1000);
 
@@ -41,7 +41,7 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
             return;
         }
 
-        // Cookie reset endpoint is at the top of the middlware chain to prevent edge cases where the endpoint is unreachable due to middlware conflict
+        // Cookie reset endpoint is at the top of the middleware chain to prevent edge cases where the endpoint is unreachable due to middleware conflict
         if (path.startsWith('/server-utilities/reset-client-cookies')) {
             return routeHandlerResetCookies(request, response);
         }

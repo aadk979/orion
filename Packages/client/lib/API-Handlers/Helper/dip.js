@@ -16,8 +16,12 @@ async function getDIP({ Api, getAuthHeader, nameSpace }) {
     const res = await Api.fetch(`/${nameSpace}/api/v1/action/configure-dip`, 'POST', authHead, packet, null, null);
     const data = await res.json();
 
-    if (data.error && data.errorData.errorCode !== 'DIP-DISABLED') {
-        throw new Error('Unable to configure DIP!');
+    if (data.error) {
+        if (data.errorData.errorCode !== 'DIP-DISABLED') {
+            throw new Error('Unable to configure DIP!');
+        }
+
+        return data;
     }
 
     let decryptedData;

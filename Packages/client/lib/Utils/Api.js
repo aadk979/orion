@@ -38,11 +38,11 @@ class ApiInterface {
                 'Content-Type': 'application/json',
                 'orion-fingerprint': await getDeviceFingerprint(),
                 'orion-user-agent': navigator.userAgent,
-                'orion-dip-state': dip ? dip?.dipState : 'NO DATA',
-                'orion-dip-id': dip ? dip?.dipId : 'DEFAULT NONE',
-                'orion-dip-signature': dip ? dip?.dipSignature : 'DEFAULT NONE',
-                'orion-dip-salt': dip ? dip?.salt : 'DEFAULT NONE',
-                'orion-dip-timestamp': dip ? dip?.timestamp : 'DEFAULT NONE',
+                'orion-dip-state': dip?.disabled ? 'NONE' : (dip ? dip?.dipState : 'NO DATA'),
+                'orion-dip-id': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.dipId : 'DEFAULT NONE'),
+                'orion-dip-signature': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.dipSignature : 'DEFAULT NONE'),
+                'orion-dip-salt': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.salt : 'DEFAULT NONE'),
+                'orion-dip-timestamp': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.timestamp : 'DEFAULT NONE'),
                 'orion-encryption-status': encryption ? encryption.encryptionStatus : 'NONE',
                 'orion-encryption-request-id': encryption ? encryption.encryptionRequestId : 'NONE',
                 'orion-encryption-alg': encryption ? encryption.encryptionAlg : 'NONE',
@@ -135,7 +135,7 @@ class ApiInterface {
         }
 
         if (algorithm === 'ECC') {
-          
+
             const size = `P-${dataServer.data.size}`;
 
             const info = 'ORION_ECC_ENCRYPTION_TAG';
@@ -187,7 +187,7 @@ class ApiInterface {
 
     async prepareDataForDIP(data, dipConfig) {
         if (dipConfig?.disabled) {
-            return { disabled: true };
+            return { disabled: true, dipSignature: 'DEFAULT NONE', salt: 'DEFAULT NONE', timestamp: 'DEFAULT NONE' };
         }
 
         const stringData = JSON.stringify(data);

@@ -1,5 +1,5 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
-import { verifyHash, generateSignature } from '../../CryptoFunctions.js';
+import { verifyHash } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIp } from '../../Ip.js';
@@ -7,7 +7,6 @@ import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../Validator.js';
-import { generateId } from '../../valueGenerator.js';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
 import { stringifyCookieData } from '../../CookieUtils.js';
@@ -16,9 +15,9 @@ import { userControl } from './UserControl.js';
 
 const signInWithPassword = async (email, password, fingerprint, ip, userAgent) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.emailPassword) {
             auditTrail.record({
@@ -67,8 +66,8 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             return { error: true, errorCode: 'ACC-SIGN-IN-INVALID-EMAIL' };
         }
 
-        if (globalAccessPoint.getValue('allowedEmailDomains') !== '*') {
-            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue('allowedEmailDomains'), sanitizedEmail);
+        if (globalAccessPoint.allowedEmailDomains() !== '*') {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
                 return { error: true, errorCode: "EMAIL-DOMAIN-NOT-ALLOWED" };
@@ -212,18 +211,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             signedIn: true
         };
 
-        const SID = generateId('SID', 64);
-
-        const signatureKeyPair = globalAccessPoint.getValue('signatureSecretsManager').getRandomKeyPair('internal');
-
-        const signature = generateSignature(SID + refreshToken.token, signatureKeyPair.privateKey);
-        const cookieSignature = `${signature}:*:${signatureKeyPair.keyPairId}`;
-
         const tokenCookies = [
             { key: 'ACCESS_TOKEN', data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
-            { key: 'REFRESH_TOKEN', data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: 'SID', data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: 'SID_SIGNATURE', data: cookieSignature, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+            { key: 'REFRESH_TOKEN', data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ];
 
         auditTrail.record({

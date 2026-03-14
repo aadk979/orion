@@ -21,11 +21,11 @@ export class DIPCacheManager {
 
         if (dipConfig.error) {
             this.dipConfig = { disabled: true };
+            return this.dipConfig;
         } else {
             this.dipConfig = dipConfig;
+            return dipConfig;
         }
-
-        return dipConfig;
     }
 
     async cacheDIPConfig(dipConfig) {
@@ -41,7 +41,7 @@ export class DIPCacheManager {
             this.DIP_CACHE_NAMESPACE,
             clientCacheTTLs.dipConfig
         );
-        
+
         return true;
     }
 
@@ -59,7 +59,7 @@ export class DIPCacheManager {
 
         // Additional DIP-specific validations can be added here
         if (payload.disabled === true) {
-            return { valid: false, reason: 'dip_disabled' };
+            return { valid: true, reason: 'disabled' };
         }
 
         return { valid: true, reason: 'valid' };
@@ -68,17 +68,17 @@ export class DIPCacheManager {
     async getDIPConfig(globalAccessPoint) {
         // Try to retrieve from cache first
         const cacheResult = await this.secureCache.retrieveAndDecryptData(this.DIP_CACHE_NAMESPACE);
-        
+
         if (cacheResult.exists && cacheResult.valid) {
             // Perform DIP-specific validation
             const dipValidation = await this.validateDIPCachePayload(cacheResult.payload);
-            
+
             if (dipValidation.valid) {
                 this.dipConfig = cacheResult.payload;
                 globalAccessPoint.setValue('dipConfig', cacheResult.payload);
                 return cacheResult.payload;
             }
-            
+
             // DIP-specific validation failed, delete cache
             await this.secureCache.deleteCachedData(this.DIP_CACHE_NAMESPACE);
         }
@@ -86,10 +86,10 @@ export class DIPCacheManager {
         // Cache doesn't exist or is invalid, fetch from server
         const dipConfig = await this.fetchDIPFromServer();
         globalAccessPoint.setValue('dipConfig', dipConfig);
-        
+
         // Cache the fresh DIP config
         await this.cacheDIPConfig(dipConfig);
-        
+
         return dipConfig;
     }
 

@@ -24,49 +24,9 @@ import { getFutureUnixTime } from '../Utils/Date&Time.js';
 import { populateEphemeralConfigs } from '../Utils/Databases/EphemeralDatabases/configPopulator.js';
 import { generateNumberedStringsFromTemplate, getRandomElement } from '../Utils/ArrayUtilities.js';
 import { TokenSecretsManager } from "../Utils/Systems/TokenSecretsManager.js";
-
-const utilSignatureSecretsExport = async () => {
-    const signatureSecretsManager = globalAccessPoint.getValue('signatureSecretsManager');
-
-    const tokens = await signatureSecretsManager.massGetJWKs();
-
-    const writeOpp = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, tokens);
-
-    cronScheduler.addEvent('SIGNATURE-SECRETS-AUTO-EXPORT', utilSignatureSecretsExport, '1d', {});
-
-    if (writeOpp.error) {
-        logger.error('Scheduled signature secrets write failed!');
-        return;
-    }
-
-    return;
-};
-
-// This function's default fallback is to wipe the file by setting its value to {},
-// so no throw error statement is needed
-const handleSignatureSecretsImport = async () => {
-    const signatureSecretsManager = globalAccessPoint.getValue('signatureSecretsManager');
-
-    const fileData = await readFromCaller(SIGNATURE_SECRETS_FILE_NAME);
-
-    setTimeout(() => {
-        utilSignatureSecretsExport();
-    }, 60_000);
-
-    if (fileData.errorCode === 'FILE-NOT-FOUND') {
-        const result1 = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, {});
-        return;
-    }
-
-    const secretsImport = signatureSecretsManager.massAddJWKs(fileData.data);
-
-    if (secretsImport?.error) {
-        const result2 = await writeToCaller(SIGNATURE_SECRETS_FILE_NAME, {});
-        return;
-    }
-
-    return;
-};
+import { SignatureSecretsManager } from "../Utils/Systems/SignatureSecretsManager.js";
+import { importPrivateKeyECC } from '../Utils/dedicatedCrypto.js';
+import { base64DecodeToUint8 } from '../Utils/Encoders.js';
 
 const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
     let attempts = 0;
@@ -198,7 +158,7 @@ const handleAuditTrailSystemCheck = async () => {
         return;
     }
 
-    const auditSystem = globalAccessPoint.getValue('auditTrailSystem');
+    const auditSystem = globalAccessPoint.auditTrailSystem();
 
     if (!auditSystem) {
         throw new Error('AuditTrailSystem instance not found in globalAccessPoint');
@@ -380,8 +340,72 @@ const handleAllowedClientUrlsConfig = async () => {
     return;
 };
 
+const decodeRedisEncryptionGroup = async groupData => {
+    if (!Array.isArray(groupData)) return groupData;
+
+    return Promise.all(
+        groupData.map(async config => {
+            if (config.alg !== 'ECC' || !config.privateKey) return config;
+
+            // ECC private key was stored as base64(pkcs8) by the orchestrator
+            const curve = `P-${config.size || 256}`;
+            const pkcs8Bytes = base64DecodeToUint8(config.privateKey);
+            const restoredKey = await importPrivateKeyECC(pkcs8Bytes, curve);
+
+            return { ...config, privateKey: restoredKey };
+        })
+    );
+};
+
+const refreshEphemeralRedisConfigs = async () => {
+    try {
+        const redisInstance = globalAccessPoint.redisInstance();
+
+        if (!redisInstance) {
+            logger.error('refreshEphemeralRedisConfigs: No Redis instance found on globalAccessPoint — skipping refresh');
+            return;
+        }
+
+        const configKeys = await redisInstance.keys();
+        const dipConfigKeys = configKeys.data.filter(val => val.startsWith('DIP_GROUP'));
+        const encryptionConfigKeys = configKeys.data.filter(val => val.startsWith('ENCRYPTION_GROUP'));
+
+        const freshDbManager = await EphemeralDatabaseManager.create('LOCAL_DB');
+        const freshDb = freshDbManager.db();
+
+        await Promise.all([
+            ...dipConfigKeys.map(async dipGroup => {
+                const data = await redisInstance.getData(dipGroup);
+                if (!data.error && data.data !== undefined) {
+                    await freshDb.addData(dipGroup, data.data);
+                }
+            }),
+            ...encryptionConfigKeys.map(async encryptionGroup => {
+                const data = await redisInstance.getData(encryptionGroup);
+                if (!data.error && data.data !== undefined) {
+                    const decoded = await decodeRedisEncryptionGroup(data.data);
+                    await freshDb.addData(encryptionGroup, decoded);
+                }
+            })
+        ]);
+
+        const oldDb = globalAccessPoint.ephemeralDB();
+        if (oldDb && typeof oldDb.clear === 'function') {
+            await oldDb.clear();
+        }
+
+        globalAccessPoint.setValue('ephemeralDB', freshDb);
+        globalAccessPoint.setValue('dipConfigsAvailable', dipConfigKeys);
+        globalAccessPoint.setValue('encryptionConfigsAvailable', encryptionConfigKeys);
+
+        logger.info(`✅ Ephemeral Redis config refresh complete — ${dipConfigKeys.length} DIP group(s), ${encryptionConfigKeys.length} encryption group(s)`);
+    } catch (err) {
+        logger.error('refreshEphemeralRedisConfigs: Refresh failed —', err.message);
+    }
+};
+
 const handleEphemeralDatabaseSetup = async () => {
-    const dipActive = globalAccessPoint.getValue('dip');
+    const dipActive = globalAccessPoint.dip();
     const encryptionActive = true;
 
     const configExp = getFutureUnixTime('24h');
@@ -406,7 +430,7 @@ const handleEphemeralDatabaseSetup = async () => {
         numberOfEncryptionConfigs = Math.max(numberOfEncryptionConfigs, n);
     }
 
-    const dbManager = new EphemeralDatabaseManager(ephemeralDB.provider, ephemeralDB.credentials);
+    const dbManager = await EphemeralDatabaseManager.create(ephemeralDB.provider, ephemeralDB.credentials);
     const db = dbManager.db();
 
     if (ephemeralDB.provider === 'LOCAL_DB') {
@@ -415,41 +439,44 @@ const handleEphemeralDatabaseSetup = async () => {
         globalAccessPoint.setValue('dipConfigsAvailable', generateNumberedStringsFromTemplate('DIP_GROUP[<i>]', numberOfDipConfigs / 5));
         globalAccessPoint.setValue('encryptionConfigsAvailable', generateNumberedStringsFromTemplate('ENCRYPTION_GROUP[<i>]', numberOfEncryptionConfigs / 5));
 
-        const population = await populateEphemeralConfigs({ db, values: { dipActive, encryptionActive, numberOfDipConfigs, numberOfEncryptionConfigs, configExp }});
+        const population = await populateEphemeralConfigs({ db, values: { dipActive, encryptionActive, numberOfDipConfigs, numberOfEncryptionConfigs, configExp } });
 
         return population;
     }
 
     if (ephemeralDB.provider === 'REDIS') {
-        // The redis instance is the reagional instance shared by the nodes and is populated and rotated by the orchestrator
-        // For redis option, the system pulls configs from redis and creates a new local in mem db
-        // The system will then periodically run this function every 10 min and overwrite the old configs in mem db if any changes
-        // Direct redis integration wasnt used for speed and batch updates every 10 min
-        // This way both types local and redis use the same system locally
+        // The redis instance is the regional instance shared by the nodes and is populated and rotated by the orchestrator.
+        // For the redis option, the system pulls configs from redis and creates a new local in-memory DB.
+        // The system will then periodically re-pull every 10 min and overwrite the old in-memory configs.
+        // Direct redis integration was not used for speed — batch updates every 10 min keep latency low.
+        // Both LOCAL_DB and REDIS paths ultimately use the same local ephemeral DB interface.
 
-        const dbManagerLocal = new EphemeralDatabaseManager('LOCAL_DB');
+        const dbManagerLocal = await EphemeralDatabaseManager.create('LOCAL_DB');
 
         const configKeys = await db.keys();
         const dipConfigKeys = configKeys.data.filter(val => val.startsWith('DIP_GROUP'));
         const encryptionConfigKeys = configKeys.data.filter(val => val.startsWith('ENCRYPTION_GROUP'));
 
-        for (const dipGroup of dipConfigKeys) {
-            const data = await db.getData(dipGroup);
-
-            dbManagerLocal.db().addData(dipGroup, data.data);
-        }
-
-        for (const encryptionGroup of encryptionConfigKeys) {
-            const data = await db.getData(encryptionGroup);
-
-            dbManagerLocal.db().addData(encryptionGroup, data.data);
-        }
+        await Promise.all([
+            ...dipConfigKeys.map(async dipGroup => {
+                const data = await db.getData(dipGroup);
+                await dbManagerLocal.db().addData(dipGroup, data.data);
+            }),
+            ...encryptionConfigKeys.map(async encryptionGroup => {
+                const data = await db.getData(encryptionGroup);
+                const decoded = await decodeRedisEncryptionGroup(data.data);
+                await dbManagerLocal.db().addData(encryptionGroup, decoded);
+            })
+        ]);
 
         globalAccessPoint.setValue('clusterMode', true);
         globalAccessPoint.setValue('redisInstance', db);
         globalAccessPoint.setValue('ephemeralDB', dbManagerLocal.db());
-        globalAccessPoint.setValue('dipConfigsAvailable', generateNumberedStringsFromTemplate('DIP_GROUP[<i>]', dipConfigKeys.length));
-        globalAccessPoint.setValue('encryptionConfigsAvailable', generateNumberedStringsFromTemplate('ENCRYPTION_GROUP[<i>]', encryptionConfigKeys.length));
+        globalAccessPoint.setValue('dipConfigsAvailable', dipConfigKeys);
+        globalAccessPoint.setValue('encryptionConfigsAvailable', encryptionConfigKeys);
+
+        // Schedule periodic re-sync from Redis every 10 minutes
+        cronScheduler.addEvent('ephemeralDB_redis_refresh', refreshEphemeralRedisConfigs, '10m', {});
 
         return;
     }
@@ -458,16 +485,16 @@ const handleEphemeralDatabaseSetup = async () => {
 };
 
 const handleTokenSecretsSetup = async () => {
-    
+
     const defaultDomains = ["access", "refresh", "resource"];
 
-    const token_security_tier = globalAccessPoint.getValue("systemConfig")?.tokens?.security_tier;
+    const token_security_tier = globalAccessPoint.systemConfig()?.tokens?.security_tier;
 
-    globalAccessPoint.setValue("token_security_tier", `TIER_${token_security_tier || 4}`)
+    globalAccessPoint.setValue("token_security_tier", Number(token_security_tier) || 4)
 
     let arr = [];
 
-    for (let i = 0; i<defaultDomains.length; i++) {
+    for (let i = 0; i < defaultDomains.length; i++) {
         const domain = defaultDomains[i];
 
         const token_secrets_manager = new TokenSecretsManager(domain, "ES256", 2);
@@ -487,9 +514,32 @@ const handleTokenSecretsSetup = async () => {
 
 }
 
+const handleSignatureSecretsSetup = async () => {
+    const defaultDomains = ["internal"];
+
+    let arr = [];
+
+    for (let i = 0; i < defaultDomains.length; i++) {
+        const domain = defaultDomains[i];
+
+        const signatureSecretsManager = new SignatureSecretsManager(domain, "ES256", 2);
+
+        arr.push({ domain, signatureSecretsManager });
+    }
+
+    const initialization = await Promise.all(arr.map(async val => {
+        await val.signatureSecretsManager.initialize();
+    }));
+
+    arr.forEach(val => {
+        globalAccessPoint.setValue(`SIGNATURE_SECRETS_MANAGER_${val.domain}`, val.signatureSecretsManager);
+    });
+
+    return initialization;
+};
+
 const handleOnStartConfiguration = async () => {
     await handleDatabaseLiveCheck();
-    await handleSignatureSecretsImport();
     await handleAllowedClientUrlsConfig();
     await handleAuditTrailSystemCheck();
     handleConfigValidationForEmailDomains();
@@ -498,6 +548,7 @@ const handleOnStartConfiguration = async () => {
     handleAllowedUserRolesConfig();
     await handleEphemeralDatabaseSetup();
     await handleTokenSecretsSetup();
+    await handleSignatureSecretsSetup();
 };
 
-export { handleOnStartConfiguration };
+export { handleOnStartConfiguration, refreshEphemeralRedisConfigs };

@@ -1,105 +1,155 @@
-/**
- * Multi-Provider OAuth Toolkit for Orion
- *
- * Provides unified OAuth 2.0 authentication support for multiple providers:
- * Google, GitHub, Microsoft, Discord, Facebook, Amazon, Slack, Apple, Twitter/X,
- * LinkedIn, Reddit, and Spotify.
- *
- * All providers utilise standard OAuth 2.0 flow for simplicity and consistency.
- */
-
 import axios from 'axios';
+import jwt from 'jsonwebtoken'; // or jose; adjust as needed
+import jwkToPem from 'jwk-to-pem'; // or use jose JWK utilities
 import { logger } from '../../logger.js';
+
+/**
+ * Utility: fetch and cache JWKS per issuer
+ */
+class JwksCache {
+    constructor() {
+        this.cache = new Map(); // issuer -> { keys, fetchedAt }
+        this.ttlMs = 10 * 60 * 1000; // 10 minutes
+    }
+
+    async getKeys(jwksUri, issuer) {
+        const now = Date.now();
+        const cached = this.cache.get(issuer);
+        if (cached && now - cached.fetchedAt < this.ttlMs) {
+            return cached.keys;
+        }
+
+        const res = await axios.get(jwksUri);
+        this.cache.set(issuer, { keys: res.data.keys || [], fetchedAt: now });
+        return res.data.keys || [];
+    }
+
+    async getKey(jwksUri, issuer, kid) {
+        const keys = await this.getKeys(jwksUri, issuer);
+        // If kid is present, match; otherwise fall back to first signing key
+        const jwk = kid ? keys.find(k => k.kid === kid) : keys[0];
+        if (!jwk) {
+            throw new Error(`No matching JWK for issuer ${issuer} kid=${kid || 'none'}`);
+        }
+        return jwkToPem(jwk);
+    }
+}
+
+const jwksCache = new JwksCache();
 
 class OAuthProviderToolkit {
     constructor(config) {
+        // Proper singleton: reuse existing instance
         if (OAuthProviderToolkit.instance) {
-            logger.error('There can only be one instance of OAuth provider tool kit!');
-            return;
+            return OAuthProviderToolkit.instance;
         }
 
-        // This is an array of tested clients that are safe to be initilaized
         this.allowedClients = ['google', 'github', 'discord', 'slack', 'microsoft'];
 
         this.config = config;
         this.clients = {};
+
+        // Provider metadata extended with OIDC discovery bits where relevant
         this.providers = {
             google: {
                 authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
                 tokenUrl: 'https://oauth2.googleapis.com/token',
                 userInfoUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
-                scope: 'openid email profile'
+                jwksUri: 'https://www.googleapis.com/oauth2/v3/certs',
+                issuer: 'https://accounts.google.com',
+                scope: 'openid email profile',
+                requiresPKCE: true
             },
             github: {
                 authUrl: 'https://github.com/login/oauth/authorize',
                 tokenUrl: 'https://github.com/login/oauth/access_token',
                 userInfoUrl: 'https://api.github.com/user',
                 emailUrl: 'https://api.github.com/user/emails',
-                scope: 'user:email'
+                scope: 'user:email',
+                // GitHub is not OIDC here; no id_token
+                requiresPKCE: true
             },
             discord: {
                 authUrl: 'https://discord.com/api/oauth2/authorize',
                 tokenUrl: 'https://discord.com/api/oauth2/token',
                 userInfoUrl: 'https://discord.com/api/users/@me',
-                scope: 'identify email'
+                scope: 'identify email',
+                requiresPKCE: true
             },
             slack: {
                 authUrl: 'https://slack.com/oauth/v2/authorize',
                 tokenUrl: 'https://slack.com/api/oauth.v2.access',
                 userInfoUrl: 'https://slack.com/api/users.identity',
                 scope: 'identity.basic,identity.email,identity.avatar',
-                specialHandling: 'slack' // Uses user_scope instead of scope
+                specialHandling: 'slack',
+                requiresPKCE: true
             },
             microsoft: {
                 authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
                 tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
                 userInfoUrl: 'https://graph.microsoft.com/v1.0/me',
-                scope: 'openid email profile User.Read'
+                // OIDC metadata
+                jwksUri: 'https://login.microsoftonline.com/common/discovery/v2.0/keys',
+                issuer: 'https://login.microsoftonline.com/{tenantid}/v2.0', // we relax tenant match
+                scope: 'openid email profile User.Read',
+                requiresPKCE: true
             },
             facebook: {
-                authUrl: 'https://www.facebook.com/v23.0/dialog/oauth',
-                tokenUrl: 'https://graph.facebook.com/v23.0/oauth/access_token',
+                // Update to a currently supported version; your app can override via config
+                authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
+                tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token',
                 userInfoUrl: 'https://graph.facebook.com/me',
-                scope: 'email,public_profile'
+                scope: 'email,public_profile',
+                requiresPKCE: true
             },
             amazon: {
                 authUrl: 'https://www.amazon.com/ap/oa',
                 tokenUrl: 'https://api.amazon.com/auth/o2/token',
                 userInfoUrl: 'https://api.amazon.com/user/profile',
-                scope: 'profile'
+                scope: 'profile',
+                requiresPKCE: true
             },
             apple: {
                 authUrl: 'https://appleid.apple.com/auth/authorize',
                 tokenUrl: 'https://appleid.apple.com/auth/token',
-                userInfoUrl: 'https://appleid.apple.com/auth/userinfo',
+                // Apple does NOT expose a normal userInfoUrl; identity comes from id_token
+                userInfoUrl: null,
+                jwksUri: 'https://appleid.apple.com/auth/keys',
+                issuer: 'https://appleid.apple.com',
                 scope: 'email name',
-                specialHandling: 'apple' // Requires response_mode=form_post
+                specialHandling: 'apple',
+                requiresPKCE: true
             },
             twitter: {
                 authUrl: 'https://twitter.com/i/oauth2/authorize',
                 tokenUrl: 'https://api.twitter.com/2/oauth2/token',
                 userInfoUrl: 'https://api.twitter.com/2/users/me?user.fields=profile_image_url,verified',
                 scope: 'tweet.read users.read offline.access',
-                requiresPKCE: true // Twitter requires PKCE
+                requiresPKCE: true
             },
             linkedin: {
                 authUrl: 'https://www.linkedin.com/oauth/v2/authorization',
                 tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken',
                 userInfoUrl: 'https://api.linkedin.com/v2/userinfo',
-                scope: 'openid profile email'
+                jwksUri: 'https://www.linkedin.com/oauth/openid/jwks',
+                issuer: 'https://www.linkedin.com',
+                scope: 'openid profile email',
+                requiresPKCE: true
             },
             reddit: {
                 authUrl: 'https://www.reddit.com/api/v1/authorize',
                 tokenUrl: 'https://www.reddit.com/api/v1/access_token',
                 userInfoUrl: 'https://oauth.reddit.com/api/v1/me',
                 scope: 'identity',
-                requiresBasicAuth: true // Reddit requires Basic Auth for token exchange
+                requiresBasicAuth: true,
+                requiresPKCE: true
             },
             spotify: {
                 authUrl: 'https://accounts.spotify.com/authorize',
                 tokenUrl: 'https://accounts.spotify.com/api/token',
                 userInfoUrl: 'https://api.spotify.com/v1/me',
-                scope: 'user-read-email user-read-private'
+                scope: 'user-read-email user-read-private',
+                requiresPKCE: true
             }
         };
 
@@ -117,7 +167,7 @@ class OAuthProviderToolkit {
             return;
         }
 
-        if (!config) return false; // skip silently if not configured
+        if (!config) return false;
         if (!provider) {
             logger.error(`Provider ${providerName} is not supported`);
             return { error: true, errorCode: 'O-AUTH-UNSUPPORTED-PROVIDER' };
@@ -131,18 +181,21 @@ class OAuthProviderToolkit {
             ...provider,
             clientId: config.clientId,
             clientSecret: config.clientSecret,
-            redirectUri: config.redirectUri
+            redirectUri: config.redirectUri,
+            // Optional overrides: jwksUri, issuer, etc.
+            ...(config.jwksUri && { jwksUri: config.jwksUri }),
+            ...(config.issuer && { issuer: config.issuer })
         };
 
         logger.info(`Initialized OAuth provider: ${providerName}`);
-
         return true;
     }
 
     /**
      * Generate authorization URL for any provider
+     * PKCE values are provided by the caller to keep the outward API compatible.
      */
-    generateAuthUrl(providerName, state = null) {
+    generateAuthUrl(providerName, state = null, pkce = {}) {
         const client = this.clients[providerName];
         if (!client) {
             return { error: true, errorCode: 'O-AUTH-PROVIDER-NOT-INITIALIZED' };
@@ -156,7 +209,7 @@ class OAuthProviderToolkit {
             ...(state && { state })
         });
 
-        // Handle provider-specific parameters
+        // Provider-specific parameters
         if (client.specialHandling === 'slack') {
             params.delete('scope');
             params.append('user_scope', client.scope);
@@ -164,45 +217,79 @@ class OAuthProviderToolkit {
 
         if (client.specialHandling === 'apple') {
             params.append('response_mode', 'form_post');
+            params.append('response_type', 'code id_token');
         }
 
-        // Providers requiring PKCE should supply code_challenge via outer flow
+        // PKCE support: caller passes code_challenge and method
+        if (client.requiresPKCE && pkce.codeChallenge && pkce.codeChallengeMethod) {
+            params.append('code_challenge', pkce.codeChallenge);
+            params.append('code_challenge_method', pkce.codeChallengeMethod);
+        }
 
         return { error: false, redirectURL: `${client.authUrl}?${params.toString()}` };
     }
 
     /**
      * Handle callback and get user information
+     * idToken is passed in when available (e.g. from Apple form_post or OIDC providers).
      */
-    async handleCallback(providerName, code, state = null) {
+    async handleCallback(providerName, code, state = null, pkce = {}, idTokenFromCallback = null) {
         const client = this.clients[providerName];
         if (!client) {
             return { error: true, errorCode: 'O-AUTH-PROVIDER-NOT-INITIALIZED' };
         }
 
-        const tokenResponse = await this.exchangeCodeForToken(providerName, client, code);
+        const tokenResponse = await this.exchangeCodeForToken(providerName, client, code, pkce);
         if (tokenResponse?.error) {
             return tokenResponse;
         }
-        const accessToken = providerName !== 'slack' ? tokenResponse.access_token : tokenResponse.authed_user.access_token;
 
-        const userInfoResponse = await this.getUserInfo(providerName, client, accessToken);
-        if (userInfoResponse?.error) {
-            return userInfoResponse;
+        const accessToken =
+            providerName !== 'slack'
+                ? tokenResponse.access_token
+                : tokenResponse.authed_user?.access_token;
+
+        // Prefer id_token from tokenResponse, but allow external submission (Apple)
+        const rawIdToken = tokenResponse.id_token || idTokenFromCallback || null;
+
+        let normalizedUser = null;
+
+        if (rawIdToken && client.jwksUri) {
+            try {
+                const verified = await this.verifyIdToken(providerName, client, rawIdToken);
+                normalizedUser = this.normalizeFromIdToken(providerName, verified);
+            } catch (e) {
+                logger.error(`Failed to verify id_token for ${providerName}: ${e.message}`);
+                // fallback to userinfo below
+            }
+        }
+
+        if (!normalizedUser) {
+            const userInfoResponse = await this.getUserInfo(providerName, client, accessToken);
+            if (userInfoResponse?.error) {
+                return userInfoResponse;
+            }
+            normalizedUser = await this.normalizeUserInfo(
+                providerName,
+                userInfoResponse.raw,
+                accessToken,
+                client
+            );
         }
 
         return {
             error: false,
-            ...userInfoResponse,
+            ...normalizedUser,
             accessToken,
-            refreshToken: tokenResponse.refresh_token || null
+            refreshToken: tokenResponse.refresh_token || null,
+            idToken: rawIdToken || null
         };
     }
 
     /**
      * Exchange authorization code for access token
      */
-    async exchangeCodeForToken(providerName, client, code) {
+    async exchangeCodeForToken(providerName, client, code, pkce = {}) {
         const params = new URLSearchParams({
             client_id: client.clientId,
             client_secret: client.clientSecret,
@@ -211,23 +298,38 @@ class OAuthProviderToolkit {
             grant_type: 'authorization_code'
         });
 
+        // PKCE verifier
+        if (client.requiresPKCE && pkce.codeVerifier) {
+            params.append('code_verifier', pkce.codeVerifier);
+        }
+
         const headers = {
             Accept: 'application/json',
             'Content-Type': 'application/x-www-form-urlencoded'
         };
 
-        // Reddit requires Basic Authentication
+        // Reddit requires Basic Auth
         if (client.requiresBasicAuth) {
-            const credentials = Buffer.from(`${client.clientId}:${client.clientSecret}`).toString('base64');
+            const credentials = Buffer.from(
+                `${client.clientId}:${client.clientSecret}`
+            ).toString('base64');
             headers['Authorization'] = `Basic ${credentials}`;
             params.delete('client_id');
             params.delete('client_secret');
+        }
+
+        // Apple requires JWT client_secret; allow caller to pre-generate
+        if (client.specialHandling === 'apple' && client.generateClientSecret) {
+            params.set('client_secret', await client.generateClientSecret());
         }
 
         try {
             const response = await axios.post(client.tokenUrl, params.toString(), { headers });
             return response.data;
         } catch (error) {
+            logger.error(
+                `Token exchange failed for ${providerName}: ${error.response?.status} ${error.message}`
+            );
             return { error: true, errorCode: 'O-AUTH-TOKEN-EXCHANGE-FAILED' };
         }
     }
@@ -236,22 +338,120 @@ class OAuthProviderToolkit {
      * Get user information from provider
      */
     async getUserInfo(providerName, client, accessToken) {
+        if (!client.userInfoUrl) {
+            // e.g. Apple: identity from id_token only
+            return { raw: null };
+        }
+
         try {
             const userResponse = await axios.get(client.userInfoUrl, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
-                    // Reddit requires custom User-Agent
                     ...(providerName === 'reddit' && { 'User-Agent': 'Orion-OAuth/1.0' })
                 }
             });
-            return await this.normalizeUserInfo(providerName, userResponse.data, accessToken, client);
+            return { raw: userResponse.data };
         } catch (error) {
+            logger.error(
+                `UserInfo fetch failed for ${providerName}: ${error.response?.status} ${error.message}`
+            );
             return { error: true, errorCode: 'O-AUTH-USERINFO-FAILED' };
         }
     }
 
     /**
-     * Normalize user information across different providers
+     * Verify and decode id_token via provider JWKS
+     */
+    async verifyIdToken(providerName, client, idToken) {
+        const decodedHeader = jwt.decode(idToken, { complete: true });
+        if (!decodedHeader || !decodedHeader.header) {
+            throw new Error('Invalid id_token format');
+        }
+
+        const kid = decodedHeader.header.kid;
+        const alg = decodedHeader.header.alg;
+
+        if (!alg || !alg.startsWith('RS') && !alg.startsWith('ES')) {
+            throw new Error(`Unsupported JWS alg: ${alg}`);
+        }
+
+        const issuer = client.issuer;
+        if (!issuer || !client.jwksUri) {
+            throw new Error('Missing issuer or jwksUri for provider');
+        }
+
+        const publicKey = await jwksCache.getKey(client.jwksUri, issuer, kid);
+
+        const options = {
+            algorithms: [alg],
+            issuer: issuer === 'https://login.microsoftonline.com/{tenantid}/v2.0'
+                ? undefined // relax issuer check for multi-tenant unless overridden
+                : issuer,
+            audience: client.clientId
+        };
+
+        // For MS multi-tenant we do audience only and manual iss check
+        const payload = jwt.verify(idToken, publicKey, options);
+
+        if (
+            issuer === 'https://login.microsoftonline.com/{tenantid}/v2.0' &&
+            typeof payload.iss === 'string' &&
+            !payload.iss.endsWith('/v2.0')
+        ) {
+            throw new Error('Unexpected issuer for Microsoft id_token');
+        }
+
+        return payload;
+    }
+
+    /**
+     * Normalize identity from a verified ID token
+     */
+    normalizeFromIdToken(providerName, claims) {
+        switch (providerName) {
+            case 'google':
+            case 'linkedin':
+                return {
+                    id: claims.sub,
+                    email: claims.email || null,
+                    name: claims.name || claims.given_name || null,
+                    picture: claims.picture || null,
+                    verified: claims.email_verified !== false
+                };
+
+            case 'microsoft':
+                return {
+                    id: claims.sub || claims.oid || claims.objectId,
+                    email: claims.email || claims.preferred_username || null,
+                    name: claims.name || null,
+                    picture: null,
+                    verified: true
+                };
+
+            case 'apple':
+                // Apple email is often private relay; name may come only on first auth
+                return {
+                    id: claims.sub,
+                    email: claims.email || null,
+                    name: claims.name || null,
+                    picture: null,
+                    verified: claims.email_verified !== false
+                };
+
+            default:
+                // Generic OIDC mapping
+                return {
+                    id: claims.sub,
+                    email: claims.email || null,
+                    name: claims.name || null,
+                    picture: claims.picture || null,
+                    verified: claims.email_verified !== false
+                };
+        }
+    }
+
+    /**
+     * Normalize user information across different providers (userinfo-based)
      */
     async normalizeUserInfo(providerName, userData, accessToken, client) {
         switch (providerName) {
@@ -271,10 +471,14 @@ class OAuthProviderToolkit {
                         const emailResponse = await axios.get(client.emailUrl, {
                             headers: { Authorization: `Bearer ${accessToken}` }
                         });
-                        const primaryEmail = emailResponse.data.find(e => e.primary && e.verified);
+                        const primaryEmail = emailResponse.data.find(
+                            e => e.primary && e.verified
+                        );
                         email = primaryEmail ? primaryEmail.email : null;
                     } catch (error) {
-                        // Silent failure, email may remain null
+                        logger.warn(
+                            `Failed to fetch GitHub emails: ${error.response?.status} ${error.message}`
+                        );
                     }
                 }
                 return {
@@ -300,31 +504,21 @@ class OAuthProviderToolkit {
                     id: userData.id,
                     email: userData.email,
                     name: userData.username,
-                    picture: userData.avatar ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png` : null,
+                    picture: userData.avatar
+                        ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
+                        : null,
                     verified: userData.verified || false
                 };
 
             case 'facebook': {
-                try {
-                    const fbResponse = await axios.get(`${client.userInfoUrl}?fields=id,name,email,picture`, {
-                        headers: { Authorization: `Bearer ${accessToken}` }
-                    });
-                    return {
-                        id: fbResponse.data.id,
-                        email: fbResponse.data.email,
-                        name: fbResponse.data.name,
-                        picture: fbResponse.data.picture?.data?.url || null,
-                        verified: true
-                    };
-                } catch (error) {
-                    return {
-                        id: userData.id,
-                        email: userData.email || null,
-                        name: userData.name,
-                        picture: null,
-                        verified: true
-                    };
-                }
+                // userData expected to already have fields=id,name,email,picture
+                return {
+                    id: userData.id,
+                    email: userData.email || null,
+                    name: userData.name,
+                    picture: userData.picture?.data?.url || null,
+                    verified: true
+                };
             }
 
             case 'amazon':
@@ -337,20 +531,21 @@ class OAuthProviderToolkit {
                 };
 
             case 'slack': {
-                const user = userData.user;
+                const user = userData.user || userData; // be tolerant
                 return {
                     id: user.id,
                     email: user.email,
                     name: user.name,
-                    picture: user.image_192 || user.image_72 || user.image_24,
+                    picture: user.image_192 || user.image_72 || user.image_24 || null,
                     verified: true
                 };
             }
 
             case 'apple':
+                // Apple userinfo should not normally be hit; handled by id_token
                 return {
                     id: userData.sub,
-                    email: userData.email,
+                    email: userData.email || null,
                     name: userData.name || null,
                     picture: null,
                     verified: userData.email_verified !== false
@@ -359,7 +554,7 @@ class OAuthProviderToolkit {
             case 'twitter':
                 return {
                     id: userData.data.id,
-                    email: userData.data.email || null,
+                    email: null, // OAuth2 /2 APIs do not surface email
                     name: userData.data.name,
                     picture: userData.data.profile_image_url,
                     verified: userData.data.verified || false
@@ -377,7 +572,7 @@ class OAuthProviderToolkit {
             case 'reddit':
                 return {
                     id: userData.id,
-                    email: null, // Reddit doesn't provide email
+                    email: null,
                     name: userData.name,
                     picture: userData.icon_img || null,
                     verified: true
@@ -424,20 +619,13 @@ class OAuthProviderToolkit {
 
         const results = await Promise.all(promises);
         const successful = results.filter(Boolean);
-
-        // No logging here; propagate results to caller if needed
+        return successful;
     }
 
-    /**
-     * Get list of available/initialized providers
-     */
     getAvailableProviders() {
         return Object.keys(this.clients);
     }
 
-    /**
-     * Check if a specific provider is available
-     */
     isProviderAvailable(providerName) {
         return !!this.clients[providerName];
     }

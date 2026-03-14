@@ -17,7 +17,7 @@ const deleteFunction = async parameters => {
 
 const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
         if (!SUPPORTED_PROVIDERS.includes(parameters.providerName.toUpperCase())) {
@@ -43,7 +43,7 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
             return { error: true, errorCode: 'O-AUTH-UNSUPPORTED-PROVIDER' };
         }
 
-        const oAuthToolKit = globalAccessPoint.getValue('oAuthToolKit');
+        const oAuthToolKit = globalAccessPoint.oAuthToolKit();
 
         const requestId = generateRequestId('O-AUTH', 32);
         const challenge = generateChallenge(32);

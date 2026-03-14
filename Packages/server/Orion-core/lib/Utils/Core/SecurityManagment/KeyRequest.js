@@ -13,11 +13,11 @@ const routeHandlerKeyRequest = async (request, response) => {
     // Prefered primary alg is the first element
     if (availableAlgs.includes(systemSupportedAlgs[0])) {
 
-        const encryptionConfigsAvailable = globalAccessPoint.getValue('encryptionConfigsAvailable').filter(val => !val.includes('RSA') && !val.includes('ECC'));
+        const encryptionConfigsAvailable = globalAccessPoint.encryptionConfigsAvailable().filter(val => !val.includes('RSA') && !val.includes('ECC'));
 
         const selectedGroup = getRandomElement(encryptionConfigsAvailable);
 
-        const group = globalAccessPoint.getValue('ephemeralDB').getData(selectedGroup);
+        const group = globalAccessPoint.ephemeralDB().getData(selectedGroup);
 
         const config = getRandomElement(group.data);
 
@@ -46,11 +46,11 @@ const routeHandlerKeyRequest = async (request, response) => {
 
     for (const alg of cleanedAlgs) {
         if (systemSupportedAlgs.includes(alg)) {
-            const encryptionConfigsAvailable = globalAccessPoint.getValue('encryptionConfigsAvailable').filter(val => val.includes(alg));
+            const encryptionConfigsAvailable = globalAccessPoint.encryptionConfigsAvailable().filter(val => val.includes(alg));
 
             const selectedGroup = getRandomElement(encryptionConfigsAvailable);
 
-            const group = globalAccessPoint.getValue('ephemeralDB').getData(selectedGroup);
+            const group = globalAccessPoint.ephemeralDB().getData(selectedGroup);
 
             const config = getRandomElement(group.data);
 

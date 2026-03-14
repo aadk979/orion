@@ -7,13 +7,14 @@ import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { isValidEmail, isPasswordSafe, isValidEmailDomain } from '../../Validator.js';
 import { generateUID } from '../../valueGenerator.js';
+import { logger } from "../../logger.js";
 
 const createAccount = async (email, password) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
-        const systemConfig = globalAccessPoint.getValue('systemConfig');
+        const systemConfig = globalAccessPoint.systemConfig();
 
         if (!systemConfig.authMethods.passkey) {
             auditTrail.record({
@@ -62,8 +63,8 @@ const createAccount = async (email, password) => {
             return { error: true, errorCode: 'ACC-REG-INVALID-EMAIL' };
         }
 
-        if (globalAccessPoint.getValue('allowedEmailDomains') !== '*') {
-            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue('allowedEmailDomains'), sanitizedEmail);
+        if (globalAccessPoint.allowedEmailDomains() !== '*') {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
                 return respondWithError(parameters.response, 'EMAIL-DOMAIN-NOT-ALLOWED');

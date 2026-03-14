@@ -10,7 +10,7 @@ const routeHandlerResetCookies = async (request, response) => {
         });
     }
 
-    const commonCookieNames = ['ACCESS_TOKEN', 'REFRESH_TOKEN', 'SID', 'SID_HMAC', 'NO_AUTH_TOKEN'];
+    const commonCookieNames = ['ACCESS_TOKEN', 'REFRESH_TOKEN', 'NO_AUTH_TOKEN'];
 
     commonCookieNames.forEach(cookieName => {
         response.cookie(cookieName, '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0, path: '/' });

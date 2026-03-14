@@ -7,12 +7,11 @@
 import { validateAccessToken, generateAccessToken } from '../../Utils/Core/TokenManagement/AccessTokens.js';
 import { getIp } from '../../Utils/Ip.js';
 import { respondWithError, respondWithSuccess } from '../Response/response.js';
-import { validateRefreshToken } from '../../Utils/Core/TokenManagement/RefreshTokens.js';
+import { validateRefreshToken, generateRefreshToken } from '../../Utils/Core/TokenManagement/RefreshTokens.js';
 import { validateNoAuthToken } from '../../Utils/Core/SecurityManagment/NoAuthToken.js';
 import { defaultServerRoutes } from '../Endpoints/index.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { parseDuration } from '../../Utils/Date&Time.js';
-import { verifySignature } from '../../Utils/CryptoFunctions.js';
 import { parseCookieData, stringifyCookieData } from '../../Utils/CookieUtils.js';
 import { slugParser } from '../../Utils/Parsers.js';
 
@@ -28,7 +27,11 @@ const ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER = [
     `/${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`,
     `/${NAME_SPACE}/api/v1/action/get-o-auth-redirect-url`,
     `/${NAME_SPACE}/api/v1/action/authorize-me`,
-    `/${NAME_SPACE}/api/v1/action/handle-o-auth-callback`
+    `/${NAME_SPACE}/api/v1/action/handle-o-auth-callback`,
+    `/${NAME_SPACE}/api/v1/request/available-2fa-methods`,
+    `/${NAME_SPACE}/api/v1/action/send-device-authorization-email`,
+    `/${NAME_SPACE}/api/v1/action/authorize-device-with-passkey`,
+    `/${NAME_SPACE}/api/v1/action/authorize-device-with-totp`
 ];
 
 const ROUTES_ACCESSIBLE_WITH_NO_BEARER = [
@@ -42,43 +45,6 @@ const handleSessionClearance = parameters => {
     parameters.response.cookie('ACCESS_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
     parameters.response.cookie('REFRESH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
-    parameters.response.cookie('SID', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
-    parameters.response.cookie('SID_SIGNATURE', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-};
-
-const handleSessionValidation = async parameters => {
-    if (!parameters.request.cookies['SID'] || !parameters.request.cookies['SID_SIGNATURE']) {
-        handleSessionClearance(parameters);
-
-        return { error: true, errorCode: 'MISSING-SESSION-ID-OR-SESSION-HMAC' };
-    }
-
-    const sessionId = parseCookieData(parameters.request.cookies['SID']);
-
-    const refreshToken = parseCookieData(parameters.request.cookies['REFRESH_TOKEN']) || 'NONE';
-
-    // Instance ID based key pair retrival is not available in this build but scaffloding has been put in place
-    const signature = parseCookieData(parameters.request.cookies['SID_SIGNATURE']).split(':*:')[0];
-    const keyPairId = parseCookieData(parameters.request.cookies['SID_SIGNATURE']).split(':*:')[1];
-    const instanceId = parseCookieData(parameters.request.cookies['SID_SIGNATURE']).split(':*:')[2];
-
-    const signatureKeyPair = await globalAccessPoint.getValue('signatureSecretsManager').getKeyPairById(keyPairId, 'internal', instanceId);
-
-    if (signatureKeyPair.notFound) {
-        return { error: true, errorCode: 'INVALID-SESSION-ID' };
-    }
-
-    const signatureVerification = verifySignature(sessionId + refreshToken, signature, signatureKeyPair.publicKey);
-
-    if (!signatureVerification) {
-        handleSessionClearance(parameters);
-
-        return { error: true, errorCode: 'INVALID-SESSION-ID' };
-    }
-
-    return { error: false, valid: true };
 };
 
 const handleIsAuthStateCheck = parameters => {
@@ -87,7 +53,7 @@ const handleIsAuthStateCheck = parameters => {
 
 const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     const endpoint = defaultServerRoutes.endpoints.find(item => item.path === slugParser(parameters.request.path));
-    const endpointBackUp = globalAccessPoint.getValue('systemConfig').api.customEndpoints.find(item => item.path === slugParser(parameters.request.path));
+    const endpointBackUp = globalAccessPoint.systemConfig().api.customEndpoints.find(item => item.path === slugParser(parameters.request.path));
 
     if (!endpoint && !endpointBackUp && !reqIsAuthStateCheck) {
         return { error: true, errorCode: 'UNKOWN-API-ROUTE' };
@@ -133,7 +99,7 @@ const handleValidateTokenTypeAndpresence = (parameters, tokenType, noAuthTokenEn
 const authenticationMiddleware = async (request, response, next) => {
     const Function = async parameters => {
         // When captcha system is disabled all public routes are no longer protected and free to access
-        const noAuthTokenEnabled = globalAccessPoint.getValue('captcha');
+        const noAuthTokenEnabled = globalAccessPoint.captcha();
 
         const headers = parameters.request.headers;
         const fingerprint = headers['orion-fingerprint'];
@@ -166,12 +132,6 @@ const authenticationMiddleware = async (request, response, next) => {
 
         switch (tokenType) {
             case 'ACCESS_BEARER':
-                const sessionValidation = await handleSessionValidation(parameters);
-
-                if (sessionValidation.error) {
-                    return respondWithError(parameters.response, sessionValidation.errorCode);
-                }
-
                 let verification = await validateAccessToken(parameters.request.cookies['ACCESS_TOKEN'], fingerprint, ip, clientUrl);
 
                 if (verification.error || !verification.valid) {
@@ -190,15 +150,17 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, refreshVerification.errorCode);
                         }
 
-                        const refreshAllowed = globalAccessPoint.getValue('refreshRateLimiter').canRefresh(parameters.request.cookies['SID']);
+                        // Check self-contained refresh limits
+                        const currentRefreshCount = refreshVerification.data.refreshCount || 0;
+                        const currentMaxRefreshes = refreshVerification.data.maxRefreshes;
 
-                        if (!refreshAllowed) {
+                        if (currentMaxRefreshes != null && currentRefreshCount >= currentMaxRefreshes) {
                             handleSessionClearance(parameters);
 
                             return respondWithError(parameters.response, 'REFRESH-TOKEN-LIMIT-HIT');
                         }
 
-                        console.log(refreshVerification)
+                        const accessTokenLinkCode = refreshVerification.data?.tokenData?.accessTokenLinkCode || refreshVerification.data?.accessTokenLinkCode;
 
                         const newAccessToken = await generateAccessToken(
                             refreshVerification.data.uid,
@@ -208,14 +170,30 @@ const authenticationMiddleware = async (request, response, next) => {
                             refreshVerification.data.role,
                             ip,
                             userAgent,
-                            refreshVerification.data?.tokenData?.accessTokenLinkCode || refreshVerification.data?.accessTokenLinkCode
+                            accessTokenLinkCode
                         );
 
                         if (newAccessToken.error) {
                             return respondWithError(parameters.response, newAccessToken.errorCode);
                         }
 
-                        globalAccessPoint.getValue('refreshRateLimiter').increment(parameters.request.cookies['SID']);
+                        // Rotate refresh token with incremented count
+                        const newRefreshToken = await generateRefreshToken(
+                            refreshVerification.data.uid,
+                            refreshVerification.data.email,
+                            fingerprint,
+                            refreshVerification.data.authMethod,
+                            refreshVerification.data.role,
+                            ip,
+                            userAgent,
+                            accessTokenLinkCode,
+                            currentRefreshCount + 1,
+                            currentMaxRefreshes
+                        );
+
+                        if (newRefreshToken.error) {
+                            return respondWithError(parameters.response, newRefreshToken.errorCode);
+                        }
 
                         verification = await validateAccessToken(newAccessToken.token, fingerprint, ip, clientUrl);
 
@@ -223,13 +201,20 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, verification.errorCode);
                         }
 
-                        const durationForAccessToken = globalAccessPoint.getValue('systemConfig').tokens.lifespans.accessTokens;
+                        const tokenLifespans = globalAccessPoint.systemConfig().tokens.lifespans;
 
                         parameters.response.cookie('ACCESS_TOKEN', stringifyCookieData(newAccessToken.token), {
                             httpOnly: true,
                             secure: true,
                             sameSite: 'None',
-                            maxAge: parseDuration(durationForAccessToken)
+                            maxAge: parseDuration(tokenLifespans.accessTokens)
+                        });
+
+                        parameters.response.cookie('REFRESH_TOKEN', stringifyCookieData(newRefreshToken.token), {
+                            httpOnly: true,
+                            secure: true,
+                            sameSite: 'None',
+                            maxAge: parseDuration(tokenLifespans.refreshTokens)
                         });
                     }
                 }
@@ -256,6 +241,8 @@ const authenticationMiddleware = async (request, response, next) => {
                 }
 
                 const path = slugParser(parameters.request.path);
+
+
 
                 // Check if route exists in the accessible routes for no auth bearer, if not and the route is set by default, return an error. Else verify route was set by the user via setBy and allow access.
                 if (!ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER.includes(path) && setBy === 1) {

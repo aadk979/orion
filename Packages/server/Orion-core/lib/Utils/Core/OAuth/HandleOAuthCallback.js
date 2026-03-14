@@ -1,12 +1,11 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
-import { generateSignature, verifyHash } from '../../CryptoFunctions.js';
+import { verifyHash } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { base64Decode } from '../../Encoders.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIp, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
-import { generateId } from '../../valueGenerator.js';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
 import { accountExist, checkAndAddProviderToAccount, createAccountWithProvider } from './Account.js';
@@ -18,9 +17,9 @@ import { userControl } from '../AccountManagment/UserControl.js';
 
 const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent, deviceId, deviceCode) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
-        const oAuthToolKit = globalAccessPoint.getValue('oAuthToolKit');
+        const oAuthToolKit = globalAccessPoint.oAuthToolKit();
 
         const stateFromClient = JSON.parse(base64Decode(parameters.state));
 
@@ -170,8 +169,8 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             return { error: true, errorCode: 'O-AUTH-EMAIL-NOT-VERIFIED' };
         }
 
-        if (globalAccessPoint.getValue('allowedEmailDomains') !== '*') {
-            const emailValidation = isValidEmailDomain(globalAccessPoint.getValue('allowedEmailDomains'), oAuthResponse.email);
+        if (globalAccessPoint.allowedEmailDomains() !== '*') {
+            const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), oAuthResponse.email);
 
             if (!emailValidation) {
                 auditTrail.record({
@@ -231,26 +230,17 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             return { error: true, errorCode: 'O-AUTH-ACC-DISABLED' };
         }
 
-        const deviceAuthorizationEnabled = globalAccessPoint.getValue('deviceAuthorization');
+        const deviceAuthorizationEnabled = globalAccessPoint.deviceAuthorization();
 
         if (deviceAuthorizationEnabled) {
             if (!parameters?.deviceId || !parameters?.deviceCode) {
-                const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(
-                    oAuthResponse.email,
-                    parameters.deviceFingerprint,
-                    parameters.ip,
-                    parameters.userAgent
-                );
-
-                if (deviceAuthorizationRequest.error) {
-                    return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
-                }
-
                 const headers = [{ key: 'orion-flow-activation', value: 'FLOW-DEVICE-AUTHORIZATION' }];
 
-                const cookies = [{ key: 'deviceAuthorizationRequestId', data: deviceAuthorizationRequest.reqId, maxAge: parseDuration('15m') }];
+                const cookies = [
+                    { key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }
+                ];
 
-                return { error: true, errorCode: 'DEVICE-UNRECOGNIZED', cookies, headers };
+                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies, headers };
             }
 
             const deviceRecognition = await isDeviceRecognizedForUserEmail(
@@ -261,22 +251,15 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             );
 
             if (deviceRecognition.error) {
-                const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(
-                    oAuthResponse.email,
-                    parameters.deviceFingerprint,
-                    parameters.ip,
-                    parameters.userAgent
-                );
-
-                if (deviceAuthorizationRequest.error) {
-                    return respondWithError(parameters.response, deviceAuthorizationRequest.errorCode);
-                }
-
                 const headers = [{ key: 'orion-flow-activation', value: 'FLOW-DEVICE-AUTHORIZATION' }];
 
-                const cookies = [{ key: 'deviceAuthorizationRequestId', data: deviceAuthorizationRequest.reqId, maxAge: parseDuration('15m') }];
+                const cookies = [
+                    { key: 'authorizedDeviceId', data: '', maxAge: 0 },
+                    { key: 'authorizedDeviceCode', data: '', maxAge: 0 },
+                    { key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }
+                ];
 
-                return { error: true, errorCode: 'DEVICE-UNRECOGNIZED', cookies, headers };
+                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies, headers };
             }
         }
 
@@ -313,19 +296,11 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             signedIn: true
         };
 
-        const SID = generateId('SID', 64);
-
-        const signatureKeyPair = await globalAccessPoint.getValue('signatureSecretsManager').getRandomKeyPair('internal');
         const systemConfig = globalAccessPoint.systemConfig();
-
-        const signature = generateSignature(SID + refreshToken.token, signatureKeyPair.privateKey);
-        const cookieSignature = `${signature}:*:${signatureKeyPair.keyPairId}`;
 
         const tokenCookies = [
             { key: 'ACCESS_TOKEN', data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
-            { key: 'REFRESH_TOKEN', data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: 'SID', data: SID, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) },
-            { key: 'SID_SIGNATURE', data: cookieSignature, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
+            { key: 'REFRESH_TOKEN', data: refreshToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.refreshTokens) }
         ];
 
         auditTrail.record({
@@ -388,7 +363,7 @@ const routeHandlerHandleOAuthCallback = async (request, response) => {
 
     const callback = await handleOAuthCallback(code, state, fingerprint, ip, userAgent, deviceId, deviceCode);
 
-    if (callback.error && callback.errorCode !== 'DEVICE-UNRECOGNIZED') {
+    if (callback.error && callback.errorCode !== 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED') {
         return respondWithError(response, callback.errorCode);
     }
 

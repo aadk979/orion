@@ -61,6 +61,34 @@ const General = {
         errorCode: 'SERVER-INITIALIZING',
         fault: 'SERVER',
         solutions: ['NONE']
+    },
+    'MISSING-REQUEST-FINGERPRINT': {
+        status: 400,
+        context: 'The request is missing a valid device fingerprint',
+        errorCode: 'MISSING-REQUEST-FINGERPRINT',
+        fault: 'CLIENT',
+        solutions: ['Ensure the orion-fingerprint header is present and contains a valid 64-character fingerprint']
+    },
+    'INVALID-REQUEST-FINGERPRINT': {
+        status: 400,
+        context: 'The provided device fingerprint is malformed',
+        errorCode: 'INVALID-REQUEST-FINGERPRINT',
+        fault: 'CLIENT',
+        solutions: ['Ensure the orion-fingerprint header contains a valid 64-character fingerprint']
+    },
+    'MISSING-USER-AGENT': {
+        status: 400,
+        context: 'The request is missing a User-Agent header',
+        errorCode: 'MISSING-USER-AGENT',
+        fault: 'CLIENT',
+        solutions: ['Ensure a valid User-Agent header is included with every request']
+    },
+    'UNRESOLVABLE-CLIENT-IP': {
+        status: 400,
+        context: 'The client IP address could not be determined',
+        errorCode: 'UNRESOLVABLE-CLIENT-IP',
+        fault: 'CLIENT',
+        solutions: ['Ensure the request includes a valid X-Forwarded-For or remote address']
     }
 };
 

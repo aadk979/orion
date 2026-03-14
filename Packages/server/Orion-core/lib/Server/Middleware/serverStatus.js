@@ -2,8 +2,8 @@ import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { respondWithError } from '../Response/response.js';
 
 const serverStatusMiddlware = (request, response, next) => {
-    const server = globalAccessPoint.getValue('server');
-    const etsLockdown = globalAccessPoint.getValue('ETS_LOCKDOWN');
+    const server = globalAccessPoint.server();
+    const etsLockdown = globalAccessPoint.ETS_LOCKDOWN();
 
     if (server.lockdown) {
         return respondWithError(response, 'SERVER-LOCKDOWN');
@@ -13,7 +13,7 @@ const serverStatusMiddlware = (request, response, next) => {
         return respondWithError(response, 'SERVER-UNHEALTHY');
     }
 
-    const systemsReady = globalAccessPoint.getValue('volatileSecretsManager').ready();
+    const systemsReady = globalAccessPoint.volatileSecretsManager().ready();
 
     if (!systemsReady) {
         return respondWithError(response, 'SERVER-INITIALIZING');

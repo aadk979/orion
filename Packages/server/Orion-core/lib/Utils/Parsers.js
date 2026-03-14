@@ -1,7 +1,7 @@
 import { globalAccessPoint } from './GlobalAccessPoint.js';
 
 function slugParser(path) {
-    const slug = globalAccessPoint.getValue('apiSlug');
+    const slug = globalAccessPoint.apiSlug();
 
     if (slug === '') {
         return path;

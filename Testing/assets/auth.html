@@ -3,74 +3,169 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Auth Box</title>
-        <script src="https://cdn.tailwindcss.com"></script>
+        <title>Orion — Sign In</title>
+        <link rel="stylesheet" href="./styles.css" />
     </head>
-    <body class="flex items-center justify-center min-h-screen bg-gray-100">
-        <div class="w-full max-w-md p-8 bg-white rounded-2xl shadow-lg">
-            <h2 id="form-title" class="text-2xl font-bold text-center mb-6">Login</h2>
-
-            <form id="auth-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Email</label>
-                    <input id="email" type="email" class="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    <body>
+        <div class="page-center">
+            <div class="card" style="width: 100%; max-width: 420px;">
+                <div class="card-header" style="text-align: center;">
+                    <div class="logo">ORION</div>
+                    <h2 id="form-title" style="margin-top: 0.5rem;">Sign In</h2>
+                    <p id="form-subtitle">Welcome back! Enter your credentials.</p>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Password</label>
-                    <input id="password" type="password" class="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+                <div id="alert" class="alert"></div>
 
-                <button id="btn" type="submit" class="w-full py-2 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition">
-                    Continue
+                <form id="auth-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input id="email" type="email" class="form-input" placeholder="you@example.com" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" class="form-input" placeholder="••••••••" required />
+                    </div>
+
+                    <button id="submit-btn" type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+                        <span class="btn-text">Sign In</span>
+                        <div class="spinner"></div>
+                    </button>
+                </form>
+
+                <div class="divider">or</div>
+
+                <button id="passkey-btn" class="btn btn-outline btn-full btn-sm" style="margin-bottom: 0.75rem;">
+                    <span class="btn-text">Sign in with Passkey</span>
+                    <div class="spinner"></div>
                 </button>
-            </form>
 
-            <p class="mt-4 text-sm text-center text-gray-600">
-                <span id="toggle-text">Don't have an account?</span>
-                <button id="toggler" class="text-blue-600 hover:underline ml-1 font-medium" id="toggle-button">Sign up</button>
-            </p>
+                <button id="google-btn" class="btn btn-secondary btn-full btn-sm">
+                    <span class="btn-text">Sign in with Google</span>
+                    <div class="spinner"></div>
+                </button>
+
+                <p style="margin-top: 1.25rem; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+                    <span id="toggle-text">Don't have an account?</span>
+                    <button id="toggle-btn" class="link" style="background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit;">Sign Up</button>
+                </p>
+
+                <p style="margin-top: 0.75rem; text-align: center;">
+                    <a href="./index.html" class="link" style="font-size: 0.8rem;">← Back to Home</a>
+                </p>
+            </div>
         </div>
 
         <script type="module">
-            import { orion } from '../../Packages/client/lib/Root.js';
+            import { orion } from './orion.js';
+
+            // ── Elements ─────────────────────────────
+            const form = document.getElementById('auth-form');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const submitBtn = document.getElementById('submit-btn');
+            const passkeyBtn = document.getElementById('passkey-btn');
+            const googleBtn = document.getElementById('google-btn');
+            const toggleBtn = document.getElementById('toggle-btn');
             const formTitle = document.getElementById('form-title');
+            const formSubtitle = document.getElementById('form-subtitle');
             const toggleText = document.getElementById('toggle-text');
-            const toggleButton = document.getElementById('toggle-button');
+            const alertEl = document.getElementById('alert');
+
             let isLogin = true;
 
-            orion.initialize();
+            // ── Init ─────────────────────────────────
+            await orion.initialize();
 
-            document.getElementById('toggler').addEventListener('click', () => {
-                toggleForm();
-            });
-
-            orion.authState(user => {
-                if (user) window.alert('Signed In!');
-            });
-
-            function toggleForm() {
-                isLogin = !isLogin;
-
-                if (isLogin) {
-                    formTitle.textContent = 'Login';
-                    toggleText.textContent = "Don't have an account?";
-                    toggleButton.textContent = 'Sign up';
-                } else {
-                    formTitle.textContent = 'Sign Up';
-                    toggleText.textContent = 'Already have an account?';
-                    toggleButton.textContent = 'Login';
+            orion.authState(state => {
+                if (state && state.signedIn && !state.loading) {
+                    window.location.href = './dashboard.html';
                 }
+            });
+
+            // ── Helpers ──────────────────────────────
+            function showAlert(msg, type = 'error') {
+                alertEl.textContent = msg;
+                alertEl.className = `alert alert-${type} show`;
+                setTimeout(() => alertEl.classList.remove('show'), 5000);
             }
 
-            document.getElementById('btn').addEventListener('click', async e => {
+            function setLoading(btn, loading) {
+                btn.classList.toggle('loading', loading);
+                btn.disabled = loading;
+            }
+
+            // ── Toggle Sign In / Sign Up ─────────────
+            toggleBtn.addEventListener('click', () => {
+                isLogin = !isLogin;
+                formTitle.textContent = isLogin ? 'Sign In' : 'Sign Up';
+                formSubtitle.textContent = isLogin
+                    ? 'Welcome back! Enter your credentials.'
+                    : 'Create a new account to get started.';
+                submitBtn.querySelector('.btn-text').textContent = isLogin ? 'Sign In' : 'Create Account';
+                toggleText.textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+                toggleBtn.textContent = isLogin ? 'Sign Up' : 'Sign In';
+                alertEl.classList.remove('show');
+            });
+
+            // ── Form Submit ──────────────────────────
+            form.addEventListener('submit', async e => {
                 e.preventDefault();
-                if (isLogin) {
-                    orion.signInUser(document.getElementById('email').value, document.getElementById('password').value);
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+
+                if (!email || !password) return showAlert('Please fill in all fields.');
+
+                setLoading(submitBtn, true);
+
+                try {
+                    const result = isLogin
+                        ? await orion.signInUser(email, password)
+                        : await orion.signUpUser(email, password);
+
+                    if (result.error) {
+                        showAlert(result.errorCode || 'Something went wrong.');
+                    } else {
+                        showAlert(isLogin ? 'Signed in!' : 'Account created!', 'success');
+                        // Don't redirect manually — the device authorization flow
+                        // may need to run. authState listener handles navigation
+                        // once the user is fully authenticated.
+                    }
+                } catch (err) {
+                    showAlert(err.message || 'Unexpected error.');
                 }
 
-                if (!isLogin) {
-                    orion.signUpUser(document.getElementById('email').value, document.getElementById('password').value);
+                setLoading(submitBtn, false);
+            });
+
+            // ── Passkey Sign In ──────────────────────
+            passkeyBtn.addEventListener('click', async () => {
+                const email = emailInput.value.trim();
+                if (!email) return showAlert('Enter your email first for passkey sign-in.');
+
+                setLoading(passkeyBtn, true);
+                try {
+                    const result = await orion.signInWithPasskey(email);
+                    if (result.error) {
+                        showAlert(result.errorCode || 'Passkey sign-in failed.');
+                    } else {
+                        showAlert('Signed in with passkey!', 'success');
+                    }
+                } catch (err) {
+                    showAlert(err.message || 'Passkey error.');
+                }
+                setLoading(passkeyBtn, false);
+            });
+
+            // ── Google OAuth ─────────────────────────
+            googleBtn.addEventListener('click', async () => {
+                setLoading(googleBtn, true);
+                try {
+                    await orion.generateOAuthRedirectURLAndRedirect('GOOGLE');
+                } catch (err) {
+                    showAlert(err.message || 'OAuth error.');
+                    setLoading(googleBtn, false);
                 }
             });
         </script>

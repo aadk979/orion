@@ -3,11 +3,22 @@ import { routeHandlerSignInWithPasskey } from '../../Utils/Core/AccountManagment
 import { routeHandlerVerifyAndCompletePasskeyRegistration } from '../../Utils/Core/AccountManagment/Passkeys/completeRegistration.js';
 import { routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser } from '../../Utils/Core/AccountManagment/Passkeys/generateAuthenticationOptions.js';
 import { routeHandlerGeneratePasskeyRegistrationOptionsExistingUser } from '../../Utils/Core/AccountManagment/Passkeys/generateRegistrationOptions.js';
+import { routeHandlerGenerateTOTPSecret, routeHandlerVerifyAndEnableTOTP } from '../../Utils/Core/AccountManagment/SetupTOTP.js';
 import { routeHandlerSignInWithPassword } from '../../Utils/Core/AccountManagment/SignIn.js';
 import { routeHandlerSignOutUser } from '../../Utils/Core/AccountManagment/SignOutUser.js';
 import { routeHandlerGenerateOAuthRedirectURL } from '../../Utils/Core/OAuth/GenerateRedirectURL.js';
 import { routeHandlerHandleOAuthCallback } from '../../Utils/Core/OAuth/HandleOAuthCallback.js';
-import { routeHandlerDeviceAuthorization } from '../../Utils/Core/SecurityManagment/DeviceAuthorization.js';
+import {
+    routeHandlerDeviceAuthorization,
+    routeHandlerGetAvailable2faMethods,
+    routeHandlerSendDeviceAuthorizationMail,
+    routeHandlerAuthorizeDeviceWithPasskey,
+    routeHandlerAuthorizeDeviceWithTOTP
+} from '../../Utils/Core/SecurityManagment/DeviceAuthorization.js';
+import {
+    routeHandlerInitiate2FAMethodRemoval,
+    routeHandlerComplete2FAMethodRemoval
+} from '../../Utils/Core/SecurityManagment/Remove2FAMethod.js';
 import { routeHandlerGenerateDipConfig } from '../../Utils/Core/SecurityManagment/Dip.js';
 import { routeHandlerKeyRequest } from '../../Utils/Core/SecurityManagment/KeyRequest.js';
 import {
@@ -16,6 +27,7 @@ import {
     routeHandlerDeviceHasNoAuthToken
 } from '../../Utils/Core/SecurityManagment/NoAuthToken.js';
 import { routeHandlerInitiatePasswordReset, routeHandlerCompletePasswordReset } from '../../Utils/Core/AccountManagment/PasswordReset.js';
+import { routeHandlerGetUserProfile } from '../../Utils/Core/AccountManagment/GetUserProfile.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
@@ -119,10 +131,64 @@ const defaultServerRoutes = {
             callback: routeHandlerDeviceAuthorization
         },
         {
+            path: `/${NAME_SPACE}/api/v1/request/available-2fa-methods`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerGetAvailable2faMethods
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/send-device-authorization-email`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerSendDeviceAuthorizationMail
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/authorize-device-with-passkey`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerAuthorizeDeviceWithPasskey
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/authorize-device-with-totp`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerAuthorizeDeviceWithTOTP
+        },
+        {
             path: `/${NAME_SPACE}/api/v1/action/handle-o-auth-callback`,
             requireAuth: false,
             method: 'POST',
             callback: routeHandlerHandleOAuthCallback
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/generate-totp-secret`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerGenerateTOTPSecret
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/verify-and-enable-totp`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerVerifyAndEnableTOTP
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/initiate-2fa-method-removal`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerInitiate2FAMethodRemoval
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/complete-2fa-method-removal`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerComplete2FAMethodRemoval
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/get-user-profile`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerGetUserProfile
         }
     ]
 };

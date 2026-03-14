@@ -61,7 +61,7 @@ class CustomLogger {
     // Convenience: pull config from GlobalAccessPoint lazily to avoid circular require
     configureFromGlobalAccessPoint() {
         try {
-            const systemConfig = globalAccessPoint.getValue('systemConfig');
+            const systemConfig = globalAccessPoint.systemConfig();
             if (systemConfig && typeof systemConfig?.utilities?.logToFile === 'boolean') {
                 this.logToFile = systemConfig?.utilities?.logToFile || false;
             }

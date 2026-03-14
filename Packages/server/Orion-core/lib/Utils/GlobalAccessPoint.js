@@ -10,7 +10,7 @@ class GlobalAccessPoint {
         }
 
         this._values = {};
-        this._lockedKeys = new Set(['db', 'systemConfig', 'volatileSecretsManager', 'refreshRateLimiter', 'oAuthToolKit', 'clusterMode']);
+        this._lockedKeys = new Set(['db', 'systemConfig', 'volatileSecretsManager', 'oAuthToolKit', 'clusterMode']);
         this._postBootUpdateAllowedKeys = ['systemConfig'];
         this._postBootUpdateAllowedDurationAfterBoot = '1m';
         this._postBootUpdateAllowedExpiry = getFutureUnixTime(this._postBootUpdateAllowedDurationAfterBoot);
@@ -58,12 +58,200 @@ class GlobalAccessPoint {
     }
 
     // Convenience getters
+    /**
+     * @returns {import('./Databases/PersitantDatabases/mongoDB.js').MongoService | import('./Databases/PersitantDatabases/postgres.js').PostgresService | import('./Databases/PersitantDatabases/firestore.js').FirestoreService | undefined}
+     */
     db() {
         return this.getValue('db');
     }
 
+    /**
+     * @returns {Object | undefined}
+     */
     systemConfig() {
         return this.getValue('systemConfig');
+    }
+
+    /**
+     * @returns {import('./Systems/VolatileSecretsManager.js').VolatileSecretsManager | undefined}
+     */
+    volatileSecretsManager() {
+        return this.getValue('volatileSecretsManager');
+    }
+
+    /**
+     * @returns {import('./Core/OAuth/OrionOAuthToolKit.js').OAuthProviderToolkit | undefined}
+     */
+    oAuthToolKit() {
+        return this.getValue('oAuthToolKit');
+    }
+
+    /**
+     * @returns {import('./Systems/MemoryMonitoringSystem.js').MemoryMonitoringSystem | undefined}
+     */
+    memoryMonitioringSystem() {
+        return this.getValue('memoryMonitioringSystem');
+    }
+
+    /**
+     * @returns {import('./Systems/AuditTrailSystem.js').AuditTrailSystem | undefined}
+     */
+    auditTrailSystem() {
+        return this.getValue('auditTrailSystem');
+    }
+
+    /**
+     * @returns {typeof import('./logger.js').logger | undefined}
+     */
+    logger() {
+        return this.getValue('logger');
+    }
+
+    /**
+     * @returns {string | undefined}
+     */
+    apiSlug() {
+        return this.getValue('apiSlug');
+    }
+
+    /**
+     * @returns {import('./Systems/SignatureSecretsManager.js').SignatureSecretsManager | undefined}
+     */
+    SIGNATURE_SECRETS_MANAGER_internal() {
+        return this.getValue('SIGNATURE_SECRETS_MANAGER_internal');
+    }
+
+    /**
+     * @returns {Object | undefined}
+     */
+    captcha() {
+        return this.getValue('captcha');
+    }
+
+    /**
+     * @returns {import('./Databases/EphemeralDatabases/index.js').EphemeralDatabaseManager | undefined}
+     */
+    ephemeralDB() {
+        return this.getValue('ephemeralDB');
+    }
+
+    /**
+     * @returns {Object | undefined}
+     */
+    deviceAuthorization() {
+        return this.getValue('deviceAuthorization');
+    }
+
+    /**
+     * @returns {Array<string> | undefined}
+     */
+    allowedEmailDomains() {
+        return this.getValue('allowedEmailDomains');
+    }
+
+    /**
+     * @returns {Object | undefined}
+     */
+    dip() {
+        return this.getValue('dip');
+    }
+
+    /**
+     * @returns {Array<string> | undefined}
+     */
+    allowedClientUrls() {
+        return this.getValue('allowedClientUrls');
+    }
+
+    /**
+     * @returns {Object | undefined}
+     */
+    resourceAccessSystem_Config() {
+        return this.getValue('resourceAccessSystem_Config');
+    }
+
+    /**
+     * @returns {Object | undefined}
+     */
+    server() {
+        return this.getValue('server');
+    }
+
+    /**
+     * @returns {boolean | undefined}
+     */
+    ETS_LOCKDOWN() {
+        return this.getValue('ETS_LOCKDOWN');
+    }
+
+    /**
+     * @returns {number | undefined}
+     */
+    timeOfLife() {
+        return this.getValue('timeOfLife');
+    }
+
+    /**
+     * @returns {import('./Databases/EphemeralDatabases/redis.js').RedisService | undefined}
+     */
+    redisInstance() {
+        return this.getValue('redisInstance');
+    }
+
+    /**
+     * @returns {Array<string> | undefined}
+     */
+    allowedUserRoles() {
+        return this.getValue('allowedUserRoles');
+    }
+
+    /**
+     * @returns {boolean | undefined}
+     */
+    dipConfigsAvailable() {
+        return this.getValue('dipConfigsAvailable');
+    }
+
+    /**
+     * @returns {boolean | undefined}
+     */
+    encryptionConfigsAvailable() {
+        return this.getValue('encryptionConfigsAvailable');
+    }
+
+    /**
+     * @returns {number | undefined}
+     */
+    token_security_tier() {
+        return this.getValue('token_security_tier');
+    }
+
+    /**
+     * @returns {import('./Systems/TokenSecretsManager.js').TokenSecretsManager | undefined}
+     */
+    tokenSecretsManager() {
+        return this.getValue('tokenSecretsManager');
+    }
+
+    /**
+     * @returns {boolean | undefined}
+     */
+    clusterMode() {
+        return this.getValue('clusterMode');
+    }
+
+    /**
+     * @returns {import('./Systems/TokenSecretsManager.js').TokenSecretsManager | undefined}
+     */
+    TOKEN_SECRETS_MANAGER_access() {
+        return this.getValue('TOKEN_SECRETS_MANAGER_access');
+    }
+
+    /**
+     * @returns {import('./Systems/TokenSecretsManager.js').TokenSecretsManager | undefined}
+     */
+    TOKEN_SECRETS_MANAGER_refresh() {
+        return this.getValue('TOKEN_SECRETS_MANAGER_refresh');
     }
 
     nameSpace() {

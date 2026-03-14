@@ -40,7 +40,7 @@ const dipMiddleware = async (request, response, next) => {
             return parameters.next();
         }
 
-        const dipEnabled = globalAccessPoint.getValue('dip');
+        const dipEnabled = globalAccessPoint.dip();
 
         if (!dipEnabled) {
             return parameters.next();
@@ -74,7 +74,7 @@ const dipMiddleware = async (request, response, next) => {
         }
 
         // Grabbing the value for the config group (first part of the id)
-        const dipStorage = await globalAccessPoint.getValue('ephemeralDB').getData(dipIdHeader.split(':*:')[0] || 'DEFAULT');
+        const dipStorage = await globalAccessPoint.ephemeralDB().getData(dipIdHeader.split(':*:')[0] || 'DEFAULT');
 
         // Checking if the fgroup exists in the db
         if (dipStorage.exist === false) {

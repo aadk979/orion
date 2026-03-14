@@ -41,9 +41,21 @@ const endpointSchemas = {
     [`/${NAME_SPACE}/api/v1/action/authorize-me`]: Joi.object({
         authorizationCode: Joi.string().min(1).required()
     }),
+    [`/${NAME_SPACE}/api/v1/request/available-2fa-methods`]: Joi.object().max(0),
+    [`/${NAME_SPACE}/api/v1/action/send-device-authorization-email`]: Joi.object().max(0),
+    [`/${NAME_SPACE}/api/v1/action/authorize-device-with-passkey`]: Joi.object({
+        authenticationResponse: Joi.object().min(1).required()
+    }),
+    [`/${NAME_SPACE}/api/v1/action/authorize-device-with-totp`]: Joi.object({
+        totpCode: Joi.string().length(6).required()
+    }),
     [`/${NAME_SPACE}/api/v1/action/handle-o-auth-callback`]: Joi.object({
         code: Joi.string().min(1).required(),
         state: Joi.string().min(1).required()
+    }),
+    [`/${NAME_SPACE}/api/v1/action/generate-totp-secret`]: Joi.object().max(0),
+    [`/${NAME_SPACE}/api/v1/action/verify-and-enable-totp`]: Joi.object({
+        totpCode: Joi.string().length(6).required()
     })
 };
 

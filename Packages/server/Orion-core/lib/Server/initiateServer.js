@@ -4,6 +4,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
+import compression from "compression";
 
 import { logger } from '../Utils/logger.js';
 import { originVerifier } from './Middleware/originVerifier.js';
@@ -16,7 +17,6 @@ import { authenticationMiddleware } from './Middleware/authentication.js';
 import { decryptionMiddleware } from './Middleware/decryptor.js';
 import { dipMiddleware } from './Middleware/dip.js';
 import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.js';
-import { RefreshRateLimiter } from '../Utils/Systems/RefreshTokenRateLimitSystem.js';
 import { getCurrentUnixTime, parseDuration } from '../Utils/Date&Time.js';
 import { OAuthProviderToolkit } from '../Utils/Core/OAuth/OrionOAuthToolKit.js';
 import { deviceCheckMiddlware } from './Middleware/deviceScanner.js';
@@ -26,7 +26,6 @@ import { handleOnStartConfiguration } from './onStartConfigurations.js';
 import { requestMetadataMiddleware } from './Middleware/requestMetadata.js';
 import { AuditTrailSystem } from '../Utils/Systems/AuditTrailSystem.js';
 import { resourceAccessMiddleware } from './Middleware/resourceAccess.js';
-import { SignatureSecretsManager } from '../Utils/Systems/SignatureSecretsManager.js';
 import { serverUtilitiesMiddleware } from './Middleware/serverUtilities.js';
 
 // Default config used if none provided
@@ -48,6 +47,7 @@ const buildMiddlewarePipeline = systemConfig => {
         helmet(),
         hpp(),
         cookieParser(),
+        compression({ threshold: 1024 }),
         // Custom middlewares
         serverUtilitiesMiddleware,
         requestMetadataMiddleware,
@@ -118,13 +118,13 @@ const registerRoutes = (app, routes, middlewares) => {
         // Register route with filtered middlewares (if any), then callback
         if (middlewareCallbacks.length > 0) {
             app[routeMethod](
-                `${globalAccessPoint.getValue('apiSlug') ? '/' + globalAccessPoint.getValue('apiSlug') : ''}${path}`,
+                `${globalAccessPoint.apiSlug() ? '/' + globalAccessPoint.apiSlug() : ''}${path}`,
                 ...middlewareCallbacks,
                 callback
             );
         } else {
             // No middleware to apply, just register the route with callback only
-            app[routeMethod](`${globalAccessPoint.getValue('apiSlug') ? '/' + globalAccessPoint.getValue('apiSlug') : ''}${path}`, callback);
+            app[routeMethod](`${globalAccessPoint.apiSlug() ? '/' + globalAccessPoint.apiSlug() : ''}${path}`, callback);
         }
     });
 };
@@ -143,19 +143,11 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         // Init Volatile Secrets Manager
         const volatileSecretsManager = new VolatileSecretsManager(20, 32, true);
 
-        // Init Refresh Rate Limiter
-        const refreshRateLimiter = new RefreshRateLimiter(
-            parseDuration(systemConfig.tokens.lifespans.refreshTokens),
-            Math.floor(parseDuration(systemConfig.tokens.lifespans.refreshTokens) / parseDuration(systemConfig.tokens.lifespans.accessTokens)) + 3,
-            parseDuration(systemConfig.tokens.lifespans.refreshTokens)
-        );
 
         // Init OAuth systems
         const oAuthToolKit = new OAuthProviderToolkit(systemConfig.authMethods?.oAuth || {});
         await oAuthToolKit.initializeAllProviders();
 
-        // Init Signature secrets manager
-        const signatureSecretsManager = new SignatureSecretsManager(8, true);
 
         // Init Memory Handler system
         const memoryMonitioringSystem = new MemoryMonitoringSystem(false);
@@ -164,12 +156,10 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.setValue('db', dbManager.db());
         globalAccessPoint.setValue('systemConfig', mergedConfig);
 
-        globalAccessPoint.getValue('logger').configureFromGlobalAccessPoint();
+        globalAccessPoint.logger().configureFromGlobalAccessPoint();
 
         globalAccessPoint.setValue('volatileSecretsManager', volatileSecretsManager);
-        globalAccessPoint.setValue('refreshRateLimiter', refreshRateLimiter);
         globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
-        globalAccessPoint.setValue('signatureSecretsManager', signatureSecretsManager);
         globalAccessPoint.setValue('memoryMonitioringSystem', memoryMonitioringSystem);
 
         globalAccessPoint.setValue('timeOfLife', getCurrentUnixTime());

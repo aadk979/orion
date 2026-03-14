@@ -118,7 +118,6 @@ class VolatileSecretsManager {
         logger.info('Volatile Secrets Manager: Destroyed all keys and stopped auto rotation');
     }
 
-    // ✅ New method to check readiness
     ready() {
         const ready = this._isReady && this.keys.size === this.nKeys;
         logger.log(`Volatile Secrets Manager: Ready status -> ${ready}`);

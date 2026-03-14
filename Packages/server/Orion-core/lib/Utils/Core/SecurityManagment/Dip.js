@@ -8,17 +8,17 @@ import { encryptPublic } from '../../dedicatedCrypto.js';
 
 const generateDipConfig = async (publicKey) => {
     const Function = async parameters => {
-        const dipEnabled = globalAccessPoint.getValue('dip');
+        const dipEnabled = globalAccessPoint.dip();
 
         if (!dipEnabled) {
             return { error: true, errorCode: 'DIP-DISABLED' };
         }
 
-        const dipConfigsAvailable = globalAccessPoint.getValue('dipConfigsAvailable');
+        const dipConfigsAvailable = globalAccessPoint.dipConfigsAvailable();
 
         const selectedGroup = getRandomElement(dipConfigsAvailable);
 
-        const group = globalAccessPoint.getValue('ephemeralDB').getData(selectedGroup);
+        const group = globalAccessPoint.ephemeralDB().getData(selectedGroup);
 
         const config = getRandomElement(group.data);
 

@@ -12,7 +12,7 @@ class OrionUserControl {
 
     checkUserExist() {
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             if (!email) {
                 auditTrail.record({
@@ -66,7 +66,7 @@ class OrionUserControl {
         };
 
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             if (!uid) {
                 auditTrail.record({
@@ -124,7 +124,7 @@ class OrionUserControl {
 
     disableUserAccount() {
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             const userExist = await this.checkUserExist().byUid(uid);
 
@@ -172,7 +172,7 @@ class OrionUserControl {
         };
 
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             const userExist = await this.checkUserExist().byEmail(email);
 
@@ -226,7 +226,7 @@ class OrionUserControl {
 
     enableUserAccount() {
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             const userExist = await this.checkUserExist().byUid(uid);
 
@@ -274,7 +274,7 @@ class OrionUserControl {
         };
 
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             const userExist = await this.checkUserExist().byEmail(email);
 
@@ -328,7 +328,7 @@ class OrionUserControl {
 
     getUserAccountState() {
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             const userExist = await this.checkUserExist().byUid(uid);
 
@@ -372,7 +372,7 @@ class OrionUserControl {
         };
 
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            const auditTrail = globalAccessPoint.auditTrailSystem();
 
             const userExist = await this.checkUserExist().byEmail(email);
 
@@ -421,7 +421,7 @@ class OrionUserControl {
     }
 
     async getUserUidByEmail(email) {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
 
         if (!email) {
             auditTrail.record({
@@ -476,7 +476,7 @@ class OrionUserControl {
     }
 
     async getUserEmailByUid(uid) {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
 
         if (!uid) {
             auditTrail.record({
@@ -531,7 +531,7 @@ class OrionUserControl {
     }
 
     async updateUserRole(uid, role, customRolesAllowed) {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
         const STANDARD_ROLES = ['USER', 'ADMIN'];
 
         if (!role) {
@@ -586,7 +586,7 @@ class OrionUserControl {
         }
 
         if (customRolesAllowed) {
-            const allowedRoles = globalAccessPoint.getValue('allowedUserRoles');
+            const allowedRoles = globalAccessPoint.allowedUserRoles();
 
             if (!allowedRoles) {
                 auditTrail.record({
@@ -675,7 +675,7 @@ class OrionUserControl {
     }
 
     async updateUserPassword(uid, newPassword) {
-        const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+        const auditTrail = globalAccessPoint.auditTrailSystem();
 
         if (!uid) {
             auditTrail.record({

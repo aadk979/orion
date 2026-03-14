@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Orion — Dashboard</title>
+        <link rel="stylesheet" href="./styles.css" />
+        <style>
+            .dashboard-grid {
+                display: grid;
+                gap: 1.5rem;
+                margin-top: 1rem;
+            }
+
+            .status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+
+            .status-dot.active { background: var(--success); box-shadow: 0 0 6px var(--success); }
+            .status-dot.inactive { background: var(--text-muted); }
+
+            .totp-secret-box {
+                background: var(--bg-primary);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-sm);
+                padding: 1rem;
+                margin: 0.75rem 0;
+                word-break: break-all;
+                font-family: 'Courier New', monospace;
+                font-size: 0.85rem;
+                color: var(--accent);
+                user-select: all;
+            }
+
+            .loading-overlay {
+                position: fixed;
+                inset: 0;
+                background: var(--bg-primary);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 2000;
+                transition: opacity 0.3s;
+            }
+
+            .loading-overlay.hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Loading -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div style="text-align: center;">
+                <div class="logo" style="font-size: 2rem; margin-bottom: 1rem;">ORION</div>
+                <div class="spinner" style="display: block; width: 2rem; height: 2rem; border-width: 3px; border-top-color: var(--accent); border-color: rgba(99, 102, 241, 0.2); margin: 0 auto;"></div>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="nav">
+            <div class="nav-logo">ORION</div>
+            <div class="nav-actions">
+                <span id="nav-email" class="nav-user"></span>
+                <button id="sign-out-btn" class="btn btn-sm btn-secondary">Sign Out</button>
+            </div>
+        </nav>
+
+        <!-- Content -->
+        <div class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+            <h1 class="page-title" style="text-align: left; font-size: 1.5rem;">Dashboard</h1>
+            <p class="page-subtitle" style="text-align: left; margin-bottom: 1.5rem;">Manage your account security and authentication methods.</p>
+
+            <div id="alert-global" class="alert"></div>
+
+            <div class="dashboard-grid">
+                <!-- ── Passkey Section ─────────────── -->
+                <div class="card" id="passkey-card">
+                    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h2>🔑 Passkey</h2>
+                            <p>WebAuthn passkey for sign-in and device authorization</p>
+                        </div>
+                        <span id="passkey-status" class="badge badge-inactive"><span class="status-dot inactive"></span> Inactive</span>
+                    </div>
+                    <div id="passkey-actions">
+                        <button id="register-passkey-btn" class="btn btn-outline btn-full">
+                            <span class="btn-text">Register Passkey</span>
+                            <div class="spinner"></div>
+                        </button>
+                    </div>
+                    <div id="passkey-remove-section" style="display: none; margin-top: 0.75rem;">
+                        <button id="remove-passkey-btn" class="btn btn-danger btn-full btn-sm">
+                            <span class="btn-text">Remove Passkey</span>
+                            <div class="spinner"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── TOTP Section ────────────────── -->
+                <div class="card" id="totp-card">
+                    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h2>📱 Authenticator App (TOTP)</h2>
+                            <p>Time-based one-time password for 2FA</p>
+                        </div>
+                        <span id="totp-status" class="badge badge-inactive"><span class="status-dot inactive"></span> Inactive</span>
+                    </div>
+
+                    <!-- Setup flow -->
+                    <div id="totp-setup-section">
+                        <button id="setup-totp-btn" class="btn btn-outline btn-full">
+                            <span class="btn-text">Set Up TOTP</span>
+                            <div class="spinner"></div>
+                        </button>
+                    </div>
+
+                    <!-- Secret display (hidden by default) -->
+                    <div id="totp-secret-section" style="display: none;">
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                            Add this secret to your authenticator app, then enter the code below to verify:
+                        </p>
+                        <div id="totp-secret-display" class="totp-secret-box"></div>
+                        <div class="form-group" style="margin-top: 0.5rem;">
+                            <input id="totp-verify-input" type="text" class="form-input" placeholder="Enter 6-digit code" maxlength="6" autocomplete="off" />
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="totp-verify-btn" class="btn btn-success btn-full">
+                                <span class="btn-text">Verify & Enable</span>
+                                <div class="spinner"></div>
+                            </button>
+                            <button id="totp-cancel-btn" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Remove button (when active) -->
+                    <div id="totp-remove-section" style="display: none; margin-top: 0.75rem;">
+                        <button id="remove-totp-btn" class="btn btn-danger btn-full btn-sm">
+                            <span class="btn-text">Remove TOTP</span>
+                            <div class="spinner"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── 2FA Removal Verification Modal Flow ── -->
+                <div id="removal-card" class="card" style="display: none;">
+                    <div class="card-header">
+                        <h2>✉️ Verify Removal</h2>
+                        <p id="removal-description">A verification code has been sent to your email. Enter it below to confirm removal.</p>
+                    </div>
+                    <div id="removal-alert" class="alert"></div>
+                    <div class="form-group">
+                        <input id="removal-code-input" type="text" class="form-input" placeholder="Enter 6-digit code" maxlength="6" autocomplete="off" />
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="removal-verify-btn" class="btn btn-danger btn-full">
+                            <span class="btn-text">Confirm Removal</span>
+                            <div class="spinner"></div>
+                        </button>
+                        <button id="removal-cancel-btn" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- ── OAuth Section ───────────────── -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>🌐 OAuth Providers</h2>
+                        <p>Social sign-in options</p>
+                    </div>
+                    <button id="oauth-google-btn" class="btn btn-secondary btn-full">
+                        <span class="btn-text">Connect Google</span>
+                        <div class="spinner"></div>
+                    </button>
+                </div>
+
+                <!-- ── Account Section ─────────────── -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2>👤 Account</h2>
+                        <p>Account management actions</p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button id="sign-out-btn-main" class="btn btn-secondary btn-full">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+            import { orion } from './orion.js';
+
+            // ── Elements ──────────────────────────
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const navEmail = document.getElementById('nav-email');
+            const alertGlobal = document.getElementById('alert-global');
+
+            // Passkey
+            const passkeyStatus = document.getElementById('passkey-status');
+            const registerPasskeyBtn = document.getElementById('register-passkey-btn');
+            const removePasskeyBtn = document.getElementById('remove-passkey-btn');
+            const passkeyRemoveSection = document.getElementById('passkey-remove-section');
+
+            // TOTP
+            const totpStatus = document.getElementById('totp-status');
+            const setupTotpBtn = document.getElementById('setup-totp-btn');
+            const totpSetupSection = document.getElementById('totp-setup-section');
+            const totpSecretSection = document.getElementById('totp-secret-section');
+            const totpSecretDisplay = document.getElementById('totp-secret-display');
+            const totpVerifyInput = document.getElementById('totp-verify-input');
+            const totpVerifyBtn = document.getElementById('totp-verify-btn');
+            const totpCancelBtn = document.getElementById('totp-cancel-btn');
+            const removeTotpBtn = document.getElementById('remove-totp-btn');
+            const totpRemoveSection = document.getElementById('totp-remove-section');
+
+            // 2FA Removal
+            const removalCard = document.getElementById('removal-card');
+            const removalAlert = document.getElementById('removal-alert');
+            const removalCodeInput = document.getElementById('removal-code-input');
+            const removalVerifyBtn = document.getElementById('removal-verify-btn');
+            const removalCancelBtn = document.getElementById('removal-cancel-btn');
+            const removalDescription = document.getElementById('removal-description');
+
+            let currentRemovalMethod = null;
+
+            // ── Helpers ───────────────────────────
+            function showAlert(el, msg, type = 'error') {
+                el.textContent = msg;
+                el.className = `alert alert-${type} show`;
+                setTimeout(() => el.classList.remove('show'), 5000);
+            }
+
+            function setLoading(btn, loading) {
+                btn.classList.toggle('loading', loading);
+                btn.disabled = loading;
+            }
+
+            function setStatusBadge(el, active) {
+                if (active) {
+                    el.className = 'badge badge-active';
+                    el.innerHTML = '<span class="status-dot active"></span> Active';
+                } else {
+                    el.className = 'badge badge-inactive';
+                    el.innerHTML = '<span class="status-dot inactive"></span> Inactive';
+                }
+            }
+
+            // ── Initialize ────────────────────────
+            try {
+                await orion.initialize();
+            } catch(e) {
+                loadingOverlay.classList.add('hidden');
+                showAlert(alertGlobal, 'Failed to initialize: ' + e.message);
+            }
+
+            orion.authState(async state => {
+                if (state && !state.loading) {
+                    if (!state.signedIn) {
+                        window.location.href = './auth.html';
+                        return;
+                    }
+                    loadingOverlay.classList.add('hidden');
+                    await loadProfile();
+                }
+            });
+
+            async function loadProfile() {
+                try {
+                    const result = await orion.getUserProfile();
+                    if (result.error) {
+                        showAlert(alertGlobal, result.errorCode || 'Failed to load profile.');
+                        return;
+                    }
+
+                    const p = result.profile;
+
+                    // Nav email
+                    navEmail.textContent = p.email || 'Signed In';
+
+                    // Passkey status
+                    setStatusBadge(passkeyStatus, p.security.passkey.enabled);
+                    if (p.security.passkey.enabled) {
+                        registerPasskeyBtn.style.display = 'none';
+                        passkeyRemoveSection.style.display = 'block';
+                    } else {
+                        registerPasskeyBtn.style.display = 'block';
+                        passkeyRemoveSection.style.display = 'none';
+                    }
+
+                    // TOTP status
+                    setStatusBadge(totpStatus, p.security.totp.enabled);
+                    if (p.security.totp.enabled) {
+                        totpSetupSection.style.display = 'none';
+                        totpRemoveSection.style.display = 'block';
+                    } else {
+                        totpSetupSection.style.display = 'block';
+                        totpRemoveSection.style.display = 'none';
+                    }
+                } catch (err) {
+                    showAlert(alertGlobal, 'Profile load error: ' + err.message);
+                }
+            }
+
+            // ── Passkey Registration ──────────────
+            registerPasskeyBtn.addEventListener('click', async () => {
+                setLoading(registerPasskeyBtn, true);
+                try {
+                    const result = await orion.registerPasskey();
+                    if (result.error) {
+                        showAlert(alertGlobal, result.errorCode || 'Passkey registration failed.');
+                    } else {
+                        showAlert(alertGlobal, 'Passkey registered successfully!', 'success');
+                        setStatusBadge(passkeyStatus, true);
+                        registerPasskeyBtn.style.display = 'none';
+                        passkeyRemoveSection.style.display = 'block';
+                    }
+                } catch (err) {
+                    showAlert(alertGlobal, err.message || 'Passkey error.');
+                }
+                setLoading(registerPasskeyBtn, false);
+            });
+
+            // ── TOTP Setup ───────────────────────
+            setupTotpBtn.addEventListener('click', async () => {
+                setLoading(setupTotpBtn, true);
+                try {
+                    const result = await orion.setupTOTP();
+                    if (result.error) {
+                        showAlert(alertGlobal, result.errorCode || 'TOTP setup failed.');
+                    } else {
+                        totpSecretDisplay.textContent = result.secret;
+                        totpSetupSection.style.display = 'none';
+                        totpSecretSection.style.display = 'block';
+                    }
+                } catch (err) {
+                    showAlert(alertGlobal, err.message || 'TOTP setup error.');
+                }
+                setLoading(setupTotpBtn, false);
+            });
+
+            totpCancelBtn.addEventListener('click', () => {
+                totpSecretSection.style.display = 'none';
+                totpSetupSection.style.display = 'block';
+                totpVerifyInput.value = '';
+            });
+
+            totpVerifyBtn.addEventListener('click', async () => {
+                const code = totpVerifyInput.value.trim();
+                if (!code || code.length < 6) {
+                    showAlert(alertGlobal, 'Enter a valid 6-digit code.');
+                    return;
+                }
+
+                setLoading(totpVerifyBtn, true);
+                try {
+                    const result = await orion.verifyAndEnableTOTP(code);
+                    if (result.error) {
+                        showAlert(alertGlobal, result.errorCode || 'TOTP verification failed.');
+                    } else {
+                        showAlert(alertGlobal, 'TOTP enabled successfully!', 'success');
+                        setStatusBadge(totpStatus, true);
+                        totpSecretSection.style.display = 'none';
+                        totpSetupSection.style.display = 'none';
+                        totpRemoveSection.style.display = 'block';
+                    }
+                } catch (err) {
+                    showAlert(alertGlobal, err.message || 'TOTP verify error.');
+                }
+                setLoading(totpVerifyBtn, false);
+            });
+
+            // ── 2FA Method Removal (shared flow) ──
+            async function initiateRemoval(method) {
+                currentRemovalMethod = method;
+                const methodLabel = method === 'totp' ? 'TOTP' : 'Passkey';
+                removalDescription.textContent = `A verification code has been sent to your email. Enter it below to confirm ${methodLabel} removal.`;
+
+                const btn = method === 'totp' ? removeTotpBtn : removePasskeyBtn;
+                setLoading(btn, true);
+
+                try {
+                    const result = await orion.initiate2FAMethodRemoval(method);
+                    if (result.error) {
+                        showAlert(alertGlobal, result.errorCode || `Failed to initiate ${methodLabel} removal.`);
+                        setLoading(btn, false);
+                        return;
+                    }
+                    showAlert(alertGlobal, 'Verification code sent to your email.', 'success');
+                    removalCard.style.display = 'block';
+                    removalCodeInput.value = '';
+                    removalCodeInput.focus();
+                    removalAlert.classList.remove('show');
+                } catch (err) {
+                    showAlert(alertGlobal, err.message || 'Removal error.');
+                }
+                setLoading(btn, false);
+            }
+
+            removeTotpBtn.addEventListener('click', () => initiateRemoval('totp'));
+            removePasskeyBtn.addEventListener('click', () => initiateRemoval('passkey'));
+
+            removalCancelBtn.addEventListener('click', () => {
+                removalCard.style.display = 'none';
+                currentRemovalMethod = null;
+            });
+
+            removalVerifyBtn.addEventListener('click', async () => {
+                const code = removalCodeInput.value.trim();
+                if (!code) {
+                    showAlert(removalAlert, 'Enter the verification code.');
+                    return;
+                }
+
+                setLoading(removalVerifyBtn, true);
+                try {
+                    const result = await orion.complete2FAMethodRemoval(code);
+                    if (result.error) {
+                        showAlert(removalAlert, result.errorCode || 'Verification failed.');
+                    } else {
+                        const methodLabel = currentRemovalMethod === 'totp' ? 'TOTP' : 'Passkey';
+                        showAlert(alertGlobal, `${methodLabel} removed successfully!`, 'success');
+                        removalCard.style.display = 'none';
+
+                        if (currentRemovalMethod === 'totp') {
+                            setStatusBadge(totpStatus, false);
+                            totpRemoveSection.style.display = 'none';
+                            totpSetupSection.style.display = 'block';
+                        }
+
+                        if (currentRemovalMethod === 'passkey') {
+                            setStatusBadge(passkeyStatus, false);
+                            passkeyRemoveSection.style.display = 'none';
+                            registerPasskeyBtn.style.display = 'block';
+                        }
+
+                        currentRemovalMethod = null;
+                    }
+                } catch (err) {
+                    showAlert(removalAlert, err.message || 'Removal error.');
+                }
+                setLoading(removalVerifyBtn, false);
+            });
+
+            // ── OAuth Google ──────────────────────
+            document.getElementById('oauth-google-btn').addEventListener('click', async () => {
+                const btn = document.getElementById('oauth-google-btn');
+                setLoading(btn, true);
+                try {
+                    await orion.generateOAuthRedirectURLAndRedirect('GOOGLE');
+                } catch (err) {
+                    showAlert(alertGlobal, err.message || 'OAuth error.');
+                    setLoading(btn, false);
+                }
+            });
+
+            // ── Sign Out ─────────────────────────
+            async function handleSignOut() {
+                try {
+                    const result = await orion.signOutUser();
+                    if (result.error) {
+                        showAlert(alertGlobal, result.errorCode || 'Sign out failed.');
+                    } else {
+                        window.location.href = './auth.html';
+                    }
+                } catch (err) {
+                    showAlert(alertGlobal, err.message || 'Sign out error.');
+                }
+            }
+
+            document.getElementById('sign-out-btn').addEventListener('click', handleSignOut);
+            document.getElementById('sign-out-btn-main').addEventListener('click', handleSignOut);
+        </script>
+    </body>
+</html>

@@ -71,6 +71,7 @@ class MongoService {
 
     async deleteData(collectionName, docId) {
         try {
+            console.log(collectionName, docId)
             this.ensureInitialized();
 
             const collection = this.db.collection(collectionName);
