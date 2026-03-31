@@ -1,4 +1,5 @@
 import { renderDeviceAuthorizationUI } from '../Flows/DeviceAuthorizationFlow.js';
+import { renderStepUpAuthUI } from '../Flows/StepUpAuthFlow.js';
 import {
     deriveKey,
     deriveSharedSecret,
@@ -19,7 +20,8 @@ import { orionVault } from './OrionVault.js';
 import { generateNonce } from './Utils.js';
 
 const ORION_FLOW_TYPES = {
-    'FLOW-DEVICE-AUTHORIZATION': { fn: renderDeviceAuthorizationUI, params: ['baseUrl', 'nameSpace', 'slug'] }
+    'FLOW-DEVICE-AUTHORIZATION': { fn: renderDeviceAuthorizationUI, params: ['baseUrl', 'nameSpace', 'slug'] },
+    'FLOW-STEP-UP-AUTH': { fn: renderStepUpAuthUI, params: ['baseUrl', 'nameSpace', 'slug'] }
 };
 
 class ApiInterface {
@@ -38,11 +40,11 @@ class ApiInterface {
                 'Content-Type': 'application/json',
                 'orion-fingerprint': await getDeviceFingerprint(),
                 'orion-user-agent': navigator.userAgent,
-                'orion-dip-state': dip?.disabled ? 'NONE' : (dip ? dip?.dipState : 'NO DATA'),
-                'orion-dip-id': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.dipId : 'DEFAULT NONE'),
-                'orion-dip-signature': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.dipSignature : 'DEFAULT NONE'),
-                'orion-dip-salt': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.salt : 'DEFAULT NONE'),
-                'orion-dip-timestamp': dip?.disabled ? 'DEFAULT NONE' : (dip ? dip?.timestamp : 'DEFAULT NONE'),
+                'orion-dip-state': dip?.disabled ? 'NONE' : dip ? dip?.dipState : 'NO DATA',
+                'orion-dip-id': dip?.disabled ? 'DEFAULT NONE' : dip ? dip?.dipId : 'DEFAULT NONE',
+                'orion-dip-signature': dip?.disabled ? 'DEFAULT NONE' : dip ? dip?.dipSignature : 'DEFAULT NONE',
+                'orion-dip-salt': dip?.disabled ? 'DEFAULT NONE' : dip ? dip?.salt : 'DEFAULT NONE',
+                'orion-dip-timestamp': dip?.disabled ? 'DEFAULT NONE' : dip ? dip?.timestamp : 'DEFAULT NONE',
                 'orion-encryption-status': encryption ? encryption.encryptionStatus : 'NONE',
                 'orion-encryption-request-id': encryption ? encryption.encryptionRequestId : 'NONE',
                 'orion-encryption-alg': encryption ? encryption.encryptionAlg : 'NONE',
@@ -83,11 +85,15 @@ class ApiInterface {
             // dynamically extract params from 'this'
             const args = flowFn.params.map(paramName => this[paramName]);
 
-            // call function with spread params
+            // await the flow UI — it now resolves when the user completes authorization
             await flowFn.fn(...args);
-        }
 
-        console.log(response)
+            // Signal the caller to retry their original operation with the same args.
+            // The original response is stale (it had the flow header, not a real result).
+            const retryErr = new Error('ORION_DEVICE_AUTH_COMPLETED');
+            retryErr._orionDeviceAuthCompleted = true;
+            throw retryErr;
+        }
 
         return response;
     }
@@ -135,7 +141,6 @@ class ApiInterface {
         }
 
         if (algorithm === 'ECC') {
-
             const size = `P-${dataServer.data.size}`;
 
             const info = 'ORION_ECC_ENCRYPTION_TAG';

@@ -2,7 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { getFutureUnixTime, isUnixExpired } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
-import { getIp } from '../../Ip.js';
+import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -49,8 +49,8 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
             email: sanitizedEmail,
             uid: userEmailLink.data.uid,
             codeHash,
-            ip: parameters.ip,
-            userAgent: parameters.userAgent,
+            ipRange: getIpRange(parameters.ip),
+            userAgentHash: await hashString(parameters.userAgent),
             exp: getFutureUnixTime('15m')
         };
 
@@ -121,8 +121,12 @@ const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, us
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-REQUEST-EXPIRED' };
         }
 
-        if (parameters.userAgent !== record.data.userAgent) {
+        if (!(await verifyHash(parameters.userAgent, record.data.userAgentHash))) {
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-USERAGENT-MISMATCH' };
+        }
+
+        if (!(await isIpInRange(parameters.ip, record.data.ipRange))) {
+            return { error: true, errorCode: 'ACC-PASSWORD-RESET-IP-MISMATCH' };
         }
 
         if (!(await verifyHash(cleanCode, record.data.codeHash))) {

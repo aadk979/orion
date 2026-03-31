@@ -4,12 +4,23 @@ import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { generateId, generateRandomNumber } from '../../valueGenerator.js';
 import { getIpRange, isIpInRange } from '../../Ip.js';
 import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time.js';
-import { timingSafeEqual } from 'crypto';
+
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { toShortPayload, toVerbosePayload } from './tokenFieldMap.js';
 import { compressURLs, decompressURLs } from '../../Compressor.js';
 
-async function generateRefreshToken(uid, email, fingerprint, authMethod, role, ip, userAgent, accessTokenLinkCodeExternal, refreshCount = 0, maxRefreshes = null) {
+async function generateRefreshToken(
+    uid,
+    email,
+    fingerprint,
+    authMethod,
+    role,
+    ip,
+    userAgent,
+    accessTokenLinkCodeExternal,
+    refreshCount = 0,
+    maxRefreshes = null
+) {
     const auditTrail = globalAccessPoint.auditTrailSystem();
     const requestMetadata = requestContext.getStore();
     const securityTier = globalAccessPoint.token_security_tier();
@@ -41,7 +52,7 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
 
         // Standard JWT fields
         aud: aud,
-        iss: iss,
+        iss: iss
     };
 
     // Tier 1: Stateless - minimal payload, no DB storage
@@ -66,7 +77,11 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
         });
 
         const shortPayload = toShortPayload(payload);
-        const token = jwt.sign(shortPayload, secret._nodePrivateKey, { expiresIn: expiry, algorithm: secret.generationConfig.algorithm, keyid: secret.keyPairId });
+        const token = jwt.sign(shortPayload, secret._nodePrivateKey, {
+            expiresIn: expiry,
+            algorithm: secret.generationConfig.algorithm,
+            keyid: secret.keyPairId
+        });
         return { error: false, token: token, securityTier: securityTier };
     }
 
@@ -76,7 +91,7 @@ async function generateRefreshToken(uid, email, fingerprint, authMethod, role, i
     tokenData = {
         tokenId: generateId('REFRESH_TOKEN', 15),
         type: 'REFRESH_TOKEN',
-        accessTokenLinkCode: accessTokenLinkCode,
+        accessTokenLinkCode: accessTokenLinkCode
     };
 
     payload.tokenData = tokenData;
@@ -233,7 +248,7 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
         const securityTier = validatedToken.securityTier;
 
         if (securityTier !== configuredSecurityTier) {
-            return { error: true, errorCode: "INVALID-REFRESH-TOKEN-TIER-CONFLICT" }
+            return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-TIER-CONFLICT' };
         }
 
         // Tier 1: Stateless - no additional validation needed
@@ -264,41 +279,30 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
             }
         }
 
-        // Tier 3: Fingerprint validation only
+        // Tier 3: Fingerprint as advisory risk signal only
         if (securityTier === 3) {
-            if (!timingSafeEqual(Buffer.from(validatedToken.hashedDeviceFingerprint), Buffer.from(tokenData.hashedFingerprint))) {
-                await globalAccessPoint.db().deleteData('Tokens', validatedToken.tokenData.tokenId);
-                user.security.activeTokens = user.security.activeTokens.filter(t => t.tokenId !== validatedToken.tokenData.tokenId);
-                await globalAccessPoint.db().addData('Users', validatedToken.uid, user);
-                return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1' };
+            let riskScore = 0;
+            if (!(await verifyHash(fingerprint, tokenData.hashedFingerprint))) {
+                riskScore += 30;
             }
-
-            if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
-                await globalAccessPoint.db().deleteData('Tokens', validatedToken.tokenData.tokenId);
-                user.security.activeTokens = user.security.activeTokens.filter(t => t.tokenId !== validatedToken.tokenData.tokenId);
-                await globalAccessPoint.db().addData('Users', validatedToken.uid, user);
-                return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2' };
+            if (riskScore >= 50) {
+                // Do NOT revoke the token — the session is cryptographically valid; step-up is a risk gate only
+                return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
 
-        // Tier 4: Both IP and fingerprint validation
+        // Tier 4: IP and fingerprint as combined risk signals
         if (securityTier === 4) {
-            if (!(await isIpInRange(ip, validatedToken.ipRange))) {
-                return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE' };
+            let riskScore = 0;
+            if (!(await verifyHash(fingerprint, tokenData.hashedFingerprint))) {
+                riskScore += 30;
             }
-
-            if (!timingSafeEqual(Buffer.from(validatedToken.hashedDeviceFingerprint), Buffer.from(tokenData.hashedFingerprint))) {
-                await globalAccessPoint.db().deleteData('Tokens', validatedToken.tokenData.tokenId);
-                user.security.activeTokens = user.security.activeTokens.filter(t => t.tokenId !== validatedToken.tokenData.tokenId);
-                await globalAccessPoint.db().addData('Users', validatedToken.uid, user);
-                return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1' };
+            if (!(await isIpInRange(ip, tokenData.ipRange))) {
+                riskScore += 40;
             }
-
-            if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
-                await globalAccessPoint.db().deleteData('Tokens', validatedToken.tokenData.tokenId);
-                user.security.activeTokens = user.security.activeTokens.filter(t => t.tokenId !== validatedToken.tokenData.tokenId);
-                await globalAccessPoint.db().addData('Users', validatedToken.uid, user);
-                return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2' };
+            if (riskScore >= 50) {
+                // Do NOT revoke the token — the session is cryptographically valid; step-up is a risk gate only
+                return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
 

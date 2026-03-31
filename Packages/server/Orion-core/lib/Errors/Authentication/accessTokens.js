@@ -95,13 +95,22 @@ const AccessTokens = {
         solutions: ['NONE'],
         logout: true
     },
-    "INVALID-ACCESS-TOKEN-TIER-CONFLICT": {
+    'INVALID-ACCESS-TOKEN-TIER-CONFLICT': {
         status: 401,
         context: 'The access token key could not be found',
         errorCode: 'INVALID-ACCESS-TOKEN-TIER-CONFLICT',
         fault: 'NEITHER',
         solutions: ['NONE'],
         logout: true
+    },
+    'STEP-UP-AUTH-REQUIRED': {
+        status: 401,
+        customStatus: 601,
+        context: 'Step-up authentication is required to complete this request',
+        errorCode: 'STEP-UP-AUTH-REQUIRED',
+        fault: 'CLIENT',
+        solutions: ['Complete the step-up authentication flow to re-verify your identity'],
+        flow: 'FLOW-STEP-UP-AUTH'
     }
 };
 

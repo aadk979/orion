@@ -18,7 +18,7 @@ async function sha256Hash(message) {
 async function getDeviceFingerprint() {
     const fp = await FingerprintJS.load();
     const result = await fp.get();
-    return await sha256Hash(result + window.location.origin);
+    return await sha256Hash(result.visitorId + window.location.origin);
 }
 
 export { getDeviceFingerprint };

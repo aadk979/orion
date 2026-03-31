@@ -40,6 +40,13 @@ const AccountSignIn = {
         errorCode: 'ACC-SIGN-IN-ACC-DISABLED',
         fault: 'CLIENT',
         solutions: ['Contact support']
+    },
+    'ACC-PASSWORD-RESET-IP-MISMATCH': {
+        status: 401,
+        context: 'The password reset request IP address does not match',
+        errorCode: 'ACC-PASSWORD-RESET-IP-MISMATCH',
+        fault: 'CLIENT',
+        solutions: ['Complete the password reset from the same network or request a new reset code']
     }
 };
 

@@ -1,25 +1,35 @@
 import { internalErrors } from '../../Errors/internal-errors.js';
 import { logger } from '../../Utils/logger.js';
 
-const EXPOSED_HEADERS = [
-    'orion-flow-activation',
-    'orion-response-refresh',
-    'orion-dip-failure',
-    'orion-served-by',
-];
+const EXPOSED_HEADERS = ['orion-flow-activation', 'orion-response-refresh', 'orion-dip-failure', 'orion-served-by'];
 
 const respondWithError = (response, errorCode) => {
     if (!internalErrors[errorCode]) {
         logger.warn(`Unrecognised error code: ${errorCode}`);
     }
 
-    response.setHeader('orion-response-status', internalErrors[errorCode]?.customStatus || internalErrors[errorCode]?.status || 'UNKNOWN');
+    const trueError = internalErrors[errorCode];
+
+    // If the error has a clientSafeErrorCode, swap it out so sensitive details are not exposed
+    const clientError = (trueError?.clientSafeErrorCode && internalErrors[trueError.clientSafeErrorCode])
+        ? internalErrors[trueError.clientSafeErrorCode]
+        : trueError;
+
+    response.setHeader('orion-response-status', clientError?.customStatus || clientError?.status || 'UNKNOWN');
 
     response.setHeader('Access-Control-Expose-Headers', EXPOSED_HEADERS.join(' ,'));
 
-    response.setHeader('orion-response-refresh', internalErrors[errorCode]?.refresh || false);
+    response.setHeader('orion-response-refresh', clientError?.refresh || false);
 
-    const error = internalErrors[errorCode] || internalErrors['UNKNOWN-ERROR'];
+    if (clientError?.flow) {
+        response.setHeader('orion-flow-activation', clientError.flow);
+    }
+
+    const error = clientError || internalErrors['UNKNOWN-ERROR'];
+
+    if (trueError?.clientSafeErrorCode) {
+        logger.warn(`Obfuscated error '${errorCode}' → client receives '${trueError.clientSafeErrorCode}'`);
+    }
 
     // The error trigger field is for quick dev testing where new error codes have not been populated in the error registry and minimize confusion of what the true error is
     response.status(error.status).json({ error: true, errorData: { ...error }, errorTrigger: errorCode });

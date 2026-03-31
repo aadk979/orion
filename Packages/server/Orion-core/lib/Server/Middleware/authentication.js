@@ -14,6 +14,8 @@ import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { parseDuration } from '../../Utils/Date&Time.js';
 import { parseCookieData, stringifyCookieData } from '../../Utils/CookieUtils.js';
 import { slugParser } from '../../Utils/Parsers.js';
+import { generateStepUpContextToken } from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
+import { requestContext } from './requestMetadata.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -31,7 +33,15 @@ const ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER = [
     `/${NAME_SPACE}/api/v1/request/available-2fa-methods`,
     `/${NAME_SPACE}/api/v1/action/send-device-authorization-email`,
     `/${NAME_SPACE}/api/v1/action/authorize-device-with-passkey`,
-    `/${NAME_SPACE}/api/v1/action/authorize-device-with-totp`
+    `/${NAME_SPACE}/api/v1/action/authorize-device-with-totp`,
+    `/${NAME_SPACE}/api/v1/action/generate-passkey-sign-up-options`,
+    `/${NAME_SPACE}/api/v1/action/complete-passkey-sign-up`,
+    `/${NAME_SPACE}/api/v1/request/step-up-methods`,
+    `/${NAME_SPACE}/api/v1/action/initiate-step-up-email`,
+    `/${NAME_SPACE}/api/v1/action/verify-step-up-email`,
+    `/${NAME_SPACE}/api/v1/action/generate-step-up-passkey-options`,
+    `/${NAME_SPACE}/api/v1/action/verify-step-up-passkey`,
+    `/${NAME_SPACE}/api/v1/action/verify-step-up-totp`
 ];
 
 const ROUTES_ACCESSIBLE_WITH_NO_BEARER = [
@@ -39,6 +49,15 @@ const ROUTES_ACCESSIBLE_WITH_NO_BEARER = [
     `/${NAME_SPACE}/api/v1/action/generate-no-auth-token`,
     `/${NAME_SPACE}/api/v1/request/have-no-auth-token`,
     `/${NAME_SPACE}/api/v1/action/configure-dip`
+];
+
+const STEP_UP_FLOW_ROUTES = [
+    `/${NAME_SPACE}/api/v1/request/step-up-methods`,
+    `/${NAME_SPACE}/api/v1/action/initiate-step-up-email`,
+    `/${NAME_SPACE}/api/v1/action/verify-step-up-email`,
+    `/${NAME_SPACE}/api/v1/action/generate-step-up-passkey-options`,
+    `/${NAME_SPACE}/api/v1/action/verify-step-up-passkey`,
+    `/${NAME_SPACE}/api/v1/action/verify-step-up-totp`
 ];
 
 const handleSessionClearance = parameters => {
@@ -106,7 +125,8 @@ const authenticationMiddleware = async (request, response, next) => {
         const userAgent = headers['orion-user-agent'];
         const ip = getIp(parameters.request);
         const authHeader = headers['authorization'] || 'DEFAULT NONE';
-        const clientUrl = parameters.request.headers.origin || parameters.request.headers.referer || `${parameters.request.protocol}://${parameters.request.get('host')}`;
+        const clientUrl =
+            parameters.request.headers.origin || parameters.request.headers.referer || `${parameters.request.protocol}://${parameters.request.get('host')}`;
 
         const reqIsAuthStateCheck = handleIsAuthStateCheck(parameters);
 
@@ -135,6 +155,32 @@ const authenticationMiddleware = async (request, response, next) => {
                 let verification = await validateAccessToken(parameters.request.cookies['ACCESS_TOKEN'], fingerprint, ip, clientUrl);
 
                 if (verification.error || !verification.valid) {
+                    // ── Step-Up Auth gate ─────────────────────────────────────────────
+                    if (verification.errorCode === 'STEP-UP-AUTH-REQUIRED') {
+                        const uid = verification.uid;
+                        const currentMetadata = requestContext.getStore();
+
+                        // Step-up already verified for this uid — allow the request through
+                        if (currentMetadata?.stepUpAuthComplete && currentMetadata?.stepUpUid === uid) {
+                            parameters.request.user = verification.data;
+                            return parameters.next();
+                        }
+
+                        // Set a signed step-up context cookie so flow routes can identify the user
+                        const stepUpContextToken = await generateStepUpContextToken(uid);
+                        parameters.response.cookie('stepUpContext', stepUpContextToken, {
+                            httpOnly: true,
+                            secure: true,
+                            sameSite: 'None',
+                            path: '/',
+                            maxAge: parseDuration('10m')
+                        });
+
+                        return respondWithError(parameters.response, 'STEP-UP-AUTH-REQUIRED');
+                        // respondWithError auto-sets: orion-flow-activation: FLOW-STEP-UP-AUTH
+                    }
+                    // ─────────────────────────────────────────────────────────────────
+
                     if (verification.errorCode !== 'ACCESS-TOKEN-EXPIRED' && verification.errorCode !== 'MISSING-AUTHENTICATION-TOKEN') {
                         return respondWithError(parameters.response, verification.errorCode);
                     }
@@ -147,6 +193,28 @@ const authenticationMiddleware = async (request, response, next) => {
                         const refreshVerification = await validateRefreshToken(parameters.request.cookies['REFRESH_TOKEN'], fingerprint, ip, clientUrl);
 
                         if (refreshVerification.error || !refreshVerification.valid) {
+                            if (refreshVerification.errorCode === 'STEP-UP-AUTH-REQUIRED') {
+                                const uid = refreshVerification.uid;
+                                const currentMetadata = requestContext.getStore();
+
+                                if (currentMetadata?.stepUpAuthComplete && currentMetadata?.stepUpUid === uid) {
+                                    // Can't proceed without a valid access token — force re-auth
+                                    handleSessionClearance(parameters);
+                                    return respondWithError(parameters.response, 'MISSING-AUTHENTICATION-TOKEN');
+                                }
+
+                                const stepUpContextToken = await generateStepUpContextToken(uid);
+                                parameters.response.cookie('stepUpContext', stepUpContextToken, {
+                                    httpOnly: true,
+                                    secure: true,
+                                    sameSite: 'None',
+                                    path: '/',
+                                    maxAge: parseDuration('10m')
+                                });
+
+                                return respondWithError(parameters.response, 'STEP-UP-AUTH-REQUIRED');
+                            }
+
                             return respondWithError(parameters.response, refreshVerification.errorCode);
                         }
 
@@ -242,7 +310,10 @@ const authenticationMiddleware = async (request, response, next) => {
 
                 const path = slugParser(parameters.request.path);
 
-
+                // Step-up flow routes bypass NoAuthToken — they use the signed stepUpContext cookie for identity
+                if (STEP_UP_FLOW_ROUTES.includes(path)) {
+                    return parameters.next();
+                }
 
                 // Check if route exists in the accessible routes for no auth bearer, if not and the route is set by default, return an error. Else verify route was set by the user via setBy and allow access.
                 if (!ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER.includes(path) && setBy === 1) {

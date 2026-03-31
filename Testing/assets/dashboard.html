@@ -122,9 +122,12 @@
                     <!-- Secret display (hidden by default) -->
                     <div id="totp-secret-section" style="display: none;">
                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
-                            Add this secret to your authenticator app, then enter the code below to verify:
+                            Scan the QR code or add this secret to your authenticator app, then enter the code below to verify:
                         </p>
-                        <div id="totp-secret-display" class="totp-secret-box"></div>
+                        <div style="display: flex; justify-content: center; margin-bottom: 1rem; background: #fff; padding: 1rem; border-radius: var(--radius-sm);">
+                            <img id="totp-qr-display" src="" alt="TOTP QR Code" style="width: 200px; height: 200px;" />
+                        </div>
+                        <div id="totp-secret-display" class="totp-secret-box" style="text-align: center;"></div>
                         <div class="form-group" style="margin-top: 0.5rem;">
                             <input id="totp-verify-input" type="text" class="form-input" placeholder="Enter 6-digit code" maxlength="6" autocomplete="off" />
                         </div>
@@ -210,6 +213,7 @@
             const totpSetupSection = document.getElementById('totp-setup-section');
             const totpSecretSection = document.getElementById('totp-secret-section');
             const totpSecretDisplay = document.getElementById('totp-secret-display');
+            const totpQrDisplay = document.getElementById('totp-qr-display');
             const totpVerifyInput = document.getElementById('totp-verify-input');
             const totpVerifyBtn = document.getElementById('totp-verify-btn');
             const totpCancelBtn = document.getElementById('totp-cancel-btn');
@@ -332,6 +336,7 @@
                         showAlert(alertGlobal, result.errorCode || 'TOTP setup failed.');
                     } else {
                         totpSecretDisplay.textContent = result.secret;
+                        totpQrDisplay.src = result.qrCode;
                         totpSetupSection.style.display = 'none';
                         totpSecretSection.style.display = 'block';
                     }

@@ -47,7 +47,7 @@ async function compileSDK(entryFile, outFile, { format = 'esm' } = {}) {
 
         const hash = crypto.createHash('sha256').update(output).digest('hex');
 
-        const finalOutput = `// Orion SDK Build\n// SHA256: ${hash}\n${banner}\n${output}`;
+        const finalOutput = `// Orion SDK Build\n// SHA256: ${hash}\n// ${new Date().toLocaleString()}\n${banner}\n${output}`;
         fs.mkdirSync(path.dirname(outFile), { recursive: true });
         fs.writeFileSync(outFile, finalOutput);
 
@@ -60,7 +60,7 @@ async function compileSDK(entryFile, outFile, { format = 'esm' } = {}) {
 
 (async () => {
     const entry = process.argv[2] || 'lib/Root.js';
-    const outDirs = ['dist', '../../Testing/assets'];
+    const outDirs = ['dist', '../../Testing/assets', '../../ClientTest/app/public'];
     console.log('🚀 Building Orion SDK (no mangling)...');
     for (const dir of outDirs) {
         await compileSDK(entry, `${dir}/orion.beta.sdk.js`, { format: 'esm' });

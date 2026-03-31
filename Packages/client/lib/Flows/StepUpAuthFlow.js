@@ -180,11 +180,12 @@ const createApiLayer = (serverURL, nameSpace, slug) => {
     const Api = new ApiInterface(serverURL, nameSpace, slug);
 
     const ENDPOINTS = {
-        METHODS: `/${nameSpace}/api/v1/request/available-2fa-methods`,
-        SEND_EMAIL: `/${nameSpace}/api/v1/action/send-device-authorization-email`,
-        AUTH_EMAIL: `/${nameSpace}/api/v1/action/authorize-me`,
-        AUTH_PASSKEY: `/${nameSpace}/api/v1/action/authorize-device-with-passkey`,
-        AUTH_TOTP: `/${nameSpace}/api/v1/action/authorize-device-with-totp`
+        METHODS:         `/${nameSpace}/api/v1/request/step-up-methods`,
+        SEND_EMAIL:      `/${nameSpace}/api/v1/action/initiate-step-up-email`,
+        AUTH_EMAIL:      `/${nameSpace}/api/v1/action/verify-step-up-email`,
+        PASSKEY_OPTIONS: `/${nameSpace}/api/v1/action/generate-step-up-passkey-options`,
+        AUTH_PASSKEY:    `/${nameSpace}/api/v1/action/verify-step-up-passkey`,
+        AUTH_TOTP:       `/${nameSpace}/api/v1/action/verify-step-up-totp`
     };
 
     const apiCall = async (endpoint, payload = null, encryptKeys = []) => {
@@ -220,7 +221,7 @@ const createApiLayer = (serverURL, nameSpace, slug) => {
 // Main function
 // ─────────────────────────────────────────────────────────────────────────────
 
-const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = {}) => {
+const renderStepUpAuthUI = (serverURL, nameSpace, slug, customStyles = {}) => {
     return new Promise(async (resolve, reject) => {
 
         // ── Track state & listeners for cleanup ─────────────────────────────
@@ -305,7 +306,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
         const onKeyDown = (e) => {
             if (e.key === 'Escape') {
                 cleanup();
-                reject(new Error('User cancelled device authorization.'));
+                reject(new Error('User cancelled step-up authorization.'));
             }
         };
         addTrackedListener(document, 'keydown', onKeyDown);
@@ -350,7 +351,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
             circle.style.cssText = 'width: 64px; height: 64px; border-radius: 50%; background-color: var(--orion-success-color); display: flex; align-items: center; justify-content: center; animation: orionPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);';
             circle.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 
-            const heading = createTextElement('h3', 'orion-heading', 'Device Authorized');
+            const heading = createTextElement('h3', 'orion-heading', 'Identity Verified');
             heading.style.color = 'var(--orion-success-color)';
             heading.setAttribute('aria-live', 'polite');
 
@@ -487,10 +488,10 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
             currentState = STATE.METHOD_SELECTION;
             modal.innerHTML = '';
 
-            const heading = createTextElement('h2', 'orion-heading', 'Verify it\'s you');
+            const heading = createTextElement('h2', 'orion-heading', 'Verify your identity');
             heading.id = 'orion-modal-heading';
 
-            const subhead = createTextElement('p', 'orion-subhead', 'Select a security method to authorize this active device.');
+            const subhead = createTextElement('p', 'orion-subhead', 'A risk signal was detected. Please confirm your identity to continue.');
 
             const btnContainer = document.createElement('div');
             btnContainer.style.cssText = 'display:flex; flex-direction:column; gap:0.75rem; margin-top: 0.5rem;';
@@ -500,7 +501,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
                 btn.className = 'orion-btn';
                 btn.id = 'btn-passkey';
                 btn.style.backgroundColor = 'var(--orion-heading-color)';
-                btn.setAttribute('aria-label', 'Authorize with Passkey');
+                btn.setAttribute('aria-label', 'Verify with Passkey');
                 btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>`;
                 const label = document.createTextNode(' Passkey');
                 btn.appendChild(label);
@@ -509,11 +510,14 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
                 btn.onclick = async () => {
                     renderLoading('Waiting for Passkey...');
                     try {
-                        const passkeyResponse = await withTimeout(() => startAuthentication({}));
+                        const optionsRes = await withTimeout(() => apiCall(ENDPOINTS.PASSKEY_OPTIONS));
+                        if (optionsRes.error) throw new Error(optionsRes.errorData?.context?.[0] || 'Failed to retrieve passkey options.');
+                        const options = optionsRes.data.options;
+                        const passkeyResponse = await withTimeout(() => startAuthentication(options));
                         const verifyData = await withTimeout(() =>
                             apiCall(ENDPOINTS.AUTH_PASSKEY, { authenticationResponse: passkeyResponse }, ['authenticationResponse'])
                         );
-                        if (verifyData.error) throw new Error(verifyData.errorData?.context?.[0] || 'Passkey verification failed');
+                        if (verifyData.error) throw new Error(verifyData.errorData?.context?.[0] || 'Passkey verification failed.');
                         renderSuccess();
                     } catch (e) {
                         renderError(e.message, () => renderMethodSelection(methods));
@@ -525,7 +529,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
                 const btn = document.createElement('button');
                 btn.className = 'orion-btn orion-btn-secondary';
                 btn.id = 'btn-totp';
-                btn.setAttribute('aria-label', 'Authorize with Authenticator App');
+                btn.setAttribute('aria-label', 'Verify with Authenticator App');
                 btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>`;
                 const label = document.createTextNode(' Authenticator App');
                 btn.appendChild(label);
@@ -544,23 +548,23 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
                 const btn = document.createElement('button');
                 btn.className = 'orion-btn orion-btn-secondary';
                 btn.id = 'btn-email';
-                btn.setAttribute('aria-label', 'Authorize with Email OTP');
+                btn.setAttribute('aria-label', 'Verify with Email OTP');
                 btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`;
                 const label = document.createTextNode(' Email OTP');
                 btn.appendChild(label);
                 btnContainer.appendChild(btn);
 
                 btn.onclick = async () => {
-                    renderLoading('Sending security email...');
+                    renderLoading('Sending verification email...');
                     try {
                         const res = await withTimeout(() => apiCall(ENDPOINTS.SEND_EMAIL));
                         if (res.error) {
-                            renderError(res.errorData?.context?.[0] || 'Failed to dispatch email.', () => renderMethodSelection(methods));
+                            renderError(res.errorData?.context?.[0] || 'Failed to send verification email.', () => renderMethodSelection(methods));
                             return;
                         }
-                        renderCodeInput('Email OTP', 'Enter the security code sent to your registered email.', async (code) => {
+                        renderCodeInput('Email OTP', 'Enter the 6-digit code sent to your registered email.', async (code) => {
                             const verifyRes = await withTimeout(() =>
-                                apiCall(ENDPOINTS.AUTH_EMAIL, { authorizationCode: code }, ['authorizationCode'])
+                                apiCall(ENDPOINTS.AUTH_EMAIL, { code: code }, ['code'])
                             );
                             if (verifyRes.error) renderError(verifyRes.errorData?.context?.[0] || 'Invalid email verification code.');
                             else renderSuccess();
@@ -588,18 +592,18 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
             const methodsRes = await withTimeout(() => apiCall(ENDPOINTS.METHODS));
 
             if (methodsRes.error) {
-                renderError('Unable to load available 2FA methods.', () => {
+                renderError('Unable to load available verification methods.', () => {
                     cleanup();
-                    renderDeviceAuthorizationUI(serverURL, nameSpace, slug, customStyles).then(resolve).catch(reject);
+                    renderStepUpAuthUI(serverURL, nameSpace, slug, customStyles).then(resolve).catch(reject);
                 });
             } else {
                 renderMethodSelection(methodsRes.data.methods);
             }
         } catch (e) {
             cleanup();
-            reject(new Error(e.message || 'Device authorization failed.'));
+            reject(new Error(e.message || 'Step-up authorization failed.'));
         }
     });
 };
 
-export { renderDeviceAuthorizationUI };
+export { renderStepUpAuthUI };

@@ -1,4 +1,5 @@
 import { AccessTokens } from './Authentication/accessTokens.js';
+import { StepUpAuth } from './Security/stepUpAuth.js';
 import { RefreshTokens } from './Authentication/refreshTokens.js';
 import { AuthenticationMiddleware } from './Authentication/authenticationMiddleware.js';
 import { ResourceTokens } from './Authentication/resourceTokens.js';
@@ -20,9 +21,11 @@ import { Dip } from './Security/dips.js';
 import { Database } from './System/database.js';
 import { FileOperations } from './System/fileOperations.js';
 import { System } from './System/system.js';
+import { writeToCaller } from "../Utils/FileHandler.js";
 
 const internalErrors = {
     ...AccessTokens,
+    ...StepUpAuth,
     ...RefreshTokens,
     ...AuthenticationMiddleware,
     ...ResourceTokens,
@@ -45,5 +48,7 @@ const internalErrors = {
     ...FileOperations,
     ...System
 };
+
+writeToCaller("errors.json", internalErrors);
 
 export { internalErrors };

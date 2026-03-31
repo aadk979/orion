@@ -75,6 +75,29 @@ const DeviceAuthorization = {
         errorCode: 'DEVICE-AUTHORIZATION-INVALID-TOTP',
         fault: 'CLIENT',
         solutions: ['Check the code in your authenticator app and try again']
+    },
+    'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED': {
+        status: 401,
+        customStatus: 600,
+        context: 'Device authorization is required for this account',
+        errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED',
+        fault: 'CLIENT',
+        solutions: ['Complete the device authorization flow'],
+        flow: 'FLOW-DEVICE-AUTHORIZATION'
+    },
+    'DEVICE-2FA-ACC-DISABLED': {
+        status: 403,
+        context: 'This account has been disabled',
+        errorCode: 'DEVICE-2FA-ACC-DISABLED',
+        fault: 'CLIENT',
+        solutions: ['Contact support to re-enable your account']
+    },
+    'FLOW-SECRET-MISMATCH': {
+        status: 401,
+        context: 'The device authorization flow secret does not match the original request',
+        errorCode: 'FLOW-SECRET-MISMATCH',
+        fault: 'CLIENT',
+        solutions: ['Restart the device authorization process']
     }
 };
 

@@ -2,7 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { getFutureUnixTime, getCurrentUnixTime } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
-import { getIp } from '../../Ip.js';
+import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { generateRequestId } from '../../valueGenerator.js';
@@ -32,7 +32,7 @@ const generateNoAuthTokenCreationTransaction = async (ip, fingerprint, userAgent
         const captcha = await generateCaptchaImage();
 
         const payload = {
-            ip: parameters.ip,
+            ipRange: getIpRange(parameters.ip),
             fingerprint: parameters.fingerprint,
             userAgent: parameters.userAgent,
             captchaCode: captcha.hashedCode,
@@ -89,6 +89,14 @@ export const routeHandlerGenerateNoAuthTokenCreationTransaction = async (request
 
 const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse, transactionId) => {
     const Function = async parameters => {
+        // ── 0. Validate transactionId format ─────────────────────────────────
+        if (
+            !parameters.transactionId ||
+            typeof parameters.transactionId !== 'string' ||
+            !parameters.transactionId.startsWith('REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION')
+        ) {
+            return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-ID' };
+        }
 
         // ── 1. Fetch and validate transaction ────────────────────────────────
         const transactionStorage = await globalAccessPoint.db().getData('noAuthTokenCreationTransactions', parameters.transactionId);
@@ -111,12 +119,17 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
         }
 
         // ── 4. Bind checks: IP, fingerprint, user-agent ──────────────────────
-        if (transactionStorage.data.ip !== parameters.ip) {
+        if (!(await isIpInRange(parameters.ip, transactionStorage.data.ipRange))) {
             await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
             return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-IP' };
         }
 
+        // Fingerprint is an advisory risk signal, not a hard gate
+        let fpRiskScore = 0;
         if (!(await verifyHash(parameters.fingerprint, transactionStorage.data.fingerprint))) {
+            fpRiskScore += 30;
+        }
+        if (fpRiskScore >= 50) {
             await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
             return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-FINGERPRINT' };
         }
@@ -160,7 +173,7 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
         // We reuse the database fingerprint hash to embed in the payload.
         const tokenPayload = JSON.stringify({
             type: 'NO_AUTH_TOKEN',
-            ip: parameters.ip,
+            ipRange: getIpRange(parameters.ip),
             userAgent: parameters.userAgent,
             fpHash: transactionStorage.data.fingerprint,
             exp: exp,
@@ -232,7 +245,6 @@ export const routeHandlerGenerateNoAuthToken = async (request, response) => {
 
 const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
     const Function = async parameters => {
-
         // ── 1. Split token into payload + signature ───────────────────────────
         const dotIndex = parameters.token.indexOf('.');
         if (dotIndex === -1) {
@@ -252,7 +264,7 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
 
         // ── 3. Structural + type check ────────────────────────────────────────
         // fpHash is now required — tokens without it (e.g. old format) are rejected
-        if (!payload || payload.type !== 'NO_AUTH_TOKEN' || !payload.exp || !payload.kid || !payload.fpHash) {
+        if (!payload || payload.type !== 'NO_AUTH_TOKEN' || !payload.exp || !payload.kid || !payload.fpHash || !payload.ipRange) {
             return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
         }
 
@@ -279,7 +291,7 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
         // a stolen token cannot be used from a different device, IP, or browser.
         // Checks are ordered cheapest-first (string compare before bcrypt).
         // All return the same error code to avoid revealing which field failed.
-        if (payload.ip !== parameters.ip) {
+        if (!(await isIpInRange(parameters.ip, payload.ipRange))) {
             return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
         }
 
@@ -287,10 +299,12 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
             return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
         }
 
-        // Fingerprint is stored as a bcrypt hash in the token payload — the raw
-        // value is never persisted anywhere, so verification requires re-hashing
-        // the incoming fingerprint against the embedded hash.
+        // Fingerprint is an advisory risk signal, not a hard gate
+        let riskScore = 0;
         if (!(await verifyHash(parameters.fingerprint, payload.fpHash))) {
+            riskScore += 30;
+        }
+        if (riskScore >= 50) {
             return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
         }
 

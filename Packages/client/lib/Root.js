@@ -6,6 +6,7 @@ import { signInUser } from './API-Handlers/Auth/SignInUser.js';
 import { signUpUser } from './API-Handlers/Auth/SignUpUser.js';
 import { registerPasskey } from './API-Handlers/Auth/Passkey/RegisterPasskey.js';
 import { signInWithPasskey } from './API-Handlers/Auth/Passkey/SignInWithPasskey.js';
+import { signUpWithPasskey } from './API-Handlers/Auth/Passkey/SignUpWithPasskey.js';
 import { signOutUser } from './API-Handlers/Auth/SignOutUser.js';
 import { generateOAuthRedirectURL } from './API-Handlers/Auth/OAuth/GenerateOAuthRedirectURL.js';
 import { handleOAuthCallback } from './API-Handlers/Auth/OAuth/HandleOAuthCallback.js';
@@ -110,7 +111,7 @@ class Orion {
         await this.initialize();
         if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
-        return await signInUser({
+        const args = {
             Api: this.Api,
             orionVault,
             email,
@@ -118,7 +119,17 @@ class Orion {
             dipConfig: this.dipConfig,
             getAuthHeader,
             This: this
-        });
+        };
+
+        try {
+            return await signInUser(args);
+        } catch (e) {
+            if (e._orionDeviceAuthCompleted) {
+                // Device was just authorized — retry the sign-in transparently
+                return await signInUser(args);
+            }
+            throw e;
+        }
     }
 
     async signUpUser(email, password) {
@@ -163,7 +174,30 @@ class Orion {
         await this.initialize();
         if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
-        return await signInWithPasskey({
+        const args = {
+            email,
+            Api: this.Api,
+            getAuthHeader,
+            dipConfig: this.dipConfig,
+            This: this
+        };
+
+        try {
+            return await signInWithPasskey(args);
+        } catch (e) {
+            if (e._orionDeviceAuthCompleted) {
+                // Device was just authorized — retry passkey sign-in (fresh challenge)
+                return await signInWithPasskey(args);
+            }
+            throw e;
+        }
+    }
+
+    async signUpWithPasskey(email) {
+        await this.initialize();
+        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+
+        return await signUpWithPasskey({
             email,
             Api: this.Api,
             getAuthHeader,
@@ -188,6 +222,9 @@ class Orion {
             return result;
         }
 
+        // Persist provider so the callback page can restart the flow after device auth
+        sessionStorage.setItem('orion_oauth_provider', providerName);
+
         window.location.replace(result.redirectURL);
     }
 
@@ -195,12 +232,33 @@ class Orion {
         await this.initialize();
         if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
-        const result = await handleOAuthCallback({
-            Api: this.Api,
-            getAuthHeader,
-            dipConfig: this.dipConfig,
-            This: this
-        });
+        let result;
+        try {
+            result = await handleOAuthCallback({
+                Api: this.Api,
+                getAuthHeader,
+                dipConfig: this.dipConfig,
+                This: this
+            });
+        } catch (e) {
+            if (e._orionDeviceAuthCompleted) {
+                // OAuth codes are single-use — re-initiate a fresh OAuth redirect for the same provider.
+                const provider = sessionStorage.getItem('orion_oauth_provider');
+                sessionStorage.removeItem('orion_oauth_provider');
+                
+                if (provider) {
+                    return await this.generateOAuthRedirectURLAndRedirect(provider);
+                }
+                // Fallback: no saved provider, go to app root
+                const { postAuthRedirect = window.location.origin } = globalAccessPoint.getValue('systemConfig') || {};
+                window.location.replace(postAuthRedirect.toString());
+                return { error: false, signedIn: false };
+            }
+            throw e;
+        }
+
+        // Successful callback — clear any stale provider key
+        sessionStorage.removeItem('orion_oauth_provider');
 
         if (result.error) {
             return result;

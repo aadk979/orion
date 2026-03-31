@@ -10,12 +10,12 @@ import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
 import { accountExist, checkAndAddProviderToAccount, createAccountWithProvider } from './Account.js';
 import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
-import { stringifyCookieData } from '../../CookieUtils.js';
+import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { isValidEmailDomain } from '../../Validator.js';
 import { userControl } from '../AccountManagment/UserControl.js';
 
-const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent, deviceId, deviceCode) => {
+const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, userAgent, deviceId, deviceCode) => {
     const Function = async parameters => {
         const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
@@ -29,7 +29,6 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: parameters.userAgent
                 },
                 action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -48,11 +47,10 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             return { error: true, errorCode: 'O-AUTH-REQUEST-INVALID-OR-EXPIRED' };
         }
 
-        if (!(await verifyHash(parameters.deviceFingerprint, stateFromServer.data.hashedDeviceFingerprint))) {
+        if (!(await verifyHash(parameters.flowSecret, stateFromServer.data.hashedFlowSecret))) {
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: parameters.userAgent
                 },
                 action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -61,21 +59,20 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
                 functionName: 'handleOAuthCallback',
                 requestId: requestMetadata?.requestId,
                 ipAddress: parameters.ip,
-                impact: 'OAuth callback blocked - device fingerprint mismatch',
+                impact: 'OAuth callback blocked - flow secret mismatch',
                 metadata: {
-                    reason: 'DEVICE_FINGERPRINT_MISMATCH',
+                    reason: 'FLOW_SECRET_MISMATCH',
                     requestId: stateFromClient.requestId
                 },
-                errorCode: 'O-AUTH-DEVICE-FINGERPRINT-MISMATCH'
+                errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH'
             });
-            return { error: true, errorCode: 'O-AUTH-DEVICE-FINGERPRINT-MISMATCH' };
+            return { error: true, errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH' };
         }
 
         if (!(await isIpInRange(parameters.ip, stateFromServer.data.ipRange))) {
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: parameters.userAgent
                 },
                 action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -98,7 +95,6 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: parameters.userAgent
                 },
                 action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -119,13 +115,12 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
 
         const provider = stateFromServer.data.providerName.trim().toLowerCase();
 
-        const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code);
+        const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code, parameters.state, { nonce: stateFromServer.data.nonce });
 
         if (oAuthResponse?.error) {
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: parameters.userAgent
                 },
                 action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -149,7 +144,6 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             auditTrail.record({
                 user: { email: oAuthResponse.email },
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: parameters.userAgent
                 },
                 action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -176,7 +170,6 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
                 auditTrail.record({
                     user: { email: oAuthResponse.email },
                     device: {
-                        fingerprint: parameters.deviceFingerprint,
                         userAgent: parameters.userAgent
                     },
                     action: 'OAUTH_CALLBACK_ATTEMPT',
@@ -234,13 +227,9 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
 
         if (deviceAuthorizationEnabled) {
             if (!parameters?.deviceId || !parameters?.deviceCode) {
-                const headers = [{ key: 'orion-flow-activation', value: 'FLOW-DEVICE-AUTHORIZATION' }];
+                const cookies = [{ key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }];
 
-                const cookies = [
-                    { key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }
-                ];
-
-                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies, headers };
+                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies };
             }
 
             const deviceRecognition = await isDeviceRecognizedForUserEmail(
@@ -251,22 +240,20 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
             );
 
             if (deviceRecognition.error) {
-                const headers = [{ key: 'orion-flow-activation', value: 'FLOW-DEVICE-AUTHORIZATION' }];
-
                 const cookies = [
                     { key: 'authorizedDeviceId', data: '', maxAge: 0 },
                     { key: 'authorizedDeviceCode', data: '', maxAge: 0 },
                     { key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }
                 ];
 
-                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies, headers };
+                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies };
             }
         }
 
         const accessToken = await generateAccessToken(
             uid,
             oAuthResponse.email,
-            parameters.deviceFingerprint,
+            parameters.fingerprint,
             `PROVIDER-${provider.trim().toUpperCase()}`,
             'USER',
             parameters.ip,
@@ -280,7 +267,7 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
         const refreshToken = await generateRefreshToken(
             uid,
             oAuthResponse.email,
-            parameters.deviceFingerprint,
+            parameters.fingerprint,
             `PROVIDER-${provider.trim().toUpperCase()}`,
             'USER',
             parameters.ip,
@@ -306,7 +293,6 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
         auditTrail.record({
             user: { email: oAuthResponse.email, uid: uid },
             device: {
-                fingerprint: parameters.deviceFingerprint,
                 userAgent: parameters.userAgent
             },
             action: 'OAUTH_SIGN_IN_SUCCESS',
@@ -331,7 +317,8 @@ const handleOAuthCallback = async (code, state, deviceFingerprint, ip, userAgent
     const parameters = {
         state,
         code,
-        deviceFingerprint,
+        flowSecret,
+        fingerprint,
         ip,
         userAgent,
         deviceId,
@@ -357,11 +344,12 @@ const routeHandlerHandleOAuthCallback = async (request, response) => {
     const ip = getIp(request);
     const fingerprint = request.headers['orion-fingerprint'];
     const userAgent = request.headers['orion-user-agent'];
+    const flowSecret = parseCookieData(request.cookies['oAuthFlowSecret']) || '';
 
     const deviceId = request.cookies['authorizedDeviceId'];
     const deviceCode = request.cookies['authorizedDeviceCode'];
 
-    const callback = await handleOAuthCallback(code, state, fingerprint, ip, userAgent, deviceId, deviceCode);
+    const callback = await handleOAuthCallback(code, state, flowSecret, fingerprint, ip, userAgent, deviceId, deviceCode);
 
     if (callback.error && callback.errorCode !== 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED') {
         return respondWithError(response, callback.errorCode);
@@ -374,16 +362,11 @@ const routeHandlerHandleOAuthCallback = async (request, response) => {
         }
     }
 
-    if (callback?.headers) {
-        for (let i = 0; i < callback.headers.length; i++) {
-            const header = callback.headers[i];
-            response.setHeader(header.key, header.value);
-        }
-    }
-
     if (callback.error) {
         return respondWithError(response, callback.errorCode);
     }
+
+    response.cookie('oAuthFlowSecret', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
 
     delete callback.cookies;
 

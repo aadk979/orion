@@ -1,6 +1,7 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { cronScheduler } from '../../Cron.js';
 import { hashString } from '../../CryptoFunctions.js';
+import { parseDuration } from '../../Date&Time.js';
 import { base64Encode } from '../../Encoders.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getIp, getIpRange } from '../../Ip.js';
@@ -9,13 +10,27 @@ import { fileURLToPath } from 'url';
 import { generateChallenge, generateRequestId } from '../../valueGenerator.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 
-const SUPPORTED_PROVIDERS = ['GOOGLE', 'GITHUB', 'MICROSOFT', 'DISCORD', 'FACEBOOK', 'AMAZON', 'SLACK', 'APPLE', 'TWITTER', 'LINKEDIN', 'REDDIT', 'SPOTIFY'];
+const SUPPORTED_PROVIDERS = [
+    'GOOGLE',
+    'GITHUB',
+    'MICROSOFT',
+    'DISCORD',
+    'FACEBOOK',
+    'AMAZON',
+    'SLACK',
+    'APPLE',
+    'TWITTER',
+    'LINKEDIN',
+    'REDDIT',
+    'SPOTIFY',
+    'ORION'
+];
 
 const deleteFunction = async parameters => {
     await globalAccessPoint.db().deleteData('O-AUTH-REQUESTS', parameters.requestId);
 };
 
-const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => {
+const generateOAuthRedirectURL = async (providerName, ip) => {
     const Function = async parameters => {
         const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
@@ -24,7 +39,6 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: requestMetadata?.userAgent
                 },
                 action: 'OAUTH_REDIRECT_ATTEMPT',
@@ -47,12 +61,25 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
 
         const requestId = generateRequestId('O-AUTH', 32);
         const challenge = generateChallenge(32);
-        const hashedDeviceFingerprint = await hashString(parameters.deviceFingerprint);
+        const flowSecret = generateChallenge(32);
+        const hashedFlowSecret = await hashString(flowSecret);
         const hashedChallenge = await hashString(challenge);
         const ipRange = getIpRange(parameters.ip);
 
-        const stateForClient = { requestId, challenge, providerName: parameters.providerName.toUpperCase() };
-        const stateForServer = { requestId, hashedDeviceFingerprint, hashedChallenge, ipRange, providerName: parameters.providerName.toUpperCase() };
+        const stateForClient = {
+            requestId,
+            challenge,
+            providerName: parameters.providerName.toUpperCase(),
+            ...(parameters.providerName.toUpperCase() === 'ORION' && { nonce: generateChallenge(32) })
+        };
+        const stateForServer = {
+            requestId,
+            hashedFlowSecret,
+            hashedChallenge,
+            ipRange,
+            providerName: parameters.providerName.toUpperCase(),
+            ...(stateForClient.nonce && { nonce: stateForClient.nonce })
+        };
 
         const encodedStateForClient = base64Encode(JSON.stringify(stateForClient));
 
@@ -66,7 +93,6 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
             auditTrail.record({
                 user: {},
                 device: {
-                    fingerprint: parameters.deviceFingerprint,
                     userAgent: requestMetadata?.userAgent
                 },
                 action: 'OAUTH_REDIRECT_ATTEMPT',
@@ -89,7 +115,6 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
         auditTrail.record({
             user: {},
             device: {
-                fingerprint: parameters.deviceFingerprint,
                 userAgent: requestMetadata?.userAgent
             },
             action: 'OAUTH_REDIRECT_SUCCESS',
@@ -106,12 +131,11 @@ const generateOAuthRedirectURL = async (providerName, deviceFingerprint, ip) => 
             }
         });
 
-        return { error: false, redirectURL: redirectURLResponse.redirectURL };
+        return { error: false, redirectURL: redirectURLResponse.redirectURL, flowSecret };
     };
 
     const parameters = {
         providerName,
-        deviceFingerprint,
         ip
     };
 
@@ -131,15 +155,22 @@ const routeHandlerGenerateOAuthRedirectURL = async (request, response) => {
     const providerName = packet.providerName;
 
     const ip = getIp(request);
-    const fingerprint = request.headers['orion-fingerprint'];
 
-    const callback = await generateOAuthRedirectURL(providerName, fingerprint, ip);
+    const callback = await generateOAuthRedirectURL(providerName, ip);
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);
     }
 
-    return respondWithSuccess(response, 200, callback);
+    // Deliver flow_secret via HttpOnly cookie — never in the response body
+    response.cookie('oAuthFlowSecret', callback.flowSecret, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'None',
+        maxAge: parseDuration('2m')
+    });
+
+    return respondWithSuccess(response, 200, { redirectURL: callback.redirectURL });
 };
 
 export { generateOAuthRedirectURL, routeHandlerGenerateOAuthRedirectURL };

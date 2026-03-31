@@ -150,7 +150,8 @@ class OAuthProviderToolkit {
                 userInfoUrl: 'https://api.spotify.com/v1/me',
                 scope: 'user-read-email user-read-private',
                 requiresPKCE: true
-            }
+            },
+
         };
 
         OAuthProviderToolkit.instance = this;
@@ -256,7 +257,7 @@ class OAuthProviderToolkit {
 
         if (rawIdToken && client.jwksUri) {
             try {
-                const verified = await this.verifyIdToken(providerName, client, rawIdToken);
+                const verified = await this.verifyIdToken(providerName, client, rawIdToken, pkce);
                 normalizedUser = this.normalizeFromIdToken(providerName, verified);
             } catch (e) {
                 logger.error(`Failed to verify id_token for ${providerName}: ${e.message}`);
@@ -362,7 +363,7 @@ class OAuthProviderToolkit {
     /**
      * Verify and decode id_token via provider JWKS
      */
-    async verifyIdToken(providerName, client, idToken) {
+    async verifyIdToken(providerName, client, idToken, pkce = {}) {
         const decodedHeader = jwt.decode(idToken, { complete: true });
         if (!decodedHeader || !decodedHeader.header) {
             throw new Error('Invalid id_token format');
@@ -387,7 +388,8 @@ class OAuthProviderToolkit {
             issuer: issuer === 'https://login.microsoftonline.com/{tenantid}/v2.0'
                 ? undefined // relax issuer check for multi-tenant unless overridden
                 : issuer,
-            audience: client.clientId
+            audience: client.clientId,
+            ...(pkce.nonce && { nonce: pkce.nonce })
         };
 
         // For MS multi-tenant we do audience only and manual iss check

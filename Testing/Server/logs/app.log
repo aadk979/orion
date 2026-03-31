@@ -8291,3 +8291,2660 @@
 [2026-03-14T17:33:02.856Z] LOG: Volatile Secrets Manager: Ready status -> true
 [2026-03-14T17:33:03.285Z] LOG: Volatile Secrets Manager: Ready status -> true
 [2026-03-14T17:34:00.330Z] LOG: Event REQ_O-AUTH-IxJqW7KsXcZA6OTsdTJAS8mF887glK2i ran successfully
+[2026-03-15T03:20:16.558Z] INFO: Audit Trail System disabled
+[2026-03-15T03:20:16.571Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-15T03:20:19.601Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-15T03:20:19.627Z] INFO: ✅ Redis connected successfully
+[2026-03-15T03:20:19.671Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 15 2026 11:30:19 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:20:19.747Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 11:20:49 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:20:19.747Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 11:20:49 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:20:19.748Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 11:20:49 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:20:19.794Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-15T03:20:19.788Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 11:20:49 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:20:19.794Z] INFO: 🌐 Listening on port: 3495
+[2026-03-15T03:20:19.794Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-15T03:20:19.796Z] INFO: Server is up and running
+[2026-03-15T03:21:12.846Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:13.598Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:14.098Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:16.679Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:17.136Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:36.512Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:36.733Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:36.935Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:37.480Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-LNoGAcamhTkYLcIKzgn6J3gG6P2jpaax" to run at Sun Mar 15 2026 11:26:37 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:21:47.783Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:48.535Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:48.729Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:48.931Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:21:49.023Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-gM1nkJfqEhJ8InO3KAKVtdmRYRA93vWt" to run at Sun Mar 15 2026 11:26:49 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:22:13.232Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:13.992Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:14.189Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:14.402Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:14.482Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-6cXbb3NW66VlGmnkZuLwesCmzZcRCSF8" to run at Sun Mar 15 2026 11:27:14 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:22:26.578Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:27.191Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:27.381Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:27.655Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-1Hxx66LfSD20ugJDmAtEMcG82m8Vo4ZB" to run at Sun Mar 15 2026 11:27:27 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:22:27.672Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:48.298Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:48.928Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:49.120Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:49.336Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:22:49.411Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-cTYyySisBYELUsVxVV5EaFDqCja4bNYz" to run at Sun Mar 15 2026 11:27:49 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:23:00.227Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:00.859Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:01.052Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:01.266Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:01.353Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-Ju5ckmZ6SEhuRi5ZzegORtYh5mPgMsCK" to run at Sun Mar 15 2026 11:28:01 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:23:22.653Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:23.469Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:23.644Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:23.845Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:23:23.946Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-Eo89WPJpOq1KQQsJHdqvBtcRgFbO08OE" to run at Sun Mar 15 2026 11:28:23 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:00.160Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-gM1nkJfqEhJ8InO3KAKVtdmRYRA93vWt ran successfully
+[2026-03-15T03:26:00.162Z] ERROR: Delete Error: Document not found!
+[2026-03-15T03:26:00.731Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-LNoGAcamhTkYLcIKzgn6J3gG6P2jpaax ran successfully
+[2026-03-15T03:26:00.733Z] ERROR: Delete Error: Document not found!
+[2026-03-15T03:26:30.817Z] INFO: Audit Trail System disabled
+[2026-03-15T03:26:30.830Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-15T03:26:33.866Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-15T03:26:33.893Z] INFO: ✅ Redis connected successfully
+[2026-03-15T03:26:33.934Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 15 2026 11:36:33 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:34.016Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 11:27:04 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:34.017Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 11:27:04 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:34.017Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 11:27:04 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:34.062Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 11:27:04 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:34.069Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-15T03:26:34.071Z] INFO: Server is up and running
+[2026-03-15T03:26:34.069Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-15T03:26:34.070Z] INFO: 🌐 Listening on port: 3495
+[2026-03-15T03:26:37.918Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:26:38.350Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:26:38.486Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:26:39.590Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-fJFCCyDFXcHnmbkKoCeL6o4MPTtHPgg3" to run at Sun Mar 15 2026 11:31:39 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:26:50.741Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:26:51.756Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:26:52.360Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:27:00.784Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-15T03:27:00.788Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-15T03:27:00.790Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-15T03:27:00.792Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-15T03:27:00.796Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 12:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:27:00.797Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 12:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:27:00.797Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 12:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:27:00.797Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 12:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:29:03.172Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:29:03.789Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:29:04.221Z] ERROR: An error occurred in the onUserCreation callback: TypeError: systemConfig?.onUserCreation is not a function
+[2026-03-15T03:30:56.295Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:30:57.036Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:30:57.263Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-15T03:30:57.697Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:31:00.867Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-fJFCCyDFXcHnmbkKoCeL6o4MPTtHPgg3 ran successfully
+[2026-03-15T03:31:00.869Z] ERROR: Delete Error: Document not found!
+[2026-03-15T03:31:57.620Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:31:58.311Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-5oW9UHhKduQI1vtORlerDJeoGXKklBoSNHA4H9edsLu1xoxet6qX" to run at Sun Mar 15 2026 11:46:58 GMT+0800 (Singapore Standard Time)
+[2026-03-15T03:32:47.043Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:32:47.711Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:32:52.648Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:32:53.329Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:21.501Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:22.018Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:24.001Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:24.495Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:25.028Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:34.855Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:43.102Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:44.382Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:33:48.622Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:34:55.921Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:34:56.541Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:01.111Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:02.443Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:02.929Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:17.897Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:18.376Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:18.623Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-15T03:35:18.846Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:36.640Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:37.176Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:39.984Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:40.574Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:52.641Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:53.466Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:55.175Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:55.674Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:35:56.089Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:00.388Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-15T03:36:00.413Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-15T03:36:02.442Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:03.481Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:04.008Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:10.097Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:15.232Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:15.763Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:17.368Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:17.891Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:18.190Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:36:18.619Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T03:46:00.824Z] LOG: Event REQ_DEVICE_AUTHORIZATION-5oW9UHhKduQI1vtORlerDJeoGXKklBoSNHA4H9edsLu1xoxet6qX ran successfully
+[2026-03-15T04:27:00.447Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-15T04:27:00.448Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-15T04:27:00.449Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-15T04:27:00.449Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-15T04:27:00.452Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 13:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T04:27:00.453Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 13:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T04:27:00.453Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 13:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T04:27:00.453Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 13:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:27:00.244Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-15T05:27:00.245Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-15T05:27:00.245Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-15T05:27:00.246Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-15T05:27:00.250Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 14:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:27:00.250Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 14:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:27:00.251Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 14:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:27:00.251Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 14:27:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:45:51.995Z] INFO: Audit Trail System disabled
+[2026-03-15T05:45:52.012Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-15T05:45:55.044Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-15T05:45:55.069Z] INFO: ✅ Redis connected successfully
+[2026-03-15T05:45:55.111Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 15 2026 13:55:55 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:45:55.194Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 13:46:25 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:45:55.194Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 13:46:25 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:45:55.195Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 13:46:25 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:45:55.247Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-15T05:45:55.241Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 13:46:25 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:45:55.247Z] INFO: 🌐 Listening on port: 3495
+[2026-03-15T05:45:55.247Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-15T05:45:55.249Z] INFO: Server is up and running
+[2026-03-15T05:45:59.588Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:00.235Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-15T05:46:00.233Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-15T05:46:00.236Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-15T05:46:00.239Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 14:46:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:00.240Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 14:46:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:00.240Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 14:46:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:00.261Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:00.280Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-15T05:46:00.283Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 14:46:00 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:00.343Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:01.159Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-W7dYpWMngmMcShY5mKZHAQ1ug2J7J1D8" to run at Sun Mar 15 2026 13:51:01 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:01.187Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:09.014Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:09.550Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:10.054Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:10.114Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:10.360Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-WLFUJn07wmq06wjVeN3oMw6cpcI1xpnu" to run at Sun Mar 15 2026 13:51:10 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:19.225Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:34.092Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:34.522Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:34.636Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:34.801Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-YNqDUCFCSZqhcdlmjQAvwl4OJLiOiLNf" to run at Sun Mar 15 2026 13:51:34 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:46:42.723Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:43.190Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:46:43.727Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:49:15.237Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:49:15.948Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:49:16.467Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:50:23.211Z] INFO: Audit Trail System disabled
+[2026-03-15T05:50:23.224Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-15T05:50:26.259Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-15T05:50:26.288Z] INFO: ✅ Redis connected successfully
+[2026-03-15T05:50:26.328Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 15 2026 14:00:26 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:50:26.415Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 13:50:56 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:50:26.415Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 13:50:56 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:50:26.415Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 13:50:56 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:50:26.461Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 13:50:56 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:50:26.466Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-15T05:50:26.466Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-15T05:50:26.466Z] INFO: 🌐 Listening on port: 3495
+[2026-03-15T05:50:26.468Z] INFO: Server is up and running
+[2026-03-15T05:50:31.085Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:50:31.587Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:50:32.316Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:50:32.960Z] LOG: Scheduled event "REQ_O-AUTH-MSuOR3wN9v5TguPNSZfiCWwx4szQxMUs" to run at Sun Mar 15 2026 13:52:32 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:52:00.670Z] LOG: Event REQ_O-AUTH-MSuOR3wN9v5TguPNSZfiCWwx4szQxMUs ran successfully
+[2026-03-15T05:55:58.664Z] INFO: Audit Trail System disabled
+[2026-03-15T05:55:58.677Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-15T05:56:01.716Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-15T05:56:01.741Z] INFO: ✅ Redis connected successfully
+[2026-03-15T05:56:01.783Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 15 2026 14:06:01 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:56:01.871Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 15 2026 13:56:31 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:56:01.871Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 15 2026 13:56:31 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:56:01.870Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 15 2026 13:56:31 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:56:01.919Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-15T05:56:01.913Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 15 2026 13:56:31 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:56:01.919Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-15T05:56:01.922Z] INFO: Server is up and running
+[2026-03-15T05:56:01.919Z] INFO: 🌐 Listening on port: 3495
+[2026-03-15T05:56:10.733Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:56:11.532Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:56:13.396Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-15T05:56:14.103Z] LOG: Scheduled event "REQ_O-AUTH-K97kD504g1skMDjQjcgB99FlXNyri87c" to run at Sun Mar 15 2026 13:58:14 GMT+0800 (Singapore Standard Time)
+[2026-03-15T05:58:00.002Z] LOG: Event REQ_O-AUTH-K97kD504g1skMDjQjcgB99FlXNyri87c ran successfully
+[2026-03-15T06:06:00.027Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-15T06:06:00.058Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-15T06:34:56.443Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T06:34:56.716Z] INFO: ✅ Redis connected successfully
+[2026-03-15T06:35:17.299Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T06:35:22.308Z] ERROR: Redis Client Error: {}
+[2026-03-15T06:35:22.926Z] INFO: ✅ Redis connected successfully
+[2026-03-15T06:51:04.187Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T06:51:09.196Z] ERROR: Redis Client Error: {}
+[2026-03-15T06:51:12.232Z] INFO: ✅ Redis connected successfully
+[2026-03-15T07:37:01.085Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T07:37:01.443Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:37:01.634Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:37:01.803Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:37:02.183Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:37:02.768Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:37:03.688Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:37:05.456Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T07:39:00.586Z] INFO: ✅ Redis connected successfully
+[2026-03-15T09:29:16.486Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T09:29:16.674Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T09:29:16.872Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T09:29:16.992Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T09:29:17.214Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T09:29:17.657Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T09:29:18.485Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T09:29:20.257Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T13:47:57.476Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T13:48:01.366Z] INFO: ✅ Redis connected successfully
+[2026-03-15T13:49:13.360Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T13:49:14.391Z] INFO: ✅ Redis connected successfully
+[2026-03-15T13:49:43.003Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-15T13:49:43.246Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-15T13:49:43.464Z] INFO: ✅ Redis connected successfully
+[2026-03-16T14:57:38.464Z] INFO: Audit Trail System disabled
+[2026-03-16T14:57:38.484Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-16T14:57:41.573Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-16T14:57:41.601Z] INFO: ✅ Redis connected successfully
+[2026-03-16T14:57:41.648Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Mon Mar 16 2026 23:07:41 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:57:41.745Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Mon Mar 16 2026 22:58:11 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:57:41.745Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Mon Mar 16 2026 22:58:11 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:57:41.745Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Mon Mar 16 2026 22:58:11 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:57:41.791Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Mon Mar 16 2026 22:58:11 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:57:41.797Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-16T14:57:41.797Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-16T14:57:41.798Z] INFO: 🌐 Listening on port: 3495
+[2026-03-16T14:57:41.799Z] INFO: Server is up and running
+[2026-03-16T14:58:00.900Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-16T14:58:00.897Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-16T14:58:00.901Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-16T14:58:00.908Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Mon Mar 16 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:58:00.908Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Mon Mar 16 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:58:00.909Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Mon Mar 16 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:58:00.943Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-16T14:58:00.948Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Mon Mar 16 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:59:09.568Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:09.729Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:09.855Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:10.029Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:11.283Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-R49lT9sNaz0FIxJXADNHnqtWo5oiNiTh" to run at Mon Mar 16 2026 23:04:11 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:59:20.101Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:20.719Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:20.902Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:21.224Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-kX4BayEjbEVbdWMspjwclk678Ep3quq3" to run at Mon Mar 16 2026 23:04:21 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:59:21.259Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:28.678Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:29.185Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:29.648Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:31.607Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:32.268Z] LOG: Scheduled event "REQ_O-AUTH-7SRVOK3B93fqBjr7Gvvc0pGA17tzhp3p" to run at Mon Mar 16 2026 23:01:32 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:59:35.948Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:36.434Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:36.627Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:37.451Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-16T14:59:37.681Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:39.442Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T14:59:40.119Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-OyR5x42icLLAgW5Tfc2rDM8ujtOc3DUqdzWXUytYfNv2JHGIE7Ah" to run at Mon Mar 16 2026 23:14:40 GMT+0800 (Singapore Standard Time)
+[2026-03-16T14:59:59.830Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:00.394Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:03.335Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:03.741Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:03.925Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:04.627Z] ERROR: Token exchange failed for google: 400 Request failed with status code 400
+[2026-03-16T15:00:09.427Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:09.891Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:10.557Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:11.172Z] LOG: Scheduled event "REQ_O-AUTH-jbtiDj1eY57Q5qVmWrrIpgmSTgcW6k5V" to run at Mon Mar 16 2026 23:02:11 GMT+0800 (Singapore Standard Time)
+[2026-03-16T15:00:14.390Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:14.907Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:15.097Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:24.738Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:25.167Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:25.680Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:26.117Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:00:26.546Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-16T15:01:00.147Z] LOG: Event REQ_O-AUTH-7SRVOK3B93fqBjr7Gvvc0pGA17tzhp3p ran successfully
+[2026-03-16T15:02:00.229Z] LOG: Event REQ_O-AUTH-jbtiDj1eY57Q5qVmWrrIpgmSTgcW6k5V ran successfully
+[2026-03-16T15:04:00.087Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-kX4BayEjbEVbdWMspjwclk678Ep3quq3 ran successfully
+[2026-03-16T15:04:00.089Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-R49lT9sNaz0FIxJXADNHnqtWo5oiNiTh ran successfully
+[2026-03-16T15:04:00.089Z] ERROR: Delete Error: Document not found!
+[2026-03-16T15:04:00.090Z] ERROR: Delete Error: Document not found!
+[2026-03-16T15:07:00.706Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-16T15:07:00.735Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-16T15:14:00.867Z] LOG: Event REQ_DEVICE_AUTHORIZATION-OyR5x42icLLAgW5Tfc2rDM8ujtOc3DUqdzWXUytYfNv2JHGIE7Ah ran successfully
+[2026-03-16T15:58:00.225Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-16T15:58:00.226Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-16T15:58:00.227Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-16T15:58:00.227Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-16T15:58:00.233Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Tue Mar 17 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T15:58:00.235Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Tue Mar 17 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T15:58:00.236Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Tue Mar 17 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T15:58:00.237Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Tue Mar 17 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T16:14:38.440Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T16:14:39.306Z] INFO: ✅ Redis connected successfully
+[2026-03-16T16:58:00.594Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-16T16:58:00.595Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-16T16:58:00.595Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-16T16:58:00.596Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-16T16:58:00.599Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Tue Mar 17 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T16:58:00.599Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Tue Mar 17 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T16:58:00.599Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Tue Mar 17 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T16:58:00.600Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Tue Mar 17 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T17:58:00.434Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-16T17:58:00.436Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-16T17:58:00.436Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-16T17:58:00.438Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-16T17:58:00.441Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Tue Mar 17 2026 02:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T17:58:00.442Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Tue Mar 17 2026 02:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T17:58:00.442Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Tue Mar 17 2026 02:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T17:58:00.442Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Tue Mar 17 2026 02:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-16T18:02:01.589Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:02:06.596Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:11.736Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:16.848Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:22.250Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:27.760Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:33.736Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:40.396Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:02:47.431Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T18:02:49.630Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T18:02:56.813Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:03:00.828Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:05:00.252Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:05:05.263Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:05:10.332Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:05:15.623Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:05:21.010Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:05:21.921Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:05:37.435Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:05:42.456Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:05:47.556Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:05:48.236Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:06:09.151Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:06:14.161Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:06:17.800Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:07:03.148Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:07:08.153Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:07:13.376Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:07:18.531Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:07:19.802Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:07:35.324Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:07:40.340Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:07:45.487Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:07:49.200Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:08:15.575Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:08:20.581Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:08:23.456Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:08:58.374Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:08:58.974Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:10:23.379Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:10:28.391Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:10:31.228Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:11:04.033Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:11:05.872Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:11:39.321Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:11:44.336Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:11:47.168Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:12:31.431Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:12:32.043Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:13:05.877Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:13:06.708Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:14:46.121Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:14:46.730Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:15:02.252Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:15:02.678Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:21:47.432Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:21:52.438Z] ERROR: Redis Client Error: {}
+[2026-03-16T18:21:55.286Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:23:44.045Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:23:44.640Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:24:43.767Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:24:44.378Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:29:52.262Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:29:52.853Z] INFO: ✅ Redis connected successfully
+[2026-03-16T18:31:49.364Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T18:31:53.218Z] INFO: ✅ Redis connected successfully
+[2026-03-16T19:39:50.402Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-16T19:39:50.517Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T19:39:50.652Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T19:39:50.932Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T19:39:51.166Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T19:39:51.647Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T19:39:52.550Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-16T19:39:54.229Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T01:46:46.824Z] ERROR: Redis Client Error: {}
+[2026-03-17T01:46:49.524Z] INFO: ✅ Redis connected successfully
+[2026-03-17T04:01:46.540Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-17T04:01:46.651Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:01:46.911Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:01:47.172Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:01:47.416Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:01:48.013Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:01:48.863Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:01:50.641Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:39:01.869Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T04:39:07.595Z] INFO: ✅ Redis connected successfully
+[2026-03-17T06:18:04.195Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-17T06:18:04.290Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T06:18:04.429Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T06:18:04.659Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T06:18:04.935Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T06:18:05.475Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T06:18:06.472Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T06:18:08.267Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T09:11:01.760Z] ERROR: Redis Client Error: {}
+[2026-03-17T09:11:04.454Z] INFO: ✅ Redis connected successfully
+[2026-03-17T11:44:21.561Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:44:21.979Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:44:22.154Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:44:22.303Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:44:22.656Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:45:21.987Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:45:22.667Z] LOG: Scheduled event "REQ_O-AUTH-OdegNYz33orDgj2Hi5IpqBGiRQjpSRkm" to run at Tue Mar 17 2026 19:47:22 GMT+0800 (Singapore Standard Time)
+[2026-03-17T11:45:56.478Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:45:56.862Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:45:57.014Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-17T11:47:00.674Z] LOG: Event REQ_O-AUTH-OdegNYz33orDgj2Hi5IpqBGiRQjpSRkm ran successfully
+[2026-03-17T12:33:05.279Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-17T12:33:05.308Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T12:33:05.541Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T12:33:05.846Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T12:33:06.173Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T12:33:06.608Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T12:33:07.418Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T12:33:09.150Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T13:07:06.922Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T13:07:12.511Z] INFO: ✅ Redis connected successfully
+[2026-03-17T14:58:00.253Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-17T14:58:00.255Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-17T14:58:00.255Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-17T14:58:00.256Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-17T14:58:00.261Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Tue Mar 17 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T14:58:00.262Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Tue Mar 17 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T14:58:00.262Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Tue Mar 17 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T14:58:00.262Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Tue Mar 17 2026 23:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:01:00.936Z] LOG: Event REQ_O-AUTH-7SRVOK3B93fqBjr7Gvvc0pGA17tzhp3p ran successfully
+[2026-03-17T15:01:00.939Z] ERROR: Delete Error: Document not found!
+[2026-03-17T15:02:00.552Z] LOG: Event REQ_O-AUTH-jbtiDj1eY57Q5qVmWrrIpgmSTgcW6k5V ran successfully
+[2026-03-17T15:02:00.553Z] ERROR: Delete Error: Document not found!
+[2026-03-17T15:04:00.675Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-kX4BayEjbEVbdWMspjwclk678Ep3quq3 ran successfully
+[2026-03-17T15:04:00.674Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-R49lT9sNaz0FIxJXADNHnqtWo5oiNiTh ran successfully
+[2026-03-17T15:04:00.676Z] ERROR: Delete Error: Document not found!
+[2026-03-17T15:04:00.676Z] ERROR: Delete Error: Document not found!
+[2026-03-17T15:07:00.470Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-17T15:07:02.230Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-17T15:14:00.426Z] LOG: Event REQ_DEVICE_AUTHORIZATION-OyR5x42icLLAgW5Tfc2rDM8ujtOc3DUqdzWXUytYfNv2JHGIE7Ah ran successfully
+[2026-03-17T15:14:00.428Z] ERROR: Delete Error: Document not found!
+[2026-03-17T15:58:00.830Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-17T15:58:00.830Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-17T15:58:00.831Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-17T15:58:00.831Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-17T15:58:00.834Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.834Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.835Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.835Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.860Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-17T15:58:00.861Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-17T15:58:00.861Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-17T15:58:00.861Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-17T15:58:00.864Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.864Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.865Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T15:58:00.866Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Wed Mar 18 2026 00:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T16:58:00.508Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-17T16:58:00.508Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-17T16:58:00.509Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-17T16:58:00.509Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-17T16:58:00.511Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-17T16:58:00.510Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-17T16:58:00.514Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Wed Mar 18 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T16:58:00.514Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Wed Mar 18 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T16:58:00.514Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Wed Mar 18 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T16:58:00.515Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Wed Mar 18 2026 01:58:00 GMT+0800 (Singapore Standard Time)
+[2026-03-17T17:09:04.841Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-17T17:09:04.882Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T17:09:04.967Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T17:09:05.149Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T17:09:05.395Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T17:09:05.953Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T17:09:06.782Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-17T17:09:08.430Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T00:59:48.094Z] INFO: ✅ Redis connected successfully
+[2026-03-18T03:06:17.448Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-18T03:06:17.481Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:06:17.579Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:06:17.766Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:06:18.054Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:06:18.540Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:06:19.522Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:06:21.157Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T03:21:26.139Z] ERROR: Redis Client Error: {}
+[2026-03-18T03:21:28.913Z] INFO: ✅ Redis connected successfully
+[2026-03-18T04:52:57.729Z] ERROR: Redis Client Error: {
+  "errno": -4079,
+  "code": "ECONNABORTED",
+  "syscall": "write"
+}
+[2026-03-18T04:52:57.730Z] ERROR: Redis Client Error: {
+  "errno": -4079,
+  "code": "ECONNABORTED",
+  "syscall": "write"
+}
+[2026-03-18T04:52:57.739Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T04:52:57.814Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T04:53:03.121Z] ERROR: Redis Client Error: {}
+[2026-03-18T04:53:04.096Z] INFO: ✅ Redis connected successfully
+[2026-03-18T06:03:26.949Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-18T06:03:26.966Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T06:03:32.233Z] ERROR: Redis Client Error: {}
+[2026-03-18T06:03:35.147Z] INFO: ✅ Redis connected successfully
+[2026-03-18T09:32:09.910Z] INFO: Audit Trail System disabled
+[2026-03-18T09:32:09.929Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-18T09:32:12.976Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-18T09:32:13.004Z] INFO: ✅ Redis connected successfully
+[2026-03-18T09:32:13.045Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Wed Mar 18 2026 17:42:13 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:13.130Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Wed Mar 18 2026 17:32:43 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:13.130Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Wed Mar 18 2026 17:32:43 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:13.130Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Wed Mar 18 2026 17:32:43 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:13.174Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Wed Mar 18 2026 17:32:43 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:13.179Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-18T09:32:13.179Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-18T09:32:13.179Z] INFO: 🌐 Listening on port: 3495
+[2026-03-18T09:32:13.181Z] INFO: Server is up and running
+[2026-03-18T09:32:22.647Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:22.763Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:22.960Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:23.553Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-IUmefTVRD4zSiiybKsvoSJ81JfcampVS" to run at Wed Mar 18 2026 17:37:23 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:23.555Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:38.967Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:39.447Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:39.792Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:48.300Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:48.978Z] LOG: Scheduled event "REQ_O-AUTH-KrNM5rft4plM9tq936Pe1IWOnhQcII9D" to run at Wed Mar 18 2026 17:34:48 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:32:52.704Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:53.098Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:53.258Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:32:54.048Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-18T09:32:54.152Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:01.225Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:01.860Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-0x3iM3beO8RzyW0B0mcUyAlhNsP4ybf8Ew2M1c2RcRYInsHT9J95" to run at Wed Mar 18 2026 17:48:01 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:33:26.039Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:26.413Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:30.908Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:31.305Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:31.464Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:32.194Z] ERROR: Token exchange failed for google: 400 Request failed with status code 400
+[2026-03-18T09:33:34.337Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:34.693Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:35.914Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:36.577Z] LOG: Scheduled event "REQ_O-AUTH-Js7K2jRbjrxI2OpWCwRgZSO0c1cb09t4" to run at Wed Mar 18 2026 17:35:36 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:33:39.213Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:39.600Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:39.788Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:41.208Z] ERROR: Delete Error: Document not found!
+[2026-03-18T09:33:43.612Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:43.964Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:44.352Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:44.746Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:45.057Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:33:48.390Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:00.670Z] LOG: Event REQ_O-AUTH-KrNM5rft4plM9tq936Pe1IWOnhQcII9D ran successfully
+[2026-03-18T09:34:37.352Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:37.806Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:41.268Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:42.109Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:42.470Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:48.306Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:48.968Z] LOG: Scheduled event "REQ_O-AUTH-G9Q5yo1rX3Ytvcj1PXQLEo0lBNrM9jQx" to run at Wed Mar 18 2026 17:36:48 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:34:52.434Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:52.814Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:52.971Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:34:53.799Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-18T09:34:53.907Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:35:00.385Z] LOG: Event REQ_O-AUTH-Js7K2jRbjrxI2OpWCwRgZSO0c1cb09t4 ran successfully
+[2026-03-18T09:35:23.392Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:35:23.776Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:35:27.866Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:35:28.268Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:35:28.420Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:35:29.190Z] ERROR: Token exchange failed for google: 400 Request failed with status code 400
+[2026-03-18T09:36:00.706Z] LOG: Event REQ_O-AUTH-G9Q5yo1rX3Ytvcj1PXQLEo0lBNrM9jQx ran successfully
+[2026-03-18T09:37:00.398Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-IUmefTVRD4zSiiybKsvoSJ81JfcampVS ran successfully
+[2026-03-18T09:37:00.399Z] ERROR: Delete Error: Document not found!
+[2026-03-18T09:42:00.444Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-18T09:42:00.471Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-18T09:48:00.931Z] LOG: Event REQ_DEVICE_AUTHORIZATION-0x3iM3beO8RzyW0B0mcUyAlhNsP4ybf8Ew2M1c2RcRYInsHT9J95 ran successfully
+[2026-03-18T09:52:01.828Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:02.201Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:02.343Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:06.346Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:06.717Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:10.089Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:10.756Z] LOG: Scheduled event "REQ_O-AUTH-SxvPID4vFUAdgBeppifCo355cZpRLLo8" to run at Wed Mar 18 2026 17:54:10 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:52:16.456Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:16.856Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:17.040Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:19.507Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:19.872Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:24.922Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:25.021Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:25.196Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:25.315Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-tMobeaTrdhfyMQkVBzPsRUIM6CjMBH8P" to run at Wed Mar 18 2026 17:57:25 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:52:34.916Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:35.363Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:35.724Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:37.760Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:38.381Z] LOG: Scheduled event "REQ_O-AUTH-pwboykYysbdrcS4lmCiAYrc1EQpncCj2" to run at Wed Mar 18 2026 17:54:38 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:52:41.338Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:41.741Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:41.908Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:52:42.768Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-18T09:52:42.869Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:08.519Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:08.917Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:11.998Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:12.696Z] LOG: Scheduled event "REQ_O-AUTH-Pw987CU2UoVuuMnHxTE46m6dwS9Ncxyh" to run at Wed Mar 18 2026 17:55:12 GMT+0800 (Singapore Standard Time)
+[2026-03-18T09:53:17.276Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:17.661Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:17.827Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:21.199Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:21.559Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:21.954Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:22.340Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:22.662Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:24.819Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:25.647Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:53:25.997Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-18T09:54:00.235Z] LOG: Event REQ_O-AUTH-pwboykYysbdrcS4lmCiAYrc1EQpncCj2 ran successfully
+[2026-03-18T09:54:00.859Z] LOG: Event REQ_O-AUTH-SxvPID4vFUAdgBeppifCo355cZpRLLo8 ran successfully
+[2026-03-18T09:55:00.829Z] LOG: Event REQ_O-AUTH-Pw987CU2UoVuuMnHxTE46m6dwS9Ncxyh ran successfully
+[2026-03-18T09:57:00.115Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-tMobeaTrdhfyMQkVBzPsRUIM6CjMBH8P ran successfully
+[2026-03-18T09:57:00.117Z] ERROR: Delete Error: Document not found!
+[2026-03-18T14:11:20.348Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-18T14:11:20.926Z] INFO: ✅ Redis connected successfully
+[2026-03-18T14:12:03.670Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-18T14:12:04.465Z] INFO: ✅ Redis connected successfully
+[2026-03-18T15:09:26.729Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-18T15:09:31.831Z] ERROR: Redis Client Error: {}
+[2026-03-18T15:09:32.133Z] INFO: ✅ Redis connected successfully
+[2026-03-18T16:21:40.883Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-18T16:21:41.336Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T16:21:41.481Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T16:21:41.787Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T16:21:42.185Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T16:21:42.726Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T16:21:43.532Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T16:21:45.185Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T22:01:04.731Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-18T22:01:06.887Z] INFO: ✅ Redis connected successfully
+[2026-03-19T01:50:28.850Z] ERROR: Redis Client Error: {
+  "errno": -4079,
+  "code": "ECONNABORTED",
+  "syscall": "write"
+}
+[2026-03-19T01:50:28.880Z] ERROR: Redis Client Error: {
+  "errno": -4079,
+  "code": "ECONNABORTED",
+  "syscall": "write"
+}
+[2026-03-19T01:50:28.902Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T01:50:29.235Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T01:50:29.655Z] INFO: ✅ Redis connected successfully
+[2026-03-19T06:55:49.778Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T06:55:50.381Z] INFO: ✅ Redis connected successfully
+[2026-03-19T07:01:00.055Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T07:01:00.591Z] INFO: ✅ Redis connected successfully
+[2026-03-19T07:27:38.159Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T07:27:38.717Z] INFO: ✅ Redis connected successfully
+[2026-03-19T07:34:23.917Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T07:34:23.934Z] INFO: ✅ Redis connected successfully
+[2026-03-19T09:48:29.287Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T09:48:29.812Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T09:48:29.983Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T09:48:30.223Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T09:48:30.611Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T09:48:31.104Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T09:48:31.955Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T09:48:33.634Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T12:18:06.380Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-19T12:18:08.569Z] INFO: ✅ Redis connected successfully
+[2026-03-19T13:41:47.418Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T13:41:47.955Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:27:56.172Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:28:01.273Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:28:01.350Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:30:39.260Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:30:39.871Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:30:55.372Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:31:00.378Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:31:05.610Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:31:07.908Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:33:51.769Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:33:56.784Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:34:00.421Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:34:27.437Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:34:30.861Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:34:54.856Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:34:55.359Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:35:38.593Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:35:43.602Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:35:46.441Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:37:00.007Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:37:00.008Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:37:05.012Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:37:10.156Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:37:15.381Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:37:20.604Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:37:24.283Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:37:57.858Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:37:58.444Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:39:01.609Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:39:01.610Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:39:02.123Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:39:52.656Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:39:53.244Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:41:00.950Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:41:00.951Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:41:04.701Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:41:58.957Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:41:59.550Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:43:08.930Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:43:08.931Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:43:13.943Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:43:16.696Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:43:49.913Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:43:50.507Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:45:12.687Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:45:16.443Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:45:59.407Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:46:00.062Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:47:10.962Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:47:10.963Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:47:15.976Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:47:18.727Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:47:51.247Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:47:51.859Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:49:13.285Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:49:18.298Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:23.375Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:28.531Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:33.749Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:39.319Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:45.242Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:52.009Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:49:54.655Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:51:21.404Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:51:26.415Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:51:31.483Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:51:36.632Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:51:40.417Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:52:02.196Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:52:02.605Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:53:18.533Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:53:19.270Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:54:05.188Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:54:05.784Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:55:27.243Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:55:27.748Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:56:03.275Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:56:05.111Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:57:31.925Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:57:36.939Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:57:42.026Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:57:47.185Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:57:52.429Z] ERROR: Redis Client Error: {}
+[2026-03-19T14:57:55.031Z] INFO: ✅ Redis connected successfully
+[2026-03-19T14:59:32.623Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T14:59:33.365Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:00:06.862Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:00:07.460Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:01:34.263Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:01:38.017Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:02:04.139Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:02:04.561Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:03:36.805Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:03:41.817Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:03:46.977Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:03:52.269Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:03:53.034Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:04:08.145Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:04:08.146Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:04:12.089Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:04:31.369Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:04:36.377Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:04:37.244Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:05:36.374Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:05:41.378Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:05:46.485Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:05:50.943Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:06:11.722Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:06:16.727Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:06:21.907Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:06:22.746Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:07:38.697Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:07:43.704Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:07:48.871Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:07:54.177Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:07:57.308Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:08:53.182Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:08:53.771Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:09:41.776Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:09:46.787Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:09:51.867Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:09:57.070Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:10:02.015Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:11:39.216Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:11:44.231Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:11:49.446Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:11:54.698Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:12:00.859Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:12:16.298Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:12:16.703Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:12:37.612Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:12:38.204Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:13:48.141Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:13:48.142Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:13:53.142Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:13:58.268Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:14:03.473Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:14:08.698Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:14:14.132Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:14:19.971Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:14:26.715Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:14:29.625Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:16:01.759Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:16:06.770Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:16:12.014Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:16:17.275Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:16:22.531Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:16:24.732Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:16:40.147Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:16:40.545Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:18:01.857Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:18:02.357Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:18:28.460Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:18:33.463Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:18:37.430Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:20:08.172Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:20:13.184Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:20:18.338Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:20:19.915Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:20:40.678Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:20:41.075Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:22:09.633Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:22:14.647Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:22:19.874Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:22:24.989Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:22:28.622Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:22:49.410Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:22:49.806Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:24:11.132Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:24:11.633Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:24:37.468Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:24:38.916Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:26:10.038Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:26:15.052Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:26:20.149Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:26:25.437Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:26:29.032Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:26:49.843Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:26:54.849Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:26:55.335Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:28:11.257Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:28:16.265Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:28:21.394Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:28:24.206Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:28:53.343Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:28:54.752Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:30:16.070Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:30:16.768Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:30:42.893Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:30:46.317Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:32:20.492Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:32:25.503Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:32:30.635Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:32:35.769Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:32:41.148Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:32:43.519Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:34:21.033Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:34:26.039Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:34:31.146Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:34:36.316Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:34:41.696Z] ERROR: Redis Client Error: {}
+[2026-03-19T15:34:44.084Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:36:27.119Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:36:30.834Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:37:02.324Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:37:02.885Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:38:30.415Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:38:31.034Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:38:46.501Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:38:47.841Z] INFO: ✅ Redis connected successfully
+[2026-03-19T15:39:03.284Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-19T15:39:03.853Z] INFO: ✅ Redis connected successfully
+[2026-03-21T14:59:00.520Z] INFO: Audit Trail System disabled
+[2026-03-21T14:59:00.552Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T14:59:03.680Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T14:59:03.717Z] INFO: ✅ Redis connected successfully
+[2026-03-21T14:59:03.767Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sat Mar 21 2026 23:09:03 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:03.882Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sat Mar 21 2026 22:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:03.882Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sat Mar 21 2026 22:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:03.882Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sat Mar 21 2026 22:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:03.928Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sat Mar 21 2026 22:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:03.937Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T14:59:03.938Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T14:59:03.941Z] INFO: Server is up and running
+[2026-03-21T14:59:03.937Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T14:59:14.987Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T14:59:15.149Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T14:59:16.826Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-9qZYo13hfN56QBMwXJVOp7YUcj2lZf5c" to run at Sat Mar 21 2026 23:04:16 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:23.935Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T14:59:34.707Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T14:59:35.026Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-rvHDywhjurbUftJekjIRjJxFh9UafdeP" to run at Sat Mar 21 2026 23:04:35 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:43.569Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T14:59:49.143Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T14:59:49.503Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-nwUO07VjI6oYX42sWoElTsqO9otYEVZz" to run at Sat Mar 21 2026 23:04:49 GMT+0800 (Singapore Standard Time)
+[2026-03-21T14:59:58.185Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:00:26.833Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:00:27.212Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-09fyNhU6eWFq4V2DWAzfGtu5koslWEbl" to run at Sat Mar 21 2026 23:05:27 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:00:37.123Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:01:31.650Z] INFO: Audit Trail System disabled
+[2026-03-21T15:01:31.662Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T15:01:34.715Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T15:01:34.741Z] INFO: ✅ Redis connected successfully
+[2026-03-21T15:01:34.789Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sat Mar 21 2026 23:11:34 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:01:34.874Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sat Mar 21 2026 23:02:04 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:01:34.874Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sat Mar 21 2026 23:02:04 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:01:34.874Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sat Mar 21 2026 23:02:04 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:01:34.921Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sat Mar 21 2026 23:02:04 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:01:34.926Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T15:01:34.926Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T15:01:34.927Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T15:01:34.929Z] INFO: Server is up and running
+[2026-03-21T15:01:38.696Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:01:38.859Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:01:40.172Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-QYu13aw6ygcyvyK2HnKAhTAZHDGtUoux" to run at Sat Mar 21 2026 23:06:40 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:01:48.310Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:02:00.284Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-21T15:02:00.286Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-21T15:02:00.288Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-21T15:02:00.289Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-21T15:02:00.304Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 00:02:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:00.305Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 00:02:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:00.305Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 00:02:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:00.305Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 00:02:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:28.427Z] INFO: Audit Trail System disabled
+[2026-03-21T15:02:28.442Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T15:02:31.488Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T15:02:31.560Z] INFO: ✅ Redis connected successfully
+[2026-03-21T15:02:31.613Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sat Mar 21 2026 23:12:31 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:31.696Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sat Mar 21 2026 23:03:01 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:31.696Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sat Mar 21 2026 23:03:01 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:31.697Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sat Mar 21 2026 23:03:01 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:31.747Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sat Mar 21 2026 23:03:01 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:31.753Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T15:02:31.754Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T15:02:31.752Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T15:02:31.756Z] INFO: Server is up and running
+[2026-03-21T15:02:35.171Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:02:35.389Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:02:36.540Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-wTxWjXCj7WbY0CUOJUBrfNvfZHAZHYYj" to run at Sat Mar 21 2026 23:07:36 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:02:43.363Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:00.798Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-21T15:03:00.802Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-21T15:03:00.800Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-21T15:03:00.804Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-21T15:03:00.809Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 00:03:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:00.810Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 00:03:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:00.810Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 00:03:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:00.811Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 00:03:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:20.749Z] INFO: Audit Trail System disabled
+[2026-03-21T15:03:20.765Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T15:03:23.823Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T15:03:23.917Z] INFO: ✅ Redis connected successfully
+[2026-03-21T15:03:24.007Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sat Mar 21 2026 23:13:24 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:24.133Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sat Mar 21 2026 23:03:54 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:24.133Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sat Mar 21 2026 23:03:54 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:24.134Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sat Mar 21 2026 23:03:54 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:24.189Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sat Mar 21 2026 23:03:54 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:24.195Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T15:03:24.195Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T15:03:24.195Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T15:03:24.197Z] INFO: Server is up and running
+[2026-03-21T15:03:26.784Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:27.037Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:28.013Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-01nokyWTZnnkTpOYF9unqSNNRT1sQVz7" to run at Sat Mar 21 2026 23:08:28 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:35.659Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:36.271Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:36.540Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:41.339Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:42.020Z] LOG: Scheduled event "REQ_O-AUTH-wtNbpOg9yE14g37Kpg7aNFBVJjut5v54" to run at Sat Mar 21 2026 23:05:42 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:03:46.051Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:46.661Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:46.938Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:51.928Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:52.624Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:53.200Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:53.855Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:54.270Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:57.485Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:58.613Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:03:59.181Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:14.440Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:15.011Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:15.929Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:16.567Z] LOG: Scheduled event "REQ_O-AUTH-F5MdIsXB1T2NVE4RNkxr1hNox4XQaBwf" to run at Sat Mar 21 2026 23:06:16 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:04:20.337Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:20.909Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:21.192Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:21.976Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-21T15:04:22.174Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:29.180Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:29.856Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-0ZnS73MdBPUwIFUHoiscqEiaF0xxhgaPNgAvxRw31zOrhd0rWX59" to run at Sat Mar 21 2026 23:19:29 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:04:51.313Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:52.015Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:54.590Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:55.244Z] LOG: Scheduled event "REQ_O-AUTH-JhpC9peXOnr1NT5tzxUYYgGBtpsPWMyJ" to run at Sat Mar 21 2026 23:06:55 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:04:58.774Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:59.262Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:04:59.546Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:00.780Z] LOG: Event REQ_O-AUTH-wtNbpOg9yE14g37Kpg7aNFBVJjut5v54 ran successfully
+[2026-03-21T15:05:00.941Z] ERROR: Delete Error: Document not found!
+[2026-03-21T15:05:00.942Z] ERROR: Delete Error: Document not found!
+[2026-03-21T15:05:00.942Z] ERROR: Delete Error: Document not found!
+[2026-03-21T15:05:03.232Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:03.864Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:04.544Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:05.154Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:05.634Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:14.488Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:15.038Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:15.388Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:22.362Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:22.891Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:23.271Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:23.859Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:25.140Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:25.814Z] LOG: Scheduled event "REQ_O-AUTH-hRylUrRUe5UyVBocFC05pYV4S2RL0x68" to run at Sat Mar 21 2026 23:07:25 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:05:30.198Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:30.759Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:31.059Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:31.820Z] WARN: Unrecognised error code: DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED
+[2026-03-21T15:05:32.011Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:33.815Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T15:05:34.479Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-nD9whiAj22JCE6UFxkChknPsf3te8UPq9zMNKrFv9YCfPfMbBYLf" to run at Sat Mar 21 2026 23:20:34 GMT+0800 (Singapore Standard Time)
+[2026-03-21T15:06:00.623Z] LOG: Event REQ_O-AUTH-F5MdIsXB1T2NVE4RNkxr1hNox4XQaBwf ran successfully
+[2026-03-21T15:06:00.891Z] LOG: Event REQ_O-AUTH-JhpC9peXOnr1NT5tzxUYYgGBtpsPWMyJ ran successfully
+[2026-03-21T15:07:00.854Z] LOG: Event REQ_O-AUTH-hRylUrRUe5UyVBocFC05pYV4S2RL0x68 ran successfully
+[2026-03-21T15:08:00.903Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-01nokyWTZnnkTpOYF9unqSNNRT1sQVz7 ran successfully
+[2026-03-21T15:08:00.906Z] ERROR: Delete Error: Document not found!
+[2026-03-21T15:13:00.981Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-21T15:13:01.018Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-21T15:19:00.702Z] LOG: Event REQ_DEVICE_AUTHORIZATION-0ZnS73MdBPUwIFUHoiscqEiaF0xxhgaPNgAvxRw31zOrhd0rWX59 ran successfully
+[2026-03-21T15:20:00.268Z] LOG: Event REQ_DEVICE_AUTHORIZATION-nD9whiAj22JCE6UFxkChknPsf3te8UPq9zMNKrFv9YCfPfMbBYLf ran successfully
+[2026-03-21T16:18:06.103Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T16:18:06.342Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T16:18:07.243Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-Vzmp2eGnmntAWnwexm467oOOWN9ksYi5" to run at Sun Mar 22 2026 00:23:07 GMT+0800 (Singapore Standard Time)
+[2026-03-21T16:18:14.952Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T16:18:15.970Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T16:18:16.797Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-cibhig0DfNfqhR5EAkMlLfgzWiLW8NXw" to run at Sun Mar 22 2026 00:23:16 GMT+0800 (Singapore Standard Time)
+[2026-03-21T16:23:00.342Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-Vzmp2eGnmntAWnwexm467oOOWN9ksYi5 ran successfully
+[2026-03-21T16:23:00.346Z] ERROR: Delete Error: Document not found!
+[2026-03-21T16:23:00.746Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-cibhig0DfNfqhR5EAkMlLfgzWiLW8NXw ran successfully
+[2026-03-21T17:58:59.971Z] INFO: Audit Trail System disabled
+[2026-03-21T17:58:59.983Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T17:59:03.015Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T17:59:03.047Z] INFO: ✅ Redis connected successfully
+[2026-03-21T17:59:03.100Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 02:09:03 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:03.165Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 01:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:03.165Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 01:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:03.165Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 01:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:03.202Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 01:59:33 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:03.207Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T17:59:03.207Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T17:59:03.207Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T17:59:03.210Z] INFO: Server is up and running
+[2026-03-21T17:59:17.641Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:17.792Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:18.706Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-kJuOrJvI9Uz1W3gtSyrTwcIaRUGY71vf" to run at Sun Mar 22 2026 02:04:18 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:29.457Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:29.839Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:30.121Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-xmGecOLoMocK5dFUFu6vb7pRZs7Oepqr" to run at Sun Mar 22 2026 02:04:30 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:48.067Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:48.481Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:48.776Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-dtgLnvK2SqvdKtPbkCATCpi4z4aDXuUg" to run at Sun Mar 22 2026 02:04:48 GMT+0800 (Singapore Standard Time)
+[2026-03-21T17:59:58.607Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:58.982Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T17:59:59.293Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-z77egn7MAwwyM02YTCtMRTuDS7qDk8Xm" to run at Sun Mar 22 2026 02:04:59 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:33.507Z] INFO: Audit Trail System disabled
+[2026-03-21T18:00:33.521Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T18:00:36.553Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T18:00:36.581Z] INFO: ✅ Redis connected successfully
+[2026-03-21T18:00:36.626Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 02:10:36 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:36.703Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 02:01:06 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:36.704Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 02:01:06 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:36.704Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 02:01:06 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:36.738Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 02:01:06 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:36.745Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T18:00:36.745Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T18:00:36.745Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T18:00:36.748Z] INFO: Server is up and running
+[2026-03-21T18:00:40.583Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:00:40.725Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:00:41.495Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-dG0mjqE1H8rTmLQMD6kKeIb4IrnDleRn" to run at Sun Mar 22 2026 02:05:41 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:00:47.881Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:00:48.412Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:00:48.647Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:00:57.031Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:00:57.699Z] LOG: Scheduled event "REQ_O-AUTH-WF6hb9no1TWpwNbQMQ3lZNre0QNomBvM" to run at Sun Mar 22 2026 02:02:57 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:00.730Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:00.906Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-21T18:01:00.908Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-21T18:01:00.910Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-21T18:01:00.913Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 03:01:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:00.913Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 03:01:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:00.913Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 03:01:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:00.937Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-21T18:01:00.940Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 03:01:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:01.210Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:01.483Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:02.417Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:05.172Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:05.975Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-yh1K6d5VIibCY70A8Hd4nlpr4UMXMwXbakMbfJPfUHwVe4MFJh1r" to run at Sun Mar 22 2026 02:16:05 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:23.637Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:24.079Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:26.694Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:27.351Z] LOG: Scheduled event "REQ_O-AUTH-QIm2fVynx5Jm6RRXK4clqXcbsknXSMPD" to run at Sun Mar 22 2026 02:03:27 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:01:30.285Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:30.749Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:30.988Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:32.379Z] ERROR: Delete Error: Document not found!
+[2026-03-21T18:01:32.385Z] ERROR: Delete Error: Document not found!
+[2026-03-21T18:01:32.385Z] ERROR: Delete Error: Document not found!
+[2026-03-21T18:01:37.458Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:37.891Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:38.405Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:38.851Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:01:39.179Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:00.301Z] LOG: Event REQ_O-AUTH-WF6hb9no1TWpwNbQMQ3lZNre0QNomBvM ran successfully
+[2026-03-21T18:02:22.291Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:22.790Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:23.048Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:23.388Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:33.732Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-21T18:02:34.337Z] INFO: ✅ Redis connected successfully
+[2026-03-21T18:02:36.945Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:37.419Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:37.807Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:02:46.498Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-21T18:02:51.529Z] ERROR: Redis Client Error: {}
+[2026-03-21T18:02:51.799Z] INFO: ✅ Redis connected successfully
+[2026-03-21T18:03:00.298Z] LOG: Event REQ_O-AUTH-QIm2fVynx5Jm6RRXK4clqXcbsknXSMPD ran successfully
+[2026-03-21T18:03:32.702Z] INFO: Audit Trail System disabled
+[2026-03-21T18:03:32.713Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T18:03:35.739Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T18:03:35.772Z] INFO: ✅ Redis connected successfully
+[2026-03-21T18:03:35.816Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 02:13:35 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:03:35.898Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 02:04:05 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:03:35.898Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 02:04:05 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:03:35.898Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 02:04:05 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:03:35.935Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 02:04:05 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:03:35.943Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T18:03:35.943Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T18:03:35.943Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T18:03:35.945Z] INFO: Server is up and running
+[2026-03-21T18:03:39.308Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:03:39.729Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:03:40.104Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:03:52.555Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:03:53.210Z] LOG: Scheduled event "REQ_STEP_UP_AUTH-0RQFNQl4rfYQbMDVNjSB6Dm0vsofdhYAT5BEmGAoQi6cWjgwm3NW" to run at Sun Mar 22 2026 02:13:53 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:04:00.172Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-21T18:04:00.174Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-21T18:04:00.175Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-21T18:04:00.176Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-21T18:04:00.180Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 03:04:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:04:00.180Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 03:04:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:04:00.181Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 03:04:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:04:00.181Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 03:04:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:04:12.536Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:04:13.076Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:04:13.557Z] ERROR: Error while executing function: verifyStepUpWithEmailCode
+[2026-03-21T18:04:13.557Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\Orion-core\lib\Utils\Core\SecurityManagment\StepUpAuth.js
+[2026-03-21T18:04:13.557Z] ERROR: Error occurred in:     at verifyStepUpWithEmailCode (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/Core/SecurityManagment/StepUpAuth.js:445:18)
+    at routeHandlerVerifyStepUpEmail (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/Core/SecurityManagment/StepUpAuth.js:785:28)
+[2026-03-21T18:04:13.558Z] ERROR: Error stack: Error: data and hash arguments required
+    at Object.compare (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\Orion-core\node_modules\bcrypt\bcrypt.js:204:17)
+    at file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/CryptoFunctions.js:66:16
+    at new Promise (<anonymous>)
+    at verifyHash (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/CryptoFunctions.js:65:18)
+[2026-03-21T18:04:13.557Z] ERROR: Error message: data and hash arguments required
+[2026-03-21T18:04:13.558Z] ERROR: ETS Error Id: ID_ETS_ERROR-JjBDaxy7JQxfCNbH1ZCqyKpRsYryJ9JExGEu
+[2026-03-21T18:11:39.480Z] INFO: Audit Trail System disabled
+[2026-03-21T18:11:39.491Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-21T18:11:42.528Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-21T18:11:42.563Z] INFO: ✅ Redis connected successfully
+[2026-03-21T18:11:42.601Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 02:21:42 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:11:42.658Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 02:12:12 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:11:42.658Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 02:12:12 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:11:42.658Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 02:12:12 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:11:42.690Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 02:12:12 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:11:42.697Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-21T18:11:42.697Z] INFO: 🌐 Listening on port: 3495
+[2026-03-21T18:11:42.697Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-21T18:11:42.699Z] INFO: Server is up and running
+[2026-03-21T18:11:49.621Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:11:50.069Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:11:50.452Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:11:53.190Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:11:53.815Z] LOG: Scheduled event "REQ_STEP_UP_AUTH-oGdD26Xvvy7lr0n3cFfE3wvlJaPlZJwADFixDiTHqVvojZWiK02C" to run at Sun Mar 22 2026 02:21:53 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:12:00.831Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-21T18:12:00.834Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-21T18:12:00.835Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-21T18:12:00.840Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 03:12:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:12:00.841Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 03:12:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:12:00.841Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 03:12:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:12:00.877Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-21T18:12:00.880Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 03:12:00 GMT+0800 (Singapore Standard Time)
+[2026-03-21T18:12:06.383Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:12:06.873Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-21T18:12:07.306Z] ERROR: Error while executing function: verifyStepUpWithEmailCode
+[2026-03-21T18:12:07.306Z] ERROR: Error occurred in:     at verifyStepUpWithEmailCode (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/Core/SecurityManagment/StepUpAuth.js:435:18)
+    at routeHandlerVerifyStepUpEmail (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/Core/SecurityManagment/StepUpAuth.js:755:28)
+[2026-03-21T18:12:07.306Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\Orion-core\lib\Utils\Core\SecurityManagment\StepUpAuth.js
+[2026-03-21T18:12:07.306Z] ERROR: Error stack: Error: data and hash arguments required
+    at Object.compare (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\Orion-core\node_modules\bcrypt\bcrypt.js:204:17)
+    at file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/CryptoFunctions.js:66:16
+    at new Promise (<anonymous>)
+    at verifyHash (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/CryptoFunctions.js:65:18)
+[2026-03-21T18:12:07.306Z] ERROR: Error message: data and hash arguments required
+[2026-03-21T18:12:07.307Z] ERROR: ETS Error Id: ID_ETS_ERROR-KLcQtlupDNt5wcB6futbHCpKZMmwjwnLtRnu
+[2026-03-22T06:19:47.777Z] INFO: Audit Trail System disabled
+[2026-03-22T06:19:47.798Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-22T06:19:50.838Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-22T06:19:51.371Z] INFO: ✅ Redis connected successfully
+[2026-03-22T06:19:52.983Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 14:29:52 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:19:54.307Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 14:20:24 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:19:54.307Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 14:20:24 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:19:54.307Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 14:20:24 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:19:55.289Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-22T06:19:55.283Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 14:20:25 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:19:55.289Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-22T06:19:55.289Z] INFO: 🌐 Listening on port: 3495
+[2026-03-22T06:19:55.291Z] INFO: Server is up and running
+[2026-03-22T06:19:59.719Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:20:00.192Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:20:00.321Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-22T06:20:00.325Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 15:20:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:20:00.367Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-22T06:20:00.369Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-22T06:20:00.371Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-22T06:20:00.374Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 15:20:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:20:00.375Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 15:20:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:20:00.375Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 15:20:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:20:00.473Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:20:06.417Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:20:07.083Z] LOG: Scheduled event "REQ_O-AUTH-8t0qqasm8v5pBshe3EjDiRunHfT5nhvN" to run at Sun Mar 22 2026 14:22:07 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:20:50.843Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:20:51.285Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:20:51.510Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:16.905Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:17.311Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:17.803Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:18.233Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:18.556Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:49.104Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:49.529Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:49.749Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:50.110Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:54.843Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:55.276Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:21:55.630Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:22:00.098Z] LOG: Event REQ_O-AUTH-8t0qqasm8v5pBshe3EjDiRunHfT5nhvN ran successfully
+[2026-03-22T06:29:00.632Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-22T06:29:01.922Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-22T06:32:09.954Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:19.622Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:20.019Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:20.344Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:22.099Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:22.754Z] LOG: Scheduled event "REQ_STEP_UP_AUTH-0XSx6p1Yn7EhnMPFobqAp7ONup1lCXTvxo9fPLVXMIviBBic0c7q" to run at Sun Mar 22 2026 14:42:22 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:32:38.046Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:38.525Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:32:38.953Z] ERROR: Error while executing function: verifyStepUpWithEmailCode
+[2026-03-22T06:32:38.953Z] ERROR: Function source: C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\Orion-core\lib\Utils\Core\SecurityManagment\StepUpAuth.js
+[2026-03-22T06:32:38.954Z] ERROR: Error message: data and hash arguments required
+[2026-03-22T06:32:38.954Z] ERROR: Error stack: Error: data and hash arguments required
+    at Object.compare (C:\Users\aadk9\OneDrive\Desktop\orion\Packages\server\Orion-core\node_modules\bcrypt\bcrypt.js:204:17)
+    at file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/CryptoFunctions.js:66:16
+    at new Promise (<anonymous>)
+    at verifyHash (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/CryptoFunctions.js:65:18)
+[2026-03-22T06:32:38.954Z] ERROR: Error occurred in:     at verifyStepUpWithEmailCode (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/Core/SecurityManagment/StepUpAuth.js:435:18)
+    at routeHandlerVerifyStepUpEmail (file:///C:/Users/aadk9/OneDrive/Desktop/orion/Packages/server/Orion-core/lib/Utils/Core/SecurityManagment/StepUpAuth.js:755:28)
+[2026-03-22T06:32:38.954Z] ERROR: ETS Error Id: ID_ETS_ERROR-0KRS7DZZpaIshFuVgxGau2TwVR0rHSlYmqxV
+[2026-03-22T06:35:31.088Z] INFO: Audit Trail System disabled
+[2026-03-22T06:35:31.100Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-22T06:35:34.125Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-22T06:35:34.619Z] INFO: ✅ Redis connected successfully
+[2026-03-22T06:35:36.230Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 14:45:36 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:35:37.759Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 14:36:07 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:35:38.201Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 14:36:08 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:35:38.201Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 14:36:08 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:35:39.390Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 14:36:09 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:35:39.395Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-22T06:35:39.395Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-22T06:35:39.395Z] INFO: 🌐 Listening on port: 3495
+[2026-03-22T06:35:39.397Z] INFO: Server is up and running
+[2026-03-22T06:35:43.982Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:35:44.402Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:35:44.761Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:35:46.058Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:35:46.702Z] LOG: Scheduled event "REQ_STEP_UP_AUTH-Vr8RwcMCp7Ba8xDVRTQ5JTFsq2AD8lz6Uxf1j9pWFGOuJumW1SBJ" to run at Sun Mar 22 2026 14:45:46 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:35:58.560Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:35:59.016Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:36:00.015Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-22T06:36:00.021Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 15:36:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:36:00.436Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-22T06:36:00.437Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-22T06:36:00.440Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 15:36:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:36:00.441Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 15:36:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:36:00.577Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-22T06:36:00.581Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 15:36:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:36:34.141Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:36:34.613Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:43:19.126Z] INFO: Audit Trail System disabled
+[2026-03-22T06:43:19.137Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-22T06:43:22.165Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-22T06:43:22.659Z] INFO: ✅ Redis connected successfully
+[2026-03-22T06:43:24.281Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 14:53:24 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:43:25.631Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 14:43:55 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:43:25.631Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 14:43:55 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:43:25.631Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 14:43:55 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:43:26.621Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 14:43:56 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:43:26.628Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-22T06:43:26.628Z] INFO: 🌐 Listening on port: 3495
+[2026-03-22T06:43:26.627Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-22T06:43:26.629Z] INFO: Server is up and running
+[2026-03-22T06:43:31.507Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:43:31.974Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:43:32.203Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:43:33.247Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:44:41.660Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:44:42.601Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:44:43.005Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:22.044Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:22.695Z] LOG: Scheduled event "REQ_O-AUTH-hIRXBniWixObfv1BvEBRX3oJDCJRCCcG" to run at Sun Mar 22 2026 14:52:22 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:50:27.721Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:28.202Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:28.418Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:33.393Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:33.827Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:34.357Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:34.810Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:35.155Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:57.199Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:57.672Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:57.905Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:58.255Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:59.273Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:50:59.893Z] LOG: Scheduled event "REQ_STEP_UP_AUTH-kW1tXYTrzhxvvMWBeJy3pDtb5WvqoS83mMHPqA8aRliCmjECoL4Q" to run at Sun Mar 22 2026 15:00:59 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:51:13.452Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:51:13.915Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:00.631Z] LOG: Event REQ_O-AUTH-hIRXBniWixObfv1BvEBRX3oJDCJRCCcG ran successfully
+[2026-03-22T06:52:24.386Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:24.810Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:25.153Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:26.407Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:27.029Z] LOG: Scheduled event "REQ_STEP_UP_AUTH-48zkuvSSszY528d7tS2lsP7Cpmhwvu7XCup2mS6nGVRT5UbJtTXl" to run at Sun Mar 22 2026 15:02:27 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:52:40.286Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:40.790Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:41.463Z] LOG: Cancelled event "REQ_STEP_UP_AUTH-48zkuvSSszY528d7tS2lsP7Cpmhwvu7XCup2mS6nGVRT5UbJtTXl"
+[2026-03-22T06:52:42.431Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:42.813Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:43.014Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:49.891Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:50.217Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:50.409Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:51.212Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:51.586Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:52:51.792Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:00.237Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-22T06:53:01.532Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-22T06:53:21.230Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:21.556Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:21.788Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:22.611Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:22.977Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:23.178Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:53:51.501Z] INFO: Audit Trail System disabled
+[2026-03-22T06:53:51.512Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-22T06:53:54.541Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-22T06:53:55.037Z] INFO: ✅ Redis connected successfully
+[2026-03-22T06:53:56.647Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 15:03:56 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:53:57.957Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 14:54:27 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:53:58.283Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 14:54:28 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:53:58.283Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 14:54:28 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:53:59.269Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 14:54:29 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:53:59.276Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-22T06:53:59.275Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-22T06:53:59.276Z] INFO: 🌐 Listening on port: 3495
+[2026-03-22T06:53:59.278Z] INFO: Server is up and running
+[2026-03-22T06:54:00.270Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-22T06:54:00.275Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 15:54:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:54:00.301Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-22T06:54:00.303Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-22T06:54:00.305Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 15:54:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:54:00.306Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 15:54:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:54:00.988Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-22T06:54:00.990Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 15:54:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:54:02.200Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:54:02.581Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:54:02.822Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:54:03.592Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:54:03.927Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:54:04.167Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:56:47.311Z] INFO: Audit Trail System disabled
+[2026-03-22T06:56:47.322Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-22T06:56:50.348Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-22T06:56:50.847Z] INFO: ✅ Redis connected successfully
+[2026-03-22T06:56:52.461Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Sun Mar 22 2026 15:06:52 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:56:53.785Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 14:57:23 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:56:53.784Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 14:57:23 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:56:53.785Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 14:57:23 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:56:54.764Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 14:57:24 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:56:54.770Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-22T06:56:54.770Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-22T06:56:54.770Z] INFO: 🌐 Listening on port: 3495
+[2026-03-22T06:56:54.772Z] INFO: Server is up and running
+[2026-03-22T06:56:57.244Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:56:57.629Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:56:57.860Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:56:58.695Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:56:59.095Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:56:59.297Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T06:57:00.827Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-22T06:57:00.834Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Sun Mar 22 2026 15:57:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:57:00.842Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-22T06:57:00.845Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-22T06:57:00.846Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-22T06:57:00.849Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Sun Mar 22 2026 15:57:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:57:00.850Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Sun Mar 22 2026 15:57:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T06:57:00.850Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Sun Mar 22 2026 15:57:00 GMT+0800 (Singapore Standard Time)
+[2026-03-22T07:04:35.261Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:04:35.644Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:04:35.893Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:04:36.695Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:04:37.053Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:04:37.253Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:44.801Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:45.143Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:45.366Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:46.438Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:51.976Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:52.389Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:05:52.727Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:00.296Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-22T07:06:01.590Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-22T07:06:13.630Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:14.157Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:14.384Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:14.723Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:49.384Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:49.861Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:50.795Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:51.180Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:06:51.383Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:34:18.232Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-22T07:34:18.262Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:34:18.424Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:34:18.719Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:34:19.010Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:34:19.477Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:34:20.321Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:34:22.034Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T07:42:32.268Z] ERROR: Redis Client Error: {}
+[2026-03-22T07:42:34.900Z] INFO: ✅ Redis connected successfully
+[2026-03-22T07:42:40.199Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:42:40.599Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:42:40.830Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:42:41.935Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:42:47.975Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:42:48.533Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-22T07:42:49.684Z] LOG: Scheduled event "REQ_2FA_REMOVAL-yF1VGqldtQdcx8opYsI7mgvwC7wZ9JMbS256kqDEWcSJDeIN3iRJ" to run at Sun Mar 22 2026 15:57:49 GMT+0800 (Singapore Standard Time)
+[2026-03-22T08:15:46.478Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-22T08:15:46.817Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T08:15:46.985Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T08:15:47.131Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T08:15:47.527Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T08:15:48.072Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T08:15:48.991Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T08:15:50.739Z] ERROR: Redis Client Error: {
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "redis-11982.c252.ap-southeast-1-1.ec2.cloud.redislabs.com"
+}
+[2026-03-22T14:03:57.404Z] INFO: ✅ Redis connected successfully
+[2026-03-23T14:03:38.875Z] INFO: Audit Trail System disabled
+[2026-03-23T14:03:38.890Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-23T14:03:41.968Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-23T14:03:42.015Z] INFO: ✅ Redis connected successfully
+[2026-03-23T14:03:42.077Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Mon Mar 23 2026 22:13:42 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:03:42.138Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Mon Mar 23 2026 22:04:12 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:03:42.138Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Mon Mar 23 2026 22:04:12 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:03:42.139Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Mon Mar 23 2026 22:04:12 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:03:42.172Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-23T14:03:42.167Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Mon Mar 23 2026 22:04:12 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:03:42.171Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-23T14:03:42.172Z] INFO: 🌐 Listening on port: 3495
+[2026-03-23T14:03:42.174Z] INFO: Server is up and running
+[2026-03-23T14:04:04.230Z] INFO: Audit Trail System disabled
+[2026-03-23T14:04:04.244Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-23T14:04:07.283Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-23T14:04:07.320Z] INFO: ✅ Redis connected successfully
+[2026-03-23T14:04:07.369Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Mon Mar 23 2026 22:14:07 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:04:07.431Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Mon Mar 23 2026 22:04:37 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:04:07.432Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Mon Mar 23 2026 22:04:37 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:04:07.433Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Mon Mar 23 2026 22:04:37 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:04:07.463Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Mon Mar 23 2026 22:04:37 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:04:07.468Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-23T14:04:07.469Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-23T14:04:07.469Z] INFO: 🌐 Listening on port: 3495
+[2026-03-23T14:04:07.472Z] INFO: Server is up and running
+[2026-03-23T14:08:31.535Z] INFO: Audit Trail System disabled
+[2026-03-23T14:08:31.547Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-23T14:08:34.607Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-23T14:08:34.639Z] INFO: ✅ Redis connected successfully
+[2026-03-23T14:08:34.697Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Mon Mar 23 2026 22:18:34 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:08:34.760Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Mon Mar 23 2026 22:09:04 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:08:34.760Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Mon Mar 23 2026 22:09:04 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:08:34.760Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Mon Mar 23 2026 22:09:04 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:08:34.799Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-23T14:08:34.794Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Mon Mar 23 2026 22:09:04 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:08:34.799Z] INFO: 🌐 Listening on port: 3495
+[2026-03-23T14:08:34.799Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-23T14:08:34.801Z] INFO: Server is up and running
+[2026-03-23T14:09:00.053Z] LOG: Event SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal ran successfully
+[2026-03-23T14:09:00.059Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Mon Mar 23 2026 23:09:00 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:09:00.994Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource ran successfully
+[2026-03-23T14:09:00.996Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access ran successfully
+[2026-03-23T14:09:00.998Z] LOG: Event TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh ran successfully
+[2026-03-23T14:09:01.001Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Mon Mar 23 2026 23:09:01 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:09:01.001Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Mon Mar 23 2026 23:09:01 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:09:01.001Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Mon Mar 23 2026 23:09:01 GMT+0800 (Singapore Standard Time)
+[2026-03-23T14:18:00.050Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-23T14:18:00.097Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-23T15:09:20.840Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-23T15:09:21.033Z] INFO: ✅ Redis connected successfully
+[2026-03-26T15:46:14.281Z] INFO: Audit Trail System disabled
+[2026-03-26T15:46:14.295Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-26T15:46:17.345Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-26T15:46:17.424Z] INFO: ✅ Redis connected successfully
+[2026-03-26T15:46:17.468Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Thu Mar 26 2026 23:56:17 GMT+0800 (Singapore Standard Time)
+[2026-03-26T15:46:17.637Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Thu Mar 26 2026 23:46:47 GMT+0800 (Singapore Standard Time)
+[2026-03-26T15:46:17.637Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Thu Mar 26 2026 23:46:47 GMT+0800 (Singapore Standard Time)
+[2026-03-26T15:46:17.637Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Thu Mar 26 2026 23:46:47 GMT+0800 (Singapore Standard Time)
+[2026-03-26T15:46:17.664Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Thu Mar 26 2026 23:46:47 GMT+0800 (Singapore Standard Time)
+[2026-03-26T15:46:17.669Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-26T15:46:17.669Z] INFO: 🌐 Listening on port: 3495
+[2026-03-26T15:46:17.669Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-26T15:46:17.671Z] INFO: Server is up and running
+[2026-03-26T16:02:56.798Z] INFO: Audit Trail System disabled
+[2026-03-26T16:02:56.811Z] INFO: ✅ MongoDB connected to 'default'
+[2026-03-26T16:02:59.880Z] INFO: 🧩 AuditTrailSystem disabled — skipping integrity test
+[2026-03-26T16:02:59.971Z] INFO: ✅ Redis connected successfully
+[2026-03-26T16:03:00.134Z] LOG: Scheduled event "ephemeralDB_redis_refresh" to run at Fri Mar 27 2026 00:13:00 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:00.297Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_access" to run at Fri Mar 27 2026 00:03:30 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:00.297Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_refresh" to run at Fri Mar 27 2026 00:03:30 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:00.297Z] LOG: Scheduled event "TOKEN_SECRETS_MANAGER_CHECK_ROTATE_resource" to run at Fri Mar 27 2026 00:03:30 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:00.325Z] LOG: Scheduled event "SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_internal" to run at Fri Mar 27 2026 00:03:30 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:00.330Z] INFO: 🆔 Service ID: 699aeb89-f221-489f-9fce-dbe972386137
+[2026-03-26T16:03:00.333Z] INFO: Server is up and running
+[2026-03-26T16:03:00.330Z] INFO: ✅ Service "Orion Test" ready
+[2026-03-26T16:03:00.330Z] INFO: 🌐 Listening on port: 3495
+[2026-03-26T16:03:08.834Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:09.464Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:09.760Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:24.440Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:24.631Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:26.343Z] LOG: Scheduled event "REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-2AWbweJ2YVH7CYdhk8FXF7dlWapbyvX4" to run at Fri Mar 27 2026 00:08:26 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:33.260Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:33.776Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:34.116Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:38.959Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:39.600Z] LOG: Scheduled event "REQ_O-AUTH-4Rd0Y05DVcarUM3XNJ2Pn2WPb8wmhpzg" to run at Fri Mar 27 2026 00:05:39 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:03:43.723Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:44.326Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:44.675Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:45.698Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:48.720Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:03:49.575Z] LOG: Scheduled event "REQ_DEVICE_AUTHORIZATION-QVOxfcndAvBoZiHqvl7218WoR5gYFNTkkWUwhJbLkfcebxePKqVf" to run at Fri Mar 27 2026 00:18:49 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:04:05.142Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:05.806Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:08.650Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:09.310Z] LOG: Scheduled event "REQ_O-AUTH-HhJXmN4TeVxfnQUJKGwJmlw0Y9ueNeeN" to run at Fri Mar 27 2026 00:06:09 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:04:12.908Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:13.601Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:13.898Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:17.084Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:17.675Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:18.289Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:18.873Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:19.277Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:22.616Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:23.347Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:24.477Z] LOG: Scheduled event "REQ_2FA_REMOVAL-tRoH4cyt7JRSlkgN6ZA7g2pO5pXfIJ0WbVhf6lyPsMA1XfGbfahI" to run at Fri Mar 27 2026 00:19:24 GMT+0800 (Singapore Standard Time)
+[2026-03-26T16:04:39.113Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:39.776Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:04:40.838Z] LOG: Cancelled event "REQ_2FA_REMOVAL-tRoH4cyt7JRSlkgN6ZA7g2pO5pXfIJ0WbVhf6lyPsMA1XfGbfahI"
+[2026-03-26T16:04:42.777Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:05:00.356Z] LOG: Event REQ_O-AUTH-4Rd0Y05DVcarUM3XNJ2Pn2WPb8wmhpzg ran successfully
+[2026-03-26T16:06:00.413Z] LOG: Event REQ_O-AUTH-HhJXmN4TeVxfnQUJKGwJmlw0Y9ueNeeN ran successfully
+[2026-03-26T16:06:30.852Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:06:31.416Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:06:41.194Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:06:41.877Z] LOG: Volatile Secrets Manager: Ready status -> true
+[2026-03-26T16:08:00.847Z] LOG: Event REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION-2AWbweJ2YVH7CYdhk8FXF7dlWapbyvX4 ran successfully
+[2026-03-26T16:08:00.850Z] ERROR: Delete Error: Document not found!
+[2026-03-26T16:13:00.732Z] LOG: Event ephemeralDB_redis_refresh ran successfully
+[2026-03-26T16:13:00.760Z] INFO: ✅ Ephemeral Redis config refresh complete — 2 DIP group(s), 6 encryption group(s)
+[2026-03-26T16:18:00.298Z] LOG: Event REQ_DEVICE_AUTHORIZATION-QVOxfcndAvBoZiHqvl7218WoR5gYFNTkkWUwhJbLkfcebxePKqVf ran successfully
+[2026-03-26T16:31:49.887Z] ERROR: Redis Client Error: {
+  "errno": -4077,
+  "code": "ECONNRESET",
+  "syscall": "read"
+}
+[2026-03-26T16:31:50.178Z] INFO: ✅ Redis connected successfully

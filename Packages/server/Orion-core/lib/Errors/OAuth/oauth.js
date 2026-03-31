@@ -103,6 +103,13 @@ const OAuth = {
         errorCode: 'O-AUTH-ACC-DISABLED',
         fault: 'CLIENT',
         solutions: ['Contact support to enable your account']
+    },
+    'O-AUTH-FLOW-SECRET-MISMATCH': {
+        status: 401,
+        context: 'The OAuth flow secret does not match the original request',
+        errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH',
+        fault: 'CLIENT',
+        solutions: ['Restart the OAuth sign-in process']
     }
 };
 

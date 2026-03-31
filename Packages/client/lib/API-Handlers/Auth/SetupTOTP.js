@@ -14,7 +14,7 @@ async function setupTOTP({ Api, getAuthHeader, dipConfig, This }) {
 
     if (data.error) return { error: true, errorCode: 'CLIENT-TOTP-SETUP-FAILED' };
 
-    return { error: false, secret: data.data.secret, uri: data.data.uri };
+    return { error: false, qrCode: data.data.qrCode, secret: data.data.secret };
 }
 
 async function verifyAndEnableTOTP({ Api, getAuthHeader, dipConfig, This, totpCode }) {

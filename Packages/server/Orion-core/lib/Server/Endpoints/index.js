@@ -1,5 +1,9 @@
 import { routeHandlerCreateAccount } from '../../Utils/Core/AccountManagment/CreateAccount.js';
 import { routeHandlerSignInWithPasskey } from '../../Utils/Core/AccountManagment/Passkeys/AuthFlows/SignInWithPasskey.js';
+import {
+    routeHandlerGeneratePasskeySignUpOptions,
+    routeHandlerCompletePasskeySignUp
+} from '../../Utils/Core/AccountManagment/Passkeys/AuthFlows/SignUpWithPasskey.js';
 import { routeHandlerVerifyAndCompletePasskeyRegistration } from '../../Utils/Core/AccountManagment/Passkeys/completeRegistration.js';
 import { routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser } from '../../Utils/Core/AccountManagment/Passkeys/generateAuthenticationOptions.js';
 import { routeHandlerGeneratePasskeyRegistrationOptionsExistingUser } from '../../Utils/Core/AccountManagment/Passkeys/generateRegistrationOptions.js';
@@ -15,10 +19,7 @@ import {
     routeHandlerAuthorizeDeviceWithPasskey,
     routeHandlerAuthorizeDeviceWithTOTP
 } from '../../Utils/Core/SecurityManagment/DeviceAuthorization.js';
-import {
-    routeHandlerInitiate2FAMethodRemoval,
-    routeHandlerComplete2FAMethodRemoval
-} from '../../Utils/Core/SecurityManagment/Remove2FAMethod.js';
+import { routeHandlerInitiate2FAMethodRemoval, routeHandlerComplete2FAMethodRemoval } from '../../Utils/Core/SecurityManagment/Remove2FAMethod.js';
 import { routeHandlerGenerateDipConfig } from '../../Utils/Core/SecurityManagment/Dip.js';
 import { routeHandlerKeyRequest } from '../../Utils/Core/SecurityManagment/KeyRequest.js';
 import {
@@ -26,6 +27,14 @@ import {
     routeHandlerGenerateNoAuthToken,
     routeHandlerDeviceHasNoAuthToken
 } from '../../Utils/Core/SecurityManagment/NoAuthToken.js';
+import {
+    routeHandlerGetStepUpMethods,
+    routeHandlerInitiateStepUpEmail,
+    routeHandlerVerifyStepUpEmail,
+    routeHandlerGenerateStepUpPasskeyOptions,
+    routeHandlerVerifyStepUpPasskey,
+    routeHandlerVerifyStepUpTOTP
+} from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
 import { routeHandlerInitiatePasswordReset, routeHandlerCompletePasswordReset } from '../../Utils/Core/AccountManagment/PasswordReset.js';
 import { routeHandlerGetUserProfile } from '../../Utils/Core/AccountManagment/GetUserProfile.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
@@ -155,6 +164,42 @@ const defaultServerRoutes = {
             callback: routeHandlerAuthorizeDeviceWithTOTP
         },
         {
+            path: `/${NAME_SPACE}/api/v1/request/step-up-methods`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerGetStepUpMethods
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/initiate-step-up-email`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerInitiateStepUpEmail
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/verify-step-up-email`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerVerifyStepUpEmail
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/generate-step-up-passkey-options`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerGenerateStepUpPasskeyOptions
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/verify-step-up-passkey`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerVerifyStepUpPasskey
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/verify-step-up-totp`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerVerifyStepUpTOTP
+        },
+        {
             path: `/${NAME_SPACE}/api/v1/action/handle-o-auth-callback`,
             requireAuth: false,
             method: 'POST',
@@ -189,6 +234,18 @@ const defaultServerRoutes = {
             requireAuth: true,
             method: 'POST',
             callback: routeHandlerGetUserProfile
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/generate-passkey-sign-up-options`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerGeneratePasskeySignUpOptions
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/complete-passkey-sign-up`,
+            requireAuth: false,
+            method: 'POST',
+            callback: routeHandlerCompletePasskeySignUp
         }
     ]
 };

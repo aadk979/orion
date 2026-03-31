@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 const SALT_ROUNDS = 10;
 const CAPTCHA_LENGTH = 8;
-const CHAR_SET = 'ABCDEFGHJKLMNPQRSTUVWXYZ123456789abcdefghjkmnpqrstuvwxyz';
+const CHAR_SET = 'ABCDEFGHJKLMNPQRSTUVWXYZ123456789';
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 const randInt = (min, max) => Math.floor(rand(min, max + 1));

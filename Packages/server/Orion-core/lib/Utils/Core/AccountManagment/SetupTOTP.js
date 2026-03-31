@@ -4,6 +4,7 @@ import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import QRCode from 'qrcode';
 
 const generateTOTPSetupSecret = async (uid) => {
     const Function = async (parameters) => {
@@ -30,6 +31,13 @@ const generateTOTPSetupSecret = async (uid) => {
             return { error: true, errorCode: 'INTERNAL-ERROR' };
         }
 
+        let qrCode;
+        try {
+            qrCode = await QRCode.toDataURL(authURI.uri);
+        } catch (e) {
+            return { error: true, errorCode: 'INTERNAL-ERROR' };
+        }
+
         // Save pending secret
         if (!user.data.credentials) user.data.credentials = {};
         if (!user.data.credentials.totp) user.data.credentials.totp = { enabled: false };
@@ -51,7 +59,7 @@ const generateTOTPSetupSecret = async (uid) => {
             });
         }
 
-        return { error: false, secret, uri: authURI.uri };
+        return { error: false, qrCode, secret };
     };
 
     const parameters = { uid };
@@ -135,7 +143,7 @@ const routeHandlerGenerateTOTPSecret = async (request, response) => {
         return respondWithError(response, callback.errorCode);
     }
 
-    return respondWithSuccess(response, 200, { secret: callback.secret, uri: callback.uri });
+    return respondWithSuccess(response, 200, { qrCode: callback.qrCode, secret: callback.secret });
 };
 
 const routeHandlerVerifyAndEnableTOTP = async (request, response) => {

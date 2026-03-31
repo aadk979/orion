@@ -1,0 +1,1827 @@
+{
+  "UNABLE-TO-GENERATE-ACCESS-TOKEN": {
+    "status": 500,
+    "context": "An unknown error has occurred during the token generation process",
+    "errorCode": "UNABLE-TO-GENERATE-ACCESS-TOKEN",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "UNABLE-TO-VALIDATE-ACCESS-TOKEN": {
+    "status": 401,
+    "customStatus": 602,
+    "context": "The provided access token is invalid",
+    "errorCode": "UNABLE-TO-VALIDATE-ACCESS-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "ACCESS-TOKEN-EXPIRED": {
+    "status": 401,
+    "customStatus": 603,
+    "context": "The provided access token has expired",
+    "errorCode": "ACCESS-TOKEN-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE": {
+    "status": 401,
+    "context": "The provided access token is invalid for the current IP address",
+    "errorCode": "INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND": {
+    "status": 401,
+    "context": "The provided access token is invalid",
+    "errorCode": "INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH": {
+    "status": 401,
+    "context": "The provided access token is invalid",
+    "errorCode": "INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-TOKEN-CHALLENGE-MISMATCH": {
+    "status": 401,
+    "context": "The provided access token is invalid",
+    "errorCode": "INVALID-ACCESS-TOKEN-TOKEN-CHALLENGE-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-INVALID-AUD": {
+    "status": 401,
+    "context": "The provided access token has an invalid audience",
+    "errorCode": "INVALID-ACCESS-TOKEN-INVALID-AUD",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED": {
+    "status": 401,
+    "context": "The provided access token issuer is not allowed",
+    "errorCode": "INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1": {
+    "status": 401,
+    "context": "The provided access token device fingerprint type 1 does not match",
+    "errorCode": "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2": {
+    "status": 401,
+    "context": "The provided access token device fingerprint type 2 does not match",
+    "errorCode": "INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "ACCESS-TOKEN-KEY-NOT-FOUND": {
+    "status": 401,
+    "context": "The access token key could not be found",
+    "errorCode": "ACCESS-TOKEN-KEY-NOT-FOUND",
+    "fault": "NEITHER",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-ACCESS-TOKEN-TIER-CONFLICT": {
+    "status": 401,
+    "context": "The access token key could not be found",
+    "errorCode": "INVALID-ACCESS-TOKEN-TIER-CONFLICT",
+    "fault": "NEITHER",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "STEP-UP-AUTH-REQUIRED": {
+    "status": 401,
+    "customStatus": 601,
+    "context": "Step-up authentication is required to complete this request",
+    "errorCode": "STEP-UP-AUTH-REQUIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete the step-up authentication flow to re-verify your identity"
+    ],
+    "flow": "FLOW-STEP-UP-AUTH"
+  },
+  "STEP-UP-AUTH-SESSION-EXPIRED": {
+    "status": 401,
+    "context": "The step-up authentication session has expired",
+    "errorCode": "STEP-UP-AUTH-SESSION-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Restart the step-up authentication flow"
+    ]
+  },
+  "STEP-UP-AUTH-MISSING-CONTEXT": {
+    "status": 401,
+    "context": "The step-up authentication context is missing",
+    "errorCode": "STEP-UP-AUTH-MISSING-CONTEXT",
+    "fault": "CLIENT",
+    "solutions": [
+      "The step-up flow was not properly initiated"
+    ]
+  },
+  "STEP-UP-AUTH-INVALID-CODE": {
+    "status": 401,
+    "context": "The step-up authentication code is invalid",
+    "errorCode": "STEP-UP-AUTH-INVALID-CODE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Enter the correct code from your email or authenticator app"
+    ]
+  },
+  "STEP-UP-AUTH-USERAGENT-MISMATCH": {
+    "status": 401,
+    "context": "The step-up authentication browser does not match the original request",
+    "errorCode": "STEP-UP-AUTH-USERAGENT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete step-up authentication from the same browser"
+    ]
+  },
+  "STEP-UP-AUTH-IP-MISMATCH": {
+    "status": 401,
+    "context": "The step-up authentication IP address is too different from the original request",
+    "errorCode": "STEP-UP-AUTH-IP-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete step-up authentication from the same network"
+    ]
+  },
+  "STEP-UP-AUTH-SECRET-MISMATCH": {
+    "status": 401,
+    "context": "The step-up authentication flow secret does not match",
+    "errorCode": "STEP-UP-AUTH-SECRET-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Restart the step-up authentication flow"
+    ]
+  },
+  "STEP-UP-AUTH-TOKEN-INVALID": {
+    "status": 401,
+    "context": "The step-up authentication token is invalid",
+    "errorCode": "STEP-UP-AUTH-TOKEN-INVALID",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete step-up authentication again"
+    ]
+  },
+  "STEP-UP-AUTH-TOKEN-EXPIRED": {
+    "status": 401,
+    "context": "The step-up authentication token has expired",
+    "errorCode": "STEP-UP-AUTH-TOKEN-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete step-up authentication again"
+    ]
+  },
+  "STEP-UP-AUTH-UNABLE-TO-SEND-EMAIL": {
+    "status": 500,
+    "context": "Unable to send step-up authentication email",
+    "errorCode": "STEP-UP-AUTH-UNABLE-TO-SEND-EMAIL",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in a moment or use a different verification method"
+    ]
+  },
+  "STEP-UP-AUTH-INVALID-TOTP": {
+    "status": 401,
+    "context": "The TOTP code provided for step-up authentication is invalid",
+    "errorCode": "STEP-UP-AUTH-INVALID-TOTP",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check the code in your authenticator app and try again"
+    ]
+  },
+  "UNABLE-TO-GENERATE-REFRESH-TOKEN": {
+    "status": 500,
+    "context": "An unknown error has occurred during the token generation process",
+    "errorCode": "UNABLE-TO-GENERATE-REFRESH-TOKEN",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "UNABLE-TO-VALIDATE-REFRESH-TOKEN": {
+    "status": 401,
+    "customStatus": 600,
+    "context": "The provided refresh token is invalid",
+    "errorCode": "UNABLE-TO-VALIDATE-REFRESH-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "REFRESH-TOKEN-EXPIRED": {
+    "status": 401,
+    "customStatus": 601,
+    "context": "The provided refresh token has expired",
+    "errorCode": "REFRESH-TOKEN-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE": {
+    "status": 401,
+    "context": "The provided refresh token is invalid for the current IP address",
+    "errorCode": "INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH": {
+    "status": 401,
+    "context": "The provided refresh token is invalid for the current device",
+    "errorCode": "INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND": {
+    "status": 401,
+    "context": "The provided refresh token is invalid",
+    "errorCode": "INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH": {
+    "status": 401,
+    "context": "The provided refresh token is invalid",
+    "errorCode": "INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-TOKEN-CHALLENGE-MISMATCH": {
+    "status": 401,
+    "context": "The provided refresh token is invalid",
+    "errorCode": "INVALID-REFRESH-TOKEN-TOKEN-CHALLENGE-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-INVALID-AUD": {
+    "status": 401,
+    "context": "The provided refresh token has an invalid audience",
+    "errorCode": "INVALID-REFRESH-TOKEN-INVALID-AUD",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED": {
+    "status": 401,
+    "context": "The provided refresh token issuer is not allowed",
+    "errorCode": "INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1": {
+    "status": 401,
+    "context": "The provided refresh token device fingerprint type 1 does not match",
+    "errorCode": "INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2": {
+    "status": 401,
+    "context": "The provided refresh token device fingerprint type 2 does not match",
+    "errorCode": "INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "REFRESH-TOKEN-KEY-NOT-FOUND": {
+    "status": 401,
+    "context": "The refresh token key could not be found",
+    "errorCode": "REFRESH-TOKEN-KEY-NOT-FOUND",
+    "fault": "NEITHER",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "MISSING-SESSION-ID-OR-SESSION-HMAC": {
+    "status": 401,
+    "context": "Either the session ID or the session HMAC is missing",
+    "errorCode": "MISSING-SESSION-ID-OR-SESSION-HMAC",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-SESSION-ID": {
+    "status": 401,
+    "context": "The session ID or session HMAC is invalid or has been tampered with",
+    "errorCode": "INVALID-SESSION-ID",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "INVALID-AUTHENTICATION-TOKEN-TYPE": {
+    "status": 401,
+    "context": "The provided token type is not supported",
+    "errorCode": "INVALID-AUTHENTICATION-TOKEN-TYPE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use an appropriate and supported token type for this request"
+    ]
+  },
+  "MISSING-AUTHENTICATION-TOKEN": {
+    "status": 401,
+    "context": "The token specified for the token type is missing",
+    "errorCode": "MISSING-AUTHENTICATION-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "REFRESH-TOKEN-LIMIT-HIT": {
+    "status": 401,
+    "context": "The provided refresh token has reached its maximum limit of allowed refreshes",
+    "errorCode": "REFRESH-TOKEN-LIMIT-HIT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ],
+    "logout": true
+  },
+  "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE": {
+    "status": 401,
+    "context": "The provided token is insufficient as this is a protected route",
+    "errorCode": "UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use a token with more privileges"
+    ]
+  },
+  "INVALID-BEARER-FOR-CURRENT-ROUTE": {
+    "status": 401,
+    "context": "The requested route cannot be accessed with this token type",
+    "errorCode": "INVALID-BEARER-FOR-CURRENT-ROUTE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use an appropriate and supported token type for this request"
+    ]
+  },
+  "RESOURCE-TOKEN-EXPIRED": {
+    "status": 401,
+    "context": "The provided resource token has expired",
+    "errorCode": "RESOURCE-TOKEN-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "RESOURCE-TOKEN-VALIDATION-FAILED": {
+    "status": 401,
+    "context": "The provided resource token validation failed",
+    "errorCode": "RESOURCE-TOKEN-VALIDATION-FAILED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "RESOURCE-TOKEN-INVALID": {
+    "status": 401,
+    "context": "The provided resource token is invalid",
+    "errorCode": "RESOURCE-TOKEN-INVALID",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "RESOURCE-TOKEN-NOT-AUTHORIZED": {
+    "status": 403,
+    "context": "The resource token does not authorize access to the requested resource",
+    "errorCode": "RESOURCE-TOKEN-NOT-AUTHORIZED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY": {
+    "status": 400,
+    "context": "The accessible callbacks array provided is invalid",
+    "errorCode": "RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid accessible callbacks array"
+    ]
+  },
+  "RESOURCE-TOKENS-INVALID-VIEW-TYPE": {
+    "status": 400,
+    "context": "The view type provided is invalid",
+    "errorCode": "RESOURCE-TOKENS-INVALID-VIEW-TYPE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid view type"
+    ]
+  },
+  "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE": {
+    "status": 400,
+    "context": "The view type provided is not acceptable",
+    "errorCode": "RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use an acceptable view type"
+    ]
+  },
+  "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH": {
+    "status": 400,
+    "context": "The maximum retrievals value provided is too high",
+    "errorCode": "RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a lower maximum retrievals value"
+    ]
+  },
+  "UNABLE-TO-GENERATE-RESOURCE-TOKEN": {
+    "status": 500,
+    "context": "An unknown error has occurred during the resource token generation process",
+    "errorCode": "UNABLE-TO-GENERATE-RESOURCE-TOKEN",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "MISSING-RESOURCE-TOKEN": {
+    "status": 401,
+    "context": "The resource token is missing",
+    "errorCode": "MISSING-RESOURCE-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "RESOURCE-TOKEN-KEY-NOT-FOUND": {
+    "status": 401,
+    "context": "The resource token key could not be found",
+    "errorCode": "RESOURCE-TOKEN-KEY-NOT-FOUND",
+    "fault": "NEITHER",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-RESOURCE-TOKEN-INVALID-AUD": {
+    "status": 401,
+    "context": "The provided resource token has an invalid audience",
+    "errorCode": "INVALID-RESOURCE-TOKEN-INVALID-AUD",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED": {
+    "status": 401,
+    "context": "The provided resource token issuer is not allowed",
+    "errorCode": "INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE": {
+    "status": 401,
+    "context": "The provided resource token is invalid for the current IP address",
+    "errorCode": "INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND": {
+    "status": 401,
+    "context": "The provided resource token is invalid",
+    "errorCode": "INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH": {
+    "status": 401,
+    "context": "The provided resource token is invalid",
+    "errorCode": "INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "MAX-RESOURCE-RETRIEVALS-HIT": {
+    "status": 401,
+    "context": "The maximum number of resource retrievals has been reached",
+    "errorCode": "MAX-RESOURCE-RETRIEVALS-HIT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "UNABLE-TO-VALIDATE-RESOURCE-TOKEN": {
+    "status": 401,
+    "context": "The provided resource token is invalid",
+    "errorCode": "UNABLE-TO-VALIDATE-RESOURCE-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "PATH-TRAVERSAL-ATTEMPT": {
+    "status": 403,
+    "context": "A path traversal attempt was detected",
+    "errorCode": "PATH-TRAVERSAL-ATTEMPT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "ACC-REG-INVALID-EMAIL": {
+    "status": 400,
+    "context": "The email provided is not valid",
+    "errorCode": "ACC-REG-INVALID-EMAIL",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check if the email provided is in the proper format, e.g. (example@provider.com)"
+    ]
+  },
+  "ACC-REG-PASSWORD-WEAK": {
+    "status": 400,
+    "context": "The provided password was deemed to be insecure",
+    "errorCode": "ACC-REG-PASSWORD-WEAK",
+    "fault": "CLIENT",
+    "solutions": [
+      "Try adding numbers or characters to increase your password's security"
+    ]
+  },
+  "ACC-REG-ACC-EXISTS": {
+    "status": 400,
+    "context": "There is already an account registered under the provided email",
+    "errorCode": "ACC-REG-ACC-EXISTS",
+    "fault": "CLIENT",
+    "solutions": [
+      "Try logging into the account, and if you have forgotten your password, visit the password reset page"
+    ]
+  },
+  "ACC-REG-UNABLE-TO-CREATE-ACC": {
+    "status": 500,
+    "context": "An unknown error has occurred during the registration process",
+    "errorCode": "ACC-REG-UNABLE-TO-CREATE-ACC",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "ACC-REG-EMAIL-PASSWORD-DISABLED": {
+    "status": 400,
+    "context": "Email and password registration is disabled",
+    "errorCode": "ACC-REG-EMAIL-PASSWORD-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use an alternative registration method such as OAuth"
+    ]
+  },
+  "EMAIL-DOMAIN-NOT-ALLOWED": {
+    "status": 403,
+    "context": "The email domain is not allowed",
+    "errorCode": "EMAIL-DOMAIN-NOT-ALLOWED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use an email from an allowed domain or contact support for domain whitelist"
+    ]
+  },
+  "ACC-SIGN-IN-INVALID-EMAIL": {
+    "status": 400,
+    "context": "The email provided is not valid",
+    "errorCode": "ACC-SIGN-IN-INVALID-EMAIL",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check if the email provided is in the proper format, e.g. (example@provider.com)"
+    ]
+  },
+  "ACC-SIGN-IN-ACC-NO-EXISTS": {
+    "status": 404,
+    "context": "There is no user associated with the provided email",
+    "errorCode": "ACC-SIGN-IN-ACC-NO-EXISTS",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure the email is correct or create a new account"
+    ]
+  },
+  "ACC-SIGN-IN-INVALID-PASSWORD": {
+    "status": 401,
+    "context": "The provided password is incorrect for the specified email",
+    "errorCode": "ACC-SIGN-IN-INVALID-PASSWORD",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure the password is correct or reset it"
+    ]
+  },
+  "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED": {
+    "status": 400,
+    "context": "Email and password sign-in is disabled for this account",
+    "errorCode": "ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use an alternative sign-in method such as OAuth or passkeys"
+    ]
+  },
+  "ACC-SIGN-IN-NO-PASSWORD-SETUP": {
+    "status": 400,
+    "context": "No password has been set up for this account",
+    "errorCode": "ACC-SIGN-IN-NO-PASSWORD-SETUP",
+    "fault": "CLIENT",
+    "solutions": [
+      "Set up a password first or use an alternative sign-in method"
+    ]
+  },
+  "ACC-SIGN-IN-ACC-DISABLED": {
+    "status": 403,
+    "context": "The provided users account has been disabled by an admin",
+    "errorCode": "ACC-SIGN-IN-ACC-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Contact support"
+    ]
+  },
+  "ACC-PASSWORD-RESET-IP-MISMATCH": {
+    "status": 401,
+    "context": "The password reset request IP address does not match",
+    "errorCode": "ACC-PASSWORD-RESET-IP-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete the password reset from the same network or request a new reset code"
+    ]
+  },
+  "PASSKEY-SIGN-IN-DISABLED": {
+    "status": 400,
+    "context": "Passkey authentication is disabled for this account",
+    "errorCode": "PASSKEY-SIGN-IN-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use another authentication method"
+    ]
+  },
+  "PASSKEY-REG-INVALID-EMAIL": {
+    "status": 400,
+    "context": "The email provided for passkey registration is not valid",
+    "errorCode": "PASSKEY-REG-INVALID-EMAIL",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check if the email provided is in the proper format, e.g. (example@provider.com)"
+    ]
+  },
+  "PASSKEY-ACC-NO-EXIST": {
+    "status": 400,
+    "context": "There is no account associated with the provided email for passkey authentication",
+    "errorCode": "PASSKEY-ACC-NO-EXIST",
+    "fault": "CLIENT",
+    "solutions": [
+      "Create an account first or use a different authentication method"
+    ]
+  },
+  "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED": {
+    "status": 400,
+    "context": "An active passkey registration is already in progress",
+    "errorCode": "PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Delete your old passkey to add a new one"
+    ]
+  },
+  "PASSKEY-AUTH-INVALID-EMAIL": {
+    "status": 400,
+    "context": "The email provided for passkey authentication is not valid",
+    "errorCode": "PASSKEY-AUTH-INVALID-EMAIL",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check if the email provided is in the proper format, e.g. (example@provider.com)"
+    ]
+  },
+  "PASSKEY-REGISTRATION-EXPIRED": {
+    "status": 401,
+    "context": "The passkey registration session has expired",
+    "errorCode": "PASSKEY-REGISTRATION-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new passkey registration process"
+    ]
+  },
+  "PASSKEY-REGISTRATION-EMAIL-MISMATCH": {
+    "status": 401,
+    "context": "The email provided does not match the registration session",
+    "errorCode": "PASSKEY-REGISTRATION-EMAIL-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use the same email address that was used to start the registration"
+    ]
+  },
+  "PASSKEY-REGISTRATION-FAILED": {
+    "status": 500,
+    "context": "Passkey registration failed due to an unknown error",
+    "errorCode": "PASSKEY-REGISTRATION-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "PASSKEY-AUTH-EXPIRED": {
+    "status": 401,
+    "context": "The passkey authentication session has expired",
+    "errorCode": "PASSKEY-AUTH-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new passkey authentication process"
+    ]
+  },
+  "PASSKEY-AUTH-EMAIL-MISMATCH": {
+    "status": 401,
+    "context": "The email provided does not match the authentication session",
+    "errorCode": "PASSKEY-AUTH-EMAIL-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use the same email address that was used to start the authentication"
+    ]
+  },
+  "PASSKEY-AUTH-FAILED": {
+    "status": 500,
+    "context": "Passkey authentication failed due to an unknown error",
+    "errorCode": "PASSKEY-AUTH-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "PASSKEY-UNABLE-TO-AUTHENTICATE": {
+    "status": 500,
+    "context": "Unable to complete passkey authentication due to server error",
+    "errorCode": "PASSKEY-UNABLE-TO-AUTHENTICATE",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "PASSKEY-AUTH-NO-ACTIVE-PASSKEY": {
+    "status": 400,
+    "context": "No active passkey found for authentication",
+    "errorCode": "PASSKEY-AUTH-NO-ACTIVE-PASSKEY",
+    "fault": "CLIENT",
+    "solutions": [
+      "Register a passkey first or use another authentication method"
+    ]
+  },
+  "PASSKEY-SIGN-IN-ACC-DISABLED": {
+    "status": 403,
+    "context": "This account has been disabled",
+    "errorCode": "PASSKEY-SIGN-IN-ACC-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Contact support to reactivate your account"
+    ]
+  },
+  "PASSKEY-SIGN-UP-DISABLED": {
+    "status": 400,
+    "context": "Passkey sign up is disabled",
+    "errorCode": "PASSKEY-SIGN-UP-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use another sign up method"
+    ]
+  },
+  "PASSKEY-SIGN-UP-INVALID-EMAIL": {
+    "status": 400,
+    "context": "The email provided for passkey sign up is not valid",
+    "errorCode": "PASSKEY-SIGN-UP-INVALID-EMAIL",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check if the email provided is in the proper format, e.g. (example@provider.com)"
+    ]
+  },
+  "PASSKEY-SIGN-UP-ACC-EXISTS": {
+    "status": 400,
+    "context": "An account with this email already exists",
+    "errorCode": "PASSKEY-SIGN-UP-ACC-EXISTS",
+    "fault": "CLIENT",
+    "solutions": [
+      "Sign in instead, or use a different email address"
+    ]
+  },
+  "PASSKEY-SIGN-UP-EXPIRED": {
+    "status": 401,
+    "context": "The passkey sign up session has expired",
+    "errorCode": "PASSKEY-SIGN-UP-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new passkey sign up process"
+    ]
+  },
+  "PASSKEY-SIGN-UP-EMAIL-MISMATCH": {
+    "status": 401,
+    "context": "The email provided does not match the sign up session",
+    "errorCode": "PASSKEY-SIGN-UP-EMAIL-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use the same email address that was used to start the sign up"
+    ]
+  },
+  "PASSKEY-SIGN-UP-REGISTRATION-FAILED": {
+    "status": 500,
+    "context": "Passkey registration verification failed during sign up",
+    "errorCode": "PASSKEY-SIGN-UP-REGISTRATION-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "PASSKEY-SIGN-UP-UNABLE-TO-CREATE-ACC": {
+    "status": 500,
+    "context": "Unable to create account during passkey sign up",
+    "errorCode": "PASSKEY-SIGN-UP-UNABLE-TO-CREATE-ACC",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "TOTP-INVALID-TOKEN": {
+    "status": 401,
+    "context": "The TOTP code provided is invalid",
+    "errorCode": "TOTP-INVALID-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check the code in your authenticator app and try again"
+    ]
+  },
+  "TOTP-NO-PENDING-SECRET": {
+    "status": 400,
+    "context": "No pending TOTP secret found for verification",
+    "errorCode": "TOTP-NO-PENDING-SECRET",
+    "fault": "CLIENT",
+    "solutions": [
+      "Generate a new TOTP secret first before verifying"
+    ]
+  },
+  "TOTP-NOT-ENABLED": {
+    "status": 400,
+    "context": "TOTP is not enabled on this account",
+    "errorCode": "TOTP-NOT-ENABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Set up TOTP first before attempting this action"
+    ]
+  },
+  "TOTP-ALREADY-ENABLED": {
+    "status": 400,
+    "context": "TOTP is already enabled on this account",
+    "errorCode": "TOTP-ALREADY-ENABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Remove the existing TOTP setup before creating a new one"
+    ]
+  },
+  "USER-CONTROL-NO-EMAIL-PROVIDED": {
+    "status": 400,
+    "context": "No email was provided for user control operation",
+    "errorCode": "USER-CONTROL-NO-EMAIL-PROVIDED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid email address"
+    ]
+  },
+  "USER-CONTROL-NO-UID-PROVIDED": {
+    "status": 400,
+    "context": "No user ID was provided for user control operation",
+    "errorCode": "USER-CONTROL-NO-UID-PROVIDED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid user ID"
+    ]
+  },
+  "USER-CONTROL-NO-SUCH-USER": {
+    "status": 404,
+    "context": "No user was found with the provided identifier",
+    "errorCode": "USER-CONTROL-NO-SUCH-USER",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify the user identifier and try again"
+    ]
+  },
+  "USER-CONTROL-NO-USER-ROLE-PROVIDED": {
+    "status": 400,
+    "context": "No user role was provided for user control operation",
+    "errorCode": "USER-CONTROL-NO-USER-ROLE-PROVIDED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid user role"
+    ]
+  },
+  "USER-CONTROL-NOT-STANDARD-ROLE": {
+    "status": 400,
+    "context": "The provided role is not a standard role",
+    "errorCode": "USER-CONTROL-NOT-STANDARD-ROLE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use a standard role or enable custom roles"
+    ]
+  },
+  "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED": {
+    "status": 500,
+    "context": "Custom roles are allowed but not configured on the server",
+    "errorCode": "USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED",
+    "fault": "SERVER",
+    "solutions": [
+      "Configure custom roles in server settings or contact support"
+    ]
+  },
+  "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION": {
+    "status": 400,
+    "context": "The provided role was not found in the custom role configuration",
+    "errorCode": "USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use a role that exists in the custom role configuration"
+    ]
+  },
+  "O-AUTH-UNSUPPORTED-PROVIDER": {
+    "status": 400,
+    "context": "The OAuth provider specified is not supported",
+    "errorCode": "O-AUTH-UNSUPPORTED-PROVIDER",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use a supported OAuth provider"
+    ]
+  },
+  "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL": {
+    "status": 500,
+    "context": "Unable to generate OAuth redirect URL due to server error",
+    "errorCode": "O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "O-AUTH-DEVICE-FINGERPRINT-MISMATCH": {
+    "status": 401,
+    "context": "OAuth request device fingerprint does not match the original request",
+    "errorCode": "O-AUTH-DEVICE-FINGERPRINT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "O-AUTH-IP-MISMATCH": {
+    "status": 401,
+    "context": "OAuth request IP address does not match the original request",
+    "errorCode": "O-AUTH-IP-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "O-AUTH-INVALID-STATE-CHALLENGE": {
+    "status": 401,
+    "context": "OAuth state challenge is invalid or has been tampered with",
+    "errorCode": "O-AUTH-INVALID-STATE-CHALLENGE",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "O-AUTH-EMAIL-NOT-VERIFIED": {
+    "status": 400,
+    "context": "OAuth provider email is not verified",
+    "errorCode": "O-AUTH-EMAIL-NOT-VERIFIED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify your email with the OAuth provider before attempting to sign in"
+    ]
+  },
+  "O-AUTH-PROVIDER-NOT-INITIALIZED": {
+    "status": 500,
+    "context": "Requested OAuth provider is not initialized on the server",
+    "errorCode": "O-AUTH-PROVIDER-NOT-INITIALIZED",
+    "fault": "SERVER",
+    "solutions": [
+      "Enable and configure the provider in server settings"
+    ]
+  },
+  "O-AUTH-INVALID-PROVIDER-CONFIG": {
+    "status": 500,
+    "context": "OAuth provider configuration is incomplete or invalid",
+    "errorCode": "O-AUTH-INVALID-PROVIDER-CONFIG",
+    "fault": "SERVER",
+    "solutions": [
+      "Set clientId, clientSecret, and redirectUri correctly"
+    ]
+  },
+  "O-AUTH-TOKEN-EXCHANGE-FAILED": {
+    "status": 502,
+    "context": "Failed to exchange authorization code for access token",
+    "errorCode": "O-AUTH-TOKEN-EXCHANGE-FAILED",
+    "fault": "PROVIDER",
+    "solutions": [
+      "Retry later; verify code, redirectUri, and client credentials"
+    ]
+  },
+  "O-AUTH-USERINFO-FAILED": {
+    "status": 502,
+    "context": "Failed to fetch user info from OAuth provider",
+    "errorCode": "O-AUTH-USERINFO-FAILED",
+    "fault": "PROVIDER",
+    "solutions": [
+      "Retry later; ensure access token has required scopes"
+    ]
+  },
+  "O-AUTH-REQUESTS": {
+    "status": 400,
+    "context": "An error occurred with OAuth requests",
+    "errorCode": "O-AUTH-REQUESTS",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify your OAuth request and try again"
+    ]
+  },
+  "O-AUTH": {
+    "status": 400,
+    "context": "An OAuth error has occurred",
+    "errorCode": "O-AUTH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify your OAuth request and try again"
+    ]
+  },
+  "O-AUTH-REQUEST-INVALID-OR-EXPIRED": {
+    "status": 401,
+    "context": "The OAuth request is invalid or has expired",
+    "errorCode": "O-AUTH-REQUEST-INVALID-OR-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new OAuth request"
+    ]
+  },
+  "O-AUTH-CALLBACK-PROCESSING-FAILED": {
+    "status": 500,
+    "context": "Failed to process OAuth callback",
+    "errorCode": "O-AUTH-CALLBACK-PROCESSING-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "O-AUTH-ACC-DISABLED": {
+    "status": 403,
+    "context": "OAuth account is disabled",
+    "errorCode": "O-AUTH-ACC-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Contact support to enable your account"
+    ]
+  },
+  "O-AUTH-FLOW-SECRET-MISMATCH": {
+    "status": 401,
+    "context": "The OAuth flow secret does not match the original request",
+    "errorCode": "O-AUTH-FLOW-SECRET-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Restart the OAuth sign-in process"
+    ]
+  },
+  "DEVICE-UNRECOGNIZED": {
+    "status": 401,
+    "context": "The device is not recognised and requires authorisation",
+    "errorCode": "DEVICE-UNRECOGNIZED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete device authorisation process"
+    ]
+  },
+  "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL": {
+    "status": 500,
+    "context": "Unable to send device authorisation email due to server error",
+    "errorCode": "UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED": {
+    "status": 401,
+    "context": "The device authorisation request has expired",
+    "errorCode": "DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new device authorisation process"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH": {
+    "status": 401,
+    "context": "Device authorisation user agent does not match the original request",
+    "errorCode": "DEVICE-AUTHORIZATION-USERAGENT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-IP-MISMATCH": {
+    "status": 401,
+    "context": "Device authorisation IP address does not match the original request",
+    "errorCode": "DEVICE-AUTHORIZATION-IP-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH": {
+    "status": 401,
+    "context": "Device authorisation fingerprint does not match the original request",
+    "errorCode": "DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-INVALID-CODE": {
+    "status": 401,
+    "context": "The device authorisation code is invalid",
+    "errorCode": "DEVICE-AUTHORIZATION-INVALID-CODE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use the correct authorisation code from your email"
+    ]
+  },
+  "DEVICE-MISSING-META-DATA": {
+    "status": 401,
+    "context": "The expected device metadata is missing",
+    "errorCode": "DEVICE-MISSING-META-DATA",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID": {
+    "status": 400,
+    "context": "The expected device authorization request id is missing",
+    "errorCode": "DEVICE-AUTHORIZATION-MISSING-REQUEST-ID",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET": {
+    "status": 400,
+    "context": "The expected device authorization email offset is missing",
+    "errorCode": "DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DEVICE-AUTHORIZATION-INVALID-TOTP": {
+    "status": 401,
+    "context": "The TOTP code provided for device authorization is invalid",
+    "errorCode": "DEVICE-AUTHORIZATION-INVALID-TOTP",
+    "fault": "CLIENT",
+    "solutions": [
+      "Check the code in your authenticator app and try again"
+    ]
+  },
+  "DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED": {
+    "status": 401,
+    "customStatus": 600,
+    "context": "Device authorization is required for this account",
+    "errorCode": "DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete the device authorization flow"
+    ],
+    "flow": "FLOW-DEVICE-AUTHORIZATION"
+  },
+  "DEVICE-2FA-ACC-DISABLED": {
+    "status": 403,
+    "context": "This account has been disabled",
+    "errorCode": "DEVICE-2FA-ACC-DISABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Contact support to re-enable your account"
+    ]
+  },
+  "FLOW-SECRET-MISMATCH": {
+    "status": 401,
+    "context": "The device authorization flow secret does not match the original request",
+    "errorCode": "FLOW-SECRET-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "Restart the device authorization process"
+    ]
+  },
+  "2FA-REMOVAL-METHOD-NOT-ENABLED": {
+    "status": 400,
+    "context": "The specified 2FA method is not enabled on this account",
+    "errorCode": "2FA-REMOVAL-METHOD-NOT-ENABLED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify the 2FA method you are trying to remove is enabled"
+    ]
+  },
+  "2FA-REMOVAL-INVALID-METHOD": {
+    "status": 400,
+    "context": "Invalid 2FA method specified for removal",
+    "errorCode": "2FA-REMOVAL-INVALID-METHOD",
+    "fault": "CLIENT",
+    "solutions": [
+      "Specify a valid method: totp or passkey"
+    ]
+  },
+  "2FA-REMOVAL-REQUEST-EXPIRED": {
+    "status": 401,
+    "context": "The 2FA removal request has expired",
+    "errorCode": "2FA-REMOVAL-REQUEST-EXPIRED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new 2FA removal request"
+    ]
+  },
+  "2FA-REMOVAL-INVALID-CODE": {
+    "status": 401,
+    "context": "The verification code provided is invalid",
+    "errorCode": "2FA-REMOVAL-INVALID-CODE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Use the correct code from your email"
+    ]
+  },
+  "2FA-REMOVAL-USERAGENT-MISMATCH": {
+    "status": 401,
+    "context": "The user agent does not match the original removal request",
+    "errorCode": "2FA-REMOVAL-USERAGENT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "2FA-REMOVAL-IP-MISMATCH": {
+    "status": 401,
+    "context": "The IP address does not match the original removal request",
+    "errorCode": "2FA-REMOVAL-IP-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "2FA-REMOVAL-FINGERPRINT-MISMATCH": {
+    "status": 401,
+    "context": "The device fingerprint does not match the original removal request",
+    "errorCode": "2FA-REMOVAL-FINGERPRINT-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "2FA-REMOVAL-UNABLE-TO-SEND-EMAIL": {
+    "status": 500,
+    "context": "Unable to send 2FA removal verification email",
+    "errorCode": "2FA-REMOVAL-UNABLE-TO-SEND-EMAIL",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "2FA-REMOVAL-MISSING-REQUEST-ID": {
+    "status": 400,
+    "context": "The expected 2FA removal request ID is missing",
+    "errorCode": "2FA-REMOVAL-MISSING-REQUEST-ID",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new 2FA removal request"
+    ]
+  },
+  "INVALID-CAPTCHA-RESPONSE": {
+    "status": 400,
+    "context": "The captcha response is invalid",
+    "errorCode": "INVALID-CAPTCHA-RESPONSE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Complete the captcha challenge correctly"
+    ]
+  },
+  "INVALID-CAPTCHA-TRANSACTION-ID": {
+    "status": 400,
+    "context": "The captcha transaction ID is invalid",
+    "errorCode": "INVALID-CAPTCHA-TRANSACTION-ID",
+    "fault": "CLIENT",
+    "solutions": [
+      "Start a new captcha transaction"
+    ]
+  },
+  "CAPTCHA-SYSTEM-VERSION-ERROR": {
+    "status": 500,
+    "context": "Captcha system version mismatch error",
+    "errorCode": "CAPTCHA-SYSTEM-VERSION-ERROR",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "INVALID-CAPTCHA-TRANSACTION-IP": {
+    "status": 401,
+    "context": "Captcha transaction IP address does not match the original request",
+    "errorCode": "INVALID-CAPTCHA-TRANSACTION-IP",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-CAPTCHA-TRANSACTION-FINGERPRINT": {
+    "status": 401,
+    "context": "Captcha transaction fingerprint does not match the original request",
+    "errorCode": "INVALID-CAPTCHA-TRANSACTION-FINGERPRINT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-CAPTCHA-TRANSACTION-USERAGENT": {
+    "status": 401,
+    "context": "Captcha transaction user agent does not match the original request",
+    "errorCode": "INVALID-CAPTCHA-TRANSACTION-USERAGENT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "INVALID-CAPTCHA-CODE": {
+    "status": 400,
+    "context": "The captcha code is invalid",
+    "errorCode": "INVALID-CAPTCHA-CODE",
+    "fault": "CLIENT",
+    "solutions": [
+      "Enter the correct captcha code"
+    ]
+  },
+  "INVALID-NO-AUTH-TOKEN": {
+    "status": 401,
+    "context": "The no-auth token is invalid",
+    "errorCode": "INVALID-NO-AUTH-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "EXPIRED-NO-AUTH-TOKEN": {
+    "status": 401,
+    "context": "The no-auth token has expired",
+    "errorCode": "EXPIRED-NO-AUTH-TOKEN",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "NO-AUTH-TOKEN-UNAUTHORIZED": {
+    "status": 401,
+    "context": "The no-auth token is invalid",
+    "errorCode": "NO-AUTH-TOKEN-UNAUTHORIZED",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "NO-AUTH-TOKEN-NOT-FOUND": {
+    "status": 401,
+    "context": "The no-auth token was not found",
+    "errorCode": "NO-AUTH-TOKEN-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "NO-AUTH-TOKEN-DISABLED": {
+    "status": 503,
+    "context": "The no-auth token system has been disabled",
+    "errorCode": "NO-AUTH-TOKEN-DISABLED",
+    "fault": "NEITHER",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DV-INVALID-DATA": {
+    "status": 400,
+    "context": "The provided data is not valid for this endpoint",
+    "errorCode": "DV-INVALID-DATA",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure all incoming data is in the expected and proper format"
+    ]
+  },
+  "INVALID-PROTOCOL": {
+    "status": 400,
+    "context": "The client is not using the HTTPS protocol",
+    "errorCode": "INVALID-PROTOCOL",
+    "fault": "CLIENT",
+    "solutions": [
+      "Switch to the HTTPS protocol"
+    ]
+  },
+  "UNKNOWN-ORIGIN": {
+    "status": 401,
+    "context": "The client is sending the request from an unknown origin",
+    "errorCode": "UNKNOWN-ORIGIN",
+    "fault": "CLIENT",
+    "solutions": [
+      "Send requests from a known origin or modify the config file to allow the new origin"
+    ]
+  },
+  "UNKNOWN-ERROR": {
+    "status": 500,
+    "context": "An unknown error has occurred, please try again",
+    "errorCode": "UNKNOWN-ERROR",
+    "fault": "SERVER",
+    "solutions": [
+      "Perform the request again after 5 minutes and contact support if the issue persists"
+    ]
+  },
+  "HEADERS-INVALID": {
+    "status": 400,
+    "context": "The client has sent invalid headers",
+    "errorCode": "HEADERS-INVALID",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "UNKNOWN-API-ROUTE": {
+    "status": 404,
+    "context": "The requested API does not exist",
+    "errorCode": "UNKNOWN-API-ROUTE",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "SERVER-LOCKDOWN": {
+    "status": 503,
+    "context": "The server is currently in lockdown and not accepting requests",
+    "errorCode": "SERVER-LOCKDOWN",
+    "fault": "SERVER",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "SERVER-INITIALIZING": {
+    "status": 503,
+    "context": "The server is currently initializing. Please try again shortly",
+    "errorCode": "SERVER-INITIALIZING",
+    "fault": "SERVER",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "MISSING-REQUEST-FINGERPRINT": {
+    "status": 400,
+    "context": "The request is missing a valid device fingerprint",
+    "errorCode": "MISSING-REQUEST-FINGERPRINT",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure the orion-fingerprint header is present and contains a valid 64-character fingerprint"
+    ]
+  },
+  "INVALID-REQUEST-FINGERPRINT": {
+    "status": 400,
+    "context": "The provided device fingerprint is malformed",
+    "errorCode": "INVALID-REQUEST-FINGERPRINT",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure the orion-fingerprint header contains a valid 64-character fingerprint"
+    ]
+  },
+  "MISSING-USER-AGENT": {
+    "status": 400,
+    "context": "The request is missing a User-Agent header",
+    "errorCode": "MISSING-USER-AGENT",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure a valid User-Agent header is included with every request"
+    ]
+  },
+  "UNRESOLVABLE-CLIENT-IP": {
+    "status": 400,
+    "context": "The client IP address could not be determined",
+    "errorCode": "UNRESOLVABLE-CLIENT-IP",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure the request includes a valid X-Forwarded-For or remote address"
+    ]
+  },
+  "ENCRYPTION-REQUEST-ID-MISSING": {
+    "status": 400,
+    "context": "The encryption request ID is missing",
+    "errorCode": "ENCRYPTION-REQUEST-ID-MISSING",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid encryption request ID"
+    ]
+  },
+  "ENCRYPTION-REQUEST-ID-INVALID": {
+    "status": 400,
+    "context": "The encryption request ID provided is invalid",
+    "errorCode": "ENCRYPTION-REQUEST-ID-INVALID",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid encryption request ID"
+    ]
+  },
+  "ENCRYPTED-STRING-MISSING": {
+    "status": 400,
+    "context": "The encrypted string is missing",
+    "errorCode": "ENCRYPTED-STRING-MISSING",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide the encrypted string"
+    ]
+  },
+  "ENCRYPTION-STATUS-INVALID": {
+    "status": 400,
+    "context": "The encryption status provided is invalid",
+    "errorCode": "ENCRYPTION-STATUS-INVALID",
+    "fault": "CLIENT",
+    "solutions": [
+      "Provide a valid encryption status"
+    ]
+  },
+  "ENCRYPTION-KEY": {
+    "status": 500,
+    "context": "An error occurred with the encryption key",
+    "errorCode": "ENCRYPTION-KEY",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "UNABLE-TO-SEND-MAIL": {
+    "status": 500,
+    "context": "Unable to send email due to server error",
+    "errorCode": "UNABLE-TO-SEND-MAIL",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ],
+    "clientSafeErrorCode": "UNKNOWN-ERROR"
+  },
+  "DIP-DISABLED": {
+    "status": 503,
+    "context": "The dip system has been disabled",
+    "errorCode": "DIP-DISABLED",
+    "fault": "NEITHER",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-BODY-DATA-PRESENT": {
+    "status": 400,
+    "context": "Based on the dip headers an empty body is expected but received a non empty body",
+    "errorCode": "DIP-STATE-BODY-DATA-PRESENT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-ID-HEADER-MISSING": {
+    "status": 400,
+    "context": "The dip headers were not set",
+    "errorCode": "DIP-STATE-ID-HEADER-MISSING",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-TIMEDOUT-OR-ID-HEADER-INVALID": {
+    "status": 400,
+    "context": "The dip configuration has either expired or is invalid",
+    "errorCode": "DIP-TIMEDOUT-OR-ID-HEADER-INVALID",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-IP-MISMATCH": {
+    "status": 400,
+    "context": "The ip range for the stored dip configuration does not match",
+    "errorCode": "DIP-STATE-IP-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-SIGNATURE-HEADER-MISSING": {
+    "status": 400,
+    "context": "The expected dip signature header is missing",
+    "errorCode": "DIP-STATE-SIGNATURE-HEADER-MISSING",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-BODY-DATA-NOT-PRESENT": {
+    "status": 400,
+    "context": "Based on the dip headers a non empty body is expected but received an empty body",
+    "errorCode": "DIP-STATE-BODY-DATA-NOT-PRESENT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-MISSING-SALT": {
+    "status": 400,
+    "context": "The required dip salt is missing",
+    "errorCode": "DIP-STATE-MISSING-SALT",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-MISSING-TIMESTAMP-TYPE-1": {
+    "status": 400,
+    "context": "The required dip timestamp is missing",
+    "errorCode": "DIP-STATE-MISSING-TIMESTAMP-TYPE-1",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-MISSING-TIMESTAMP-TYPE-2": {
+    "status": 400,
+    "context": "The required dip timestamps sub unix value is missing",
+    "errorCode": "DIP-STATE-MISSING-TIMESTAMP-TYPE-2",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DIP-STATE-SIGNATURE-MISMATCH": {
+    "status": 400,
+    "context": "The provided dip signature and generated one do not match",
+    "errorCode": "DIP-STATE-SIGNATURE-MISMATCH",
+    "fault": "CLIENT",
+    "solutions": [
+      "NONE"
+    ]
+  },
+  "DB-FAIL": {
+    "status": 500,
+    "context": "A database operation has failed",
+    "errorCode": "DB-FAIL",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "CALLER-DIRECTORY-NOT-FOUND": {
+    "status": 404,
+    "context": "The caller directory was not found",
+    "errorCode": "CALLER-DIRECTORY-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify the directory path and try again"
+    ]
+  },
+  "PERMISSION-DENIED": {
+    "status": 403,
+    "context": "Permission denied for the requested file operation",
+    "errorCode": "PERMISSION-DENIED",
+    "fault": "CLIENT",
+    "solutions": [
+      "Ensure you have the necessary permissions for this operation"
+    ]
+  },
+  "DIRECTORY-NOT-FOUND": {
+    "status": 404,
+    "context": "The requested directory was not found",
+    "errorCode": "DIRECTORY-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify the directory path and try again"
+    ]
+  },
+  "WRITE-OPERATION-FAILED": {
+    "status": 500,
+    "context": "The write operation has failed",
+    "errorCode": "WRITE-OPERATION-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "FILE-NOT-FOUND": {
+    "status": 404,
+    "context": "The requested file was not found",
+    "errorCode": "FILE-NOT-FOUND",
+    "fault": "CLIENT",
+    "solutions": [
+      "Verify the file path and try again"
+    ]
+  },
+  "READ-OPERATION-FAILED": {
+    "status": 500,
+    "context": "The read operation has failed",
+    "errorCode": "READ-OPERATION-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "TOKEN-SECRETS-AUTO-EXPORT": {
+    "status": 500,
+    "context": "An error occurred during automatic token secrets export",
+    "errorCode": "TOKEN-SECRETS-AUTO-EXPORT",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "INTERNAL-SERVER-ERROR": {
+    "status": 500,
+    "context": "An internal server error has occurred",
+    "errorCode": "INTERNAL-SERVER-ERROR",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  },
+  "AUDIT-SYSTEM-NOT-INITIALIZED": {
+    "status": 500,
+    "context": "The audit system has not been initialized",
+    "errorCode": "AUDIT-SYSTEM-NOT-INITIALIZED",
+    "fault": "SERVER",
+    "solutions": [
+      "Contact support to initialize the audit system"
+    ]
+  },
+  "AUDIT-INSERT-FAILED": {
+    "status": 500,
+    "context": "Failed to insert audit record",
+    "errorCode": "AUDIT-INSERT-FAILED",
+    "fault": "SERVER",
+    "solutions": [
+      "Try again in 10 minutes and contact support if the issue persists"
+    ]
+  }
+}

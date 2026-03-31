@@ -46,6 +46,11 @@
                     <div class="spinner"></div>
                 </button>
 
+                <button id="orion-btn" class="btn btn-secondary btn-full btn-sm" style="margin-top: 0.75rem;">
+                    <span class="btn-text">Sign in with Jing Xuan (aka Orion)</span>
+                    <div class="spinner"></div>
+                </button>
+
                 <p style="margin-top: 1.25rem; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
                     <span id="toggle-text">Don't have an account?</span>
                     <button id="toggle-btn" class="link" style="background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit;">Sign Up</button>
@@ -162,10 +167,30 @@
             googleBtn.addEventListener('click', async () => {
                 setLoading(googleBtn, true);
                 try {
-                    await orion.generateOAuthRedirectURLAndRedirect('GOOGLE');
+                    const result = await orion.generateOAuthRedirectURLAndRedirect('GOOGLE');
+                    if (result && result.error) {
+                        showAlert(result.errorCode || 'OAuth error.');
+                        setLoading(googleBtn, false);
+                    }
                 } catch (err) {
                     showAlert(err.message || 'OAuth error.');
                     setLoading(googleBtn, false);
+                }
+            });
+
+            // ── Orion OAuth ──────────────────────────
+            const orionBtn = document.getElementById('orion-btn');
+            orionBtn.addEventListener('click', async () => {
+                setLoading(orionBtn, true);
+                try {
+                    const result = await orion.generateOAuthRedirectURLAndRedirect('ORION');
+                    if (result && result.error) {
+                        showAlert(result.errorCode || 'OAuth error.');
+                        setLoading(orionBtn, false);
+                    }
+                } catch (err) {
+                    showAlert(err.message || 'OAuth error.');
+                    setLoading(orionBtn, false);
                 }
             });
         </script>

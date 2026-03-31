@@ -56,6 +56,13 @@ const endpointSchemas = {
     [`/${NAME_SPACE}/api/v1/action/generate-totp-secret`]: Joi.object().max(0),
     [`/${NAME_SPACE}/api/v1/action/verify-and-enable-totp`]: Joi.object({
         totpCode: Joi.string().length(6).required()
+    }),
+    [`/${NAME_SPACE}/api/v1/action/generate-passkey-sign-up-options`]: Joi.object({
+        email: Joi.string().email().required()
+    }),
+    [`/${NAME_SPACE}/api/v1/action/complete-passkey-sign-up`]: Joi.object({
+        registrationResponse: Joi.object().min(1).required(),
+        email: Joi.string().email().required()
     })
 };
 

@@ -10,8 +10,8 @@ import { fileURLToPath } from 'url';
 import { generateRandomNumber, generateRequestId, generateChallenge, generateId } from '../../../valueGenerator.js';
 import { parseCookieData } from '../../../CookieUtils.js';
 
-const cleanUpDevices = async (uid) => {
-    const Function = async (parameters) => {
+const cleanUpDevices = async uid => {
+    const Function = async parameters => {
         const data = await globalAccessPoint.db().getData('Users', parameters.uid);
 
         if (data.error || !data.data || !data.data.security) {
@@ -27,7 +27,10 @@ const cleanUpDevices = async (uid) => {
         for (const deviceMeta of recognizedDevices) {
             if (isUnixExpired(deviceMeta.exp)) {
                 // Delete the actual device document asynchronously
-                globalAccessPoint.db().deleteData('RecognizedDevices', deviceMeta.deviceId).catch(() => { });
+                globalAccessPoint
+                    .db()
+                    .deleteData('RecognizedDevices', deviceMeta.deviceId)
+                    .catch(() => {});
                 hasChanges = true;
             } else {
                 validDevices.push(deviceMeta);
@@ -150,7 +153,7 @@ const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) 
     return { error: false, valid: true };
 };
 
-const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) => {
+const sendDeviceAuthorizationMail = async (email, ip, userAgent) => {
     const Function = async parameters => {
         const to = parameters.email;
 
@@ -166,11 +169,14 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
 
         const reqId = generateRequestId('DEVICE_AUTHORIZATION', 52);
 
+        const flowSecret = generateChallenge(32);
+        const hashedFlowSecret = await hashString(flowSecret);
+
         const payload = {
             codeHash,
-            fingerprintHash: await hashString(parameters.fingerprint),
+            hashedFlowSecret,
             ip: getIpRange(parameters.ip),
-            userAgent: parameters.userAgent,
+            userAgentHash: await hashString(parameters.userAgent),
             email: parameters.email
         };
 
@@ -201,12 +207,11 @@ const sendDeviceAuthorizationMail = async (email, fingerprint, ip, userAgent) =>
             return { error: true, errorCode: 'UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL' };
         }
 
-        return { error: false, sent: true, reqId };
+        return { error: false, sent: true, reqId, flowSecret };
     };
 
     const parameters = {
         email,
-        fingerprint,
         ip,
         userAgent
     };
@@ -252,7 +257,10 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
                     if (!(await verifyHash(parameters.userAgent || '', device.userAgentHash))) {
                         cleanedAuthorizedDevices.push(item);
                     } else {
-                        await globalAccessPoint.db().deleteData('RecognizedDevices', item.deviceId).catch(() => {});
+                        await globalAccessPoint
+                            .db()
+                            .deleteData('RecognizedDevices', item.deviceId)
+                            .catch(() => {});
                     }
                 } else if (!device) {
                     // Drop ghost reference
@@ -312,7 +320,7 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
     return results;
 };
 
-const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) => {
+const authorizeDeviceWithCode = async (reqID, code, flowSecret, ip, userAgent) => {
     const Function = async parameters => {
         const storedData = await globalAccessPoint.db().getData('DeviceAuthorizationRequests', parseCookieData(parameters.reqID));
 
@@ -320,7 +328,7 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
             return { error: true, errorCode: 'DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED' };
         }
 
-        if (parameters.userAgent !== storedData.data.userAgent) {
+        if (!(await verifyHash(parameters.userAgent, storedData.data.userAgentHash))) {
             return { error: true, errorCode: 'DEVICE-AUTHORIZATION-USERAGENT-MISMATCH' };
         }
 
@@ -328,8 +336,8 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
             return { error: true, errorCode: 'DEVICE-AUTHORIZATION-IP-MISMATCH' };
         }
 
-        if (!(await verifyHash(parameters.fingerprint, storedData.data.fingerprintHash))) {
-            return { error: true, errorCode: 'DEVICE-AUTHORIZATION-FINGERPRINT-MISMATCH' };
+        if (!(await verifyHash(parameters.flowSecret, storedData.data.hashedFlowSecret))) {
+            return { error: true, errorCode: 'FLOW-SECRET-MISMATCH' };
         }
 
         if (!(await verifyHash(parameters.code, storedData.data.codeHash))) {
@@ -348,7 +356,7 @@ const authorizeDeviceWithCode = async (reqID, code, fingerprint, ip, userAgent) 
     const parameters = {
         reqID,
         code,
-        fingerprint,
+        flowSecret,
         ip,
         userAgent
     };

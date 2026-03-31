@@ -1,6 +1,10 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { getIp } from '../../Ip.js';
-import { authorizeDeviceWithCode, sendDeviceAuthorizationMail, authorizeDeviceDirect } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
+import {
+    authorizeDeviceWithCode,
+    sendDeviceAuthorizationMail,
+    authorizeDeviceDirect
+} from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
 import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { parseDuration } from '../../Date&Time.js';
@@ -9,11 +13,11 @@ import { verifyTOTPToken } from '../AccountManagment/TOTP.js';
 
 const routeHandlerDeviceAuthorization = async (request, response) => {
     const headers = request.headers;
-    const fingerprint = headers['orion-fingerprint'];
     const userAgent = headers['orion-user-agent'];
     const ip = getIp(request);
 
     const requestId = parseCookieData(request.cookies['deviceAuthorizationRequestId']);
+    const flowSecret = parseCookieData(request.cookies['deviceAuthFlowSecret']) || '';
 
     if (!requestId) {
         return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-REQUEST-ID');
@@ -21,7 +25,7 @@ const routeHandlerDeviceAuthorization = async (request, response) => {
 
     const code = request.body.packet.authorizationCode;
 
-    const callback = await authorizeDeviceWithCode(requestId, code, fingerprint, ip, userAgent);
+    const callback = await authorizeDeviceWithCode(requestId, code, flowSecret, ip, userAgent);
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);
@@ -36,12 +40,12 @@ const routeHandlerDeviceAuthorization = async (request, response) => {
 
     response.cookie('deviceAuthorizationRequestId', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
     response.cookie('deviceAuthEmailOffset', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
+    response.cookie('deviceAuthFlowSecret', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
 
     return respondWithSuccess(response, 200, { success: true });
 };
 
 const routeHandlerGetAvailable2faMethods = async (request, response) => {
-
     const email = request.cookies['deviceAuthEmailOffset'];
 
     if (!email) {
@@ -73,17 +77,25 @@ const routeHandlerSendDeviceAuthorizationMail = async (request, response) => {
     }
 
     const headers = request.headers;
-    const fingerprint = headers['orion-fingerprint'];
     const userAgent = headers['orion-user-agent'];
     const ip = getIp(request);
 
-    const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(email, fingerprint, ip, userAgent);
+    const deviceAuthorizationRequest = await sendDeviceAuthorizationMail(email, ip, userAgent);
 
     if (deviceAuthorizationRequest.error) {
         return respondWithError(response, deviceAuthorizationRequest.errorCode);
     }
 
     response.cookie('deviceAuthorizationRequestId', deviceAuthorizationRequest.reqId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'None',
+        path: '/',
+        maxAge: parseDuration('15m')
+    });
+
+    // Deliver the flow_secret to the client as an HttpOnly cookie for later verification
+    response.cookie('deviceAuthFlowSecret', deviceAuthorizationRequest.flowSecret, {
         httpOnly: true,
         secure: true,
         sameSite: 'None',
@@ -123,7 +135,12 @@ const routeHandlerAuthorizeDeviceWithPasskey = async (request, response) => {
     if (authorization.cookies) {
         for (let i = 0; i < authorization.cookies.length; i++) {
             const cookieData = authorization.cookies[i];
-            response.cookie(cookieData.key, stringifyCookieData(cookieData.data), { httpOnly: true, secure: true, sameSite: 'None', maxAge: cookieData.maxAge });
+            response.cookie(cookieData.key, stringifyCookieData(cookieData.data), {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'None',
+                maxAge: cookieData.maxAge
+            });
         }
     }
 
@@ -172,7 +189,12 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
     if (authorization.cookies) {
         for (let i = 0; i < authorization.cookies.length; i++) {
             const cookieData = authorization.cookies[i];
-            response.cookie(cookieData.key, stringifyCookieData(cookieData.data), { httpOnly: true, secure: true, sameSite: 'None', maxAge: cookieData.maxAge });
+            response.cookie(cookieData.key, stringifyCookieData(cookieData.data), {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'None',
+                maxAge: cookieData.maxAge
+            });
         }
     }
 
@@ -181,4 +203,10 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
     return respondWithSuccess(response, 200, { success: true });
 };
 
-export { routeHandlerDeviceAuthorization, routeHandlerGetAvailable2faMethods, routeHandlerSendDeviceAuthorizationMail, routeHandlerAuthorizeDeviceWithPasskey, routeHandlerAuthorizeDeviceWithTOTP };
+export {
+    routeHandlerDeviceAuthorization,
+    routeHandlerGetAvailable2faMethods,
+    routeHandlerSendDeviceAuthorizationMail,
+    routeHandlerAuthorizeDeviceWithPasskey,
+    routeHandlerAuthorizeDeviceWithTOTP
+};

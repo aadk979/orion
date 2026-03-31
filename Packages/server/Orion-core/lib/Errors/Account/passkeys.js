@@ -96,6 +96,55 @@ const Passkeys = {
         errorCode: 'PASSKEY-SIGN-IN-ACC-DISABLED',
         fault: 'CLIENT',
         solutions: ['Contact support to reactivate your account']
+    },
+    'PASSKEY-SIGN-UP-DISABLED': {
+        status: 400,
+        context: 'Passkey sign up is disabled',
+        errorCode: 'PASSKEY-SIGN-UP-DISABLED',
+        fault: 'CLIENT',
+        solutions: ['Use another sign up method']
+    },
+    'PASSKEY-SIGN-UP-INVALID-EMAIL': {
+        status: 400,
+        context: 'The email provided for passkey sign up is not valid',
+        errorCode: 'PASSKEY-SIGN-UP-INVALID-EMAIL',
+        fault: 'CLIENT',
+        solutions: ['Check if the email provided is in the proper format, e.g. (example@provider.com)']
+    },
+    'PASSKEY-SIGN-UP-ACC-EXISTS': {
+        status: 400,
+        context: 'An account with this email already exists',
+        errorCode: 'PASSKEY-SIGN-UP-ACC-EXISTS',
+        fault: 'CLIENT',
+        solutions: ['Sign in instead, or use a different email address']
+    },
+    'PASSKEY-SIGN-UP-EXPIRED': {
+        status: 401,
+        context: 'The passkey sign up session has expired',
+        errorCode: 'PASSKEY-SIGN-UP-EXPIRED',
+        fault: 'CLIENT',
+        solutions: ['Start a new passkey sign up process']
+    },
+    'PASSKEY-SIGN-UP-EMAIL-MISMATCH': {
+        status: 401,
+        context: 'The email provided does not match the sign up session',
+        errorCode: 'PASSKEY-SIGN-UP-EMAIL-MISMATCH',
+        fault: 'CLIENT',
+        solutions: ['Use the same email address that was used to start the sign up']
+    },
+    'PASSKEY-SIGN-UP-REGISTRATION-FAILED': {
+        status: 500,
+        context: 'Passkey registration verification failed during sign up',
+        errorCode: 'PASSKEY-SIGN-UP-REGISTRATION-FAILED',
+        fault: 'SERVER',
+        solutions: ['Try again in 10 minutes and contact support if the issue persists']
+    },
+    'PASSKEY-SIGN-UP-UNABLE-TO-CREATE-ACC': {
+        status: 500,
+        context: 'Unable to create account during passkey sign up',
+        errorCode: 'PASSKEY-SIGN-UP-UNABLE-TO-CREATE-ACC',
+        fault: 'SERVER',
+        solutions: ['Try again in 10 minutes and contact support if the issue persists']
     }
 };
 
