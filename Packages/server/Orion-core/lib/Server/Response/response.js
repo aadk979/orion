@@ -11,13 +11,11 @@ const respondWithError = (response, errorCode) => {
     const trueError = internalErrors[errorCode];
 
     // If the error has a clientSafeErrorCode, swap it out so sensitive details are not exposed
-    const clientError = (trueError?.clientSafeErrorCode && internalErrors[trueError.clientSafeErrorCode])
-        ? internalErrors[trueError.clientSafeErrorCode]
-        : trueError;
+    const clientError = (trueError?.clientSafeErrorCode && internalErrors[trueError.clientSafeErrorCode]) ? internalErrors[trueError.clientSafeErrorCode] : trueError;
 
     response.setHeader('orion-response-status', clientError?.customStatus || clientError?.status || 'UNKNOWN');
 
-    response.setHeader('Access-Control-Expose-Headers', EXPOSED_HEADERS.join(' ,'));
+    response.setHeader('Access-Control-Expose-Headers', EXPOSED_HEADERS.join(', '));
 
     response.setHeader('orion-response-refresh', clientError?.refresh || false);
 

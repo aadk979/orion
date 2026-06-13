@@ -1,0 +1,693 @@
+{
+  "root": "C:\\Users\\aadk9\\OneDrive\\Desktop\\orion",
+  "summary": {
+    "totalDirectories": 46,
+    "totalFiles": 138,
+    "totalCodeFiles": 66,
+    "totalCodeLines": 10509
+  },
+  "fileTypes": {
+    ".xml": 5,
+    "NO_EXTENSION": 4,
+    ".iml": 1,
+    ".json": 31,
+    ".svg": 5,
+    ".js": 66,
+    ".ico": 1,
+    ".css": 2,
+    ".md": 5,
+    ".mjs": 3,
+    ".log": 2,
+    ".sqlite": 1,
+    ".sql": 1,
+    ".txt": 3,
+    ".html": 5,
+    ".pdf": 1,
+    ".jsonl": 1,
+    ".pem": 1
+  },
+  "largestCodeFiles": [
+    {
+      "file": "Packages\\client\\lib\\External-Scripts\\fPrint.js",
+      "extension": ".js",
+      "lines": 2126
+    },
+    {
+      "file": "Packages\\client\\lib\\External-Scripts\\DOM-purify.js",
+      "extension": ".js",
+      "lines": 1294
+    },
+    {
+      "file": "Packages\\client\\lib\\Flows\\StepUpAuthFlow.js",
+      "extension": ".js",
+      "lines": 610
+    },
+    {
+      "file": "Packages\\client\\lib\\Flows\\DeviceAuthorizationFlow.js",
+      "extension": ".js",
+      "lines": 606
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Captcha.js",
+      "extension": ".js",
+      "lines": 534
+    },
+    {
+      "file": "Packages\\client\\lib\\Root.js",
+      "extension": ".js",
+      "lines": 369
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\DashboardContent.js",
+      "extension": ".js",
+      "lines": 333
+    },
+    {
+      "file": "Packages\\client\\lib\\External-Scripts\\webAuthn.js",
+      "extension": ".js",
+      "lines": 331
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\CryptoModule.js",
+      "extension": ".js",
+      "lines": 317
+    },
+    {
+      "file": "Testing\\Server\\orion-public-non-sensitives\\x.js",
+      "extension": ".js",
+      "lines": 287
+    },
+    {
+      "file": "Testing\\Server\\temp.seedRedisConfigs.js",
+      "extension": ".js",
+      "lines": 269
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Api.js",
+      "extension": ".js",
+      "lines": 217
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Api-2.js",
+      "extension": ".js",
+      "lines": 189
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\AuthContent.js",
+      "extension": ".js",
+      "lines": 166
+    },
+    {
+      "file": "1.js",
+      "extension": ".js",
+      "lines": 153
+    },
+    {
+      "file": "Testing\\Server\\orion.config.js",
+      "extension": ".js",
+      "lines": 150
+    },
+    {
+      "file": "ClientTest\\server\\orion.config.js",
+      "extension": ".js",
+      "lines": 146
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\SecureClientCache.js",
+      "extension": ".js",
+      "lines": 135
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Date&Time.js",
+      "extension": ".js",
+      "lines": 125
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\OrionVault.js",
+      "extension": ".js",
+      "lines": 118
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Encoders.js",
+      "extension": ".js",
+      "lines": 112
+    },
+    {
+      "file": "experimentals\\models\\User.js",
+      "extension": ".js",
+      "lines": 107
+    },
+    {
+      "file": "Packages\\client\\lib\\DipCacheManager.js",
+      "extension": ".js",
+      "lines": 105
+    },
+    {
+      "file": "Testing\\Server\\temp.redisDump.js",
+      "extension": ".js",
+      "lines": 95
+    },
+    {
+      "file": "Testing\\Server\\errorCodeScanner.js",
+      "extension": ".js",
+      "lines": 78
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Remove2FAMethod.js",
+      "extension": ".js",
+      "lines": 72
+    },
+    {
+      "file": "Packages\\client\\sdkBuilder.js",
+      "extension": ".js",
+      "lines": 72
+    },
+    {
+      "file": "experimentals\\models\\Database.js",
+      "extension": ".js",
+      "lines": 71
+    },
+    {
+      "file": "experimentals\\models\\Tokens.js",
+      "extension": ".js",
+      "lines": 69
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Passkey\\SignInWithPasskey.js",
+      "extension": ".js",
+      "lines": 68
+    },
+    {
+      "file": "Testing\\Server\\index.js",
+      "extension": ".js",
+      "lines": 68
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Passkey\\SignUpWithPasskey.js",
+      "extension": ".js",
+      "lines": 65
+    },
+    {
+      "file": "Packages\\server\\Orion-core\\index.js",
+      "extension": ".js",
+      "lines": 62
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\OAuthCallbackContent.js",
+      "extension": ".js",
+      "lines": 57
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SetupTOTP.js",
+      "extension": ".js",
+      "lines": 56
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\GlobalAccessPoint.js",
+      "extension": ".js",
+      "lines": 56
+    },
+    {
+      "file": "experimentals\\models\\Passkeys.js",
+      "extension": ".js",
+      "lines": 55
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Passkey\\RegisterPasskey.js",
+      "extension": ".js",
+      "lines": 53
+    },
+    {
+      "file": "ClientTest\\server\\db\\todos.js",
+      "extension": ".js",
+      "lines": 52
+    },
+    {
+      "file": "experimentals\\models\\Devices.js",
+      "extension": ".js",
+      "lines": 52
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Utils.js",
+      "extension": ".js",
+      "lines": 50
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SignInUser.js",
+      "extension": ".js",
+      "lines": 49
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\OAuth\\HandleOAuthCallback.js",
+      "extension": ".js",
+      "lines": 48
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SignUpUser.js",
+      "extension": ".js",
+      "lines": 47
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\HomeContent.js",
+      "extension": ".js",
+      "lines": 40
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\OAuth\\GenerateOAuthRedirectURL.js",
+      "extension": ".js",
+      "lines": 40
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Helper\\dip.js",
+      "extension": ".js",
+      "lines": 40
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Authorisation.js",
+      "extension": ".js",
+      "lines": 32
+    },
+    {
+      "file": "ClientTest\\server\\index.js",
+      "extension": ".js",
+      "lines": 27
+    },
+    {
+      "file": "Packages\\client\\fileWatcher.js",
+      "extension": ".js",
+      "lines": 27
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\layout.js",
+      "extension": ".js",
+      "lines": 26
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\DevicePrint.js",
+      "extension": ".js",
+      "lines": 24
+    },
+    {
+      "file": "Testing\\server.js",
+      "extension": ".js",
+      "lines": 24
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\GetUserProfile.js",
+      "extension": ".js",
+      "lines": 21
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SignOutUser.js",
+      "extension": ".js",
+      "lines": 18
+    },
+    {
+      "file": "ClientTest\\app\\public\\orion.beta.sdk.js",
+      "extension": ".js",
+      "lines": 16
+    },
+    {
+      "file": "Testing\\assets\\orion.beta.sdk.js",
+      "extension": ".js",
+      "lines": 16
+    },
+    {
+      "file": "ClientTest\\app\\src\\Lib\\orion.js",
+      "extension": ".js",
+      "lines": 13
+    },
+    {
+      "file": "Testing\\assets\\orion.js",
+      "extension": ".js",
+      "lines": 10
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\auth\\callback\\[provider]\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\auth\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\dashboard\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "Packages\\client\\lib\\Configs.js",
+      "extension": ".js",
+      "lines": 5
+    },
+    {
+      "file": "Packages\\client\\index.js",
+      "extension": ".js",
+      "lines": 0
+    },
+    {
+      "file": "Testing\\Server\\playground\\gzipCompression.js",
+      "extension": ".js",
+      "lines": 0
+    }
+  ],
+  "allCodeFiles": [
+    {
+      "file": "Packages\\client\\lib\\External-Scripts\\fPrint.js",
+      "extension": ".js",
+      "lines": 2126
+    },
+    {
+      "file": "Packages\\client\\lib\\External-Scripts\\DOM-purify.js",
+      "extension": ".js",
+      "lines": 1294
+    },
+    {
+      "file": "Packages\\client\\lib\\Flows\\StepUpAuthFlow.js",
+      "extension": ".js",
+      "lines": 610
+    },
+    {
+      "file": "Packages\\client\\lib\\Flows\\DeviceAuthorizationFlow.js",
+      "extension": ".js",
+      "lines": 606
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Captcha.js",
+      "extension": ".js",
+      "lines": 534
+    },
+    {
+      "file": "Packages\\client\\lib\\Root.js",
+      "extension": ".js",
+      "lines": 369
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\DashboardContent.js",
+      "extension": ".js",
+      "lines": 333
+    },
+    {
+      "file": "Packages\\client\\lib\\External-Scripts\\webAuthn.js",
+      "extension": ".js",
+      "lines": 331
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\CryptoModule.js",
+      "extension": ".js",
+      "lines": 317
+    },
+    {
+      "file": "Testing\\Server\\orion-public-non-sensitives\\x.js",
+      "extension": ".js",
+      "lines": 287
+    },
+    {
+      "file": "Testing\\Server\\temp.seedRedisConfigs.js",
+      "extension": ".js",
+      "lines": 269
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Api.js",
+      "extension": ".js",
+      "lines": 217
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Api-2.js",
+      "extension": ".js",
+      "lines": 189
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\AuthContent.js",
+      "extension": ".js",
+      "lines": 166
+    },
+    {
+      "file": "1.js",
+      "extension": ".js",
+      "lines": 153
+    },
+    {
+      "file": "Testing\\Server\\orion.config.js",
+      "extension": ".js",
+      "lines": 150
+    },
+    {
+      "file": "ClientTest\\server\\orion.config.js",
+      "extension": ".js",
+      "lines": 146
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\SecureClientCache.js",
+      "extension": ".js",
+      "lines": 135
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Date&Time.js",
+      "extension": ".js",
+      "lines": 125
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\OrionVault.js",
+      "extension": ".js",
+      "lines": 118
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Encoders.js",
+      "extension": ".js",
+      "lines": 112
+    },
+    {
+      "file": "experimentals\\models\\User.js",
+      "extension": ".js",
+      "lines": 107
+    },
+    {
+      "file": "Packages\\client\\lib\\DipCacheManager.js",
+      "extension": ".js",
+      "lines": 105
+    },
+    {
+      "file": "Testing\\Server\\temp.redisDump.js",
+      "extension": ".js",
+      "lines": 95
+    },
+    {
+      "file": "Testing\\Server\\errorCodeScanner.js",
+      "extension": ".js",
+      "lines": 78
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Remove2FAMethod.js",
+      "extension": ".js",
+      "lines": 72
+    },
+    {
+      "file": "Packages\\client\\sdkBuilder.js",
+      "extension": ".js",
+      "lines": 72
+    },
+    {
+      "file": "experimentals\\models\\Database.js",
+      "extension": ".js",
+      "lines": 71
+    },
+    {
+      "file": "experimentals\\models\\Tokens.js",
+      "extension": ".js",
+      "lines": 69
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Passkey\\SignInWithPasskey.js",
+      "extension": ".js",
+      "lines": 68
+    },
+    {
+      "file": "Testing\\Server\\index.js",
+      "extension": ".js",
+      "lines": 68
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Passkey\\SignUpWithPasskey.js",
+      "extension": ".js",
+      "lines": 65
+    },
+    {
+      "file": "Packages\\server\\Orion-core\\index.js",
+      "extension": ".js",
+      "lines": 62
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\OAuthCallbackContent.js",
+      "extension": ".js",
+      "lines": 57
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SetupTOTP.js",
+      "extension": ".js",
+      "lines": 56
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\GlobalAccessPoint.js",
+      "extension": ".js",
+      "lines": 56
+    },
+    {
+      "file": "experimentals\\models\\Passkeys.js",
+      "extension": ".js",
+      "lines": 55
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\Passkey\\RegisterPasskey.js",
+      "extension": ".js",
+      "lines": 53
+    },
+    {
+      "file": "ClientTest\\server\\db\\todos.js",
+      "extension": ".js",
+      "lines": 52
+    },
+    {
+      "file": "experimentals\\models\\Devices.js",
+      "extension": ".js",
+      "lines": 52
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Utils.js",
+      "extension": ".js",
+      "lines": 50
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SignInUser.js",
+      "extension": ".js",
+      "lines": 49
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\OAuth\\HandleOAuthCallback.js",
+      "extension": ".js",
+      "lines": 48
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SignUpUser.js",
+      "extension": ".js",
+      "lines": 47
+    },
+    {
+      "file": "ClientTest\\app\\src\\components\\HomeContent.js",
+      "extension": ".js",
+      "lines": 40
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\OAuth\\GenerateOAuthRedirectURL.js",
+      "extension": ".js",
+      "lines": 40
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Helper\\dip.js",
+      "extension": ".js",
+      "lines": 40
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\Authorisation.js",
+      "extension": ".js",
+      "lines": 32
+    },
+    {
+      "file": "ClientTest\\server\\index.js",
+      "extension": ".js",
+      "lines": 27
+    },
+    {
+      "file": "Packages\\client\\fileWatcher.js",
+      "extension": ".js",
+      "lines": 27
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\layout.js",
+      "extension": ".js",
+      "lines": 26
+    },
+    {
+      "file": "Packages\\client\\lib\\Utils\\DevicePrint.js",
+      "extension": ".js",
+      "lines": 24
+    },
+    {
+      "file": "Testing\\server.js",
+      "extension": ".js",
+      "lines": 24
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\GetUserProfile.js",
+      "extension": ".js",
+      "lines": 21
+    },
+    {
+      "file": "Packages\\client\\lib\\API-Handlers\\Auth\\SignOutUser.js",
+      "extension": ".js",
+      "lines": 18
+    },
+    {
+      "file": "ClientTest\\app\\public\\orion.beta.sdk.js",
+      "extension": ".js",
+      "lines": 16
+    },
+    {
+      "file": "Testing\\assets\\orion.beta.sdk.js",
+      "extension": ".js",
+      "lines": 16
+    },
+    {
+      "file": "ClientTest\\app\\src\\Lib\\orion.js",
+      "extension": ".js",
+      "lines": 13
+    },
+    {
+      "file": "Testing\\assets\\orion.js",
+      "extension": ".js",
+      "lines": 10
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\auth\\callback\\[provider]\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\auth\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\dashboard\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "ClientTest\\app\\src\\app\\page.js",
+      "extension": ".js",
+      "lines": 9
+    },
+    {
+      "file": "Packages\\client\\lib\\Configs.js",
+      "extension": ".js",
+      "lines": 5
+    },
+    {
+      "file": "Packages\\client\\index.js",
+      "extension": ".js",
+      "lines": 0
+    },
+    {
+      "file": "Testing\\Server\\playground\\gzipCompression.js",
+      "extension": ".js",
+      "lines": 0
+    }
+  ]
+}

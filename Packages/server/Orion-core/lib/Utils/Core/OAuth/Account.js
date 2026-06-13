@@ -1,101 +1,80 @@
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
-import { tryCatch } from '../../TryCatch.js';
+import { UserModel, UserProviderModel } from '../../Databases/models/index.js';
 import { generateUID } from '../../valueGenerator.js';
+import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
+import { logger } from '../../logger.js';
 
+/**
+ * Check if an account exists for the given email.
+ */
 const accountExist = async email => {
-    const Function = async parameters => {
-        const user = await globalAccessPoint.db().getData('Users-email', parameters.email); // ← added await
-
-        if (!user || user.data === undefined) {
-            return { error: false, userExist: false };
-        }
-
-        return { error: false, userExist: true, uid: user.data.uid };
-    };
-
-    const parameters = { email };
-    const functionSource = fileURLToPath(import.meta.url);
-    return await tryCatch(Function, true, parameters, 'accountExist', functionSource);
+    const user = await UserModel.getUserByEmail(email);
+    if (!user) {
+        return { error: false, userExist: false };
+    }
+    return { error: false, userExist: true, uid: user.uid };
 };
 
-const checkAndAddProviderToAccount = async (email, provider) => {
+/**
+ * If the user already has an account, ensure the OAuth provider is linked.
+ */
+const checkAndAddProviderToAccount = async (email, providerName) => {
     const Function = async parameters => {
-        let userLink = await globalAccessPoint.db().getData('Users-email', parameters.email);
-        let user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
+        const user = await UserModel.getUserByEmail(parameters.email);
 
-        if (user.data.credentials.providers.includes(parameters.provider.toUpperCase())) {
-            return { error: false, complete: true, uid: userLink.data.uid };
+        if (!user) {
+            return { error: true, errorCode: 'O-AUTH-ACC-DOESNT-EXIST' };
         }
 
-        user.data.credentials.providers.push(parameters.provider.trim().toUpperCase());
+        const hasProvider = await UserProviderModel.hasProvider(user.uid, parameters.providerName);
 
-        await globalAccessPoint.db().addData('Users', userLink.data.uid, user.data);
+        if (!hasProvider) {
+            await UserProviderModel.addProvider(user.uid, parameters.providerName);
+        }
 
-        return { error: false, complete: true, uid: userLink.data.uid };
+        return { error: false, uid: user.uid };
     };
 
-    const parameters = {
-        email,
-        provider
-    };
-
+    const parameters = { email, providerName };
     const functionSource = fileURLToPath(import.meta.url);
     return await tryCatch(Function, true, parameters, 'checkAndAddProviderToAccount', functionSource);
 };
 
-const createAccountWithProvider = async (email, provider) => {
+/**
+ * Create a new account for a user that signed up via an OAuth provider.
+ */
+const createAccountWithProvider = async (email, providerName) => {
     const Function = async parameters => {
+        const systemConfig = globalAccessPoint.systemConfig();
         const uid = generateUID(parameters.email);
 
-        const userObject = {
-            role: 'USER',
-            credentials: {
-                password: false,
-                passkey: {
-                    exist: false
-                },
-                uid: uid,
-                providers: [parameters.provider.trim().toUpperCase()],
-                email: parameters.email
-            },
-            security: {
-                emailVerified: false,
-                activeTokens: [],
-                twoFA: {
-                    enabled: false
-                },
-                methods: [],
-                recognizedDevices: []
-            },
-            profile: {
-                fields: []
-            },
-            customData: {}
-        };
-
-        const userLinkObject = {
+        const createResult = await UserModel.createUser({
+            uid,
             email: parameters.email,
-            uid: uid
-        };
+            passwordHash: null,
+            role: 'USER'
+        });
 
-        const userStorage = await globalAccessPoint.db().addData('Users', uid, userObject);
-        const userLinkStorage = await globalAccessPoint.db().addData('Users-email', parameters.email, userLinkObject);
-
-        if (userStorage.error || userLinkStorage.error) {
-            return { error: true, errorCode: 'ACC-REG-UNABLE-TO-CREATE-ACC' };
+        if (createResult.error) {
+            return { error: true, errorCode: 'O-AUTH-UNABLE-TO-CREATE-ACC' };
         }
 
-        return { error: false, complete: true, uid };
+        await UserProviderModel.addProvider(uid, parameters.providerName);
+
+        try {
+            systemConfig?.utilities?.onUserCreation(parameters.email, uid);
+        } catch (e) {
+            logger.error('An error occurred in the onUserCreation callback: ' + e);
+        }
+
+        return { error: false, uid };
     };
 
-    const parameters = {
-        email,
-        provider
-    };
-
+    const parameters = { email, providerName };
     const functionSource = fileURLToPath(import.meta.url);
     return await tryCatch(Function, true, parameters, 'createAccountWithProvider', functionSource);
 };
 
-export { createAccountWithProvider, checkAndAddProviderToAccount, accountExist };
+export { accountExist, checkAndAddProviderToAccount, createAccountWithProvider };

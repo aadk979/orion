@@ -89,6 +89,13 @@ const General = {
         errorCode: 'UNRESOLVABLE-CLIENT-IP',
         fault: 'CLIENT',
         solutions: ['Ensure the request includes a valid X-Forwarded-For or remote address']
+    },
+    'RATE-LIMIT-EXCEEDED': {
+        status: 429,
+        context: 'You have sent too many requests in a given amount of time',
+        errorCode: 'RATE-LIMIT-EXCEEDED',
+        fault: 'CLIENT',
+        solutions: ['Wait for the rate limit to reset before making further requests']
     }
 };
 

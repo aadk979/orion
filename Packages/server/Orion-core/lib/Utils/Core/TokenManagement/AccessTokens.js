@@ -1,32 +1,42 @@
 import jwt from 'jsonwebtoken';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, TokenModel } from '../../Databases/models/index.js';
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { generateId, generateRandomNumber } from '../../valueGenerator.js';
 import { getIpRange, isIpInRange } from '../../Ip.js';
-import { getFutureUnixTime } from '../../Date&Time.js';
+import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time.js';
 
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { toShortPayload, toVerbosePayload } from './tokenFieldMap.js';
 import { compressURLs, decompressURLs } from '../../Compressor.js';
-import { cleanUpTokens } from './TokenCleanup.js';
 
-async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent, accessTokenLinkCodeExternal) {
+async function generateAccessToken(
+    uid,
+    email,
+    fingerprint,
+    authMethod,
+    role,
+    ip,
+    userAgent
+) {
     const auditTrail = globalAccessPoint.auditTrailSystem();
     const requestMetadata = requestContext.getStore();
-    const securityTier = globalAccessPoint.token_security_tier();
+    const securityTier = globalAccessPoint.tokenSecurityTier();
 
     const secret = await globalAccessPoint.TOKEN_SECRETS_MANAGER_access().getRandomSigningKeyPair();
     const expiry = globalAccessPoint.systemConfig().tokens?.lifespans.accessTokens || '15m';
+
+    const accessTokenLinkCode = generateId('AT_LINK', 10);
 
     const aud = compressURLs(globalAccessPoint.allowedClientUrls());
     const iss = compressURLs(globalAccessPoint.systemConfig().server.urls);
 
     let tokenData = null;
-    let accessTokenLinkCode = accessTokenLinkCodeExternal || generateRandomNumber(20);
 
     // Base payload for all tiers
     const payload = {
         uid: uid,
+        email: email,
         authMethod: authMethod,
         role: role,
         securityTier: securityTier,
@@ -39,7 +49,6 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
 
     // Tier 1: Stateless - minimal payload, no DB storage
     if (securityTier === 1) {
-        payload.email = email;
         auditTrail.record({
             user: { email: email, uid: uid },
             device: { userAgent: userAgent },
@@ -48,7 +57,6 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
             source: 'AccessTokens.js',
             functionName: 'generateAccessToken',
             requestId: requestMetadata?.requestId,
-            accessTokenLinkCode,
             ipAddress: ip,
             impact: 'Stateless access token generated (Tier 1)',
             metadata: {
@@ -65,7 +73,7 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
             algorithm: secret.generationConfig.algorithm,
             keyid: secret.keyPairId
         });
-        return { error: false, token: token, securityTier: securityTier, accessTokenLinkCode };
+        return { error: false, token: token, accessTokenLinkCode: accessTokenLinkCode, securityTier: securityTier };
     }
 
     delete payload.accessTokenLinkCode;
@@ -79,12 +87,15 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
 
     payload.tokenData = tokenData;
 
-    const dbTokenData = {
+    const dbExpiry = getFutureUnixTime(expiry);
+
+    const dbTokenFields = {
         tokenId: tokenData.tokenId,
-        exp: getFutureUnixTime(expiry),
+        uid: uid,
         type: tokenData.type,
+        expiry: dbExpiry,
         userAgent: userAgent,
-        accessTokenLinkCode: accessTokenLinkCode,
+        linkCode: accessTokenLinkCode,
         securityTier: securityTier
     };
 
@@ -92,14 +103,14 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
     if (securityTier === 2) {
         const ipRange = getIpRange(ip);
         payload.ipRange = ipRange;
-        dbTokenData.ipRange = ipRange;
+        dbTokenFields.ipRange = ipRange;
     }
 
     // Tier 3: Fingerprint tracking only
     if (securityTier === 3) {
         const hashedFingerprint = await hashString(fingerprint);
         payload.hashedDeviceFingerprint = hashedFingerprint;
-        dbTokenData.hashedFingerprint = hashedFingerprint;
+        dbTokenFields.hashedFingerprint = hashedFingerprint;
     }
 
     // Tier 4: Both IP and fingerprint tracking
@@ -109,24 +120,14 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
 
         payload.hashedDeviceFingerprint = hashedFingerprint;
         payload.ipRange = ipRange;
-        dbTokenData.hashedFingerprint = hashedFingerprint;
-        dbTokenData.ipRange = ipRange;
+        dbTokenFields.hashedFingerprint = hashedFingerprint;
+        dbTokenFields.ipRange = ipRange;
     }
 
     // Store token in database for stateful tiers
-    dbTokenData.uid = uid;
+    await TokenModel.addTokenRef(uid, tokenData.tokenId, dbExpiry);
 
-    // Asynchronously clean up expired tokens for this user
-    cleanUpTokens(uid);
-
-    let data = await globalAccessPoint.db().getData('Users', uid);
-    let user = data.data;
-
-    // Push lightweight reference
-    user.security.activeTokens.push({ tokenId: dbTokenData.tokenId, exp: dbTokenData.exp });
-    await globalAccessPoint.db().addData('Users', uid, user);
-
-    const storage = await globalAccessPoint.db().addData('Tokens', dbTokenData.tokenId, dbTokenData);
+    const storage = await TokenModel.createToken(dbTokenFields);
 
     if (storage.error) {
         auditTrail.record({
@@ -184,7 +185,7 @@ async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip
 async function validateAccessToken(token, fingerprint, ip, clientUrl) {
     const auditTrail = globalAccessPoint.auditTrailSystem();
     const requestMetadata = requestContext.getStore();
-    const configuredSecurityTier = globalAccessPoint.token_security_tier();
+    const configuredSecurityTier = globalAccessPoint.tokenSecurityTier();
 
     try {
         if (!token) {
@@ -209,7 +210,7 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
 
         const decodedHeader = jwt.decode(token, { complete: true }).header;
         const secret = await globalAccessPoint.TOKEN_SECRETS_MANAGER_access().findKeyPair(decodedHeader.kid);
-        const serverUrl = globalAccessPoint.systemConfig().server.myUrl;
+        const serverUrl = globalAccessPoint.systemConfig().server.selfUrl;
 
         if (!secret) {
             return { error: true, errorCode: 'ACCESS-TOKEN-KEY-NOT-FOUND' };
@@ -243,12 +244,7 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         }
 
         // Tiers 2-4: Stateful validation
-        let data = await globalAccessPoint.db().getData('Users', validatedToken.uid);
-        let user = data.data;
-        validatedToken.email = user.credentials.email;
-
-        const tokenDataResponse = await globalAccessPoint.db().getData('Tokens', validatedToken.tokenData.tokenId);
-        const tokenData = tokenDataResponse.data;
+        const tokenData = await TokenModel.getToken(validatedToken.tokenData.tokenId);
 
         if (!tokenData) {
             return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND' };
@@ -268,11 +264,10 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         // Tier 3: Fingerprint as advisory risk signal only
         if (securityTier === 3) {
             let riskScore = 0;
-            if (!(await verifyHash(fingerprint, tokenData.hashedFingerprint))) {
+            if (!(await verifyHash(fingerprint, tokenData.hashed_fingerprint))) {
                 riskScore += 30;
             }
             if (riskScore >= 50) {
-                // Do NOT revoke the token — the session is cryptographically valid; step-up is a risk gate only
                 return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
@@ -280,14 +275,13 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         // Tier 4: IP and fingerprint as combined risk signals
         if (securityTier === 4) {
             let riskScore = 0;
-            if (!(await verifyHash(fingerprint, tokenData.hashedFingerprint))) {
+            if (!(await verifyHash(fingerprint, tokenData.hashed_fingerprint))) {
                 riskScore += 30;
             }
-            if ((await isIpInRange(ip, tokenData.ipRange))) {
+            if (!(await isIpInRange(ip, tokenData.ip_range))) {
                 riskScore += 40;
             }
             if (riskScore >= 50) {
-                // Do NOT revoke the token — the session is cryptographically valid; step-up is a risk gate only
                 return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }

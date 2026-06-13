@@ -13,6 +13,9 @@
  * custom cron system has been implemented.
  */
 
+// NOTE: The VMS (Volatile Secrets Manager) is being decommissioned soon in favor of asymmetric crypto systems like the Signature Secrets Manager and Token Secrets Manager.
+// VMS has served its purpose as scaffolding and always has been, and will be, in the legendary GitHub hall of commits as a pioneer to the current sophisticated systems.
+
 import cron from 'node-cron';
 import { logger } from '../logger.js';
 import { generateChallenge } from '../valueGenerator.js';

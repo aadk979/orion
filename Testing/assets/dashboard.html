@@ -253,20 +253,18 @@
             }
 
             // ── Initialize ────────────────────────
-            try {
-                await orion.initialize();
-            } catch(e) {
-                loadingOverlay.classList.add('hidden');
-                showAlert(alertGlobal, 'Failed to initialize: ' + e.message);
-            }
-
-            orion.authState(async state => {
-                if (state && !state.loading) {
-                    if (!state.signedIn) {
-                        window.location.href = './auth.html';
-                        return;
+            orion.onAuthStateChanged(async state => {
+                if (state.status === 'ERROR') {
+                    loadingOverlay.classList.add('hidden');
+                    showAlert(alertGlobal, 'Failed to initialize: ' + state.error.message);
+                } else if (state.status === 'UNAUTHENTICATED') {
+                    window.location.href = './auth.html';
+                } else if (state.status === 'AUTHENTICATED') {
+                    if (state.user) {
+                        navEmail.textContent = state.user.email || 'Signed In';
                     }
                     loadingOverlay.classList.add('hidden');
+                    // We still load the full profile to get security (2FA) status
                     await loadProfile();
                 }
             });

@@ -1,5 +1,6 @@
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { UserModel, PasskeyModel } from '../../../Databases/models/index.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { isValidEmail } from '../../../Validator.js';
@@ -27,15 +28,15 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
             return { error: true, errorCode: 'PASSKEY-REG-INVALID-EMAIL' };
         }
 
-        const userLink = await globalAccessPoint.db().getData('Users-email', sanitizedEmail);
+        const user = await UserModel.getUserByEmail(sanitizedEmail);
 
-        if (userLink.data === undefined) {
+        if (!user) {
             return { error: true, errorCode: 'PASSKEY-ACC-NO-EXIST' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
+        const existingPasskey = await PasskeyModel.hasPasskey(user.uid);
 
-        if (user.data.credentials.passkey.exist) {
+        if (existingPasskey) {
             return {
                 error: true,
                 errorCode: 'PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED'
@@ -45,7 +46,7 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
         const options = await generateRegistrationOptions({
             rpId: parameters.clientURL,
             rpName: rpName,
-            userid: Uint8Array.from(user.data.credentials.uid, c => c.charCodeAt(0)),
+            userid: Uint8Array.from(user.uid, c => c.charCodeAt(0)),
             userName: parameters.email,
             userDisplayName: parameters.email.split('@')[0]
         });
@@ -57,7 +58,7 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
                 {
                     key: 'PASSKEY-REGISTRATION-INFO-STEP-1',
                     data: {
-                        uid: user.data.credentials.uid,
+                        uid: user.uid,
                         id: options.user.id,
                         email: email,
                         challenge: options.challenge

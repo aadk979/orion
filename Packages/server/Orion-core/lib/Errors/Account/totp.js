@@ -26,6 +26,13 @@ const TOTP = {
         errorCode: 'TOTP-ALREADY-ENABLED',
         fault: 'CLIENT',
         solutions: ['Remove the existing TOTP setup before creating a new one']
+    },
+    'TOTP-SYSTEM-DISABLED': {
+        status: 400,
+        context: 'TOTP has been disabled by the system',
+        errorCode: 'TOTP-SYSTEM-DISABLED',
+        fault: 'SERVER',
+        solutions: ['NONE']
     }
 };
 

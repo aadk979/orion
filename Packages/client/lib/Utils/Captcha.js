@@ -28,6 +28,7 @@ const createTextEl = (tag, className, text) => {
 /** Build the standard Orion headers for unauthenticated requests */
 const buildNoAuthHeaders = async () => ({
   "Content-Type": "application/json",
+  "Accept-Encoding": "gzip, deflate, br",
   Authorization: "NO_BEARER",
   "orion-fingerprint": await getDeviceFingerprint(),
   "orion-user-agent": navigator.userAgent,

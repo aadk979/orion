@@ -2,6 +2,7 @@ import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { hashString } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel } from '../../Databases/models/index.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -71,11 +72,9 @@ const createAccount = async (email, password) => {
             }
         }
 
-        const user = await globalAccessPoint.db().getData('Users-email', sanitizedEmail);
+        const emailTaken = await UserModel.emailExists(sanitizedEmail);
 
-        console.log(user, user?.data === undefined);
-
-        if (user.data !== undefined) {
+        if (emailTaken) {
             auditTrail.record({
                 user: { email: parameters.email },
                 device: {
@@ -120,41 +119,14 @@ const createAccount = async (email, password) => {
         const hashedPassword = await hashString(sanitizedPassword);
         const uid = generateUID(sanitizedEmail);
 
-        const userObject = {
-            role: 'USER',
-            credentials: {
-                password: hashedPassword,
-                passkey: {
-                    exist: false
-                },
-                uid: uid,
-                providers: [],
-                email: sanitizedEmail
-            },
-            security: {
-                emailVerified: false,
-                activeTokens: [],
-                twoFA: {
-                    enabled: false
-                },
-                methods: [],
-                recognizedDevices: []
-            },
-            profile: {
-                fields: []
-            },
-            customData: {}
-        };
-
-        const userLinkObject = {
+        const createResult = await UserModel.createUser({
+            uid,
             email: sanitizedEmail,
-            uid: uid
-        };
+            passwordHash: hashedPassword,
+            role: 'USER'
+        });
 
-        const userStorage = await globalAccessPoint.db().addData('Users', uid, userObject);
-        const userLinkStorage = await globalAccessPoint.db().addData('Users-email', sanitizedEmail, userLinkObject);
-
-        if (userStorage.error || userLinkStorage.error) {
+        if (createResult.error) {
             auditTrail.record({
                 user: { email: parameters.email, uid: uid },
                 device: {
@@ -169,9 +141,7 @@ const createAccount = async (email, password) => {
                 ipAddress: requestMetadata?.ip,
                 impact: 'Account creation failed - database error',
                 metadata: {
-                    reason: 'DATABASE_ERROR',
-                    userStorageError: userStorage.error,
-                    userLinkStorageError: userLinkStorage.error
+                    reason: 'DATABASE_ERROR'
                 },
                 errorCode: 'ACC-REG-UNABLE-TO-CREATE-ACC'
             });
@@ -199,7 +169,7 @@ const createAccount = async (email, password) => {
         });
 
         try {
-            systemConfig?.onUserCreation(sanitizedEmail, uid);
+            systemConfig?.utilities?.onUserCreation(sanitizedEmail, uid);
         } catch (e) {
             logger.error('An error occurred in the onUserCreation callback: ' + e);
         }

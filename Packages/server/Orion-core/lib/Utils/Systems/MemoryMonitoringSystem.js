@@ -95,11 +95,12 @@ class MemoryMonitoringSystem {
 
         const purgables = [
             'auditTrailSystem',
-            'db',
-            'api.customeMiddlewares',
             'api.slug',
-            'authMethods.oAuth',
-            'systemSecurity',
+            'api.customMiddlewares',
+            'api.resourceAccessConfig',
+            'authMethods.OAuth',
+            'accessControl',
+            'dataIntegrity',
             'resourceAccessConfig',
             'rateLimitWindowMs',
             'maxRequests',

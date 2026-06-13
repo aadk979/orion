@@ -17,7 +17,7 @@ import { globalAccessPoint } from './Utils/GlobalAccessPoint.js';
 import { DIPCacheManager } from './DipCacheManager.js';
 
 class Orion {
-    #signedIn = null;
+    #authState = { status: 'IDLE' };
     #authListeners = new Set();
 
     static initialized = false;
@@ -46,31 +46,47 @@ class Orion {
         this.dipCacheManager = new DIPCacheManager(systemConfig, this.Api, getAuthHeader);
     }
 
-    setUserSignedInState(state) {
-        const changed = this.#signedIn !== state;
-        this.#signedIn = state;
-        if (changed) {
-            this.#authListeners.forEach(cb => cb({ signedIn: this.#signedIn, loading: false }));
+    #emitAuthState(newState) {
+        this.#authState = newState;
+        this.#authListeners.forEach(cb => cb(this.#authState));
+    }
+
+    onAuthStateChanged(callback) {
+        this.#authListeners.add(callback);
+        
+        callback(this.#authState);
+        
+        if (this.#authState.status === 'IDLE') {
+            this.initialize();
+        }
+        
+        return () => this.#authListeners.delete(callback);
+    }
+
+    setUserSignedInState(signedIn, userData = null) {
+        if (signedIn) {
+            this.#emitAuthState({ status: 'AUTHENTICATED', user: userData });
+        } else {
+            this.#emitAuthState({ status: 'UNAUTHENTICATED' });
         }
     }
 
     async initialize() {
-        if (Orion.initialized) return;
+        if (this.#authState.status !== 'IDLE') return;
         if (Orion.initPromise) return Orion.initPromise;
+
+        this.#emitAuthState({ status: 'LOADING' });
 
         Orion.initPromise = (async () => {
             try {
                 await orionVault.initDB();
                 await checkAndDeployCaptcha(this.systemConfig.serverUrl, this.systemConfig.nameSpace, this.systemConfig?.slug || '');
 
-                // Use DIPCacheManager to handle DIP configuration
                 const dipConfig = await this.dipCacheManager.getDIPConfig(globalAccessPoint);
                 this.dipConfig = dipConfig;
 
                 const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
-
                 const request = await this.Api.fetch(`/${this.systemConfig.nameSpace}/api/v1/action/get-current-auth-state`, 'POST', authHeader.authHead);
-
                 const data = await request.json();
 
                 const allowedErrors = ['MISSING-AUTHENTICATION-TOKEN', 'ACCESS-TOKEN-EXPIRED', 'REFRESH-TOKEN-EXPIRED', 'MISSING-SESSION-ID-OR-SESSION-HMAC'];
@@ -79,11 +95,18 @@ class Orion {
                     throw new Error('Unknown error: ' + JSON.stringify(data));
                 }
 
-                this.setUserSignedInState(data.data?.authed || false);
+                if (data.data?.authed) {
+                    this.setUserSignedInState(true, data.data.user);
+                } else {
+                    this.setUserSignedInState(false);
+                }
                 Orion.initialized = true;
             } catch (e) {
                 await orionVault.reset();
-                throw new Error('Error during initialization: ' + e.message);
+                this.#emitAuthState({
+                    status: 'ERROR',
+                    error: { code: 'INIT_FAILED', message: e.message }
+                });
             } finally {
                 Orion.initPromise = null;
             }
@@ -96,20 +119,26 @@ class Orion {
         await this.initialize();
 
         if (typeof callback === 'function') {
-            this.#authListeners.add(callback);
+            const compatCb = (state) => {
+                callback({
+                    signedIn: state.status === 'AUTHENTICATED',
+                    loading: state.status === 'IDLE' || state.status === 'LOADING'
+                });
+            };
+            this.#authListeners.add(compatCb);
 
             callback({
-                signedIn: this.#signedIn,
-                loading: !Orion.initialized
+                signedIn: this.#authState.status === 'AUTHENTICATED',
+                loading: false
             });
 
-            return () => this.#authListeners.delete(callback);
+            return () => this.#authListeners.delete(compatCb);
         }
     }
 
     async signInUser(email, password) {
         await this.initialize();
-        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+        if (this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
         const args = {
             Api: this.Api,
@@ -134,7 +163,7 @@ class Orion {
 
     async signUpUser(email, password) {
         await this.initialize();
-        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+        if (this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
         return await signUpUser({
             Api: this.Api,
@@ -148,7 +177,7 @@ class Orion {
 
     async signOutUser() {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await signOutUser({
             Api: this.Api,
@@ -160,7 +189,7 @@ class Orion {
 
     async registerPasskey() {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await registerPasskey({
             Api: this.Api,
@@ -172,7 +201,7 @@ class Orion {
 
     async signInWithPasskey(email) {
         await this.initialize();
-        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+        if (this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
         const args = {
             email,
@@ -195,7 +224,7 @@ class Orion {
 
     async signUpWithPasskey(email) {
         await this.initialize();
-        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+        if (this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
         return await signUpWithPasskey({
             email,
@@ -208,7 +237,7 @@ class Orion {
 
     async generateOAuthRedirectURLAndRedirect(providerName) {
         await this.initialize();
-        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+        if (this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
         const result = await generateOAuthRedirectURL({
             Api: this.Api,
@@ -230,7 +259,7 @@ class Orion {
 
     async handleOAuthCallback() {
         await this.initialize();
-        if (this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
+        if (this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-AUTHED-USER-PRESENT' };
 
         let result;
         try {
@@ -273,7 +302,7 @@ class Orion {
 
     async setupTOTP() {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await setupTOTP({
             Api: this.Api,
@@ -285,7 +314,7 @@ class Orion {
 
     async verifyAndEnableTOTP(totpCode) {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await verifyAndEnableTOTP({
             Api: this.Api,
@@ -298,7 +327,7 @@ class Orion {
 
     async initiate2FAMethodRemoval(method) {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await initiate2FAMethodRemoval({
             Api: this.Api,
@@ -311,7 +340,7 @@ class Orion {
 
     async complete2FAMethodRemoval(code) {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await complete2FAMethodRemoval({
             Api: this.Api,
@@ -324,7 +353,7 @@ class Orion {
 
     async getUserProfile() {
         await this.initialize();
-        if (!this.#signedIn) return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await getUserProfile({
             Api: this.Api,
@@ -336,3 +365,4 @@ class Orion {
 }
 
 export { Orion };
+

@@ -2,6 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { getFutureUnixTime, getCurrentUnixTime } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -19,7 +20,7 @@ const MAX_USER_AGENT_LENGTH = 512;
 const CAPTCHA_MAX_AGE_MS = 3 * 60 * 1000; // 3 minutes
 
 const deletionFunction = async parameters => {
-    await globalAccessPoint.db().deleteData(parameters.collection, parameters.docId);
+    await RequestModel.deleteNoAuthTransaction(parameters.docId);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,24 +32,20 @@ const generateNoAuthTokenCreationTransaction = async (ip, fingerprint, userAgent
         const transactionId = generateRequestId('NO_AUTH_TOKEN_CREATION_TRANSACTION');
         const captcha = await generateCaptchaImage();
 
-        const payload = {
+        const storage = await RequestModel.createNoAuthTransaction(transactionId, {
             ipRange: getIpRange(parameters.ip),
             fingerprint: parameters.fingerprint,
             userAgent: parameters.userAgent,
             captchaCode: captcha.hashedCode,
-            captchaSystemVersion: captchaSystemVersion,
-            // Server-side creation timestamp — used for expiry check on submission,
-            // independent of the cron cleanup window
-            createdAt: Date.now()
-        };
+            captchaVersion: captchaSystemVersion,
+            serverCreatedAt: Date.now()
+        });
 
-        const storage = await globalAccessPoint.db().addData('noAuthTokenCreationTransactions', transactionId, payload);
-
-        if (storage.error) {
-            return { error: true, errorCode: storage.errorCode };
+        if (storage && storage.error) {
+            return { error: true, errorCode: 'DATABASE-ERROR' };
         }
 
-        cronScheduler.addEvent(transactionId, deletionFunction, '5m', { collection: 'noAuthTokenCreationTransactions', docId: transactionId });
+        cronScheduler.addEvent(transactionId, deletionFunction, '5m', { docId: transactionId });
 
         return {
             error: false,
@@ -99,63 +96,56 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
         }
 
         // ── 1. Fetch and validate transaction ────────────────────────────────
-        const transactionStorage = await globalAccessPoint.db().getData('noAuthTokenCreationTransactions', parameters.transactionId);
+        const txn = await RequestModel.getNoAuthTransaction(parameters.transactionId);
 
-        if (transactionStorage.data === undefined) {
+        if (!txn) {
             return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-ID' };
         }
 
         // ── 2. Server-side expiry check (independent of cron) ────────────────
-        // Previously only a cron job cleaned up transactions, meaning a stale
-        // transaction could still be submitted in the cleanup window.
-        if (Date.now() - transactionStorage.data.createdAt > CAPTCHA_MAX_AGE_MS) {
-            await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
+        if (Date.now() - txn.server_created_at > CAPTCHA_MAX_AGE_MS) {
+            await deletionFunction({ docId: parameters.transactionId });
             return { error: true, errorCode: 'EXPIRED-CAPTCHA-TRANSACTION' };
         }
 
         // ── 3. Version check ─────────────────────────────────────────────────
-        if (transactionStorage.data.captchaSystemVersion !== captchaSystemVersion) {
+        if (txn.captcha_version !== captchaSystemVersion) {
             return { error: true, errorCode: 'CAPTCHA-SYSTEM-VERSION-ERROR' };
         }
 
         // ── 4. Bind checks: IP, fingerprint, user-agent ──────────────────────
-        if (!(await isIpInRange(parameters.ip, transactionStorage.data.ipRange))) {
-            await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
+        if (!(await isIpInRange(parameters.ip, txn.ip_range))) {
+            await deletionFunction({ docId: parameters.transactionId });
             return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-IP' };
         }
 
         // Fingerprint is an advisory risk signal, not a hard gate
         let fpRiskScore = 0;
-        if (!(await verifyHash(parameters.fingerprint, transactionStorage.data.fingerprint))) {
+        if (!(await verifyHash(parameters.fingerprint, txn.fingerprint))) {
             fpRiskScore += 30;
         }
         if (fpRiskScore >= 50) {
-            await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
+            await deletionFunction({ docId: parameters.transactionId });
             return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-FINGERPRINT' };
         }
 
-        if (transactionStorage.data.userAgent !== parameters.userAgent) {
-            await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
+        if (txn.user_agent !== parameters.userAgent) {
+            await deletionFunction({ docId: parameters.transactionId });
             return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-USERAGENT' };
         }
 
         // ── 5. CAPTCHA code check ────────────────────────────────────────────
-        // Input is normalised (trim) before bcrypt compare to prevent
-        // silent failures from whitespace differences.
         const normalizedCaptchaInput = (parameters.recaptchaResponse.captchaCode || '').trim();
 
-        const isCodeValid = await verifyCaptcha(normalizedCaptchaInput, transactionStorage.data.captchaCode);
+        const isCodeValid = await verifyCaptcha(normalizedCaptchaInput, txn.captcha_code);
 
         if (!isCodeValid) {
-            await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
+            await deletionFunction({ docId: parameters.transactionId });
             return { error: true, errorCode: 'INVALID-CAPTCHA-CODE' };
         }
 
         // ── 6. Consume transaction immediately (replay protection) ───────────
-        // Previously the transaction was only cleaned up on failure paths or after
-        // the 5-minute cron window — the same transactionId + captchaCode could be
-        // replayed multiple times within that window.
-        await deletionFunction({ collection: 'noAuthTokenCreationTransactions', docId: parameters.transactionId });
+        await deletionFunction({ docId: parameters.transactionId });
 
         // ── 7. Sign the token with SignatureSecretsManager ───────────────────
         const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
@@ -175,7 +165,7 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
             type: 'NO_AUTH_TOKEN',
             ipRange: getIpRange(parameters.ip),
             userAgent: parameters.userAgent,
-            fpHash: transactionStorage.data.fingerprint,
+            fpHash: txn.fingerprint,
             exp: exp,
             kid: signingPair.keyPairId
         });

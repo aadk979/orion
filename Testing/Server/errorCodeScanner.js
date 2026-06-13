@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const targetDir = '../../Packages/server/lib'; // change this
+const targetDir = '../../Packages/server/Orion-core/lib'; // change this
 const ignoreDirs = ['node_modules', 'Errors']; // add any folder names you want to skip
 const outputFile = './errorCodes.json'; // where to save JSON output
 

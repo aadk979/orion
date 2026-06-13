@@ -60,7 +60,7 @@ async function compileSDK(entryFile, outFile, { format = 'esm' } = {}) {
 
 (async () => {
     const entry = process.argv[2] || 'lib/Root.js';
-    const outDirs = ['dist', '../../Testing/assets', '../../ClientTest/app/public'];
+    const outDirs = ['dist', '../../Testing/assets'];
     console.log('🚀 Building Orion SDK (no mangling)...');
     for (const dir of outDirs) {
         await compileSDK(entry, `${dir}/orion.beta.sdk.js`, { format: 'esm' });

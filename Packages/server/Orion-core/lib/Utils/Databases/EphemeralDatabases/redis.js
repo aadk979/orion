@@ -18,8 +18,8 @@ class RedisService {
                 username: cred.username || 'default',
                 password: cred.password,
                 socket: {
-                    host: cred.host || 'localhost',
-                    port: cred.PORT || 6379
+                    host: cred.host || '127.0.0.1',
+                    port: cred.port || 6379
                 },
                 pingInterval: 60000 // Send a PING every 60 seconds to prevent idle timeouts
             });
@@ -146,6 +146,19 @@ class RedisService {
             data: keys.map(k => k.replace(`${this.collectionName}:`, '')),
             completed: true
         };
+    }
+
+    async evalScript(script, keys = [], args = []) {
+        try {
+            this.ensureInitialized();
+            // node-redis v4+ requires string arguments
+            const cmdArgs = ['EVAL', script, keys.length.toString(), ...keys, ...args.map(String)];
+            const result = await this.client.sendCommand(cmdArgs);
+            return { error: false, data: result, completed: true };
+        } catch (err) {
+            logger.error('Eval Error:', err.message);
+            return { error: true, completed: false, errorMessage: err.message };
+        }
     }
 
     async close() {

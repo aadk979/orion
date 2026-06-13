@@ -20,6 +20,7 @@ import { validateClientUrls } from '../Utils/Validator.js';
 import { generateRandomNumber } from '../Utils/valueGenerator.js';
 import { PERSISTANT_CLIENT_URLS_FILE_NAME, SIGNATURE_SECRETS_FILE_NAME } from '../orion.meta.js';
 import { EphemeralDatabaseManager } from '../Utils/Databases/EphemeralDatabases/index.js';
+import { HealthCheckModel } from '../Utils/Databases/models/index.js';
 import { getFutureUnixTime } from '../Utils/Date&Time.js';
 import { populateEphemeralConfigs } from '../Utils/Databases/EphemeralDatabases/configPopulator.js';
 import { generateNumberedStringsFromTemplate, getRandomElement } from '../Utils/ArrayUtilities.js';
@@ -28,7 +29,7 @@ import { SignatureSecretsManager } from "../Utils/Systems/SignatureSecretsManage
 import { importPrivateKeyECC } from '../Utils/dedicatedCrypto.js';
 import { base64DecodeToUint8 } from '../Utils/Encoders.js';
 
-const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
+const utilDatabaseLiveCheck = async (maxRetries = 3, retryDelay = 1000) => {
     let attempts = 0;
 
     while (attempts < maxRetries) {
@@ -37,7 +38,7 @@ const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
         const randomKey = generateRandomNumber(36);
         const randomData = generateRandomNumber(35);
 
-        const writeCheck = await db.addData('Test', randomKey, { data: randomData });
+        const writeCheck = await HealthCheckModel.write(randomKey, { data: randomData });
 
         if (writeCheck.error) {
             if (attempts < maxRetries) {
@@ -47,11 +48,10 @@ const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
             return { error: true, failed: true, attemptsUsed: attempts };
         }
 
-        const readCheck = await db.getData('Test', randomKey);
+        const readCheck = await HealthCheckModel.read(randomKey);
 
         if (readCheck.error) {
-            // Cleanup before retry
-            await db.deleteData('Test', randomKey).catch(() => { });
+            await HealthCheckModel.remove(randomKey).catch(() => { });
             if (attempts < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
@@ -59,7 +59,7 @@ const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
             return { error: true, failed: true, attemptsUsed: attempts };
         }
 
-        const deleteCheck = await db.deleteData('Test', randomKey);
+        const deleteCheck = await HealthCheckModel.remove(randomKey);
 
         if (deleteCheck.error) {
             if (attempts < maxRetries) {
@@ -76,17 +76,16 @@ const utilDatabaseLiveCheck = async (db, maxRetries = 3, retryDelay = 1000) => {
 };
 
 const handleDatabaseLiveCheck = async () => {
-    const db = globalAccessPoint.db();
     let testData = [];
 
     const NUMBER_OF_TESTS = 15;
     const PASS_PERCENTAGE = 100;
 
-    // The initialization of a db is an async operation executed in a sync manner and hence maybe not be fully completed before test begins hence the timeout
+    // Schema migration is already awaited in initiateServer.js, but allow brief settling time
     return await new Promise((resolve) => {
         setTimeout(async () => {
             for (let i = 0; i < NUMBER_OF_TESTS; i++) {
-                const test = await utilDatabaseLiveCheck(db);
+                const test = await utilDatabaseLiveCheck();
                 testData.push(test);
             }
 
@@ -218,20 +217,29 @@ const utilGetBooleanValuesForSystemSecurityConfig = status => {
     return status === 'DISABLED' ? false : true;
 };
 
+const utilHasMailCredentials = () => {
+    const mail = globalAccessPoint.systemConfig()?.mail;
+    return !!(mail && mail.service && mail.email && mail.password);
+};
+
 const handleConfigValidationForSystemSecurity = () => {
     const currentConfigurableSystemSecurityModules = ['dip', 'captcha', 'deviceAuthorization'];
     const systemConfig = globalAccessPoint.systemConfig();
-    const systemSecurityConfig = systemConfig?.utilities?.systemSecurity || { dip: 'ENABLED', captcha: 'ENABLED', deviceAuthorization: 'ENABLED' };
+    const accessControlConfig = systemConfig?.utilities?.accessControl || { captcha: 'ENABLED', deviceAuthorization: 'ENABLED' };
+    const dataIntegrityConfig = systemConfig?.utilities?.dataIntegrity || { dip: 'ENABLED' };
+    
+    const combinedConfig = { ...accessControlConfig, ...dataIntegrityConfig };
 
     const slug = systemConfig?.api?.slug || '';
 
     globalAccessPoint.setValue('apiSlug', slug);
 
     let initalArr = currentConfigurableSystemSecurityModules.map(val => ({ key: val, enabled: true }));
-    const givenConfigKeys = Object.keys(systemSecurityConfig);
+    const givenConfigKeys = Object.keys(combinedConfig);
 
     for (const key of givenConfigKeys) {
-        const val = systemSecurityConfig[key];
+        if (!currentConfigurableSystemSecurityModules.includes(key)) continue;
+        const val = combinedConfig[key];
         const status = utilGetBooleanValuesForSystemSecurityConfig(val);
 
         const filtered = initalArr.filter(val => val.key !== key);
@@ -246,6 +254,29 @@ const handleConfigValidationForSystemSecurity = () => {
     }
 
     return;
+};
+
+const handleMailCredentialConflicts = () => {
+    if (utilHasMailCredentials()) return;
+
+    const systemConfig = globalAccessPoint.systemConfig();
+
+    if (globalAccessPoint.deviceAuthorization()) {
+        throw new Error('Configuration conflict: Device authorization is enabled but no mail credentials are configured (systemConfig.mail). Device authorization requires sending a one-time code via email. Either provide mail credentials or disable device authorization (utilities.systemSecurity.deviceAuthorization: "DISABLED").');
+    }
+
+    if (systemConfig?.authMethods?.totp !== false) {
+        if (!systemConfig.authMethods) systemConfig.authMethods = {};
+        systemConfig.authMethods.totp = false;
+        globalAccessPoint.setValue('totpSystemDisabled', true);
+        logger.warn('TOTP has been force-disabled: no mail credentials are configured. TOTP deletion requires an email OTP; allowing registration without deletion would leave accounts in a half-functioning state. Provide mail credentials to re-enable TOTP.');
+    }
+
+    if (systemConfig?.authMethods?.passkey !== false) {
+        if (!systemConfig.authMethods) systemConfig.authMethods = {};
+        systemConfig.authMethods.passkey = false;
+        logger.warn('Passkeys have been force-disabled: no mail credentials are configured. Passkey deletion requires an email OTP; allowing registration without deletion would leave accounts in a half-functioning state. Provide mail credentials to re-enable passkeys.');
+    }
 };
 
 const handleRASValidation = () => {
@@ -300,16 +331,16 @@ const handleAllowedClientUrlsConfig = async () => {
 
     const runTimeUpdateAllowed = systemConfig.client?.runTimeUpdateAllowed || false;
 
-    const persistantUpdateAllowed = systemConfig.client?.persistantUpdateAllowed || false;
+    const persistentUpdateAllowed = systemConfig.client?.persistentUpdateAllowed || false;
 
-    if (persistantUpdateAllowed && !runTimeUpdateAllowed) {
-        throw new Error('Configuration conflict: persistant updates for client urls cannot be enabled while run time client url updates are disabled');
+    if (persistentUpdateAllowed && !runTimeUpdateAllowed) {
+        throw new Error('Configuration conflict: persistent updates for client urls cannot be enabled while run time client url updates are disabled');
     }
 
     globalAccessPoint.setValue('clientUrlsRunTimeUpdateAllowed', runTimeUpdateAllowed);
-    globalAccessPoint.setValue('clientUrlsPersistantUpdateAllowed', persistantUpdateAllowed);
+    globalAccessPoint.setValue('clientUrlsPersistentUpdateAllowed', persistentUpdateAllowed);
 
-    if (persistantUpdateAllowed) {
+    if (persistentUpdateAllowed) {
         const fileData = await readFromCaller(PERSISTANT_CLIENT_URLS_FILE_NAME);
 
         if (fileData.errorCode === 'FILE-NOT-FOUND') {
@@ -488,9 +519,9 @@ const handleTokenSecretsSetup = async () => {
 
     const defaultDomains = ["access", "refresh", "resource"];
 
-    const token_security_tier = globalAccessPoint.systemConfig()?.tokens?.security_tier;
+    const tokenSecurityTier = globalAccessPoint.systemConfig()?.tokens?.securityTier;
 
-    globalAccessPoint.setValue("token_security_tier", Number(token_security_tier) || 4)
+    globalAccessPoint.setValue("tokenSecurityTier", Number(tokenSecurityTier) || 4)
 
     let arr = [];
 
@@ -544,6 +575,7 @@ const handleOnStartConfiguration = async () => {
     await handleAuditTrailSystemCheck();
     handleConfigValidationForEmailDomains();
     handleConfigValidationForSystemSecurity();
+    handleMailCredentialConflicts();
     handleRASValidation();
     handleAllowedUserRolesConfig();
     await handleEphemeralDatabaseSetup();

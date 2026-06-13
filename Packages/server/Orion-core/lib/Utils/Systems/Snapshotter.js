@@ -3,7 +3,7 @@ class Snapshotter {
     #reverter = null;
     #resolver = null;
     #active = false;
-    // FIX: Track whether revert has already been called so that resolve()
+    // Track whether revert has already been called so that resolve()
     // after revert() does not call the resolver on corrupted state. This
     // also prevents double-revert if the caller accidentally calls it twice.
     #reverted = false;

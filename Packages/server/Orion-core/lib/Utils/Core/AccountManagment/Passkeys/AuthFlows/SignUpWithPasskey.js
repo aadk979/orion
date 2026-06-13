@@ -1,6 +1,7 @@
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { respondWithError, respondWithSuccess } from '../../../../../Server/Response/response.js';
 import { globalAccessPoint } from '../../../../GlobalAccessPoint.js';
+import { UserModel, PasskeyModel } from '../../../../Databases/models/index.js';
 import { getIp } from '../../../../Ip.js';
 import { sanitizeString } from '../../../../Sanitizer.js';
 import { tryCatch } from '../../../../TryCatch.js';
@@ -72,9 +73,9 @@ const generatePasskeySignUpOptions = async (email, clientURL) => {
             }
         }
 
-        const existingUser = await globalAccessPoint.db().getData('Users-email', sanitizedEmail);
+        const emailExists = await UserModel.emailExists(sanitizedEmail);
 
-        if (existingUser.data !== undefined) {
+        if (emailExists) {
             auditTrail.record({
                 user: { email: parameters.email },
                 device: {
@@ -216,9 +217,9 @@ const completePasskeySignUp = async (registrationResponse, cookie, email, client
         }
 
         // Double-check account doesn't already exist (race condition guard)
-        const existingUser = await globalAccessPoint.db().getData('Users-email', cookie.email);
+        const emailExists = await UserModel.emailExists(cookie.email);
 
-        if (existingUser.data !== undefined) {
+        if (emailExists) {
             return { error: true, errorCode: 'PASSKEY-SIGN-UP-ACC-EXISTS' };
         }
 
@@ -260,42 +261,15 @@ const completePasskeySignUp = async (registrationResponse, cookie, email, client
 
         const uid = cookie.tempUid;
 
-        const userObject = {
-            role: 'USER',
-            credentials: {
-                password: false,
-                passkey: {
-                    exist: true,
-                    creds: passkeyStorageObj
-                },
-                uid: uid,
-                providers: [],
-                email: cookie.email
-            },
-            security: {
-                emailVerified: false,
-                activeTokens: [],
-                twoFA: {
-                    enabled: false
-                },
-                methods: [],
-                recognizedDevices: []
-            },
-            profile: {
-                fields: []
-            },
-            customData: {}
-        };
-
-        const userLinkObject = {
+        // Create user
+        const createResult = await UserModel.createUser({
+            uid,
             email: cookie.email,
-            uid: uid
-        };
+            passwordHash: null,
+            role: 'USER'
+        });
 
-        const userStorage = await globalAccessPoint.db().addData('Users', uid, userObject);
-        const userLinkStorage = await globalAccessPoint.db().addData('Users-email', cookie.email, userLinkObject);
-
-        if (userStorage.error || userLinkStorage.error) {
+        if (createResult.error) {
             auditTrail.record({
                 user: { email: parameters.email, uid: uid },
                 device: {
@@ -314,6 +288,9 @@ const completePasskeySignUp = async (registrationResponse, cookie, email, client
             });
             return { error: true, errorCode: 'PASSKEY-SIGN-UP-UNABLE-TO-CREATE-ACC' };
         }
+
+        // Save passkey credentials
+        await PasskeyModel.savePasskey(uid, passkeyStorageObj);
 
         auditTrail.record({
             user: { email: cookie.email, uid: uid },
@@ -334,7 +311,7 @@ const completePasskeySignUp = async (registrationResponse, cookie, email, client
         });
 
         try {
-            systemConfig?.onUserCreation(cookie.email, uid);
+            systemConfig?.utilities?.onUserCreation(cookie.email, uid);
         } catch (e) {
             logger.error('An error occurred in the onUserCreation callback: ' + e);
         }

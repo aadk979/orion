@@ -1,5 +1,6 @@
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { PasskeyModel, UserSecurityModel } from '../../../Databases/models/index.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { parseCookieData } from '../../../CookieUtils.js';
@@ -43,13 +44,8 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
             transports: verification.registrationInfo.credential.transports
         };
 
-        let user = await globalAccessPoint.db().getData('Users', cookie.uid);
-
-        user.data.credentials.passkey.exist = true;
-        user.data.credentials.passkey.creds = storageObj;
-        user.data.security.twoFA = true;
-
-        await globalAccessPoint.db().addData('Users', cookie.uid, user.data);
+        await PasskeyModel.savePasskey(cookie.uid, storageObj);
+        await UserSecurityModel.setTwoFAEnabled(cookie.uid, true);
 
         return { error: false, data: {} };
     };

@@ -1,6 +1,7 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, TOTPModel, PasskeyModel, UserSecurityModel, RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -22,19 +23,33 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
             return { error: true, errorCode: '2FA-REMOVAL-INVALID-METHOD' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        if (parameters.method === 'totp' && globalAccessPoint.getValue('totpSystemDisabled')) {
+            return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+        }
 
-        if (!user.data) {
+        if (parameters.method === 'passkey' && !globalAccessPoint.systemConfig()?.authMethods?.passkey) {
+            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+        }
+
+        const user = await UserModel.getUserByUid(parameters.uid);
+
+        if (!user) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
         // Validate the method is actually enabled
-        if (parameters.method === 'totp' && !user.data.credentials?.totp?.enabled) {
-            return { error: true, errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED' };
+        if (parameters.method === 'totp') {
+            const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
+            if (!totpEnabled) {
+                return { error: true, errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED' };
+            }
         }
 
-        if (parameters.method === 'passkey' && !user.data.credentials?.passkey?.exist) {
-            return { error: true, errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED' };
+        if (parameters.method === 'passkey') {
+            const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);
+            if (!hasPasskey) {
+                return { error: true, errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED' };
+            }
         }
 
         const code = generateRandomNumber(6);
@@ -42,7 +57,7 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
 
         const reqId = generateRequestId('2FA_REMOVAL', 52);
 
-        const payload = {
+        await RequestModel.create2FARemovalRequest(reqId, {
             codeHash,
             fingerprintHash: await hashString(parameters.fingerprint),
             ip: getIpRange(parameters.ip),
@@ -50,12 +65,10 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
             email: parameters.email,
             uid: parameters.uid,
             method: parameters.method
-        };
-
-        await globalAccessPoint.db().addData('2FARemovalRequests', reqId, payload);
+        });
 
         const deletionFunction = async parameters => {
-            await globalAccessPoint.db().deleteData('2FARemovalRequests', parameters.reqId);
+            await RequestModel.delete2FARemovalRequest(parameters.reqId);
         };
 
         const parametersInternal = { reqId };
@@ -107,28 +120,28 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
         const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
-        const storedData = await globalAccessPoint.db().getData('2FARemovalRequests', parseCookieData(parameters.reqId));
+        const storedData = await RequestModel.get2FARemovalRequest(parseCookieData(parameters.reqId));
 
-        if (storedData.data === undefined) {
+        if (!storedData) {
             return { error: true, errorCode: '2FA-REMOVAL-REQUEST-EXPIRED' };
         }
 
-        if (parameters.userAgent !== storedData.data.userAgent) {
+        if (parameters.userAgent !== storedData.user_agent) {
             return { error: true, errorCode: '2FA-REMOVAL-USERAGENT-MISMATCH' };
         }
 
-        if (!(await isIpInRange(parameters.ip, storedData.data.ip))) {
+        if (!(await isIpInRange(parameters.ip, storedData.ip_range))) {
             return { error: true, errorCode: '2FA-REMOVAL-IP-MISMATCH' };
         }
 
-        if (!(await verifyHash(parameters.fingerprint, storedData.data.fingerprintHash))) {
+        if (!(await verifyHash(parameters.fingerprint, storedData.fingerprint_hash))) {
             return { error: true, errorCode: '2FA-REMOVAL-FINGERPRINT-MISMATCH' };
         }
 
-        if (!(await verifyHash(parameters.code, storedData.data.codeHash))) {
+        if (!(await verifyHash(parameters.code, storedData.code_hash))) {
             if (auditTrail) {
                 auditTrail.record({
-                    user: { email: storedData.data.email, uid: storedData.data.uid },
+                    user: { email: storedData.email, uid: storedData.user_uid },
                     device: {
                         fingerprint: parameters.fingerprint,
                         userAgent: parameters.userAgent
@@ -140,7 +153,7 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
                     requestId: requestMetadata?.requestId,
                     ipAddress: parameters.ip,
                     impact: '2FA removal verification failed - invalid code',
-                    metadata: { method: storedData.data.method, reason: 'INVALID_CODE' },
+                    metadata: { method: storedData.method, reason: 'INVALID_CODE' },
                     errorCode: '2FA-REMOVAL-INVALID-CODE'
                 });
             }
@@ -148,42 +161,37 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
         }
 
         // Code verified, remove the 2FA method
-        const user = await globalAccessPoint.db().getData('Users', storedData.data.uid);
+        const user = await UserModel.getUserByUid(storedData.user_uid);
 
-        if (!user.data) {
+        if (!user) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
-        const method = storedData.data.method;
+        const method = storedData.method;
 
         if (method === 'totp') {
-            user.data.credentials.totp.enabled = false;
-            delete user.data.credentials.totp.secret;
-            delete user.data.credentials.totp.pendingSecret;
+            await TOTPModel.disableTOTP(storedData.user_uid);
         }
 
         if (method === 'passkey') {
-            user.data.credentials.passkey.exist = false;
-            delete user.data.credentials.passkey.creds;
+            await PasskeyModel.deleteAllForUser(storedData.user_uid);
         }
 
         // Check if any 2FA method remains
-        const hasTotp = user.data.credentials?.totp?.enabled || false;
-        const hasPasskey = user.data.credentials?.passkey?.exist || false;
+        const hasTotp = await TOTPModel.isEnabled(storedData.user_uid);
+        const hasPasskey = await PasskeyModel.hasPasskey(storedData.user_uid);
 
         if (!hasTotp && !hasPasskey) {
-            user.data.security.twoFA = false;
+            await UserSecurityModel.setTwoFAEnabled(storedData.user_uid, false);
         }
 
-        await globalAccessPoint.db().addData('Users', storedData.data.uid, user.data);
-
         // Clean up the request
-        await globalAccessPoint.db().deleteData('2FARemovalRequests', parseCookieData(parameters.reqId));
+        await RequestModel.delete2FARemovalRequest(parseCookieData(parameters.reqId));
         cronScheduler.cancelEvent(parseCookieData(parameters.reqId));
 
         if (auditTrail) {
             auditTrail.record({
-                user: { email: storedData.data.email, uid: storedData.data.uid },
+                user: { email: storedData.email, uid: storedData.user_uid },
                 device: {
                     fingerprint: parameters.fingerprint,
                     userAgent: parameters.userAgent

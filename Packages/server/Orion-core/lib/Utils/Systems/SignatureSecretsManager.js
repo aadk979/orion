@@ -44,26 +44,22 @@ class SignatureSecretsManager {
         this.signingPairs = [];
         this.verificationPairs = [];
 
+        // FIX 1: Removed this._lockResolve. Each _safeRotation call now owns
+        // its own release function returned from _acquireLock(), preventing the
+        // deadlock caused by a shared resolver being overwritten by concurrent callers.
         this._lockPromise = null;
-        this._lockResolve = null;
 
         this.initialized = false;
         this.checkExpAndRepopulate = this.checkExpAndRepopulate.bind(this);
     }
 
+    // FIX 1: Returns { previous, release } so each caller holds its own release
+    // closure and cannot have it stolen by a subsequent concurrent caller.
     _acquireLock() {
         const previous = this._lockPromise;
-        let resolve;
-        this._lockPromise = new Promise(r => { resolve = r; });
-        this._lockResolve = resolve;
-        return previous; // caller awaits this
-    }
-
-    _releaseLock() {
-        if (this._lockResolve) {
-            this._lockResolve();
-            this._lockResolve = null;
-        }
+        let release;
+        this._lockPromise = new Promise(r => { release = r; });
+        return { previous, release };
     }
 
     async _waitForLock() {
@@ -83,7 +79,6 @@ class SignatureSecretsManager {
             await this._initializeCluster();
         }
 
-        // Auto prune verification pairs
         setInterval(() => this.pruneVerificationPairs(), AUTO_PRUNE_INTERVAL);
     }
 
@@ -252,19 +247,47 @@ class SignatureSecretsManager {
             this.signingPairs = active;
 
             const needed = this.nPairs - active.length;
+            let newKeys = [];
             if (needed > 0) {
                 const config = KEY_TYPES.find(k => k.algorithm === this.algorithm);
                 const fn = config.type === "ECDSA"
                     ? this.tokenSecretsCrypto.generateECDSAKey
                     : this.tokenSecretsCrypto.generateRSAKey;
 
-                const newKeys = await Promise.all(Array(needed).fill(config).map(c => fn.call(this.tokenSecretsCrypto, c)));
+                newKeys = await Promise.all(Array(needed).fill(config).map(c => fn.call(this.tokenSecretsCrypto, c)));
                 this.signingPairs.push(...newKeys);
             }
 
-            const formattedVerification = this.verificationPairs.map(this._stripRuntimeKeys);
-            const formattedSigning = this.signingPairs.map(this._stripRuntimeKeys);
-            await writeToCaller(this.SIGNATURE_SECRETS_FILE_NAME, { keys: [...formattedVerification, ...formattedSigning] });
+            // FIX 2: In cluster mode, publish new signing keys to Redis so other
+            // nodes can import them for verification, and explicitly delete expired
+            // entries. Previously this always called writeToCaller() regardless of
+            // instance type, writing a local file that other cluster nodes never read.
+            if (this.instanceType === "CLUSTER") {
+                const redisInstance = globalAccessPoint.redisInstance();
+
+                if (expired.length > 0) {
+                    await Promise.all(
+                        expired.map(k => redisInstance.deleteData(
+                            `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${k.keyPairId}`
+                        ))
+                    );
+                }
+
+                if (newKeys.length > 0) {
+                    const cleanedNewKeys = newKeys.map(this._stripRuntimeKeys);
+                    await Promise.all(
+                        cleanedNewKeys.map(k => redisInstance.addData(
+                            `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${k.keyPairId}`,
+                            k,
+                            k.publicKeyExp
+                        ))
+                    );
+                }
+            } else {
+                const formattedVerification = this.verificationPairs.map(this._stripRuntimeKeys);
+                const formattedSigning = this.signingPairs.map(this._stripRuntimeKeys);
+                await writeToCaller(this.SIGNATURE_SECRETS_FILE_NAME, { keys: [...formattedVerification, ...formattedSigning] });
+            }
 
             cron.addEvent(`SIGNATURE_SECRETS_MANAGER_CHECK_ROTATE_${this.domain}`, this.checkExpAndRepopulate, "1h", {});
         });
@@ -282,8 +305,11 @@ class SignatureSecretsManager {
     }
 
     async _safeRotation(fn) {
-        const waitFor = this._acquireLock();
-        await waitFor;
+        // FIX 1: Destructure the per-call release function from _acquireLock().
+        // FIX 3: Reset _lockPromise to null before releasing so _waitForLock()
+        // exits its loop cleanly rather than spinning on a stale resolved promise.
+        const { previous, release } = this._acquireLock();
+        if (previous) await previous;
 
         const snapshot = new Snapshotter(
             {
@@ -304,7 +330,8 @@ class SignatureSecretsManager {
             snapshot.revert();
             logger.error("SignatureSecretsManager rotation failed, reverted to snapshot", err);
         } finally {
-            this._releaseLock();
+            this._lockPromise = null;
+            release();
         }
     }
 

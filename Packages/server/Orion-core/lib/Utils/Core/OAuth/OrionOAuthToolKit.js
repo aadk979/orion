@@ -44,7 +44,7 @@ class OAuthProviderToolkit {
             return OAuthProviderToolkit.instance;
         }
 
-        this.allowedClients = ['google', 'github', 'discord', 'slack', 'microsoft'];
+        this.allowedClients = ['google', 'github', 'discord', 'slack', 'microsoft', 'authcore'];
 
         this.config = config;
         this.clients = {};
@@ -150,7 +150,7 @@ class OAuthProviderToolkit {
                 userInfoUrl: 'https://api.spotify.com/v1/me',
                 scope: 'user-read-email user-read-private',
                 requiresPKCE: true
-            },
+            }
 
         };
 
@@ -587,6 +587,15 @@ class OAuthProviderToolkit {
                     name: userData.display_name,
                     picture: userData.images?.[0]?.url || null,
                     verified: true
+                };
+
+            case 'authcore':
+                return {
+                    id: userData.sub,
+                    email: userData.email,
+                    name: userData.name || `${userData.given_name || ''} ${userData.family_name || ''}`.trim(),
+                    picture: userData.picture || null,
+                    verified: userData.email_verified || false
                 };
 
             default:

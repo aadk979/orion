@@ -1,5 +1,6 @@
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { PasskeyModel } from '../../../Databases/models/index.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { fileURLToPath } from 'url';
 
@@ -21,13 +22,15 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
             return { error: true, errorCode: 'PASSKEY-AUTH-EMAIL-MISMATCH' };
         }
 
-        let user = await globalAccessPoint.db().getData('Users', cookie.uid);
+        const passkey = await PasskeyModel.getPasskey(cookie.uid);
 
-        // MongoDB stores the publicKey as a Binary object, but @simplewebauthn expects a Uint8Array
-        const storedPublicKey = user.data.credentials.passkey.creds.publicKey;
-        const publicKeyUint8 = storedPublicKey.buffer
-            ? new Uint8Array(storedPublicKey.buffer)
-            : new Uint8Array(storedPublicKey);
+        if (!passkey) {
+            return { error: true, errorCode: 'PASSKEY-AUTH-NO-CREDENTIAL' };
+        }
+
+        const publicKeyUint8 = passkey.public_key instanceof Buffer
+            ? new Uint8Array(passkey.public_key)
+            : new Uint8Array(passkey.public_key);
 
         const verification = await verifyAuthenticationResponse({
             response: parameters.authenticationResponse,
@@ -35,10 +38,10 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
             expectedOrigin: parameters.expectedOrigin,
             expectedRPID: parameters.clientURL,
             credential: {
-                id: user.data.credentials.passkey.creds.id,
+                id: passkey.credential_id,
                 publicKey: publicKeyUint8,
-                counter: user.data.credentials.passkey.creds.counter,
-                transports: user.data.credentials.passkey.creds.transports
+                counter: passkey.counter,
+                transports: passkey.transports
             }
         });
 
@@ -46,9 +49,7 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
             return { error: true, errorCode: 'PASSKEY-AUTH-FAILED' };
         }
 
-        user.data.credentials.passkey.creds.counter = verification.authenticationInfo.newCounter;
-
-        await globalAccessPoint.db().addData('Users', cookie.uid, user.data);
+        await PasskeyModel.updateCounter(passkey.credential_id, verification.authenticationInfo.newCounter);
 
         return { error: false, authenticated: true, uid: cookie.uid };
     };

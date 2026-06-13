@@ -1,31 +1,37 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, PasskeyModel, TOTPModel, DeviceModel, UserProviderModel } from '../../Databases/models/index.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 
 const getUserProfile = async (uid) => {
     const Function = async (parameters) => {
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user.data) {
+        if (!user) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
+        const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);
+        const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
+        const deviceCount = await DeviceModel.getActiveDeviceCount(parameters.uid);
+        const hasOAuth = await UserProviderModel.getProviders(parameters.uid);
+
         const profile = {
-            email: user.data.email,
+            email: user.email,
             security: {
-                twoFA: !!user.data.security?.twoFA,
+                twoFA: hasPasskey || totpEnabled,
                 passkey: {
-                    enabled: !!user.data.credentials?.passkey?.exist
+                    enabled: hasPasskey
                 },
                 totp: {
-                    enabled: !!user.data.credentials?.totp?.enabled
+                    enabled: totpEnabled
                 },
-                recognizedDevices: (user.data.security?.recognizedDevices || []).length
+                recognizedDevices: deviceCount
             },
             authMethods: {
-                password: !!user.data.credentials?.password,
-                oauth: !!user.data.credentials?.oauth
+                password: !!user.password_hash,
+                oauth: hasOAuth.length > 0
             }
         };
 

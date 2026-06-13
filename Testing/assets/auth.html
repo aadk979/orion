@@ -81,10 +81,8 @@
             let isLogin = true;
 
             // ── Init ─────────────────────────────────
-            await orion.initialize();
-
-            orion.authState(state => {
-                if (state && state.signedIn && !state.loading) {
+            orion.onAuthStateChanged(state => {
+                if (state.status === 'AUTHENTICATED') {
                     window.location.href = './dashboard.html';
                 }
             });
@@ -183,7 +181,7 @@
             orionBtn.addEventListener('click', async () => {
                 setLoading(orionBtn, true);
                 try {
-                    const result = await orion.generateOAuthRedirectURLAndRedirect('ORION');
+                    const result = await orion.generateOAuthRedirectURLAndRedirect('AUTHCORE');
                     if (result && result.error) {
                         showAlert(result.errorCode || 'OAuth error.');
                         setLoading(orionBtn, false);

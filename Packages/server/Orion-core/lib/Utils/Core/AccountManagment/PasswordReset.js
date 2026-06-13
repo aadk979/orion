@@ -2,6 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { hashString, verifyHash } from '../../CryptoFunctions.js';
 import { getFutureUnixTime, isUnixExpired } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
@@ -34,9 +35,9 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
             }
         }
 
-        const userEmailLink = await globalAccessPoint.db().getData('Users-email', sanitizedEmail);
+        const uid = await UserModel.getUidByEmail(sanitizedEmail);
 
-        if (userEmailLink.data === undefined) {
+        if (!uid) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
@@ -45,16 +46,14 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
 
         const reqId = generateRequestId('PASSWORD_RESET', 52);
 
-        const payload = {
+        await RequestModel.createPasswordResetRequest(reqId, {
             email: sanitizedEmail,
-            uid: userEmailLink.data.uid,
+            uid,
             codeHash,
             ipRange: getIpRange(parameters.ip),
             userAgentHash: await hashString(parameters.userAgent),
-            exp: getFutureUnixTime('15m')
-        };
-
-        await globalAccessPoint.db().addData('PasswordResetRequests', reqId, payload);
+            expiry: getFutureUnixTime('15m')
+        });
 
         const send = await generateAndSendMail(2, sanitizedEmail, {
             EMAIL: sanitizedEmail,
@@ -65,13 +64,13 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
         });
 
         if (send.error) {
-            await globalAccessPoint.db().deleteData('PasswordResetRequests', reqId);
+            await RequestModel.deletePasswordResetRequest(reqId);
             return { error: true, errorCode: 'UNABLE-TO-SEND-PASSWORD-RESET-EMAIL' };
         }
 
         if (auditTrail) {
             auditTrail.record({
-                user: { email: sanitizedEmail, uid: userEmailLink.data.uid },
+                user: { email: sanitizedEmail, uid },
                 device: {
                     fingerprint: requestMetadata?.fingerprint,
                     userAgent: requestMetadata?.userAgent
@@ -110,46 +109,46 @@ const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, us
         const cleanReqId = parseCookieData(parameters.reqId);
         const cleanCode = sanitizeString(parameters.code);
 
-        const record = await globalAccessPoint.db().getData('PasswordResetRequests', cleanReqId);
+        const record = await RequestModel.getPasswordResetRequest(cleanReqId);
 
-        if (record.data === undefined) {
+        if (!record) {
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-REQUEST-EXPIRED' };
         }
 
-        if (isUnixExpired(record.data.exp)) {
-            await globalAccessPoint.db().deleteData('PasswordResetRequests', cleanReqId);
+        if (isUnixExpired(record.expiry)) {
+            await RequestModel.deletePasswordResetRequest(cleanReqId);
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-REQUEST-EXPIRED' };
         }
 
-        if (!(await verifyHash(parameters.userAgent, record.data.userAgentHash))) {
+        if (!(await verifyHash(parameters.userAgent, record.user_agent_hash))) {
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-USERAGENT-MISMATCH' };
         }
 
-        if (!(await isIpInRange(parameters.ip, record.data.ipRange))) {
+        if (!(await isIpInRange(parameters.ip, record.ip_range))) {
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-IP-MISMATCH' };
         }
 
-        if (!(await verifyHash(cleanCode, record.data.codeHash))) {
+        if (!(await verifyHash(cleanCode, record.code_hash))) {
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-INVALID-CODE' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', record.data.uid);
+        const userExists = await UserModel.uidExists(record.user_uid);
 
-        if (user.data === undefined) {
+        if (!userExists) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
-        const passwordUpdate = await userControl.updateUserPassword(record.data.uid, parameters.newPassword);
+        const passwordUpdate = await userControl.updateUserPassword(record.user_uid, parameters.newPassword);
 
         if (passwordUpdate.error) {
             return passwordUpdate;
         }
 
-        await globalAccessPoint.db().deleteData('PasswordResetRequests', cleanReqId);
+        await RequestModel.deletePasswordResetRequest(cleanReqId);
 
         if (auditTrail) {
             auditTrail.record({
-                user: { email: record.data.email, uid: record.data.uid },
+                user: { email: record.email, uid: record.user_uid },
                 device: {
                     fingerprint: requestMetadata?.fingerprint,
                     userAgent: requestMetadata?.userAgent

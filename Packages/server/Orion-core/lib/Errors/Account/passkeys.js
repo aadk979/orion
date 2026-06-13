@@ -3,7 +3,7 @@ const Passkeys = {
         status: 400,
         context: 'Passkey authentication is disabled for this account',
         errorCode: 'PASSKEY-SIGN-IN-DISABLED',
-        fault: 'CLIENT',
+        fault: 'SERVER',
         solutions: ['Use another authentication method']
     },
     'PASSKEY-REG-INVALID-EMAIL': {

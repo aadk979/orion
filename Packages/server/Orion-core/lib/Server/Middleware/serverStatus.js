@@ -2,10 +2,10 @@ import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { respondWithError } from '../Response/response.js';
 
 const serverStatusMiddlware = (request, response, next) => {
-    const server = globalAccessPoint.server();
     const etsLockdown = globalAccessPoint.ETS_LOCKDOWN();
+    const orionSystemsControlServerLock = globalAccessPoint.getValue("OrionSystemsControlServerLock");
 
-    if (server.lockdown) {
+    if (orionSystemsControlServerLock) {
         return respondWithError(response, 'SERVER-LOCKDOWN');
     }
 

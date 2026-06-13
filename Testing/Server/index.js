@@ -45,7 +45,7 @@ const main = async () => {
     try {
         console.clear();
         const server = await initiateServer(undefined, configuration);
-        server.app.listen(configuration.app.PORT, () => {
+        server.app.listen(configuration.app.port, () => {
             logger.info('Server is up and running');
         });
 

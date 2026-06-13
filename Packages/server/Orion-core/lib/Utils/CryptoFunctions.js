@@ -70,12 +70,12 @@ async function verifyHash(input, hashed) {
     });
 }
 
-function hashStringSync(input, alg = 'sha256') {
+function hashStringSync(input, alg = 'sha256', addSalt = false) {
     if (typeof input !== 'string' || input.trim() === '') {
         throw new Error('Invalid input');
     }
 
-    const salt = crypto.randomBytes(16).toString('hex');
+    const salt = addSalt ? crypto.randomBytes(16).toString('hex') : '';
 
     let hash;
     switch (alg) {
@@ -92,16 +92,16 @@ function hashStringSync(input, alg = 'sha256') {
             hash = blake2sHash(input + salt);
             break;
         case 'pbkdf2':
-            hash = pbkdf2Hash(input, salt);
+            hash = pbkdf2Hash(input, salt || crypto.randomBytes(16).toString('hex'));
             break;
         case 'scrypt':
-            hash = scryptHash(input, salt);
+            hash = scryptHash(input, salt || crypto.randomBytes(16).toString('hex'));
             break;
         default:
             throw new Error('Unsupported algorithm');
     }
 
-    return `${hash}:*:${salt}`;
+    return `${hash}${addSalt ? `:*:${salt}` : ''}`;
 }
 
 function verifyHashSync(input, hashed, alg = 'sha256') {
@@ -110,27 +110,29 @@ function verifyHashSync(input, hashed, alg = 'sha256') {
     }
 
     const [hash, salt] = hashed.split(':*:');
-    if (!hash || !salt) throw new Error('Invalid hash format');
+    if (!hash) throw new Error('Invalid hash format');
+
+    const resolvedSalt = salt ?? '';
 
     let computedHash;
     switch (alg) {
         case 'sha256':
-            computedHash = sha256Hash(input + salt);
+            computedHash = sha256Hash(input + resolvedSalt);
             break;
         case 'sha512':
-            computedHash = sha512Hash(input + salt);
+            computedHash = sha512Hash(input + resolvedSalt);
             break;
         case 'blake2b':
-            computedHash = blake2bHash(input + salt);
+            computedHash = blake2bHash(input + resolvedSalt);
             break;
         case 'blake2s':
-            computedHash = blake2sHash(input + salt);
+            computedHash = blake2sHash(input + resolvedSalt);
             break;
         case 'pbkdf2':
-            computedHash = pbkdf2Hash(input, salt);
+            computedHash = pbkdf2Hash(input, resolvedSalt);  // ← was using undefined salt, triggering random default
             break;
         case 'scrypt':
-            computedHash = scryptHash(input, salt);
+            computedHash = scryptHash(input, resolvedSalt);  // ← same
             break;
         default:
             throw new Error('Unsupported algorithm');

@@ -1,122 +1,72 @@
-import pkg from 'pg';
-const { Pool } = pkg;
-import { logger } from '../../logger.js';
+import pg from 'pg';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * PostgresService — Connection pool + schema migration for Orion Alpine.
+ *
+ * All data access goes through model files that import this service
+ * via globalAccessPoint.db().query() or globalAccessPoint.db().getPool().
+ */
 class PostgresService {
-    constructor() {
-        this.pool = null;
-        this.initialized = false;
+    constructor(credentials) {
+        const { user, password, host, port, database, ...rest } = credentials;
+
+        this.pool = new pg.Pool({
+            user,
+            password,
+            host,
+            port: port || 5432,
+            database,
+            max: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+            ...rest
+        });
+
+        this._ready = this._migrate();
     }
 
-    initialize(cred) {
+    /**
+     * Runs the DDL from schema.sql. All statements use IF NOT EXISTS.
+     */
+    async _migrate() {
+        const schemaPath = join(__dirname, '..', 'schema.sql');
+        const sql = readFileSync(schemaPath, 'utf-8');
+        const client = await this.pool.connect();
         try {
-            if (!cred || typeof cred !== 'object') {
-                throw new Error('Missing or invalid Postgres credentials object');
-            }
-
-            const { user, password, host, port, database } = cred;
-            if (!user || !password || !host || !port || !database) {
-                throw new Error('Incomplete Postgres credentials');
-            }
-
-            this.pool = new Pool({
-                user,
-                password,
-                host,
-                port,
-                database,
-                max: 5,
-                idleTimeoutMillis: 30000
-            });
-
-            this.initialized = true;
-            logger.info('✅ Postgres (NoSQL) connected successfully');
-            return true;
-        } catch (err) {
-            logger.error('Initialization Error:', err.message);
-            return false;
+            await client.query(sql);
+        } finally {
+            client.release();
         }
     }
 
-    ensureInitialized() {
-        if (!this.initialized || !this.pool) {
-            throw new Error('Postgres is not initialized. Call initialize() first.');
-        }
+    /**
+     * Await this to guarantee schema is applied before any queries.
+     */
+    async ready() {
+        return this._ready;
     }
 
-    async createTableIfNeeded(collectionName) {
-        const query = `
-      CREATE TABLE IF NOT EXISTS ${collectionName} (
-        id TEXT PRIMARY KEY,
-        data JSONB NOT NULL
-      );
-    `;
-        await this.pool.query(query);
+    /**
+     * Execute a parameterized query.
+     * @param {string} text  SQL with $1, $2, ... placeholders
+     * @param {Array}  params  Bind values
+     * @returns {import('pg').QueryResult}
+     */
+    async query(text, params) {
+        return this.pool.query(text, params);
     }
 
-    async addData(collectionName, docId, data) {
-        try {
-            this.ensureInitialized();
-            await this.createTableIfNeeded(collectionName);
-
-            const query = `
-        INSERT INTO ${collectionName} (id, data)
-        VALUES ($1, $2)
-        ON CONFLICT (id) DO UPDATE SET data = $2;
-      `;
-            await this.pool.query(query, [docId, data]);
-
-            return { completed: true, error: false };
-        } catch (err) {
-            logger.error('Add Error:', err.message);
-            return { error: true, context: 'DB-FAIL', errorArray: [err.message] };
-        }
-    }
-
-    async getData(collectionName, docId) {
-        try {
-            this.ensureInitialized();
-            await this.createTableIfNeeded(collectionName);
-
-            const query = `SELECT data FROM ${collectionName} WHERE id = $1;`;
-            const result = await this.pool.query(query, [docId]);
-
-            if (result.rows.length === 0) {
-                return { error: false, data: undefined, completed: true };
-            }
-
-            return { error: false, data: result.rows[0].data || undefined, completed: true };
-        } catch (err) {
-            logger.error('Get Error:', err.message);
-            return { error: true, context: 'DB-FAIL', errorArray: [err.message] };
-        }
-    }
-
-    async deleteData(collectionName, docId) {
-        try {
-            this.ensureInitialized();
-            await this.createTableIfNeeded(collectionName);
-
-            const query = `DELETE FROM ${collectionName} WHERE id = $1;`;
-            const result = await this.pool.query(query, [docId]);
-
-            if (result.rowCount === 0) throw new Error('Document not found!');
-
-            return { completed: true, error: false };
-        } catch (err) {
-            logger.error('Delete Error:', err.message);
-            return { error: true, context: 'DB-FAIL', errorArray: [err.message] };
-        }
-    }
-
-    async close() {
-        try {
-            if (this.pool) await this.pool.end();
-            this.initialized = false;
-            logger.info('Postgres connection closed');
-        } catch (err) {
-            logger.error('Close Error:', err.message);
-        }
+    /**
+     * Returns the underlying pg.Pool.
+     */
+    getPool() {
+        return this.pool;
     }
 }
 

@@ -24,7 +24,7 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
 
             const returnData = {
                 alive: true,
-                status: etsLockdown ? 'UNHEALTHY' : 'HEALTHY',
+                status: etsLockdown ? 'UNHEALTHY' : 'OK',
                 serverLockdownStatus: server,
                 serviceId: systemConfig.serviceID,
                 memoryUsage: memData,

@@ -1,5 +1,6 @@
 import { hashString } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel } from '../../Databases/models/index.js';
 
 class OrionUserControl {
     constructor() {
@@ -31,9 +32,9 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-EMAIL-PROVIDED' };
             }
 
-            const user = await globalAccessPoint.db().getData('Users-email', email);
+            const exists = await UserModel.emailExists(email);
 
-            if (!user.data) {
+            if (!exists) {
                 auditTrail.record({
                     user: { email: email },
                     device: {},
@@ -49,8 +50,10 @@ class OrionUserControl {
                 return { error: false, exist: false };
             }
 
+            const uid = await UserModel.getUidByEmail(email);
+
             auditTrail.record({
-                user: { email: email, uid: user.data.uid },
+                user: { email: email, uid },
                 device: {},
                 action: 'USER_EXISTENCE_CHECK',
                 status: 'SUCCESS',
@@ -59,7 +62,7 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User existence check completed - user exists',
-                metadata: { email: email, uid: user.data.uid, exists: true }
+                metadata: { email: email, uid, exists: true }
             });
 
             return { error: false, exist: true };
@@ -85,9 +88,9 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-UID-PROVIDED' };
             }
 
-            const user = await globalAccessPoint.db().getData('Users', uid);
+            const user = await UserModel.getUserByUid(uid);
 
-            if (!user.data) {
+            if (!user) {
                 auditTrail.record({
                     user: { uid: uid },
                     device: {},
@@ -104,7 +107,7 @@ class OrionUserControl {
             }
 
             auditTrail.record({
-                user: { email: user.data.credentials?.email, uid: uid },
+                user: { email: user.email, uid: uid },
                 device: {},
                 action: 'USER_EXISTENCE_CHECK',
                 status: 'SUCCESS',
@@ -113,7 +116,7 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User existence check completed - user exists',
-                metadata: { uid: uid, email: user.data.credentials?.email, exists: true }
+                metadata: { uid: uid, email: user.email, exists: true }
             });
 
             return { error: false, exist: true };
@@ -149,14 +152,11 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
             }
 
-            const user = await globalAccessPoint.db().getData('Users', uid);
-
-            user.data.disabled = true;
-
-            await globalAccessPoint.db().addData('Users', uid, user.data);
+            const user = await UserModel.getUserByUid(uid);
+            await UserModel.setDisabled(uid, true);
 
             auditTrail.record({
-                user: { email: user.data.credentials?.email, uid: uid },
+                user: { email: user?.email, uid: uid },
                 device: {},
                 action: 'USER_ACCOUNT_DISABLED',
                 status: 'SUCCESS',
@@ -165,7 +165,7 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User account has been disabled',
-                metadata: { uid: uid, email: user.data.credentials?.email, disabled: true }
+                metadata: { uid: uid, email: user?.email, disabled: true }
             });
 
             return { error: false, disabled: true };
@@ -197,16 +197,11 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
             }
 
-            const userLink = await globalAccessPoint.db().getData('Users-email', email);
-
-            const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
-
-            user.data.disabled = true;
-
-            await globalAccessPoint.db().addData('Users', userLink.data.uid, user.data);
+            const uid = await UserModel.getUidByEmail(email);
+            await UserModel.setDisabled(uid, true);
 
             auditTrail.record({
-                user: { email: email, uid: userLink.data.uid },
+                user: { email: email, uid },
                 device: {},
                 action: 'USER_ACCOUNT_DISABLED',
                 status: 'SUCCESS',
@@ -215,7 +210,7 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User account has been disabled',
-                metadata: { uid: userLink.data.uid, email: email, disabled: true }
+                metadata: { uid, email: email, disabled: true }
             });
 
             return { error: false, disabled: true };
@@ -251,14 +246,11 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
             }
 
-            const user = await globalAccessPoint.db().getData('Users', uid);
-
-            user.data.disabled = false;
-
-            await globalAccessPoint.db().addData('Users', uid, user.data);
+            const user = await UserModel.getUserByUid(uid);
+            await UserModel.setDisabled(uid, false);
 
             auditTrail.record({
-                user: { email: user.data.credentials?.email, uid: uid },
+                user: { email: user?.email, uid: uid },
                 device: {},
                 action: 'USER_ACCOUNT_ENABLED',
                 status: 'SUCCESS',
@@ -267,7 +259,7 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User account has been enabled',
-                metadata: { uid: uid, email: user.data.credentials?.email, disabled: false }
+                metadata: { uid: uid, email: user?.email, disabled: false }
             });
 
             return { error: false, enabled: true };
@@ -299,16 +291,11 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
             }
 
-            const userLink = await globalAccessPoint.db().getData('Users-email', email);
-
-            const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
-
-            user.data.disabled = false;
-
-            await globalAccessPoint.db().addData('Users', userLink.data.uid, user.data);
+            const uid = await UserModel.getUidByEmail(email);
+            await UserModel.setDisabled(uid, false);
 
             auditTrail.record({
-                user: { email: email, uid: userLink.data.uid },
+                user: { email: email, uid },
                 device: {},
                 action: 'USER_ACCOUNT_ENABLED',
                 status: 'SUCCESS',
@@ -317,7 +304,7 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User account has been enabled',
-                metadata: { uid: userLink.data.uid, email: email, disabled: false }
+                metadata: { uid, email: email, disabled: false }
             });
 
             return { error: false, enabled: true };
@@ -330,13 +317,9 @@ class OrionUserControl {
         const byUid = async uid => {
             const auditTrail = globalAccessPoint.auditTrailSystem();
 
-            const userExist = await this.checkUserExist().byUid(uid);
+            const user = await UserModel.getUserByUid(uid);
 
-            if (userExist.error) {
-                return userExist;
-            }
-
-            if (!userExist.exist) {
+            if (!user) {
                 auditTrail.record({
                     user: { uid: uid },
                     device: {},
@@ -353,10 +336,8 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
             }
 
-            const user = await globalAccessPoint.db().getData('Users', uid);
-
             auditTrail.record({
-                user: { email: user.data.credentials?.email, uid: uid },
+                user: { email: user.email, uid: uid },
                 device: {},
                 action: 'USER_ACCOUNT_STATE_CHECK',
                 status: 'SUCCESS',
@@ -365,22 +346,18 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User account state retrieved',
-                metadata: { uid: uid, email: user.data.credentials?.email, disabled: user.data.disabled }
+                metadata: { uid: uid, email: user.email, disabled: user.disabled }
             });
 
-            return { error: false, disabled: user.data.disabled };
+            return { error: false, disabled: user.disabled };
         };
 
         const byEmail = async email => {
             const auditTrail = globalAccessPoint.auditTrailSystem();
 
-            const userExist = await this.checkUserExist().byEmail(email);
+            const user = await UserModel.getUserByEmail(email);
 
-            if (userExist.error) {
-                return userExist;
-            }
-
-            if (!userExist.exist) {
+            if (!user) {
                 auditTrail.record({
                     user: { email: email },
                     device: {},
@@ -397,12 +374,8 @@ class OrionUserControl {
                 return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
             }
 
-            const userLink = await globalAccessPoint.db().getData('Users-email', email);
-
-            const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
-
             auditTrail.record({
-                user: { email: email, uid: userLink.data.uid },
+                user: { email: email, uid: user.uid },
                 device: {},
                 action: 'USER_ACCOUNT_STATE_CHECK',
                 status: 'SUCCESS',
@@ -411,10 +384,10 @@ class OrionUserControl {
                 requestId: 'LOCAL-SYSTEM',
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User account state retrieved',
-                metadata: { uid: userLink.data.uid, email: email, disabled: user.data.disabled }
+                metadata: { uid: user.uid, email: email, disabled: user.disabled }
             });
 
-            return { error: false, disabled: user.data.disabled };
+            return { error: false, disabled: user.disabled };
         };
 
         return { byEmail, byUid };
@@ -440,9 +413,9 @@ class OrionUserControl {
             return { error: true, errorCode: 'USER-CONTROL-NO-EMAIL-PROVIDED' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users-email', email);
+        const uid = await UserModel.getUidByEmail(email);
 
-        if (!user.data) {
+        if (!uid) {
             auditTrail.record({
                 user: { email: email },
                 device: {},
@@ -460,7 +433,7 @@ class OrionUserControl {
         }
 
         auditTrail.record({
-            user: { email: email, uid: user.data.uid },
+            user: { email: email, uid },
             device: {},
             action: 'USER_UID_LOOKUP',
             status: 'SUCCESS',
@@ -469,10 +442,10 @@ class OrionUserControl {
             requestId: 'LOCAL-SYSTEM',
             ipAddress: 'LOCAL-SYSTEM',
             impact: 'User UID retrieved successfully',
-            metadata: { email: email, uid: user.data.uid }
+            metadata: { email: email, uid }
         });
 
-        return { error: false, uid: user.data.uid };
+        return { error: false, uid };
     }
 
     async getUserEmailByUid(uid) {
@@ -495,9 +468,9 @@ class OrionUserControl {
             return { error: true, errorCode: 'USER-CONTROL-NO-UID-PROVIDED' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', uid);
+        const user = await UserModel.getUserByUid(uid);
 
-        if (!user.data) {
+        if (!user) {
             auditTrail.record({
                 user: { uid: uid },
                 device: {},
@@ -515,7 +488,7 @@ class OrionUserControl {
         }
 
         auditTrail.record({
-            user: { email: user.data.credentials.email, uid: uid },
+            user: { email: user.email, uid: uid },
             device: {},
             action: 'USER_EMAIL_LOOKUP',
             status: 'SUCCESS',
@@ -524,10 +497,10 @@ class OrionUserControl {
             requestId: 'LOCAL-SYSTEM',
             ipAddress: 'LOCAL-SYSTEM',
             impact: 'User email retrieved successfully',
-            metadata: { uid: uid, email: user.data.credentials.email }
+            metadata: { uid: uid, email: user.email }
         });
 
-        return { error: false, email: user.data.credentials.email };
+        return { error: false, email: user.email };
     }
 
     async updateUserRole(uid, role, customRolesAllowed) {
@@ -623,13 +596,9 @@ class OrionUserControl {
             }
         }
 
-        const userExist = await this.checkUserExist().byUid(uid);
+        const user = await UserModel.getUserByUid(uid);
 
-        if (userExist.error) {
-            return userExist;
-        }
-
-        if (!userExist.exist) {
+        if (!user) {
             auditTrail.record({
                 user: { uid: uid },
                 device: {},
@@ -646,14 +615,11 @@ class OrionUserControl {
             return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', uid);
-        const previousRole = user.data.role;
-        user.data.role = role.toUpperCase();
-
-        await globalAccessPoint.db().addData('Users', uid, user.data);
+        const previousRole = user.role;
+        await UserModel.updateRole(uid, role.toUpperCase());
 
         auditTrail.record({
-            user: { email: user.data.credentials?.email, uid: uid },
+            user: { email: user.email, uid: uid },
             device: {},
             action: 'USER_ROLE_UPDATED',
             status: 'SUCCESS',
@@ -664,7 +630,7 @@ class OrionUserControl {
             impact: 'User role has been updated',
             metadata: {
                 uid: uid,
-                email: user.data.credentials?.email,
+                email: user.email,
                 previousRole: previousRole,
                 newRole: role.toUpperCase(),
                 customRolesAllowed: customRolesAllowed
@@ -711,13 +677,9 @@ class OrionUserControl {
             return { error: true, errorCode: 'USER-CONTROL-NO-PASSWORD-PROVIDED' };
         }
 
-        const userExist = await this.checkUserExist().byUid(uid);
+        const user = await UserModel.getUserByUid(uid);
 
-        if (userExist.error) {
-            return userExist;
-        }
-
-        if (!userExist.exist) {
+        if (!user) {
             auditTrail.record({
                 user: { uid: uid },
                 device: {},
@@ -734,16 +696,11 @@ class OrionUserControl {
             return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
         }
 
-        let user = await globalAccessPoint.db().getData('Users', uid);
-
         const newPasswordHash = await hashString(newPassword);
-
-        user.data.credentials.password = newPasswordHash;
-
-        await globalAccessPoint.db().addData('Users', uid, user.data);
+        await UserModel.updatePassword(uid, newPasswordHash);
 
         auditTrail.record({
-            user: { email: user.data.credentials?.email, uid: uid },
+            user: { email: user.email, uid: uid },
             device: {},
             action: 'USER_PASSWORD_UPDATED',
             status: 'SUCCESS',
@@ -752,7 +709,7 @@ class OrionUserControl {
             requestId: 'LOCAL-SYSTEM',
             ipAddress: 'LOCAL-SYSTEM',
             impact: 'User password has been updated',
-            metadata: { uid: uid, email: user.data.credentials?.email }
+            metadata: { uid: uid, email: user.email }
         });
 
         return { error: false, updated: true };

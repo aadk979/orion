@@ -4,6 +4,7 @@ import { hashString } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { base64Encode } from '../../Encoders.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -23,11 +24,11 @@ const SUPPORTED_PROVIDERS = [
     'LINKEDIN',
     'REDDIT',
     'SPOTIFY',
-    'ORION'
+    'AUTHCORE'
 ];
 
 const deleteFunction = async parameters => {
-    await globalAccessPoint.db().deleteData('O-AUTH-REQUESTS', parameters.requestId);
+    await RequestModel.deleteOAuthRequest(parameters.requestId);
 };
 
 const generateOAuthRedirectURL = async (providerName, ip) => {
@@ -70,7 +71,7 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
             requestId,
             challenge,
             providerName: parameters.providerName.toUpperCase(),
-            ...(parameters.providerName.toUpperCase() === 'ORION' && { nonce: generateChallenge(32) })
+            ...(parameters.providerName.toUpperCase() === 'AUTHCORE' && { nonce: generateChallenge(32) })
         };
         const stateForServer = {
             requestId,
@@ -83,7 +84,13 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
 
         const encodedStateForClient = base64Encode(JSON.stringify(stateForClient));
 
-        await globalAccessPoint.db().addData('O-AUTH-REQUESTS', requestId, stateForServer);
+        await RequestModel.createOAuthRequest(requestId, {
+            hashedFlowSecret,
+            hashedChallenge,
+            ipRange,
+            providerName: parameters.providerName.toUpperCase(),
+            nonce: stateForClient.nonce || null
+        });
 
         cronScheduler.addEvent(requestId, deleteFunction, '2m', { requestId });
 

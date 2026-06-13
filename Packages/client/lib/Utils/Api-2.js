@@ -33,6 +33,7 @@ class ApiInterface {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br',
                 'orion-fingerprint': await getDeviceFingerprint(),
                 'orion-user-agent': navigator.userAgent,
                 'orion-dip-state': dip ? dip?.dipState : 'NO DATA',
@@ -165,34 +166,19 @@ class ApiInterface {
 
     async prepareDataForDIP(data, dipConfig) {
         if (dipConfig?.disabled) {
-            return { disabled: true };
+            return { disabled: true, dipSignature: 'DEFAULT NONE', salt: 'DEFAULT NONE', timestamp: 'DEFAULT NONE' };
         }
 
         const stringData = JSON.stringify(data);
 
-        const saltArray = new Uint8Array(16); // 16 bytes = 128 bits
-        window.crypto.getRandomValues(saltArray);
-        const salt = Array.from(saltArray)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-
-        const date = new Date();
+        const saltArray = window.crypto.getRandomValues(new Uint8Array(16)); // 16 bytes = 128 bits
+        const salt = Array.from(saltArray).map(b => b.toString(16).padStart(2, '0')).join('');
 
         const deviceFingerprint = await getDeviceFingerprint();
 
-        const pad = (n, width = 2) => n.toString().padStart(width, '0');
-        const timestamp = `UTC|${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}|${pad(date.getUTCHours())}:${pad(
-            date.getUTCMinutes()
-        )}:${pad(date.getUTCSeconds())}.${pad(date.getUTCMilliseconds(), 3)}|Epoch:${date.getTime()}`;
-
         const unix = getCurrentUnixTime();
 
-        const nonceFn = generateNonce();
-
-        const nonce = nonceFn();
-
-        const randomBits = crypto.getRandomValues(new Uint32Array(1))[0];
-        const fullTimestamp = `${timestamp}|Rand:${randomBits}|Nonce:${nonce}|Unix:${unix}`;
+        const fullTimestamp = `Unix:${unix}`;
 
         const signature = await generateHmac(stringData + salt + fullTimestamp + navigator.userAgent + deviceFingerprint, dipConfig.signatureKey);
 

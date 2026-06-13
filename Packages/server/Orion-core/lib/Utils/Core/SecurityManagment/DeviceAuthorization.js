@@ -7,6 +7,7 @@ import {
 } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
 import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, PasskeyModel, TOTPModel } from '../../Databases/models/index.js';
 import { parseDuration } from '../../Date&Time.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../AccountManagment/Passkeys/completeAuthentication.js';
 import { verifyTOTPToken } from '../AccountManagment/TOTP.js';
@@ -52,18 +53,22 @@ const routeHandlerGetAvailable2faMethods = async (request, response) => {
         return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET');
     }
 
-    const userLink = await globalAccessPoint.db().getData('Users-email', email);
+    const uid = await UserModel.getUidByEmail(email);
 
-    if (userLink.data === undefined) {
+    if (!uid) {
         return respondWithError(response, 'ACC-SIGN-IN-ACC-NO-EXISTS');
     }
 
-    const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
+    const hasPasskey = await PasskeyModel.hasPasskey(uid);
+    const totpEnabled = await TOTPModel.isEnabled(uid);
+
+    const totpSystemDisabled = globalAccessPoint.getValue('totpSystemDisabled');
+    const passkeySystemDisabled = !globalAccessPoint.systemConfig()?.authMethods?.passkey;
 
     const methods = {
         'email-code': true,
-        passkey: user.data.credentials?.passkey?.exist || false,
-        totp: user.data.credentials?.totp?.enabled || false
+        passkey: passkeySystemDisabled ? false : hasPasskey,
+        totp: totpSystemDisabled ? false : totpEnabled
     };
 
     return respondWithSuccess(response, 200, { methods });
@@ -157,22 +162,26 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
         return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET');
     }
 
+    if (globalAccessPoint.getValue('totpSystemDisabled')) {
+        return respondWithError(response, 'TOTP-SYSTEM-DISABLED');
+    }
+
     const totpCode = request.body.packet.totpCode || request.body.packet.code;
     const userAgent = request.headers['orion-user-agent'];
 
-    const userLink = await globalAccessPoint.db().getData('Users-email', email);
+    const uid = await UserModel.getUidByEmail(email);
 
-    if (userLink.data === undefined) {
+    if (!uid) {
         return respondWithError(response, 'ACC-SIGN-IN-ACC-NO-EXISTS');
     }
 
-    const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
+    const totpConfig = await TOTPModel.getTOTPConfig(uid);
 
-    if (!user.data.credentials?.totp?.enabled) {
+    if (!totpConfig?.enabled) {
         return respondWithError(response, 'TOTP-NOT-ENABLED');
     }
 
-    const secret = user.data.credentials.totp.secret;
+    const secret = totpConfig.secret;
 
     const verification = await verifyTOTPToken(totpCode, secret);
 

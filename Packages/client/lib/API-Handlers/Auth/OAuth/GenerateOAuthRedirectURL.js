@@ -1,4 +1,4 @@
-const SUPPORTED_PROVIDERS = ['GOOGLE', 'GITHUB', 'MICROSOFT', 'DISCORD', 'FACEBOOK', 'AMAZON', 'SLACK', 'APPLE', 'TWITTER', 'LINKEDIN', 'REDDIT', 'SPOTIFY'];
+const SUPPORTED_PROVIDERS = ['GOOGLE', 'GITHUB', 'MICROSOFT', 'DISCORD', 'FACEBOOK', 'AMAZON', 'SLACK', 'APPLE', 'TWITTER', 'LINKEDIN', 'REDDIT', 'SPOTIFY', 'AUTHCORE'];
 
 async function generateOAuthRedirectURL({ Api, getAuthHeader, dipConfig, This, providerName }) {
     if (!SUPPORTED_PROVIDERS.includes(providerName.toUpperCase().trim())) {

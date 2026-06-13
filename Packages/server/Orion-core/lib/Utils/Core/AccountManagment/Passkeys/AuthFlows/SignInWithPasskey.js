@@ -94,10 +94,8 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             return { error: true, errorCode: 'PASSKEY-UNABLE-TO-AUTHENTICATE' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', verification.uid);
-
         const accessToken = await generateAccessToken(
-            user.data.credentials.uid,
+            verification.uid,
             email,
             parameters.fingerprint,
             'PASSKEY',
@@ -130,7 +128,7 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
         }
 
         const refreshToken = await generateRefreshToken(
-            user.data.credentials.uid,
+            verification.uid,
             email,
             parameters.fingerprint,
             'PASSKEY',

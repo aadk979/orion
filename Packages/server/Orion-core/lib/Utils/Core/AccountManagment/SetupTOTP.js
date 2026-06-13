@@ -1,6 +1,7 @@
 import { generateTOTPSecret, verifyTOTPToken, generateTOTPAuthURI } from './TOTP.js';
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, TOTPModel, UserSecurityModel } from '../../Databases/models/index.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
@@ -8,16 +9,19 @@ import QRCode from 'qrcode';
 
 const generateTOTPSetupSecret = async (uid) => {
     const Function = async (parameters) => {
+        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+
         const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user.data) {
+        if (!user) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
-        if (user.data.credentials?.totp?.enabled) {
+        const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
+        if (totpEnabled) {
             return { error: true, errorCode: 'TOTP-ALREADY-ENABLED' };
         }
 
@@ -26,7 +30,7 @@ const generateTOTPSetupSecret = async (uid) => {
             return { error: true, errorCode: 'INTERNAL-ERROR' };
         }
 
-        const authURI = await generateTOTPAuthURI(secret, user.data.email, 'Orion');
+        const authURI = await generateTOTPAuthURI(secret, user.email, 'Orion');
         if (authURI.error) {
             return { error: true, errorCode: 'INTERNAL-ERROR' };
         }
@@ -39,12 +43,7 @@ const generateTOTPSetupSecret = async (uid) => {
         }
 
         // Save pending secret
-        if (!user.data.credentials) user.data.credentials = {};
-        if (!user.data.credentials.totp) user.data.credentials.totp = { enabled: false };
-
-        user.data.credentials.totp.pendingSecret = secret;
-
-        await globalAccessPoint.db().addData('Users', parameters.uid, user.data);
+        await TOTPModel.savePendingSecret(parameters.uid, secret);
 
         if (auditTrail) {
             auditTrail.record({
@@ -69,16 +68,18 @@ const generateTOTPSetupSecret = async (uid) => {
 
 const verifyAndEnableTOTP = async (uid, totpCode) => {
     const Function = async (parameters) => {
+        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+
         const auditTrail = globalAccessPoint.auditTrailSystem();
         const requestMetadata = requestContext.getStore();
 
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user.data) {
+        if (!user) {
             return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
         }
 
-        const pendingSecret = user.data.credentials?.totp?.pendingSecret;
+        const pendingSecret = await TOTPModel.getPendingSecret(parameters.uid);
         if (!pendingSecret) {
             return { error: true, errorCode: 'TOTP-NO-PENDING-SECRET' };
         }
@@ -102,16 +103,11 @@ const verifyAndEnableTOTP = async (uid, totpCode) => {
             return { error: true, errorCode: 'TOTP-INVALID-TOKEN' };
         }
 
-        // Verification succeeded, configure TOTP
-        user.data.credentials.totp.enabled = true;
-        user.data.credentials.totp.secret = pendingSecret;
-        delete user.data.credentials.totp.pendingSecret;
+        // Verification succeeded — promote pending secret and enable TOTP
+        await TOTPModel.enableTOTP(parameters.uid, pendingSecret);
 
-        // Enable 2FA on the account
-        if (!user.data.security) user.data.security = {};
-        user.data.security.twoFA = true;
-
-        await globalAccessPoint.db().addData('Users', parameters.uid, user.data);
+        // Enable 2FA flag on the account
+        await UserSecurityModel.setTwoFAEnabled(parameters.uid, true);
 
         if (auditTrail) {
             auditTrail.record({

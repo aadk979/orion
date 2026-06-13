@@ -222,8 +222,8 @@ class GlobalAccessPoint {
     /**
      * @returns {number | undefined}
      */
-    token_security_tier() {
-        return this.getValue('token_security_tier');
+    tokenSecurityTier() {
+        return this.getValue('tokenSecurityTier');
     }
 
     /**

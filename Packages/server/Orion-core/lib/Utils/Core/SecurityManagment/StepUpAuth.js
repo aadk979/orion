@@ -2,6 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { hashString, verifyHash, sha256Hash } from '../../CryptoFunctions.js';
 import { getFutureUnixTime, getCurrentUnixTime, parseDuration } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel, PasskeyModel, TOTPModel, RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -264,18 +265,24 @@ const validateStepUpContextToken = async token => {
  */
 const getAvailableStepUpMethods = async uid => {
     const Function = async parameters => {
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user || !user.data) {
+        if (!user) {
             return { error: true, errorCode: 'USER-NOT-FOUND' };
         }
+
+        const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);
+        const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
+
+        const totpSystemDisabled = globalAccessPoint.getValue('totpSystemDisabled');
+        const passkeySystemDisabled = !globalAccessPoint.systemConfig()?.authMethods?.passkey;
 
         return {
             error: false,
             methods: {
                 'email-code': true,
-                passkey: user.data.credentials?.passkey?.exist || false,
-                totp: user.data.credentials?.totp?.enabled || false
+                passkey: passkeySystemDisabled ? false : hasPasskey,
+                totp: totpSystemDisabled ? false : totpEnabled
             }
         };
     };
@@ -303,13 +310,13 @@ const getAvailableStepUpMethods = async uid => {
  */
 const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
     const Function = async parameters => {
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user || !user.data) {
+        if (!user) {
             return { error: true, errorCode: 'USER-NOT-FOUND' };
         }
 
-        const email = user.data.credentials.email;
+        const email = user.email;
 
         // ── Generate challenge material ───────────────────────────────────────
         const code = generateRandomNumber(6);
@@ -323,7 +330,7 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
         const reqId = generateRequestId('STEP_UP_AUTH', 52);
 
         // ── Persist challenge record ──────────────────────────────────────────
-        await globalAccessPoint.db().addData('StepUpAuthRequests', reqId, {
+        await RequestModel.createStepUpAuthRequest(reqId, {
             codeHash,
             hashedFlowSecret,
             uid: parameters.uid,
@@ -335,7 +342,7 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
         cronScheduler.addEvent(
             reqId,
             async p => {
-                await globalAccessPoint.db().deleteData('StepUpAuthRequests', p.reqId);
+                await RequestModel.deleteStepUpAuthRequest(p.reqId);
             },
             '10m',
             { reqId }
@@ -353,7 +360,7 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
         if (mailResult && mailResult.error) {
             // Roll back: cancel cleanup task and delete the stored challenge record
             cronScheduler.cancelEvent(reqId);
-            await globalAccessPoint.db().deleteData('StepUpAuthRequests', reqId);
+            await RequestModel.deleteStepUpAuthRequest(reqId);
             return { error: true, errorCode: 'EMAIL-SEND-FAILED' };
         }
 
@@ -384,44 +391,44 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
 const verifyStepUpWithEmailCode = async (reqId, code, flowSecret, uid, ip, userAgent, fingerprint) => {
     const Function = async parameters => {
         // ── 1. Fetch stored challenge record ──────────────────────────────────
-        const storedData = await globalAccessPoint.db().getData('StepUpAuthRequests', parameters.reqId);
+        const storedData = await RequestModel.getStepUpAuthRequest(parameters.reqId);
 
-        if (!storedData || !storedData.data) {
+        if (!storedData) {
             return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
         }
 
         // ── 2. UID ownership check ────────────────────────────────────────────
         // Prevents a different user from consuming another user's challenge.
-        if (storedData.data.uid !== parameters.uid) {
+        if (storedData.user_uid !== parameters.uid) {
             return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
         }
 
         // ── 3. User-Agent binding check ───────────────────────────────────────
-        const uaValid = await verifyHash(parameters.userAgent, storedData.data.userAgentHash);
+        const uaValid = await verifyHash(parameters.userAgent, storedData.user_agent_hash);
         if (!uaValid) {
             return { error: true, errorCode: 'STEP-UP-AUTH-USERAGENT-MISMATCH' };
         }
 
         // ── 4. IP range check ─────────────────────────────────────────────────
-        const ipValid = await isIpInRange(parameters.ip, storedData.data.ip);
+        const ipValid = await isIpInRange(parameters.ip, storedData.ip_range);
         if (!ipValid) {
             return { error: true, errorCode: 'STEP-UP-AUTH-IP-MISMATCH' };
         }
 
         // ── 5. Flow secret check (CSRF-like session binding) ──────────────────
-        const secretValid = await verifyHash(parameters.flowSecret, storedData.data.hashedFlowSecret);
+        const secretValid = await verifyHash(parameters.flowSecret, storedData.hashed_flow_secret);
         if (!secretValid) {
             return { error: true, errorCode: 'STEP-UP-AUTH-SECRET-MISMATCH' };
         }
 
         // ── 6. One-time code check ────────────────────────────────────────────
-        const codeValid = await verifyHash(parameters.code, storedData.data.codeHash);
+        const codeValid = await verifyHash(parameters.code, storedData.code_hash);
         if (!codeValid) {
             return { error: true, errorCode: 'STEP-UP-AUTH-INVALID-CODE' };
         }
 
         // ── 7. Consume challenge record ───────────────────────────────────────
-        await globalAccessPoint.db().deleteData('StepUpAuthRequests', parameters.reqId);
+        await RequestModel.deleteStepUpAuthRequest(parameters.reqId);
         cronScheduler.cancelEvent(parameters.reqId);
 
         // ── 8. Issue Step-Up Auth Token ───────────────────────────────────────
@@ -451,15 +458,17 @@ const verifyStepUpWithEmailCode = async (reqId, code, flowSecret, uid, ip, userA
  */
 const generateStepUpPasskeyOptions = async (uid, clientURL) => {
     const Function = async parameters => {
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user || !user.data) {
+        if (!user) {
             return { error: true, errorCode: 'USER-NOT-FOUND' };
         }
 
-        const email = user.data.credentials.email;
+        const email = user.email;
 
-        if (!user.data.credentials?.passkey?.exist) {
+        const passkey = await PasskeyModel.getPasskey(parameters.uid);
+
+        if (!passkey) {
             return { error: true, errorCode: 'PASSKEY-AUTH-NO-ACTIVE-PASSKEY' };
         }
 
@@ -467,9 +476,9 @@ const generateStepUpPasskeyOptions = async (uid, clientURL) => {
             rpId: parameters.clientURL,
             allowCredentials: [
                 {
-                    id: user.data.credentials.passkey.creds.id,
+                    id: passkey.credential_id,
                     type: 'public-key',
-                    transports: user.data.credentials.passkey.creds.transports
+                    transports: passkey.transports
                 }
             ]
         });
@@ -517,13 +526,13 @@ const verifyStepUpWithPasskey = async (authResponse, cookieData, uid, clientURL,
     const Function = async parameters => {
         // Resolve user email — required by veryifyAndCompletePasskeyAuthentication
         // to validate that the cookie's stored email matches this user.
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        const user = await UserModel.getUserByUid(parameters.uid);
 
-        if (!user || !user.data) {
+        if (!user) {
             return { error: true, errorCode: 'USER-NOT-FOUND' };
         }
 
-        const email = user.data.credentials.email;
+        const email = user.email;
 
         // ── Verify passkey response ───────────────────────────────────────────
         const verification = await veryifyAndCompletePasskeyAuthentication(
@@ -577,18 +586,22 @@ const verifyStepUpWithPasskey = async (authResponse, cookieData, uid, clientURL,
  */
 const verifyStepUpWithTOTP = async (uid, totpCode, ip, userAgent, fingerprint) => {
     const Function = async parameters => {
-        const user = await globalAccessPoint.db().getData('Users', parameters.uid);
+        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
 
-        if (!user || !user.data) {
+        const user = await UserModel.getUserByUid(parameters.uid);
+
+        if (!user) {
             return { error: true, errorCode: 'USER-NOT-FOUND' };
         }
 
-        if (!user.data.credentials?.totp?.enabled) {
+        const totpConfig = await TOTPModel.getTOTPConfig(parameters.uid);
+
+        if (!totpConfig?.enabled) {
             return { error: true, errorCode: 'TOTP-NOT-ENABLED' };
         }
 
         // ── Verify TOTP code ──────────────────────────────────────────────────
-        const totpResult = await verifyTOTPToken(parameters.totpCode, user.data.credentials.totp.secret);
+        const totpResult = await verifyTOTPToken(parameters.totpCode, totpConfig.secret);
 
         if (totpResult.error) {
             return { error: true, errorCode: 'STEP-UP-AUTH-INVALID-TOTP' };

@@ -1,64 +1,36 @@
-/**
- * Database Manager and Instance Validator
- *
- * Provides database instance validation and setup system for Orion.
- * Supports multiple database providers including Firestore, MongoDB and PostgreSQL
- *
- * NOTE: For PostgreSQL, Orion strictly uses only JSON/NoSQL-like structures
- * which may not allow traditional SQL interactions or manipulations.
- */
-
-import { FirestoreService } from './firestore.js';
-import { MongoService } from './mongoDB.js';
 import { PostgresService } from './postgres.js';
 
-const supportedProviders = ['FIRESTORE', 'MONGO-DB', 'POSTGRES'];
-
+/**
+ * PersistantDatabaseManager — Postgres-only database factory.
+ *
+ * Initializes a PostgresService from the systemConfig and exposes it via db().
+ * MongoDB and Firestore support has been permanently removed.
+ */
 class PersistantDatabaseManager {
     constructor(systemConfig) {
-        if (!systemConfig.db.provider || !systemConfig.db.credentials) {
-            throw new Error('Database options have not been configured correctly!');
+        const provider = systemConfig?.db?.provider?.toUpperCase();
+
+        if (provider !== 'POSTGRES') {
+            throw new Error(
+                `Unsupported database provider: "${systemConfig?.db?.provider}". ` +
+                `Orion now supports only PostgreSQL. Set db.provider to "POSTGRES".`
+            );
         }
 
-        if (!supportedProviders.includes(systemConfig.db.provider)) {
-            throw new Error('The given database provider is not supported!');
+        const credentials = systemConfig?.db?.credentials;
+
+        if (!credentials) {
+            throw new Error('Database credentials are required. Provide db.credentials in your system config.');
         }
 
-        PersistantDatabaseManager.provider = systemConfig.db.provider;
-        PersistantDatabaseManager.credentials = systemConfig.db.credentials;
-
-        switch (PersistantDatabaseManager.provider) {
-            case 'FIRESTORE': {
-                const system = new FirestoreService();
-                if (!system.initialize(PersistantDatabaseManager.credentials)) {
-                    throw new Error('Unable to initialize Firestore!');
-                }
-                PersistantDatabaseManager.system = system;
-                break;
-            }
-
-            case 'MONGO-DB': {
-                const system = new MongoService();
-                if (!system.initialize(PersistantDatabaseManager.credentials)) {
-                    throw new Error('Unable to initialize MongoDB!');
-                }
-                PersistantDatabaseManager.system = system;
-                break;
-            }
-
-            case 'POSTGRES': {
-                const system = new PostgresService();
-                if (!system.initialize(PersistantDatabaseManager.credentials)) {
-                    throw new Error('Unable to initialize Postgres!');
-                }
-                PersistantDatabaseManager.system = system;
-                break;
-            }
-        }
+        this.service = new PostgresService(credentials);
     }
 
+    /**
+     * @returns {PostgresService}
+     */
     db() {
-        return PersistantDatabaseManager.system;
+        return this.service;
     }
 }
 

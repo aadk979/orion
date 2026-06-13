@@ -3,6 +3,7 @@ import { verifyHash } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { base64Decode } from '../../Encoders.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { RequestModel } from '../../Databases/models/index.js';
 import { getIp, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -23,9 +24,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
 
         const stateFromClient = JSON.parse(base64Decode(parameters.state));
 
-        const stateFromServer = await globalAccessPoint.db().getData('O-AUTH-REQUESTS', stateFromClient.requestId);
+        const stateFromServer = await RequestModel.getOAuthRequest(stateFromClient.requestId);
 
-        if (stateFromServer.data === undefined) {
+        if (stateFromServer === null) {
             auditTrail.record({
                 user: {},
                 device: {
@@ -47,7 +48,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             return { error: true, errorCode: 'O-AUTH-REQUEST-INVALID-OR-EXPIRED' };
         }
 
-        if (!(await verifyHash(parameters.flowSecret, stateFromServer.data.hashedFlowSecret))) {
+        if (!(await verifyHash(parameters.flowSecret, stateFromServer.hashed_flow_secret))) {
             auditTrail.record({
                 user: {},
                 device: {
@@ -69,7 +70,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             return { error: true, errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH' };
         }
 
-        if (!(await isIpInRange(parameters.ip, stateFromServer.data.ipRange))) {
+        if (!(await isIpInRange(parameters.ip, stateFromServer.ip_range))) {
             auditTrail.record({
                 user: {},
                 device: {
@@ -91,7 +92,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             return { error: true, errorCode: 'O-AUTH-IP-MISMATCH' };
         }
 
-        if (!(await verifyHash(stateFromClient.challenge, stateFromServer.data.hashedChallenge))) {
+        if (!(await verifyHash(stateFromClient.challenge, stateFromServer.hashed_challenge))) {
             auditTrail.record({
                 user: {},
                 device: {
@@ -113,9 +114,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             return { error: true, errorCode: 'O-AUTH-INVALID-STATE-CHALLENGE' };
         }
 
-        const provider = stateFromServer.data.providerName.trim().toLowerCase();
+        const provider = stateFromServer.provider_name.trim().toLowerCase();
 
-        const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code, parameters.state, { nonce: stateFromServer.data.nonce });
+        const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code, parameters.state, { nonce: stateFromServer.nonce });
 
         if (oAuthResponse?.error) {
             auditTrail.record({

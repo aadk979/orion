@@ -2,6 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { verifyHash } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel } from '../../Databases/models/index.js';
 import { getIp } from '../../Ip.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
@@ -102,9 +103,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
 
         const uid = await userControl.getUserUidByEmail(sanitizedEmail);
 
-        const user = await globalAccessPoint.db().getData('Users', uid.uid);
+        const user = await UserModel.getUserByUid(uid.uid);
 
-        if (!user.data.credentials.password) {
+        if (!user.password_hash) {
             auditTrail.record({
                 user: { email: parameters.email, uid: uid.uid },
                 device: {
@@ -124,7 +125,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             return { error: true, errorCode: 'ACC-SIGN-IN-NO-PASSWORD-SETUP' };
         }
 
-        const passwordMatch = await verifyHash(sanitizedPassword, user.data.credentials.password);
+        const passwordMatch = await verifyHash(sanitizedPassword, user.password_hash);
 
         if (!passwordMatch) {
             auditTrail.record({
@@ -158,7 +159,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
 
         if (accessToken.error) {
             auditTrail.record({
-                user: { email: parameters.email, uid: user.data.credentials.uid },
+                user: { email: parameters.email, uid: user.uid },
                 device: {
                     fingerprint: parameters.fingerprint,
                     userAgent: parameters.userAgent
@@ -189,7 +190,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
 
         if (refreshToken.error) {
             auditTrail.record({
-                user: { email: parameters.email, uid: user.data.credentials.uid },
+                user: { email: parameters.email, uid: user.uid },
                 device: {
                     fingerprint: parameters.fingerprint,
                     userAgent: parameters.userAgent

@@ -43,33 +43,31 @@ class TokenSecretsManager {
         this.signingPairs = [];
         this.verificationPairs = [];
 
+        // FIX: Removed this._lockResolve. The old design stored only the most
+        // recent caller's resolver here, so any earlier caller's lock was
+        // silently stolen and could never be released, causing a deadlock.
+        // Each _safeRotation call now owns its own release function returned
+        // directly from _acquireLock(), so no shared resolver is needed.
         this._lockPromise = null;
-        this._lockResolve = null;
 
         this.initialized = false;
         this.checkExpAndRepopulate = this.checkExpAndRepopulate.bind(this);
     }
 
+    // FIX: Returns { previous, release } instead of just `previous`.
+    // Each caller gets its own `release` closure, preventing the deadlock
+    // caused by a shared this._lockResolve being overwritten by concurrent callers.
     _acquireLock() {
         const previous = this._lockPromise;
-        let resolve;
-        this._lockPromise = new Promise(r => { resolve = r; });
-        this._lockResolve = resolve;
-        return previous;
-    }
-
-    _releaseLock() {
-        if (this._lockResolve) {
-            this._lockResolve();
-            this._lockResolve = null;
-        }
+        let release;
+        this._lockPromise = new Promise(r => { release = r; });
+        return { previous, release };
     }
 
     async _waitForLock() {
         while (this._lockPromise) {
             const current = this._lockPromise;
             await current;
-
             if (this._lockPromise === current) {
                 break;
             }
@@ -251,19 +249,51 @@ class TokenSecretsManager {
             this.signingPairs = active;
 
             const needed = this.nPairs - active.length;
+            let newKeys = [];
             if (needed > 0) {
                 const config = KEY_TYPES.find(k => k.algorithm === this.algorithm);
                 const fn = config.type === "ECDSA"
                     ? this.tokenSecretsCrypto.generateECDSAKey
                     : this.tokenSecretsCrypto.generateRSAKey;
 
-                const newKeys = await Promise.all(Array(needed).fill(config).map(c => fn.call(this.tokenSecretsCrypto, c)));
+                newKeys = await Promise.all(Array(needed).fill(config).map(c => fn.call(this.tokenSecretsCrypto, c)));
                 this.signingPairs.push(...newKeys);
             }
 
-            const formattedVerification = this.verificationPairs.map(this._stripRuntimeKeys);
-            const formattedSigning = this.signingPairs.map(this._stripRuntimeKeys);
-            await writeToCaller(this.TOKEN_SECRETS_FILE_NAME, { keys: [...formattedVerification, ...formattedSigning] });
+            // FIX: In cluster mode, new signing keys must be published to Redis
+            // so that other nodes can import them for verification. Previously
+            // this branch always called writeToCaller(), which writes a local
+            // file that other cluster nodes never read, silently breaking
+            // cross-node token verification after every rotation cycle.
+            // Expired keys are also explicitly removed from Redis here to avoid
+            // accumulating stale entries that Redis TTL alone may not clean up
+            // fast enough (depending on the TTL precision of the Redis adapter).
+            if (this.instanceType === "CLUSTER") {
+                const redisInstance = globalAccessPoint.redisInstance();
+
+                if (expired.length > 0) {
+                    await Promise.all(
+                        expired.map(k => redisInstance.deleteData(
+                            `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${k.keyPairId}`
+                        ))
+                    );
+                }
+
+                if (newKeys.length > 0) {
+                    const cleanedNewKeys = newKeys.map(this._stripRuntimeKeys);
+                    await Promise.all(
+                        cleanedNewKeys.map(k => redisInstance.addData(
+                            `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${k.keyPairId}`,
+                            k,
+                            k.publicKeyExp
+                        ))
+                    );
+                }
+            } else {
+                const formattedVerification = this.verificationPairs.map(this._stripRuntimeKeys);
+                const formattedSigning = this.signingPairs.map(this._stripRuntimeKeys);
+                await writeToCaller(this.TOKEN_SECRETS_FILE_NAME, { keys: [...formattedVerification, ...formattedSigning] });
+            }
 
             cron.addEvent(`TOKEN_SECRETS_MANAGER_CHECK_ROTATE_${this.domain}`, this.checkExpAndRepopulate, "1h", {});
         });
@@ -281,8 +311,16 @@ class TokenSecretsManager {
     }
 
     async _safeRotation(fn) {
-        const waitFor = this._acquireLock();
-        await waitFor;
+        // FIX: Destructure the per-call release function from _acquireLock().
+        // Previously the lock used a shared this._lockResolve that was overwritten
+        // on every call, meaning the last writer always stole earlier callers'
+        // resolvers. Caller A would hold the lock but caller B's resolver was
+        // stored, so when A released it resolved B's promise — and A's promise
+        // (which B was awaiting as `previous`) could never resolve → deadlock.
+        // Now each caller closes over its own `release` and is solely responsible
+        // for freeing the lock it acquired.
+        const { previous, release } = this._acquireLock();
+        if (previous) await previous;
 
         const snapshot = new Snapshotter(
             {
@@ -303,7 +341,11 @@ class TokenSecretsManager {
             snapshot.revert();
             logger.error("TokenSecretsManager rotation failed, reverted to snapshot", err);
         } finally {
-            this._releaseLock();
+            // FIX: Reset _lockPromise to null before releasing so that
+            // _waitForLock() exits its loop cleanly once the lock is free,
+            // rather than looping forever on a stale resolved promise.
+            this._lockPromise = null;
+            release();
         }
     }
 }

@@ -289,7 +289,12 @@ const authenticationMiddleware = async (request, response, next) => {
 
                 if (reqIsAuthStateCheck) {
                     const responseData = {
-                        authed: true
+                        authed: true,
+                        user: {
+                            uid: verification.data.uid,
+                            email: verification.data.email,
+                            jti: verification.data?.tokenData?.tokenId || 'STATELESS'
+                        }
                     };
 
                     return respondWithSuccess(parameters.response, 200, responseData);

@@ -1,5 +1,6 @@
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
+import { UserModel, PasskeyModel } from '../../../Databases/models/index.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -33,15 +34,15 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
             }
         }
 
-        const userLink = await globalAccessPoint.db().getData('Users-email', sanitizedEmail);
+        const user = await UserModel.getUserByEmail(sanitizedEmail);
 
-        if (userLink.data === undefined) {
+        if (!user) {
             return { error: true, errorCode: 'PASSKEY-ACC-NO-EXIST' };
         }
 
-        const user = await globalAccessPoint.db().getData('Users', userLink.data.uid);
+        const passkey = await PasskeyModel.getPasskey(user.uid);
 
-        if (!user.data.credentials.passkey.exist) {
+        if (!passkey) {
             return {
                 error: true,
                 errorCode: 'PASSKEY-AUTH-NO-ACTIVE-PASSKEY'
@@ -52,9 +53,9 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
             rpId: parameters.clientURL,
             allowCredentials: [
                 {
-                    id: user.data.credentials.passkey.creds.id,
+                    id: passkey.credential_id,
                     type: 'public-key',
-                    transports: user.data.credentials.passkey.creds.transports
+                    transports: passkey.transports
                 }
             ]
         });
@@ -66,7 +67,7 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
                 {
                     key: 'PASSKEY-AUTHENTICATION-INFO-STEP-1',
                     data: {
-                        uid: user.data.credentials.uid,
+                        uid: user.uid,
                         id: options.id,
                         email: lowerCaseEmail,
                         challenge: options.challenge

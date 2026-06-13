@@ -11,6 +11,7 @@
 
 import jwt from 'jsonwebtoken';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { TokenModel } from '../../Databases/models/index.js';
 import { hashString } from '../../CryptoFunctions.js';
 import { generateId } from '../../valueGenerator.js';
 import { getIpRange, isIpInRange } from '../../Ip.js';
@@ -57,7 +58,7 @@ async function generateResourceToken(
 
     const secret = await globalAccessPoint.tokenSecretsManager().getRandomKeyPair('resource_access');
     const expiry = globalAccessPoint.systemConfig().tokens?.lifespans.resourceAccessTokens || '1h';
-    const aud = gglobalAccessPoint.allowedClientUrls();
+    const aud = globalAccessPoint.allowedClientUrls();
     const iss = globalAccessPoint.systemConfig().server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
@@ -68,16 +69,7 @@ async function generateResourceToken(
         type: 'RESOURCE_TOKEN'
     };
 
-    const dbTokenData = {
-        tokenId: tokenData.tokenId,
-        exp: getFutureUnixTime(expiry),
-        type: tokenData.type,
-        userAgent: userAgent,
-        hashedFingerprint,
-        viewType,
-        maxRetrievals,
-        retrievalCount: 0
-    };
+    const dbExpiry = getFutureUnixTime(expiry);
 
     const payload = {
         uid: uid,
@@ -98,16 +90,19 @@ async function generateResourceToken(
         sub: uid
     };
 
-    dbTokenData.uid = uid;
+    // Store token ref and token row
+    await TokenModel.addTokenRef(uid, tokenData.tokenId, dbExpiry);
 
-    let data = await globalAccessPoint.db().getData('Users', uid);
-    let user = data.data;
-
-    // Push lightweight reference
-    user.security.activeTokens.push({ tokenId: dbTokenData.tokenId, exp: dbTokenData.exp });
-    await globalAccessPoint.db().addData('Users', uid, user);
-
-    const storage = await globalAccessPoint.db().addData('Tokens', dbTokenData.tokenId, dbTokenData);
+    const storage = await TokenModel.createToken({
+        tokenId: tokenData.tokenId,
+        uid: uid,
+        type: tokenData.type,
+        expiry: dbExpiry,
+        userAgent: userAgent,
+        hashedFingerprint,
+        viewType,
+        maxRetrievals
+    });
 
     if (storage.error) {
         auditTrail.record({
@@ -186,7 +181,7 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
             return { error: true, errorCode: 'RESOURCE-TOKEN-KEY-NOT-FOUND' };
         }
 
-        const serverUrl = globalAccessPoint.systemConfig().server.myUrl;
+        const serverUrl = globalAccessPoint.systemConfig().server.selfUrl;
 
         const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
 
@@ -202,8 +197,7 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
             return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE' };
         }
 
-        const data = await globalAccessPoint.db().getData('Tokens', validatedToken.tokenData.tokenId);
-        let tokenData = data.data;
+        const tokenData = await TokenModel.getToken(validatedToken.tokenData.tokenId);
 
         if (!tokenData) {
             return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND' };
@@ -213,43 +207,15 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
             return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH' };
         }
 
-        const dataUser = await globalAccessPoint.db().getData('Users', validatedToken.uid);
-        let user = dataUser.data;
-
-        // Feature disabled in current release, device tracking unavailable since fingerprint isnt a default http header and hence the system will only work inside custom wrappers
-        // For system ease of use, the system currently allows access without checking the fingerprint
-        // Current view modes are public and secure-0, secure supports network level share restrictions but not device based
-        // Future addition of a view mode, secure-1, will only allow custom wrapper to access the file hence being able to get the fingerprint header and track the device
-        // const shouldSkipFingerprintCheck = validatedToken.shareAllowed;
-
-        // if (!shouldSkipFingerprintCheck) {
-
-        //     if ((!timingSafeEqual(
-        //         Buffer.from(validatedToken.hashedDeviceFingerprint),
-        //         Buffer.from(tokenData.hashedFingerprint)
-        //     ))) {
-        //         user.security.activeTokens = user.security.activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
-        //         await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
-        //         return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1" }
-        //     }
-
-        //     if ((await verifyHash(fingerprint, tokenData.hashedFingerprint)) === false) {
-        //         user.security.activeTokens = user.security.activeTokens.filter(v => v.tokenId !== validatedToken.tokenData.tokenId);
-        //         user.security.activeTokens = user.security.activeTokens.filter(val => isUnixExpired(val.exp) !== true);
-        //         await globalAccessPoint.db().addData("Users", validatedToken.uid, user);
-        //         return { error: true, errorCode: "INVALID-RESOURCE-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2" }
-        //     }
-        // }
-
-        if (tokenData.retrievalCount >= tokenData.maxRetrievals) {
-            await globalAccessPoint.db().deleteData('Tokens', validatedToken.tokenData.tokenId);
-            user.security.activeTokens = user.security.activeTokens.filter(value => value.tokenId !== validatedToken.tokenData.tokenId);
-            await globalAccessPoint.db().addData('Users', validatedToken.uid, user);
+        if (tokenData.retrieval_count >= tokenData.max_retrievals) {
+            await TokenModel.deleteToken(validatedToken.tokenData.tokenId);
+            await TokenModel.removeTokenRef(validatedToken.uid, validatedToken.tokenData.tokenId);
             return { error: true, errorCode: 'MAX-RESOURCE-RETRIEVALS-HIT' };
         }
 
-        tokenData.retrievalCount++;
-        await globalAccessPoint.db().addData('Tokens', validatedToken.tokenData.tokenId, tokenData);
+        await TokenModel.updateToken(validatedToken.tokenData.tokenId, {
+            retrieval_count: tokenData.retrieval_count + 1
+        });
 
         auditTrail.record({
             user: { email: validatedToken.email, uid: validatedToken.uid },
@@ -263,8 +229,7 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
             impact: 'Resource token validated successfully',
             metadata: {
                 tokenId: validatedToken.tokenData.tokenId,
-                viewType: tokenData.viewType,
-                fingerprintSkipped: shouldSkipFingerprintCheck
+                viewType: tokenData.view_type
             }
         });
 

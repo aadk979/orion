@@ -137,15 +137,16 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
             mergedConfig.app.serviceID = crypto.randomUUID();
         }
 
-        // Init DB
+        // Init DB — schema migration runs on pool connect
         const dbManager = new PersistantDatabaseManager(mergedConfig);
+        await dbManager.db().ready();
 
         // Init Volatile Secrets Manager
         const volatileSecretsManager = new VolatileSecretsManager(20, 32, true);
 
+        const oAuthToolKit = new OAuthProviderToolkit(systemConfig.authMethods?.OAuth || {});
 
-        // Init OAuth systems
-        const oAuthToolKit = new OAuthProviderToolkit(systemConfig.authMethods?.oAuth || {});
+        globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
         await oAuthToolKit.initializeAllProviders();
 
 
@@ -159,7 +160,6 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.logger().configureFromGlobalAccessPoint();
 
         globalAccessPoint.setValue('volatileSecretsManager', volatileSecretsManager);
-        globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
         globalAccessPoint.setValue('memoryMonitioringSystem', memoryMonitioringSystem);
 
         globalAccessPoint.setValue('timeOfLife', getCurrentUnixTime());
@@ -194,9 +194,9 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
 
         logger.info(`✅ Service "${mergedConfig.app.appName || 'Unnamed'}" ready`);
         logger.info(`🆔 Service ID: ${mergedConfig.app.serviceID}`);
-        logger.info(`🌐 Listening on port: ${mergedConfig.app.PORT || 'Not Set (dev?)'}`);
+        logger.info(`🌐 Listening on port: ${mergedConfig.app.port || 'Not Set (dev?)'}`);
 
-        return { app, dbManager, PORT: mergedConfig.app.PORT || 58944 };
+        return { app, dbManager, PORT: mergedConfig.app.port || 58944 };
     } catch (err) {
         console.error(err);
         logger.error(`💥 Server boot failure: ${err.message}`);

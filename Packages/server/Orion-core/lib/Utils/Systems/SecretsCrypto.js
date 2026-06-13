@@ -6,7 +6,7 @@ import { hashStringSync } from "../CryptoFunctions.js";
 const SIGNING_KEY_EXP = "7d";
 const VERIFYING_KEY_EXP = "14d";
 
-// FIX: RS384 and RS512 now correctly map to their respective hash algorithms,
+// RS384 and RS512 correctly map to their respective hash algorithms,
 // so generateRSAKey uses the right hash instead of always defaulting to SHA-256.
 const RSA_JWK_ALG_TO_HASH = {
     "RS256": "SHA-256",
@@ -139,8 +139,8 @@ class SecretsCrypto {
     async generateRSAKey(config) {
         const { size, algorithm } = config;
 
-        // FIX: Derive the correct hash from the algorithm field in config (e.g. "RS384" → "SHA-384")
-        // rather than always defaulting to SHA-256. KEY_TYPES entries now carry `algorithm` so this works.
+        // Derive the correct hash from the algorithm field in config (e.g. "RS384" → "SHA-384")
+        // rather than always defaulting to SHA-256.
         const hash = RSA_JWK_ALG_TO_HASH[algorithm] ?? "SHA-256";
 
         const keyPair = await crypto.subtle.generateKey(
