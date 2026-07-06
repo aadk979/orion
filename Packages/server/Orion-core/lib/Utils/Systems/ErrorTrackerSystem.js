@@ -2,14 +2,20 @@ import { globalAccessPoint } from '../GlobalAccessPoint.js';
 import { logger } from '../logger.js';
 import { generateId } from '../valueGenerator.js';
 
+// Rate-based thresholds — all checked against a rolling 1-minute window
+const WINDOW_MS = 60_000;
+
 const THRESHOLDS = {
-    TOTAL_ERRORS: 1000,
+    ERRORS_PER_MINUTE: 200,
     ERROR_BURST: 50,
-    SAME_ERROR_REPEATED: 100,
-    SAME_FUNCTION_ERRORS: 200,
+    SAME_ERROR_REPEATED: 20,
+    SAME_FUNCTION_ERRORS: 40,
     RECENT_ERRORS_WARNING: 20,
     ERROR_CHAIN_LENGTH: 5
 };
+
+const RECOVERY_CHECKS_NEEDED = 2;
+const RECOVERY_INTERVAL_MS = 30_000;
 
 class ErrorTrackerSystem {
     constructor() {
@@ -19,22 +25,34 @@ class ErrorTrackerSystem {
         this._errorsTracked_errorMessage = new Map();
         this._errorsTracked_errStack = new Map();
 
-        // Analytics & Pattern Tracking
+        // Lifetime frequency counters — for reporting/export only, not threshold checks
         this._errorCountByMessage = new Map();
         this._errorCountByFunction = new Map();
         this._errorCountBySource = new Map();
         this._errorRelations = new Map();
         this._recentErrors = [];
+
+        // Rolling window for rate-based threshold evaluation
+        this._windowedErrors = [];
+
+        // Auto-recovery state
+        this._recoveryInterval = null;
+        this._recoveryStableCount = 0;
     }
 
+    // ── Threshold evaluation ────────────────────────────────────────────────────
+
     checkThresholds() {
+        const cutoff = Date.now() - WINDOW_MS;
         const violations = [];
 
-        if (this._errorsTracked_errors.length >= THRESHOLDS.TOTAL_ERRORS) {
+        this._pruneWindow(cutoff);
+
+        if (this._windowedErrors.length >= THRESHOLDS.ERRORS_PER_MINUTE) {
             violations.push({
                 level: 'CRITICAL',
-                type: 'TOTAL_ERRORS',
-                message: `Total errors (${this._errorsTracked_errors.length}) exceeded threshold`
+                type: 'ERROR_RATE',
+                message: `${this._windowedErrors.length} errors in the last minute`
             });
         }
 
@@ -47,28 +65,37 @@ class ErrorTrackerSystem {
             });
         }
 
-        for (const [msg, count] of this._errorCountByMessage.entries()) {
+        const msgCounts = new Map();
+        const funcCounts = new Map();
+        for (const e of this._windowedErrors) {
+            if (e.errorMessage) msgCounts.set(e.errorMessage, (msgCounts.get(e.errorMessage) || 0) + 1);
+            if (e.functionName) funcCounts.set(e.functionName, (funcCounts.get(e.functionName) || 0) + 1);
+        }
+
+        for (const [msg, count] of msgCounts) {
             if (count >= THRESHOLDS.SAME_ERROR_REPEATED) {
                 violations.push({
                     level: 'CRITICAL',
                     type: 'REPEATED_ERROR',
-                    message: `Error "${msg}" occurred ${count} times`
+                    message: `Error "${msg}" occurred ${count} times in the last minute`
                 });
             }
         }
 
-        for (const [func, count] of this._errorCountByFunction.entries()) {
+        for (const [func, count] of funcCounts) {
             if (count >= THRESHOLDS.SAME_FUNCTION_ERRORS) {
                 violations.push({
                     level: 'CRITICAL',
                     type: 'FUNCTION_ERRORS',
-                    message: `Function "${func}" generated ${count} errors`
+                    message: `Function "${func}" generated ${count} errors in the last minute`
                 });
             }
         }
 
         return violations;
     }
+
+    // ── Core reporting ───────────────────────────────────────────────────────────
 
     reportError(errorPackage) {
         const { functionName, functionSource, errorMessage, errStack, timestamp = Date.now() } = errorPackage;
@@ -86,16 +113,65 @@ class ErrorTrackerSystem {
         this._trackRecent(errorId, timestamp);
         this._trackRelation(errorId);
 
+        this._windowedErrors.push({ timestamp, errorMessage, functionName, functionSource });
+        if (this._windowedErrors.length > 2000) {
+            this._pruneWindow(Date.now() - WINDOW_MS);
+        }
+
         const violations = this.checkThresholds();
         const critical = violations.filter(v => v.level === 'CRITICAL');
 
         if (critical.length > 0) {
-            logger.error('ETS: System error threshholds have been reached, entering unhealthy server mode');
-
+            logger.error('ETS: System error thresholds reached — entering unhealthy server mode');
             globalAccessPoint.setValue('ETS_LOCKDOWN', true);
+            this._startAutoRecovery();
         }
 
         return { errorId, violations };
+    }
+
+    // ── Lockdown management ──────────────────────────────────────────────────────
+
+    clearLockdown() {
+        if (this._recoveryInterval) {
+            clearInterval(this._recoveryInterval);
+            this._recoveryInterval = null;
+        }
+        this._recoveryStableCount = 0;
+        globalAccessPoint.setValue('ETS_LOCKDOWN', false);
+        logger.info('ETS: Lockdown cleared — server returning to healthy mode');
+    }
+
+    _startAutoRecovery() {
+        if (this._recoveryInterval) return;
+        this._recoveryStableCount = 0;
+
+        this._recoveryInterval = setInterval(() => {
+            this._pruneWindow(Date.now() - WINDOW_MS);
+            const burst = this.getRecentErrorBursts();
+
+            const stable = burst.length < THRESHOLDS.ERROR_BURST / 2
+                        && this._windowedErrors.length < THRESHOLDS.ERRORS_PER_MINUTE / 2;
+
+            if (stable) {
+                this._recoveryStableCount++;
+                logger.info(`ETS: Recovery check ${this._recoveryStableCount}/${RECOVERY_CHECKS_NEEDED} stable`);
+            } else {
+                this._recoveryStableCount = 0;
+            }
+
+            if (this._recoveryStableCount >= RECOVERY_CHECKS_NEEDED) {
+                this.clearLockdown();
+            }
+        }, RECOVERY_INTERVAL_MS);
+    }
+
+    // ── Internal helpers ─────────────────────────────────────────────────────────
+
+    _pruneWindow(cutoff) {
+        let i = 0;
+        while (i < this._windowedErrors.length && this._windowedErrors[i].timestamp < cutoff) i++;
+        if (i > 0) this._windowedErrors.splice(0, i);
     }
 
     _trackFrequency(errorMessage, functionName, functionSource) {
@@ -111,12 +187,12 @@ class ErrorTrackerSystem {
     _trackRecent(errorId, timestamp) {
         this._recentErrors.push({ errorId, timestamp });
         if (this._recentErrors.length > 100) {
-            this._recentErrors.shift(); // keep recent error window small
+            this._recentErrors.shift();
         }
     }
 
     _trackRelation(currentErrorId) {
-        const lastError = this._errorsTracked_errors.at(-2); // previous error
+        const lastError = this._errorsTracked_errors.at(-2);
         if (!lastError) return;
 
         const prevId = lastError.errorId;
@@ -128,7 +204,7 @@ class ErrorTrackerSystem {
         relationMap.set(currentErrorId, (relationMap.get(currentErrorId) || 0) + 1);
     }
 
-    // 🔍 Analytics Methods
+    // ── Analytics ────────────────────────────────────────────────────────────────
 
     getTopErrorMessages(limit = 5) {
         return this._getTopEntries(this._errorCountByMessage, limit);
@@ -168,13 +244,14 @@ class ErrorTrackerSystem {
         };
     }
 
-    // 📊 Insight Summary — useful for dashboards or auto alerts
     getInsightSummary() {
         return {
             topErrorMessages: this.getTopErrorMessages(),
             mostErrorProneFunctions: this.getMostErrorProneFunctions(),
             mostErrorProneSources: this.getMostErrorProneSources(),
-            recentBursts: this.getRecentErrorBursts()
+            recentBursts: this.getRecentErrorBursts(),
+            errorsInLastMinute: this._windowedErrors.length,
+            lockdown: !!globalAccessPoint.getValue('ETS_LOCKDOWN')
         };
     }
 
@@ -193,7 +270,9 @@ class ErrorTrackerSystem {
             errorCountByFunction: convertMap(this._errorCountByFunction),
             errorCountBySource: convertMap(this._errorCountBySource),
 
-            errorRelations: Object.fromEntries([...this._errorRelations.entries()].map(([key, innerMap]) => [key, convertMap(innerMap)])),
+            errorRelations: Object.fromEntries(
+                [...this._errorRelations.entries()].map(([key, innerMap]) => [key, convertMap(innerMap)])
+            ),
 
             recentErrors: this._recentErrors,
             exportedAt: new Date().toISOString()

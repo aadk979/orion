@@ -254,6 +254,41 @@ class GlobalAccessPoint {
         return this.getValue('TOKEN_SECRETS_MANAGER_refresh');
     }
 
+    /**
+     * @returns {import('./Systems/CircuitBreakerSystem.js').CircuitBreakerSystem | undefined}
+     */
+    circuitBreakerSystem() {
+        return this.getValue('circuitBreakerSystem');
+    }
+
+    /**
+     * @returns {import('./Systems/EventLoopMonitor.js').EventLoopMonitor | undefined}
+     */
+    eventLoopMonitor() {
+        return this.getValue('eventLoopMonitor');
+    }
+
+    /**
+     * @returns {import('./Systems/LoadSheddingSystem.js').LoadSheddingSystem | undefined}
+     */
+    loadSheddingSystem() {
+        return this.getValue('loadSheddingSystem');
+    }
+
+    /**
+     * @returns {import('./Systems/AbuseDetectionSystem.js').AbuseDetectionSystem | undefined}
+     */
+    abuseDetectionSystem() {
+        return this.getValue('abuseDetectionSystem');
+    }
+
+    /**
+     * @returns {boolean | undefined}
+     */
+    ELM_DEGRADED() {
+        return this.getValue('ELM_DEGRADED');
+    }
+
     nameSpace() {
         return 'alpine';
     }

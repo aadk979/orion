@@ -1,140 +1,179 @@
-import { globalAccessPoint } from "./GlobalAccessPoint";
-import { logger } from "./logger";
-import { errorTrackerSystem } from "./Systems/ErrorTrackerSystem";
+import { globalAccessPoint } from './GlobalAccessPoint.js';
+import { logger } from './logger.js';
+import { errorTrackerSystem } from './Systems/ErrorTrackerSystem.js';
 
-const SAFE_MODE_OVERRIDE_INFO = '(Only system config can perform this change and requires a restart of the application)'
+const SAFE_MODE_OVERRIDE_INFO = '(Only system config can perform this change and requires a restart of the application)';
+
+const SECURITY_SYSTEMS = new Set(['captcha', 'deviceAuthorization', 'dip']);
 
 class OrionSystemsControl {
-
     constructor(safeMode) {
         if (OrionSystemsControl.instance) {
             throw new Error('Only one instance of orion systems control is allowed');
         }
 
         this.safeMode = safeMode !== undefined ? safeMode : true;
-
         OrionSystemsControl.instance = this;
 
-        globalAccessPoint.getValue("OrionSystemsControlServerLock")
+        globalAccessPoint.getValue('OrionSystemsControlServerLock');
     }
 
+    // ── Server lock ───────────────────────────────────────────────────────────────
+
     lockServer() {
-        globalAccessPoint.setValue("OrionSystemsControlServerLock", true);
+        globalAccessPoint.setValue('OrionSystemsControlServerLock', true);
+        logger.warn('SystemsControl: Server locked');
         return true;
     }
 
     unlockServer() {
-        globalAccessPoint.setValue("OrionSystemsControlServerLock", false);
+        globalAccessPoint.setValue('OrionSystemsControlServerLock', false);
+        logger.info('SystemsControl: Server unlocked');
         return true;
     }
+
+    // ── ETS access + lockdown management ─────────────────────────────────────────
 
     errorTrackerSystem() {
         return errorTrackerSystem;
     }
 
-    deactivateSystemSecurity(system) {
-
+    clearEtsLockdown() {
         if (this.safeMode) {
-
-            logger.warn(`Orion Systems Control: Unable to deactivate system "${system}" as safe mode is enabled. ${SAFE_MODE_OVERRIDE_INFO}`)
+            logger.warn(`SystemsControl: Cannot clear ETS lockdown — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
-
         }
-
-        const SUPPORTED_SYSTEMS = ["captcha", "deviceAuthorization", "dip"];
-
-        if (!SUPPORTED_SYSTEMS.includes(system)) {
-            throw new Error(`Orion Systems Control: Unable to deactivate system "${system}" as it does not exist`);
-        }
-
-        globalAccessPoint.setValue(system, false);
-
+        errorTrackerSystem.clearLockdown();
         return true;
+    }
 
+    // ── Security system toggles ────────────────────────────────────────────────
+
+    deactivateSystemSecurity(system) {
+        if (this.safeMode) {
+            logger.warn(`SystemsControl: Cannot deactivate "${system}" — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
+            return false;
+        }
+        if (!SECURITY_SYSTEMS.has(system)) {
+            throw new Error(`SystemsControl: Unknown security system "${system}"`);
+        }
+        globalAccessPoint.setValue(system, false);
+        return true;
     }
 
     reactivateSystemSecurity(system) {
-
         if (this.safeMode) {
-
-            logger.warn(`Orion Systems Control: Unable to reactivate system "${system}" as safe mode is enabled. ${SAFE_MODE_OVERRIDE_INFO}`)
+            logger.warn(`SystemsControl: Cannot reactivate "${system}" — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
-
         }
-
-        const SUPPORTED_SYSTEMS = ["captcha", "deviceAuthorization", "dip"];
-
-        if (!SUPPORTED_SYSTEMS.includes(system)) {
-            throw new Error(`Orion Systems Control: Unable to reactivate system "${system}" as it does not exist`);
+        if (!SECURITY_SYSTEMS.has(system)) {
+            throw new Error(`SystemsControl: Unknown security system "${system}"`);
         }
-
         globalAccessPoint.setValue(system, true);
-
         return true;
-
     }
 
+    // ── Memory monitor ────────────────────────────────────────────────────────────
+
     deactivateMemoryMonitoring() {
-
-        if (!globalAccessPoint.memoryMonitioringSystem().active) {
-            return;
-        }
-
-        globalAccessPoint.memoryMonitioringSystem().stop();
-
-        return;
-
+        const mm = globalAccessPoint.memoryMonitioringSystem();
+        if (!mm?.active) return;
+        mm.stop();
     }
 
     reactivateMemoryMonitoring() {
-
-        if (globalAccessPoint.memoryMonitioringSystem().active) {
-            return;
-        }
-
-        globalAccessPoint.memoryMonitioringSystem().start();
-
-        return;
-
+        const mm = globalAccessPoint.memoryMonitioringSystem();
+        if (mm?.active) return;
+        mm.start();
     }
 
+    // ── Audit trail ───────────────────────────────────────────────────────────────
+
     pauseAuditTrail() {
-
         if (this.safeMode) {
-
-            logger.warn(`Orion Systems Control: Unable to pause audit trail as safe mode is enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
+            logger.warn(`SystemsControl: Cannot pause audit trail — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
-
         }
-
-        const auditTrail = globalAccessPoint.auditTrailSystem();
-
-        if (auditTrail) {
-
-            auditTrail.enabled = false;
-
-        }
-
+        const at = globalAccessPoint.auditTrailSystem();
+        if (at) at.enabled = false;
         return true;
     }
 
     resumeAuditTrail() {
-
         if (this.safeMode) {
-
-            logger.warn(`Orion Systems Control: Unable to resume audit trail as safe mode is enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
+            logger.warn(`SystemsControl: Cannot resume audit trail — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
-
         }
-
-        const auditTrail = globalAccessPoint.auditTrailSystem();
-
-        if (auditTrail) {
-
-            auditTrail.enabled = true;
-
-        }
-
+        const at = globalAccessPoint.auditTrailSystem();
+        if (at) at.enabled = true;
         return true;
     }
+
+    // ── Circuit breaker ────────────────────────────────────────────────────────────
+
+    resetCircuitBreaker(dependency) {
+        if (this.safeMode) {
+            logger.warn(`SystemsControl: Cannot reset circuit breaker — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
+            return false;
+        }
+        globalAccessPoint.circuitBreakerSystem()?.forceClose(dependency);
+        return true;
+    }
+
+    openCircuitBreaker(dependency) {
+        globalAccessPoint.circuitBreakerSystem()?.forceOpen(dependency);
+        return true;
+    }
+
+    // ── Load shedding ──────────────────────────────────────────────────────────────
+
+    setMaxInFlight(limit) {
+        if (this.safeMode) {
+            logger.warn(`SystemsControl: Cannot change in-flight limit — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
+            return false;
+        }
+        globalAccessPoint.loadSheddingSystem()?.setMaxInFlight(limit);
+        return true;
+    }
+
+    // ── Abuse detection ────────────────────────────────────────────────────────────
+
+    unblockActor(actorId) {
+        if (this.safeMode) {
+            logger.warn(`SystemsControl: Cannot unblock actor — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
+            return false;
+        }
+        globalAccessPoint.abuseDetectionSystem()?.unblock(actorId);
+        return true;
+    }
+
+    // ── Event loop monitor ─────────────────────────────────────────────────────────
+
+    deactivateEventLoopMonitor() {
+        globalAccessPoint.eventLoopMonitor()?.stop();
+    }
+
+    reactivateEventLoopMonitor() {
+        globalAccessPoint.eventLoopMonitor()?.start();
+    }
+
+    // ── Unified status snapshot ────────────────────────────────────────────────────
+
+    getSystemStatus() {
+        return {
+            safeMode: this.safeMode,
+            serverLocked: !!globalAccessPoint.getValue('OrionSystemsControlServerLock'),
+            etsLockdown: !!globalAccessPoint.ETS_LOCKDOWN(),
+            elmDegraded: !!globalAccessPoint.getValue('ELM_DEGRADED'),
+            security: Object.fromEntries([...SECURITY_SYSTEMS].map(s => [s, !!globalAccessPoint.getValue(s)])),
+            circuitBreakers: globalAccessPoint.circuitBreakerSystem()?.getAllStates() || {},
+            loadShedder: globalAccessPoint.loadSheddingSystem()?.getStats() || null,
+            abuseDetection: globalAccessPoint.abuseDetectionSystem()?.getStats() || null,
+            errorTracker: errorTrackerSystem.getInsightSummary(),
+            memoryMonitor: globalAccessPoint.memoryMonitioringSystem()?.getMemoryStats() || null,
+            eventLoop: globalAccessPoint.eventLoopMonitor()?.getStats() || null
+        };
+    }
 }
+
+export { OrionSystemsControl };

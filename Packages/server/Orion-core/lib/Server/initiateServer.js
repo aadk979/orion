@@ -27,6 +27,14 @@ import { requestMetadataMiddleware } from './Middleware/requestMetadata.js';
 import { AuditTrailSystem } from '../Utils/Systems/AuditTrailSystem.js';
 import { resourceAccessMiddleware } from './Middleware/resourceAccess.js';
 import { serverUtilitiesMiddleware } from './Middleware/serverUtilities.js';
+import { circuitBreakerSystem } from '../Utils/Systems/CircuitBreakerSystem.js';
+import { EventLoopMonitor } from '../Utils/Systems/EventLoopMonitor.js';
+import { LoadSheddingSystem } from '../Utils/Systems/LoadSheddingSystem.js';
+import { abuseDetectionSystem } from '../Utils/Systems/AbuseDetectionSystem.js';
+import { GracefulShutdownSystem } from '../Utils/Systems/GracefulShutdownSystem.js';
+import { OrionSystemsControl } from '../Utils/SystemsControl.js';
+import { loadSheddingMiddleware } from './Middleware/loadSheddingMiddleware.js';
+import { abuseCheckMiddleware } from './Middleware/abuseCheckMiddleware.js';
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
@@ -52,9 +60,11 @@ const buildMiddlewarePipeline = systemConfig => {
         serverUtilitiesMiddleware,
         requestMetadataMiddleware,
         serverStatusMiddlware,
+        loadSheddingMiddleware,
         resourceAccessMiddleware,
         OriginVerifier.verifyOrigin,
         HeaderParser.verifyHeader,
+        abuseCheckMiddleware,
         authenticationMiddleware,
         dipMiddleware,
         decryptionMiddleware,
@@ -171,6 +181,32 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         // Initialize audit trail system (creates database and tables if needed)
         await auditTrailSystem.initialize();
 
+        // Init circuit breaker, load shedder, abuse detection (singletons — already instantiated)
+        globalAccessPoint.setValue('circuitBreakerSystem', circuitBreakerSystem);
+        globalAccessPoint.setValue('abuseDetectionSystem', abuseDetectionSystem);
+
+        const loadSheddingSystemInstance = new LoadSheddingSystem(
+            systemConfig?.utilities?.loadShedding || {}
+        );
+        globalAccessPoint.setValue('loadSheddingSystem', loadSheddingSystemInstance);
+
+        const eventLoopMonitorInstance = new EventLoopMonitor(
+            systemConfig?.utilities?.eventLoopMonitor?.enabled ?? true,
+            systemConfig?.utilities?.eventLoopMonitor || {}
+        );
+        eventLoopMonitorInstance.start();
+        globalAccessPoint.setValue('eventLoopMonitor', eventLoopMonitorInstance);
+
+        // Init systems control and register in GAP for graceful shutdown access
+        const orionSystemsControl = new OrionSystemsControl(
+            systemConfig?.utilities?.safeMode ?? true
+        );
+        globalAccessPoint.setValue('orionSystemsControl', orionSystemsControl);
+
+        // Init graceful shutdown — must be last so all systems are registered in GAP
+        const gracefulShutdown = new GracefulShutdownSystem();
+        gracefulShutdown.register();
+
         globalAccessPoint.setValue('server', { lockdown: false });
 
         await handleOnStartConfiguration();
@@ -192,9 +228,9 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
 
         memoryMonitioringSystem.purgeSystemConfigPostSetup();
 
-        logger.info(`✅ Service "${mergedConfig.app.appName || 'Unnamed'}" ready`);
-        logger.info(`🆔 Service ID: ${mergedConfig.app.serviceID}`);
-        logger.info(`🌐 Listening on port: ${mergedConfig.app.port || 'Not Set (dev?)'}`);
+        logger.info(`Service "${mergedConfig.app.appName || 'Unnamed'}" ready`);
+        logger.info(`Service ID: ${mergedConfig.app.serviceID}`);
+        logger.info(`Listening on port: ${mergedConfig.app.port || 'Not Set (dev?)'}`);
 
         return { app, dbManager, PORT: mergedConfig.app.port || 58944 };
     } catch (err) {

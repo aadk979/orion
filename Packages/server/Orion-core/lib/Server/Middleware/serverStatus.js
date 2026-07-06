@@ -10,7 +10,7 @@ const serverStatusMiddlware = (request, response, next) => {
     }
 
     if (etsLockdown) {
-        return respondWithError(response, 'SERVER-UNHEALTHY');
+        return respondWithError(response, 'SERVER-UNHEALTHY');  // now defined in Errors/System/system.js
     }
 
     const systemsReady = globalAccessPoint.volatileSecretsManager().ready();

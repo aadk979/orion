@@ -13,30 +13,40 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
 
     if (path.startsWith('/server-utilities')) {
         if (path.startsWith('/server-utilities/health')) {
-
-            const memData = globalAccessPoint.memoryMonitioringSystem().getMemoryStats();
-
             const etsLockdown = globalAccessPoint.ETS_LOCKDOWN();
+            const elmDegraded = !!globalAccessPoint.getValue('ELM_DEGRADED');
+            const serverLocked = !!globalAccessPoint.getValue('OrionSystemsControlServerLock');
+
+            const overallStatus = serverLocked ? 'LOCKED' : etsLockdown ? 'UNHEALTHY' : elmDegraded ? 'DEGRADED': 'OK';
 
             const timeOfLife = globalAccessPoint.timeOfLife();
-
             const uptime = formatTime((getCurrentUnixTime() - timeOfLife) * 1000);
 
             const returnData = {
                 alive: true,
-                status: etsLockdown ? 'UNHEALTHY' : 'OK',
+                status: overallStatus,
                 serverLockdownStatus: server,
-                serviceId: systemConfig.serviceID,
-                memoryUsage: memData,
+                serviceId: systemConfig?.app?.serviceID || systemConfig?.serviceID,
                 uptime,
                 timestamp: getCurrentUnixTime(),
-                orionSystemInfo: {
-                    __Version__,
-                    __Status__
-                },
-                errors: errorTrackerSystem.massExport()
+                orionSystemInfo: { __Version__, __Status__ },
+                memory: globalAccessPoint.memoryMonitioringSystem()?.getMemoryStats() || null,
+                eventLoop: globalAccessPoint.eventLoopMonitor()?.getStats() || null,
+                loadShedder: globalAccessPoint.loadSheddingSystem()?.getStats() || null,
+                circuitBreakers: globalAccessPoint.circuitBreakerSystem()?.getAllStates() || {},
+                abuseDetection: globalAccessPoint.abuseDetectionSystem()?.getStats() || null,
+                errors: errorTrackerSystem.getInsightSummary()
             };
 
+            response.status(200).json(returnData);
+            return;
+        }
+
+        if (path.startsWith('/server-utilities/health/full')) {
+            const returnData = {
+                errors: errorTrackerSystem.massExport(),
+                systemStatus: globalAccessPoint.getValue('orionSystemsControl')?.getSystemStatus() || null
+            };
             response.status(200).json(returnData);
             return;
         }
