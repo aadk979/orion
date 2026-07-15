@@ -21,8 +21,6 @@ const endpointSchemas = {
         captchaSystemVersion: Joi.string().valid('[orion:v1]-[1.0.0]-[BETA]').required()
     }),
     [`/${NAME_SPACE}/api/v1/request/have-no-auth-token`]: Joi.object().max(0),
-    [`/${NAME_SPACE}/api/v1/request/encryption-request-key`]: Joi.object().max(0),
-    [`/${NAME_SPACE}/api/v1/action/configure-dip`]: Joi.object().max(0),
     [`/${NAME_SPACE}/api/v1/action/generate-passkey-registration-options`]: Joi.object().max(0),
     [`/${NAME_SPACE}/api/v1/action/complete-passkey-registration`]: Joi.object({
         registrationResponse: Joi.object().min(1).required()

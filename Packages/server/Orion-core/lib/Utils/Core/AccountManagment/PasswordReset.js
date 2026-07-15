@@ -14,11 +14,15 @@ import { parseCookieData, stringifyCookieData } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { userControl } from './UserControl.js';
 import { getDeviceDetails } from '../../Device.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'PasswordReset.js');
+
 
 const createPasswordResetRequest = async (email, ip, userAgent) => {
     const Function = async parameters => {
         const to = parameters.email.toLowerCase();
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         const sanitizedEmail = sanitizeString(to);
@@ -31,14 +35,14 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
             const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
-                return { error: true, errorCode: 'EMAIL-DOMAIN-NOT-ALLOWED' };
+                return { error: true, errorCode: 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p' };
             }
         }
 
         const uid = await UserModel.getUidByEmail(sanitizedEmail);
 
         if (!uid) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const code = generateRandomNumber(6);
@@ -103,7 +107,7 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
 
 const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, userAgent) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         const cleanReqId = parseCookieData(parameters.reqId);
@@ -125,7 +129,7 @@ const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, us
         }
 
         if (!(await isIpInRange(parameters.ip, record.ip_range))) {
-            return { error: true, errorCode: 'ACC-PASSWORD-RESET-IP-MISMATCH' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::PASSWORD-RESET-IP-MISMATCH::A::p' };
         }
 
         if (!(await verifyHash(cleanCode, record.code_hash))) {
@@ -135,7 +139,7 @@ const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, us
         const userExists = await UserModel.uidExists(record.user_uid);
 
         if (!userExists) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const passwordUpdate = await userControl.updateUserPassword(record.user_uid, parameters.newPassword);

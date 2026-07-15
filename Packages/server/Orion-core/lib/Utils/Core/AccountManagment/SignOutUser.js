@@ -1,9 +1,12 @@
 import { respondWithSuccess } from '../../../Server/Response/response.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignOutUser.js');
+
 
 const routeHandlerSignOutUser = async (request, response) => {
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
 
     if (request.user) {

@@ -85,11 +85,9 @@ const rateLimitPolicy = {
 
         // ── Session management ───────────────────────────────────────────
         [`POST /${NAME_SPACE}/api/v1/action/sign-out-user`]:                         { cost: 1 },
-        [`POST /${NAME_SPACE}/api/v1/action/configure-dip`]:                         { cost: 2 },
 
         // ── Read-only / lightweight ──────────────────────────────────────
         [`POST /${NAME_SPACE}/api/v1/request/have-no-auth-token`]:                   { cost: 1 },
-        [`POST /${NAME_SPACE}/api/v1/request/encryption-request-key`]:               { cost: 1 },
         [`POST /${NAME_SPACE}/api/v1/request/available-2fa-methods`]:                { cost: 1 }
     },
 

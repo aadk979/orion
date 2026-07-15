@@ -1,37 +1,97 @@
 import axios from 'axios';
+import https from 'https';
 import jwt from 'jsonwebtoken'; // or jose; adjust as needed
 import jwkToPem from 'jwk-to-pem'; // or use jose JWK utilities
 import { logger } from '../../logger.js';
 
+// Shared HTTP client: bounded timeouts + keep-alive so provider calls
+// cannot hang a worker indefinitely and TLS handshakes are reused.
+const HTTP_TIMEOUT_MS = 10 * 1000;
+const httpClient = axios.create({
+    timeout: HTTP_TIMEOUT_MS,
+    httpsAgent: new https.Agent({ keepAlive: true })
+});
+
+const MS_MULTITENANT_ISSUER = 'https://login.microsoftonline.com/{tenantid}/v2.0';
+const MS_ISSUER_PATTERN = /^https:\/\/login\.microsoftonline\.com\/[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\/v2\.0$/;
+
+// Fallback allowlist for config-defined providers that do not pin their own algs
+const DEFAULT_ID_TOKEN_ALGS = ['RS256', 'ES256'];
+
 /**
  * Utility: fetch and cache JWKS per issuer
+ * - Coalesces concurrent fetches (no thundering herd on cold/expired cache)
+ * - Refetches once on kid miss (key rotation) with a cooldown
+ * - Caches the jwk->PEM conversion per kid
  */
 class JwksCache {
     constructor() {
-        this.cache = new Map(); // issuer -> { keys, fetchedAt }
+        this.cache = new Map(); // issuer -> { keys, pems: Map(kid -> pem), fetchedAt }
+        this.inFlight = new Map(); // issuer -> Promise<keys>
         this.ttlMs = 10 * 60 * 1000; // 10 minutes
+        this.refetchCooldownMs = 30 * 1000; // min gap between rotation-triggered refetches
+    }
+
+    async fetchKeys(jwksUri, issuer) {
+        const pending = this.inFlight.get(issuer);
+        if (pending) {
+            return pending;
+        }
+
+        const promise = (async () => {
+            const res = await httpClient.get(jwksUri);
+            const keys = Array.isArray(res.data?.keys) ? res.data.keys : [];
+            this.cache.set(issuer, { keys, pems: new Map(), fetchedAt: Date.now() });
+            return keys;
+        })().finally(() => this.inFlight.delete(issuer));
+
+        this.inFlight.set(issuer, promise);
+        return promise;
     }
 
     async getKeys(jwksUri, issuer) {
-        const now = Date.now();
         const cached = this.cache.get(issuer);
-        if (cached && now - cached.fetchedAt < this.ttlMs) {
+        if (cached && Date.now() - cached.fetchedAt < this.ttlMs) {
             return cached.keys;
         }
+        return this.fetchKeys(jwksUri, issuer);
+    }
 
-        const res = await axios.get(jwksUri);
-        this.cache.set(issuer, { keys: res.data.keys || [], fetchedAt: now });
-        return res.data.keys || [];
+    selectKey(keys, kid) {
+        const signingKeys = keys.filter(k => k.use !== 'enc');
+        if (kid) {
+            return signingKeys.find(k => k.kid === kid) || null;
+        }
+        // Without a kid we can only proceed safely when there is exactly one candidate
+        return signingKeys.length === 1 ? signingKeys[0] : null;
     }
 
     async getKey(jwksUri, issuer, kid) {
-        const keys = await this.getKeys(jwksUri, issuer);
-        // If kid is present, match; otherwise fall back to first signing key
-        const jwk = kid ? keys.find(k => k.kid === kid) : keys[0];
+        let keys = await this.getKeys(jwksUri, issuer);
+        let jwk = this.selectKey(keys, kid);
+
+        // kid miss usually means the provider rotated keys; force one refetch,
+        // rate-limited so bad tokens cannot hammer the JWKS endpoint
+        if (!jwk) {
+            const cached = this.cache.get(issuer);
+            if (!cached || Date.now() - cached.fetchedAt > this.refetchCooldownMs) {
+                keys = await this.fetchKeys(jwksUri, issuer);
+                jwk = this.selectKey(keys, kid);
+            }
+        }
+
         if (!jwk) {
             throw new Error(`No matching JWK for issuer ${issuer} kid=${kid || 'none'}`);
         }
-        return jwkToPem(jwk);
+
+        const entry = this.cache.get(issuer);
+        const pemKey = jwk.kid || '__default__';
+        let pem = entry?.pems.get(pemKey);
+        if (!pem) {
+            pem = jwkToPem(jwk);
+            entry?.pems.set(pemKey, pem);
+        }
+        return pem;
     }
 }
 
@@ -41,6 +101,11 @@ class OAuthProviderToolkit {
     constructor(config) {
         // Proper singleton: reuse existing instance
         if (OAuthProviderToolkit.instance) {
+            if (config && config !== OAuthProviderToolkit.instance.config) {
+                logger.warn(
+                    'OAuthProviderToolkit is already instantiated; the new config passed to this constructor is ignored. Restart the server to change OAuth configuration.'
+                );
+            }
             return OAuthProviderToolkit.instance;
         }
 
@@ -57,6 +122,7 @@ class OAuthProviderToolkit {
                 userInfoUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
                 jwksUri: 'https://www.googleapis.com/oauth2/v3/certs',
                 issuer: 'https://accounts.google.com',
+                idTokenAlgs: ['RS256'],
                 scope: 'openid email profile',
                 requiresPKCE: true
             },
@@ -90,7 +156,8 @@ class OAuthProviderToolkit {
                 userInfoUrl: 'https://graph.microsoft.com/v1.0/me',
                 // OIDC metadata
                 jwksUri: 'https://login.microsoftonline.com/common/discovery/v2.0/keys',
-                issuer: 'https://login.microsoftonline.com/{tenantid}/v2.0', // we relax tenant match
+                issuer: MS_MULTITENANT_ISSUER, // tenant issuer is validated against MS_ISSUER_PATTERN
+                idTokenAlgs: ['RS256'],
                 scope: 'openid email profile User.Read',
                 requiresPKCE: true
             },
@@ -98,7 +165,8 @@ class OAuthProviderToolkit {
                 // Update to a currently supported version; your app can override via config
                 authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
                 tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token',
-                userInfoUrl: 'https://graph.facebook.com/me',
+                // Facebook only returns id+name by default; fields must be requested explicitly
+                userInfoUrl: 'https://graph.facebook.com/v19.0/me?fields=id,name,email,picture.width(256)',
                 scope: 'email,public_profile',
                 requiresPKCE: true
             },
@@ -116,6 +184,7 @@ class OAuthProviderToolkit {
                 userInfoUrl: null,
                 jwksUri: 'https://appleid.apple.com/auth/keys',
                 issuer: 'https://appleid.apple.com',
+                idTokenAlgs: ['RS256'],
                 scope: 'email name',
                 specialHandling: 'apple',
                 requiresPKCE: true
@@ -133,6 +202,7 @@ class OAuthProviderToolkit {
                 userInfoUrl: 'https://api.linkedin.com/v2/userinfo',
                 jwksUri: 'https://www.linkedin.com/oauth/openid/jwks',
                 issuer: 'https://www.linkedin.com',
+                idTokenAlgs: ['RS256'],
                 scope: 'openid profile email',
                 requiresPKCE: true
             },
@@ -158,24 +228,48 @@ class OAuthProviderToolkit {
     }
 
     /**
+     * Build provider metadata entirely from config.
+     * Used for providers without built-in metadata (e.g. authcore / custom OIDC).
+     */
+    buildProviderFromConfig(config) {
+        if (!config.authUrl || !config.tokenUrl || (!config.userInfoUrl && !config.jwksUri)) {
+            return null;
+        }
+        return {
+            authUrl: config.authUrl,
+            tokenUrl: config.tokenUrl,
+            userInfoUrl: config.userInfoUrl || null,
+            ...(config.jwksUri && { jwksUri: config.jwksUri }),
+            ...(config.issuer && { issuer: config.issuer }),
+            idTokenAlgs: config.idTokenAlgs || DEFAULT_ID_TOKEN_ALGS,
+            scope: config.scope || 'openid email profile',
+            requiresPKCE: config.requiresPKCE !== false
+        };
+    }
+
+    /**
      * Initialize a specific provider
+     * Returns: true on success, false when skipped (no config / not allowed),
+     * or an { error, errorCode } object on failure.
      */
     async initializeProvider(providerName) {
-        const provider = this.providers[providerName];
         const config = this.config[providerName];
+        if (!config) return false;
 
-        if (!this.allowedClients.includes(providerName) && !config?.explicitAllow) {
-            return;
+        if (!this.allowedClients.includes(providerName) && !config.explicitAllow) {
+            return false;
         }
 
-        if (!config) return false;
+        const provider = this.providers[providerName] || this.buildProviderFromConfig(config);
         if (!provider) {
-            logger.error(`Provider ${providerName} is not supported`);
-            return { error: true, errorCode: 'O-AUTH-UNSUPPORTED-PROVIDER' };
+            logger.error(
+                `Provider ${providerName} is not supported and no complete endpoint configuration (authUrl, tokenUrl, userInfoUrl/jwksUri) was supplied`
+            );
+            return { error: true, errorCode: 'OAUTH::UNSUPPORTED-PROVIDER::A::p' };
         }
         if (!config.clientId || !config.clientSecret || !config.redirectUri) {
             logger.error(`Provider ${providerName} has incomplete configuration`);
-            return { error: true, errorCode: 'O-AUTH-INVALID-PROVIDER-CONFIG' };
+            return { error: true, errorCode: 'OAUTH::INVALID-PROVIDER-CONFIG::A::i' };
         }
 
         this.clients[providerName] = {
@@ -183,9 +277,11 @@ class OAuthProviderToolkit {
             clientId: config.clientId,
             clientSecret: config.clientSecret,
             redirectUri: config.redirectUri,
-            // Optional overrides: jwksUri, issuer, etc.
+            // Optional overrides: jwksUri, issuer, scope, etc.
             ...(config.jwksUri && { jwksUri: config.jwksUri }),
-            ...(config.issuer && { issuer: config.issuer })
+            ...(config.issuer && { issuer: config.issuer }),
+            ...(config.scope && { scope: config.scope }),
+            ...(config.idTokenAlgs && { idTokenAlgs: config.idTokenAlgs })
         };
 
         logger.info(`Initialized OAuth provider: ${providerName}`);
@@ -194,12 +290,12 @@ class OAuthProviderToolkit {
 
     /**
      * Generate authorization URL for any provider
-     * PKCE values are provided by the caller to keep the outward API compatible.
+     * PKCE values (and OIDC nonce) are provided by the caller to keep the outward API compatible.
      */
     generateAuthUrl(providerName, state = null, pkce = {}) {
         const client = this.clients[providerName];
         if (!client) {
-            return { error: true, errorCode: 'O-AUTH-PROVIDER-NOT-INITIALIZED' };
+            return { error: true, errorCode: 'OAUTH::PROVIDER-NOT-INITIALIZED::A::i' };
         }
 
         const params = new URLSearchParams({
@@ -218,13 +314,18 @@ class OAuthProviderToolkit {
 
         if (client.specialHandling === 'apple') {
             params.append('response_mode', 'form_post');
-            params.append('response_type', 'code id_token');
+            params.set('response_type', 'code id_token');
         }
 
         // PKCE support: caller passes code_challenge and method
         if (client.requiresPKCE && pkce.codeChallenge && pkce.codeChallengeMethod) {
             params.append('code_challenge', pkce.codeChallenge);
             params.append('code_challenge_method', pkce.codeChallengeMethod);
+        }
+
+        // OIDC nonce: binds the eventual id_token to this authorization request
+        if (pkce.nonce && client.jwksUri) {
+            params.append('nonce', pkce.nonce);
         }
 
         return { error: false, redirectURL: `${client.authUrl}?${params.toString()}` };
@@ -237,7 +338,7 @@ class OAuthProviderToolkit {
     async handleCallback(providerName, code, state = null, pkce = {}, idTokenFromCallback = null) {
         const client = this.clients[providerName];
         if (!client) {
-            return { error: true, errorCode: 'O-AUTH-PROVIDER-NOT-INITIALIZED' };
+            return { error: true, errorCode: 'OAUTH::PROVIDER-NOT-INITIALIZED::A::i' };
         }
 
         const tokenResponse = await this.exchangeCodeForToken(providerName, client, code, pkce);
@@ -246,9 +347,9 @@ class OAuthProviderToolkit {
         }
 
         const accessToken =
-            providerName !== 'slack'
-                ? tokenResponse.access_token
-                : tokenResponse.authed_user?.access_token;
+            client.specialHandling === 'slack'
+                ? tokenResponse.authed_user?.access_token
+                : tokenResponse.access_token;
 
         // Prefer id_token from tokenResponse, but allow external submission (Apple)
         const rawIdToken = tokenResponse.id_token || idTokenFromCallback || null;
@@ -261,11 +362,22 @@ class OAuthProviderToolkit {
                 normalizedUser = this.normalizeFromIdToken(providerName, verified);
             } catch (e) {
                 logger.error(`Failed to verify id_token for ${providerName}: ${e.message}`);
-                // fallback to userinfo below
+                // fallback to userinfo below (when the provider has a userinfo endpoint)
             }
         }
 
         if (!normalizedUser) {
+            // Providers without a userinfo endpoint (e.g. Apple) have no fallback:
+            // if the id_token could not be verified, the identity cannot be trusted.
+            if (!client.userInfoUrl) {
+                return { error: true, errorCode: 'OAUTH::ID-TOKEN-VERIFICATION-FAILED::A::i' };
+            }
+
+            if (!accessToken) {
+                logger.error(`No access token returned by ${providerName}`);
+                return { error: true, errorCode: 'OAUTH::TOKEN-EXCHANGE-FAILED::A::i' };
+            }
+
             const userInfoResponse = await this.getUserInfo(providerName, client, accessToken);
             if (userInfoResponse?.error) {
                 return userInfoResponse;
@@ -276,6 +388,15 @@ class OAuthProviderToolkit {
                 accessToken,
                 client
             );
+            if (normalizedUser?.error) {
+                return normalizedUser;
+            }
+        }
+
+        // An identity without a stable provider id is unusable downstream
+        if (!normalizedUser?.id) {
+            logger.error(`Provider ${providerName} returned an identity without an id`);
+            return { error: true, errorCode: 'OAUTH::USERINFO-FETCH-FAILED::A::i' };
         }
 
         return {
@@ -325,13 +446,23 @@ class OAuthProviderToolkit {
         }
 
         try {
-            const response = await axios.post(client.tokenUrl, params.toString(), { headers });
-            return response.data;
+            const response = await httpClient.post(client.tokenUrl, params.toString(), { headers });
+            const data = response.data;
+
+            // Some providers (GitHub, Slack) report failures with HTTP 200 + error body
+            if (data?.error || (client.specialHandling === 'slack' && data?.ok === false)) {
+                logger.error(
+                    `Token exchange rejected for ${providerName}: ${data.error || data.error_description || 'ok=false'}`
+                );
+                return { error: true, errorCode: 'OAUTH::TOKEN-EXCHANGE-FAILED::A::i' };
+            }
+
+            return data;
         } catch (error) {
             logger.error(
                 `Token exchange failed for ${providerName}: ${error.response?.status} ${error.message}`
             );
-            return { error: true, errorCode: 'O-AUTH-TOKEN-EXCHANGE-FAILED' };
+            return { error: true, errorCode: 'OAUTH::TOKEN-EXCHANGE-FAILED::A::i' };
         }
     }
 
@@ -345,18 +476,25 @@ class OAuthProviderToolkit {
         }
 
         try {
-            const userResponse = await axios.get(client.userInfoUrl, {
+            const userResponse = await httpClient.get(client.userInfoUrl, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                     ...(providerName === 'reddit' && { 'User-Agent': 'Orion-OAuth/1.0' })
                 }
             });
+
+            // Slack reports failures with HTTP 200 + ok:false
+            if (client.specialHandling === 'slack' && userResponse.data?.ok === false) {
+                logger.error(`UserInfo fetch rejected for ${providerName}: ${userResponse.data.error}`);
+                return { error: true, errorCode: 'OAUTH::USERINFO-FETCH-FAILED::A::i' };
+            }
+
             return { raw: userResponse.data };
         } catch (error) {
             logger.error(
                 `UserInfo fetch failed for ${providerName}: ${error.response?.status} ${error.message}`
             );
-            return { error: true, errorCode: 'O-AUTH-USERINFO-FAILED' };
+            return { error: true, errorCode: 'OAUTH::USERINFO-FETCH-FAILED::A::i' };
         }
     }
 
@@ -372,8 +510,10 @@ class OAuthProviderToolkit {
         const kid = decodedHeader.header.kid;
         const alg = decodedHeader.header.alg;
 
-        if (!alg || !alg.startsWith('RS') && !alg.startsWith('ES')) {
-            throw new Error(`Unsupported JWS alg: ${alg}`);
+        // Enforce a per-provider algorithm allowlist rather than trusting the token header
+        const allowedAlgs = client.idTokenAlgs || DEFAULT_ID_TOKEN_ALGS;
+        if (!alg || !allowedAlgs.includes(alg)) {
+            throw new Error(`Disallowed JWS alg: ${alg}`);
         }
 
         const issuer = client.issuer;
@@ -381,25 +521,29 @@ class OAuthProviderToolkit {
             throw new Error('Missing issuer or jwksUri for provider');
         }
 
+        // Hybrid-flow id_tokens (Apple form_post) rely on nonce for replay protection
+        if (client.specialHandling === 'apple' && !pkce.nonce) {
+            throw new Error('Missing nonce for Apple id_token verification');
+        }
+
         const publicKey = await jwksCache.getKey(client.jwksUri, issuer, kid);
 
+        const isMsMultiTenant = issuer === MS_MULTITENANT_ISSUER;
+
         const options = {
-            algorithms: [alg],
-            issuer: issuer === 'https://login.microsoftonline.com/{tenantid}/v2.0'
-                ? undefined // relax issuer check for multi-tenant unless overridden
+            algorithms: allowedAlgs,
+            issuer: isMsMultiTenant
+                ? undefined // multi-tenant issuer is validated manually below
                 : issuer,
             audience: client.clientId,
             ...(pkce.nonce && { nonce: pkce.nonce })
         };
 
-        // For MS multi-tenant we do audience only and manual iss check
         const payload = jwt.verify(idToken, publicKey, options);
 
-        if (
-            issuer === 'https://login.microsoftonline.com/{tenantid}/v2.0' &&
-            typeof payload.iss === 'string' &&
-            !payload.iss.endsWith('/v2.0')
-        ) {
+        // For MS multi-tenant the issuer must still be a real Microsoft tenant issuer.
+        // Pin a single tenant by overriding `issuer` in the provider config.
+        if (isMsMultiTenant && !MS_ISSUER_PATTERN.test(payload.iss || '')) {
             throw new Error('Unexpected issuer for Microsoft id_token');
         }
 
@@ -456,6 +600,11 @@ class OAuthProviderToolkit {
      * Normalize user information across different providers (userinfo-based)
      */
     async normalizeUserInfo(providerName, userData, accessToken, client) {
+        if (!userData) {
+            logger.error(`Empty userinfo payload for ${providerName}`);
+            return { error: true, errorCode: 'OAUTH::USERINFO-FETCH-FAILED::A::i' };
+        }
+
         switch (providerName) {
             case 'google':
                 return {
@@ -470,7 +619,7 @@ class OAuthProviderToolkit {
                 let email = userData.email;
                 if (!email && client.emailUrl) {
                     try {
-                        const emailResponse = await axios.get(client.emailUrl, {
+                        const emailResponse = await httpClient.get(client.emailUrl, {
                             headers: { Authorization: `Bearer ${accessToken}` }
                         });
                         const primaryEmail = emailResponse.data.find(
@@ -484,7 +633,7 @@ class OAuthProviderToolkit {
                     }
                 }
                 return {
-                    id: userData.id.toString(),
+                    id: userData.id != null ? userData.id.toString() : null,
                     email,
                     name: userData.name || userData.login,
                     picture: userData.avatar_url,
@@ -513,7 +662,7 @@ class OAuthProviderToolkit {
                 };
 
             case 'facebook': {
-                // userData expected to already have fields=id,name,email,picture
+                // userInfoUrl requests fields=id,name,email,picture explicitly
                 return {
                     id: userData.id,
                     email: userData.email || null,
@@ -553,14 +702,17 @@ class OAuthProviderToolkit {
                     verified: userData.email_verified !== false
                 };
 
-            case 'twitter':
+            case 'twitter': {
+                const twitterUser = userData.data || {};
                 return {
-                    id: userData.data.id,
+                    id: twitterUser.id || null,
                     email: null, // OAuth2 /2 APIs do not surface email
-                    name: userData.data.name,
-                    picture: userData.data.profile_image_url,
-                    verified: userData.data.verified || false
+                    name: twitterUser.name || null,
+                    picture: twitterUser.profile_image_url || null,
+                    // `verified` here would be the blue-check badge, NOT email verification
+                    verified: false
                 };
+            }
 
             case 'linkedin':
                 return {
@@ -599,7 +751,14 @@ class OAuthProviderToolkit {
                 };
 
             default:
-                return userData;
+                // Generic OIDC-ish mapping: never leak raw provider data past this layer
+                return {
+                    id: userData.sub || userData.id || null,
+                    email: userData.email || null,
+                    name: userData.name || null,
+                    picture: userData.picture || null,
+                    verified: userData.email_verified === true
+                };
         }
     }
 
@@ -614,14 +773,14 @@ class OAuthProviderToolkit {
 
         const promises = configuredProviders.map(async provider => {
             try {
-                if (!this.allowedClients.includes(provider)) {
+                const initialized = await this.initializeProvider(provider);
+                if (initialized === true) return provider;
+
+                if (!this.allowedClients.includes(provider) && !this.config[provider]?.explicitAllow) {
                     logger.warn(
-                        `Intialization of provider ${provider} has been disabled in this release as it has not been fully tested. You may manually override this by setting explicit allow in the config object for the specific provider.`
+                        `Initialization of provider ${provider} has been disabled in this release as it has not been fully tested. You may manually override this by setting explicit allow in the config object for the specific provider.`
                     );
                 }
-
-                const initialized = await this.initializeProvider(provider);
-                if (initialized !== false) return provider;
             } catch (error) {
                 logger.error(`Failed to initialize ${provider}: ${error.message}`);
             }

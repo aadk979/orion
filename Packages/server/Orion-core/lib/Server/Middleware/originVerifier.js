@@ -23,11 +23,11 @@ class originVerifier {
 
             // HTTPS enforcement
             if (originVerifier.systemConfig.client.enforceHTTPS && origin && new URL(origin).protocol !== 'https:' && false) {
-                return respondWithError(response, 'INVALID-PROTOCOL');
+                return respondWithError(response, 'GENERAL::INVALID-PROTOCOL::A::p');
             }
 
             if (!origin) {
-                return respondWithError(response, 'UNKNOWN-ORIGIN');
+                return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
             }
 
             const hostname = new URL(origin).host;
@@ -41,10 +41,10 @@ class originVerifier {
                 return next();
             }
 
-            return respondWithError(response, 'UNKNOWN-ORIGIN');
+            return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
         } catch (e) {
             logger.error('Origin verification error:', e);
-            return respondWithError(response, 'INTERNAL-SERVER-ERROR');
+            return respondWithError(response, 'SYSTEM::INTERNAL-ERROR::A::i');
         }
     }
 

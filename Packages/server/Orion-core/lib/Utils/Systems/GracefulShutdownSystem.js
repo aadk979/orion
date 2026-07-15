@@ -1,5 +1,13 @@
 import { logger } from '../logger.js';
 import { globalAccessPoint } from '../GlobalAccessPoint.js';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const dbModule = new SafeModuleHandler('Database', 'db', 'GracefulShutdownSystem.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'GracefulShutdownSystem.js');
+const memoryMonitoringSystemModule = new SafeModuleHandler('MemoryMonitoringSystem', 'memoryMonitioringSystem', 'GracefulShutdownSystem.js');
+const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventLoopMonitor', 'GracefulShutdownSystem.js');
+const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'GracefulShutdownSystem.js');
+
 
 const DRAIN_TIMEOUT_MS = 30_000;
 const DRAIN_POLL_MS = 500;
@@ -44,7 +52,7 @@ class GracefulShutdownSystem {
 
         // 2. Drain in-flight requests
         try {
-            const ls = globalAccessPoint.loadSheddingSystem();
+            const ls = loadSheddingSystemModule.probeModule();
             if (ls) await this._waitForDrain(ls);
         } catch (err) {
             logger.warn(`GracefulShutdown: Drain wait failed — ${err.message}`);
@@ -52,7 +60,7 @@ class GracefulShutdownSystem {
 
         // 3. Flush audit trail buffer
         try {
-            const at = globalAccessPoint.auditTrailSystem();
+            const at = auditTrailSystemModule.probeModule();
             if (at?.enabled && typeof at.flush === 'function') {
                 await at.flush();
                 logger.info('GracefulShutdown: Audit trail flushed');
@@ -62,12 +70,12 @@ class GracefulShutdownSystem {
         }
 
         // 4. Stop monitors
-        try { globalAccessPoint.memoryMonitioringSystem()?.stop(); } catch (_) {}
-        try { globalAccessPoint.eventLoopMonitor()?.stop(); } catch (_) {}
+        try { memoryMonitoringSystemModule.probeModule()?.stop(); } catch (_) {}
+        try { eventLoopMonitorModule.probeModule()?.stop(); } catch (_) {}
 
         // 5. Close DB
         try {
-            const db = globalAccessPoint.db();
+            const db = dbModule.probeModule();
             if (db && typeof db.close === 'function') {
                 await db.close();
                 logger.info('GracefulShutdown: DB connections closed');

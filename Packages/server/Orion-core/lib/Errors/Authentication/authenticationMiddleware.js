@@ -1,53 +1,53 @@
 const AuthenticationMiddleware = {
-    'MISSING-SESSION-ID-OR-SESSION-HMAC': {
+    'AUTH::MISSING-SESSION-CREDENTIALS::A::p': {
         status: 401,
         context: 'Either the session ID or session HMAC is missing',
-        errorCode: 'MISSING-SESSION-ID-OR-SESSION-HMAC',
+        errorCode: 'AUTH::MISSING-SESSION-CREDENTIALS::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-SESSION-ID': {
+    'AUTH::INVALID-SESSION::A::p': {
         status: 401,
         context: 'The session ID or session HMAC is invalid or has been tampered with',
-        errorCode: 'INVALID-SESSION-ID',
+        errorCode: 'AUTH::INVALID-SESSION::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-AUTHENTICATION-TOKEN-TYPE': {
+    'AUTH::INVALID-TOKEN-TYPE::A::p': {
         status: 401,
         context: 'The provided token type is not supported',
-        errorCode: 'INVALID-AUTHENTICATION-TOKEN-TYPE',
+        errorCode: 'AUTH::INVALID-TOKEN-TYPE::A::p',
         fault: 'CLIENT',
         solutions: ['Use an appropriate and supported token type for this request']
     },
-    'MISSING-AUTHENTICATION-TOKEN': {
+    'AUTH::MISSING-TOKEN::A::p': {
         status: 401,
         context: 'No authentication token was found',
-        errorCode: 'MISSING-AUTHENTICATION-TOKEN',
+        errorCode: 'AUTH::MISSING-TOKEN::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'REFRESH-TOKEN-LIMIT-HIT': {
+    'AUTH::REFRESH-LIMIT-HIT::A::p': {
         status: 401,
         context: 'The provided refresh token has reached its maximum limit of allowed refreshes',
-        errorCode: 'REFRESH-TOKEN-LIMIT-HIT',
+        errorCode: 'AUTH::REFRESH-LIMIT-HIT::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE': {
+    'AUTH::INSUFFICIENT-PRIVILEGE::A::p': {
         status: 401,
         context: 'The provided token is insufficient as this is a protected route',
-        errorCode: 'UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE',
+        errorCode: 'AUTH::INSUFFICIENT-PRIVILEGE::A::p',
         fault: 'CLIENT',
         solutions: ['Use a token with more privileges']
     },
-    'INVALID-BEARER-FOR-CURRENT-ROUTE': {
+    'AUTH::BEARER-MISMATCH::A::p': {
         status: 401,
         context: 'The requested route cannot be accessed with this token type',
-        errorCode: 'INVALID-BEARER-FOR-CURRENT-ROUTE',
+        errorCode: 'AUTH::BEARER-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['Use an appropriate and supported token type for this request']
     }

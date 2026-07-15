@@ -1,6 +1,9 @@
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
-const query = (text, params) => globalAccessPoint.db().query(text, params);
+const dbModule = new SafeModuleHandler('Database', 'db', 'PasskeyModel.js');
+
+
+const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const PasskeyModel = {
     /**
@@ -9,7 +12,7 @@ export const PasskeyModel = {
      * @param {{ id: string, publicKey: Uint8Array|Buffer, counter: number, deviceType?: string, backedUp?: boolean, transports?: string[] }} cred
      */
     async savePasskey(uid, cred) {
-        const client = await globalAccessPoint.db().getPool().connect();
+        const client = await dbModule.getModule().getPool().connect();
         try {
             await client.query('BEGIN');
             

@@ -1,115 +1,136 @@
 const OAuth = {
-    'O-AUTH-UNSUPPORTED-PROVIDER': {
+    'OAUTH::UNSUPPORTED-PROVIDER::A::p': {
         status: 400,
         context: 'The OAuth provider specified is not supported',
-        errorCode: 'O-AUTH-UNSUPPORTED-PROVIDER',
+        errorCode: 'OAUTH::UNSUPPORTED-PROVIDER::A::p',
         fault: 'CLIENT',
         solutions: ['Use a supported OAuth provider']
     },
-    'O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL': {
+    'OAUTH::REDIRECT-URL-GENERATION-FAILED::A::i': {
         status: 500,
         context: 'Unable to generate OAuth redirect URL due to server error',
-        errorCode: 'O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL',
+        errorCode: 'OAUTH::REDIRECT-URL-GENERATION-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'O-AUTH-DEVICE-FINGERPRINT-MISMATCH': {
+    'OAUTH::FINGERPRINT-MISMATCH::A::p': {
         status: 401,
         context: 'OAuth request device fingerprint does not match the original request',
-        errorCode: 'O-AUTH-DEVICE-FINGERPRINT-MISMATCH',
+        errorCode: 'OAUTH::FINGERPRINT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'O-AUTH-IP-MISMATCH': {
+    'OAUTH::IP-MISMATCH::A::p': {
         status: 401,
         context: 'OAuth request IP address does not match the original request',
-        errorCode: 'O-AUTH-IP-MISMATCH',
+        errorCode: 'OAUTH::IP-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'O-AUTH-INVALID-STATE-CHALLENGE': {
+    'OAUTH::INVALID-STATE-CHALLENGE::A::p': {
         status: 401,
         context: 'OAuth state challenge is invalid or has been tampered with',
-        errorCode: 'O-AUTH-INVALID-STATE-CHALLENGE',
+        errorCode: 'OAUTH::INVALID-STATE-CHALLENGE::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'O-AUTH-EMAIL-NOT-VERIFIED': {
+    'OAUTH::EMAIL-NOT-VERIFIED::A::p': {
         status: 400,
         context: 'OAuth provider email is not verified',
-        errorCode: 'O-AUTH-EMAIL-NOT-VERIFIED',
+        errorCode: 'OAUTH::EMAIL-NOT-VERIFIED::A::p',
         fault: 'CLIENT',
         solutions: ['Verify your email with the OAuth provider before attempting to sign in']
     },
-    'O-AUTH-PROVIDER-NOT-INITIALIZED': {
+    'OAUTH::PROVIDER-NOT-INITIALIZED::A::i': {
         status: 500,
         context: 'Requested OAuth provider is not initialized on the server',
-        errorCode: 'O-AUTH-PROVIDER-NOT-INITIALIZED',
+        errorCode: 'OAUTH::PROVIDER-NOT-INITIALIZED::A::i',
         fault: 'SERVER',
         solutions: ['Enable and configure the provider in server settings']
     },
-    'O-AUTH-INVALID-PROVIDER-CONFIG': {
+    'OAUTH::INVALID-PROVIDER-CONFIG::A::i': {
         status: 500,
         context: 'OAuth provider configuration is incomplete or invalid',
-        errorCode: 'O-AUTH-INVALID-PROVIDER-CONFIG',
+        errorCode: 'OAUTH::INVALID-PROVIDER-CONFIG::A::i',
         fault: 'SERVER',
         solutions: ['Set clientId, clientSecret, and redirectUri correctly']
     },
-    'O-AUTH-TOKEN-EXCHANGE-FAILED': {
+    'OAUTH::TOKEN-EXCHANGE-FAILED::A::i': {
         status: 502,
         context: 'Failed to exchange authorization code for access token',
-        errorCode: 'O-AUTH-TOKEN-EXCHANGE-FAILED',
+        errorCode: 'OAUTH::TOKEN-EXCHANGE-FAILED::A::i',
         fault: 'PROVIDER',
         solutions: ['Retry later; verify code, redirectUri, and client credentials']
     },
-    'O-AUTH-USERINFO-FAILED': {
+    'OAUTH::ID-TOKEN-VERIFICATION-FAILED::A::i': {
+        status: 502,
+        context: 'Failed to verify the identity token returned by the OAuth provider',
+        errorCode: 'OAUTH::ID-TOKEN-VERIFICATION-FAILED::A::i',
+        fault: 'PROVIDER',
+        solutions: ['Retry the sign-in; verify provider clientId, issuer, and JWKS configuration']
+    },
+    'OAUTH::USERINFO-FETCH-FAILED::A::i': {
         status: 502,
         context: 'Failed to fetch user info from OAuth provider',
-        errorCode: 'O-AUTH-USERINFO-FAILED',
+        errorCode: 'OAUTH::USERINFO-FETCH-FAILED::A::i',
         fault: 'PROVIDER',
         solutions: ['Retry later; ensure access token has required scopes']
     },
-    'O-AUTH-REQUESTS': {
+    'OAUTH::REQUEST-ERROR::A::p': {
         status: 400,
         context: 'An error occurred with OAuth requests',
-        errorCode: 'O-AUTH-REQUESTS',
+        errorCode: 'OAUTH::REQUEST-ERROR::A::p',
         fault: 'CLIENT',
         solutions: ['Verify your OAuth request and try again']
     },
-    'O-AUTH': {
+    'OAUTH::GENERIC-ERROR::A::p': {
         status: 400,
         context: 'An OAuth error has occurred',
-        errorCode: 'O-AUTH',
+        errorCode: 'OAUTH::GENERIC-ERROR::A::p',
         fault: 'CLIENT',
         solutions: ['Verify your OAuth request and try again']
     },
-    'O-AUTH-REQUEST-INVALID-OR-EXPIRED': {
+    'OAUTH::REQUEST-EXPIRED::A::p': {
         status: 401,
         context: 'The OAuth request is invalid or has expired',
-        errorCode: 'O-AUTH-REQUEST-INVALID-OR-EXPIRED',
+        errorCode: 'OAUTH::REQUEST-EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['Start a new OAuth request']
     },
-    'O-AUTH-CALLBACK-PROCESSING-FAILED': {
+    'OAUTH::CALLBACK-PROCESSING-FAILED::A::i': {
         status: 500,
         context: 'Failed to process OAuth callback',
-        errorCode: 'O-AUTH-CALLBACK-PROCESSING-FAILED',
+        errorCode: 'OAUTH::CALLBACK-PROCESSING-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'O-AUTH-ACC-DISABLED': {
+    'OAUTH::ACCOUNT-DISABLED::A::p': {
         status: 403,
         context: 'OAuth account is disabled',
-        errorCode: 'O-AUTH-ACC-DISABLED',
+        errorCode: 'OAUTH::ACCOUNT-DISABLED::A::p',
         fault: 'CLIENT',
         solutions: ['Contact support to enable your account']
     },
-    'O-AUTH-FLOW-SECRET-MISMATCH': {
+    'OAUTH::FLOW-SECRET-MISMATCH::A::p': {
         status: 401,
         context: 'The OAuth flow secret does not match the original request',
-        errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH',
+        errorCode: 'OAUTH::FLOW-SECRET-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['Restart the OAuth sign-in process']
+    },
+    'OAUTH::ACCOUNT-NOT-FOUND::A::p': {
+        status: 404,
+        context: 'There is no account associated with the provided email',
+        errorCode: 'OAUTH::ACCOUNT-NOT-FOUND::A::p',
+        fault: 'CLIENT',
+        solutions: ['Ensure the email is correct or create a new account']
+    },
+    'OAUTH::CREATE-ACCOUNT-FAILED::A::i': {
+        status: 500,
+        context: 'An unknown error has occurred while creating the account during OAuth sign-up',
+        errorCode: 'OAUTH::CREATE-ACCOUNT-FAILED::A::i',
+        fault: 'SERVER',
+        solutions: ['Try again in 10 minutes and contact support if the issue persists']
     }
 };
 

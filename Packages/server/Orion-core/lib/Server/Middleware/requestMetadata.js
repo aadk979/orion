@@ -1,31 +1,34 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import ipaddr from 'ipaddr.js';
 import { getIp } from '../../Utils/Ip.js';
-import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { respondWithError } from '../Response/response.js';
 import { parseCookieData } from '../../Utils/CookieUtils.js';
 import { validateStepUpToken } from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
+import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'requestMetadata.js');
+
 
 const RULES = [
     {
         applyTo: 'fingerprint',
         mustHave: true,
-        missingError: 'MISSING-REQUEST-FINGERPRINT',
-        invalidError: 'INVALID-REQUEST-FINGERPRINT',
+        missingError: 'GENERAL::MISSING-FINGERPRINT::A::p',
+        invalidError: 'GENERAL::INVALID-FINGERPRINT::A::p',
         callback: fp => typeof fp === 'string' && /^[0-9a-fA-F]{64}$/.test(fp)
     },
     {
         applyTo: 'userAgent',
         mustHave: true,
-        missingError: 'MISSING-USER-AGENT',
+        missingError: 'GENERAL::MISSING-USER-AGENT::A::p',
         invalidError: null,
         callback: null
     },
     {
         applyTo: 'ip',
         mustHave: true,
-        missingError: 'UNRESOLVABLE-CLIENT-IP',
-        invalidError: 'UNRESOLVABLE-CLIENT-IP',
+        missingError: 'GENERAL::UNRESOLVABLE-CLIENT-IP::A::p',
+        invalidError: 'GENERAL::UNRESOLVABLE-CLIENT-IP::A::p',
         callback: ip => {
             try {
                 const parsed = ipaddr.parse(ip);
@@ -97,7 +100,7 @@ const requestMetadataMiddleware = async (request, response, next) => {
         }
     }
 
-    response.set('orion-served-by', globalAccessPoint.systemConfig().app.serviceID);
+    response.set('orion-served-by', systemConfigModule.getModule().app.serviceID);
 
     request.requestContext = requestContext;
     requestContext.run(Object.freeze(metadata), () => next());

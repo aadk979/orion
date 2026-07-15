@@ -1,6 +1,10 @@
 import os from 'os';
 import { logger } from '../logger.js';
 import { globalAccessPoint } from '../GlobalAccessPoint.js';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'MemoryMonitoringSystem.js');
+
 
 function deepDelete(obj, path) {
     let curr = obj;
@@ -91,7 +95,7 @@ class MemoryMonitoringSystem {
     }
 
     purgeSystemConfigPostSetup() {
-        let purgedSystemConfig = globalAccessPoint.systemConfig();
+        let purgedSystemConfig = systemConfigModule.getModule();
 
         const purgables = [
             'auditTrailSystem',

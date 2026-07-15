@@ -1,15 +1,11 @@
 import { respondWithError } from '../Response/response.js';
 
+// NOTE: The DIP (orion-dip-*) and transport-encryption (orion-encryption-*) headers
+// were removed when those subsystems were decommissioned in favour of TLS 1.3.
+// See Graveyard/ for the historical record.
 const orionHeaders = [
     'orion-fingerprint',
     'orion-user-agent',
-    'orion-dip-state',
-    'orion-dip-id',
-    'orion-dip-signature',
-    'orion-dip-salt',
-    'orion-dip-timestamp',
-    'orion-encryption-status',
-    'orion-encryption-request-id',
     'orion-api-system-version'
 ];
 
@@ -31,7 +27,7 @@ class headerParser {
         });
 
         if (missingOrInvalidHeaders.length > 0) {
-            return respondWithError(response, 'HEADERS-INVALID');
+            return respondWithError(response, 'GENERAL::HEADERS-INVALID::A::p');
         }
 
         next();

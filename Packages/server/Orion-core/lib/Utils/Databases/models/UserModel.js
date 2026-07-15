@@ -1,13 +1,16 @@
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
-const query = (text, params) => globalAccessPoint.db().query(text, params);
+const dbModule = new SafeModuleHandler('Database', 'db', 'UserModel.js');
+
+
+const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const UserModel = {
     /**
      * Create a new user row + associated security row.
      */
     async createUser({ uid, email, passwordHash, role = 'USER' }) {
-        const client = await globalAccessPoint.db().getPool().connect();
+        const client = await dbModule.getModule().getPool().connect();
         try {
             await client.query('BEGIN');
             
@@ -25,7 +28,7 @@ export const UserModel = {
             return { error: false };
         } catch (e) {
             await client.query('ROLLBACK');
-            return { error: true, errorCode: 'DATABASE-ERROR', message: e.message };
+            return { error: true, errorCode: 'DATABASE::OPERATION-FAILED::A::i', message: e.message };
         } finally {
             client.release();
         }

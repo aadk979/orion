@@ -1,116 +1,107 @@
 const AccessTokens = {
-    'UNABLE-TO-GENERATE-ACCESS-TOKEN': {
+    'TOKEN-ACCESS::GENERATION-FAILED::A::i': {
         status: 500,
         context: 'An unknown error has occurred during the token generation process',
-        errorCode: 'UNABLE-TO-GENERATE-ACCESS-TOKEN',
+        errorCode: 'TOKEN-ACCESS::GENERATION-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'UNABLE-TO-VALIDATE-ACCESS-TOKEN': {
+    'TOKEN-ACCESS::VALIDATION-FAILED::A::p': {
         status: 401,
         customStatus: 602,
         context: 'The provided access token is invalid',
-        errorCode: 'UNABLE-TO-VALIDATE-ACCESS-TOKEN',
+        errorCode: 'TOKEN-ACCESS::VALIDATION-FAILED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'ACCESS-TOKEN-EXPIRED': {
+    'TOKEN-ACCESS::EXPIRED::A::p': {
         status: 401,
         customStatus: 603,
         context: 'The provided access token has expired',
-        errorCode: 'ACCESS-TOKEN-EXPIRED',
+        errorCode: 'TOKEN-ACCESS::EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE': {
+    'TOKEN-ACCESS::IP-NOT-IN-RANGE::A::p': {
         status: 401,
         context: 'The provided access token is invalid for the current IP address',
-        errorCode: 'INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE',
+        errorCode: 'TOKEN-ACCESS::IP-NOT-IN-RANGE::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND': {
+    'TOKEN-ACCESS::TOKEN-ID-NOT-FOUND::A::p': {
         status: 401,
         context: 'The provided access token is invalid',
-        errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND',
+        errorCode: 'TOKEN-ACCESS::TOKEN-ID-NOT-FOUND::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH': {
+    'TOKEN-ACCESS::TOKEN-TYPE-MISMATCH::A::p': {
         status: 401,
         context: 'The provided access token is invalid',
-        errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH',
+        errorCode: 'TOKEN-ACCESS::TOKEN-TYPE-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-TOKEN-CHALLENGE-MISMATCH': {
+    'TOKEN-ACCESS::CHALLENGE-MISMATCH::A::p': {
         status: 401,
         context: 'The provided access token is invalid',
-        errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-CHALLENGE-MISMATCH',
+        errorCode: 'TOKEN-ACCESS::CHALLENGE-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-INVALID-AUD': {
+    'TOKEN-ACCESS::INVALID-AUD::A::p': {
         status: 401,
         context: 'The provided access token has an invalid audience',
-        errorCode: 'INVALID-ACCESS-TOKEN-INVALID-AUD',
+        errorCode: 'TOKEN-ACCESS::INVALID-AUD::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED': {
+    'TOKEN-ACCESS::ISS-NOT-ALLOWED::A::p': {
         status: 401,
         context: 'The provided access token issuer is not allowed',
-        errorCode: 'INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED',
+        errorCode: 'TOKEN-ACCESS::ISS-NOT-ALLOWED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1': {
+    'TOKEN-ACCESS::FINGERPRINT-MISMATCH::A::p': {
         status: 401,
         context: 'The provided access token device fingerprint type 1 does not match',
-        errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1',
+        errorCode: 'TOKEN-ACCESS::FINGERPRINT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2': {
+    'TOKEN-ACCESS::FINGERPRINT-MISMATCH::B::p': {
         status: 401,
         context: 'The provided access token device fingerprint type 2 does not match',
-        errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2',
+        errorCode: 'TOKEN-ACCESS::FINGERPRINT-MISMATCH::B::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'ACCESS-TOKEN-KEY-NOT-FOUND': {
+    'TOKEN-ACCESS::KEY-NOT-FOUND::A::i': {
         status: 401,
         context: 'The access token key could not be found',
-        errorCode: 'ACCESS-TOKEN-KEY-NOT-FOUND',
+        errorCode: 'TOKEN-ACCESS::KEY-NOT-FOUND::A::i',
         fault: 'NEITHER',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-ACCESS-TOKEN-TIER-CONFLICT': {
+    'TOKEN-ACCESS::TIER-CONFLICT::A::i': {
         status: 401,
         context: 'The access token key could not be found',
-        errorCode: 'INVALID-ACCESS-TOKEN-TIER-CONFLICT',
+        errorCode: 'TOKEN-ACCESS::TIER-CONFLICT::A::i',
         fault: 'NEITHER',
         solutions: ['NONE'],
         logout: true
-    },
-    'STEP-UP-AUTH-REQUIRED': {
-        status: 401,
-        customStatus: 601,
-        context: 'Step-up authentication is required to complete this request',
-        errorCode: 'STEP-UP-AUTH-REQUIRED',
-        fault: 'CLIENT',
-        solutions: ['Complete the step-up authentication flow to re-verify your identity'],
-        flow: 'FLOW-STEP-UP-AUTH'
     }
 };
 

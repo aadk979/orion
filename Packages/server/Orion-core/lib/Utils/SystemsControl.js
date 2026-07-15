@@ -1,6 +1,15 @@
 import { globalAccessPoint } from './GlobalAccessPoint.js';
 import { logger } from './logger.js';
 import { errorTrackerSystem } from './Systems/ErrorTrackerSystem.js';
+import { SafeModuleHandler } from './UnavailableModuleWrapper.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SystemsControl.js');
+const memoryMonitoringSystemModule = new SafeModuleHandler('MemoryMonitoringSystem', 'memoryMonitioringSystem', 'SystemsControl.js');
+const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventLoopMonitor', 'SystemsControl.js');
+const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'SystemsControl.js');
+const circuitBreakerSystemModule = new SafeModuleHandler('CircuitBreakerSystem', 'circuitBreakerSystem', 'SystemsControl.js');
+const abuseDetectionSystemModule = new SafeModuleHandler('AbuseDetectionSystem', 'abuseDetectionSystem', 'SystemsControl.js');
+
 
 const SAFE_MODE_OVERRIDE_INFO = '(Only system config can perform this change and requires a restart of the application)';
 
@@ -76,13 +85,13 @@ class OrionSystemsControl {
     // ── Memory monitor ────────────────────────────────────────────────────────────
 
     deactivateMemoryMonitoring() {
-        const mm = globalAccessPoint.memoryMonitioringSystem();
+        const mm = memoryMonitoringSystemModule.probeModule();
         if (!mm?.active) return;
         mm.stop();
     }
 
     reactivateMemoryMonitoring() {
-        const mm = globalAccessPoint.memoryMonitioringSystem();
+        const mm = memoryMonitoringSystemModule.probeModule();
         if (mm?.active) return;
         mm.start();
     }
@@ -94,7 +103,7 @@ class OrionSystemsControl {
             logger.warn(`SystemsControl: Cannot pause audit trail — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
         }
-        const at = globalAccessPoint.auditTrailSystem();
+        const at = auditTrailSystemModule.probeModule();
         if (at) at.enabled = false;
         return true;
     }
@@ -104,7 +113,7 @@ class OrionSystemsControl {
             logger.warn(`SystemsControl: Cannot resume audit trail — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
         }
-        const at = globalAccessPoint.auditTrailSystem();
+        const at = auditTrailSystemModule.probeModule();
         if (at) at.enabled = true;
         return true;
     }
@@ -116,12 +125,12 @@ class OrionSystemsControl {
             logger.warn(`SystemsControl: Cannot reset circuit breaker — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
         }
-        globalAccessPoint.circuitBreakerSystem()?.forceClose(dependency);
+        circuitBreakerSystemModule.probeModule()?.forceClose(dependency);
         return true;
     }
 
     openCircuitBreaker(dependency) {
-        globalAccessPoint.circuitBreakerSystem()?.forceOpen(dependency);
+        circuitBreakerSystemModule.probeModule()?.forceOpen(dependency);
         return true;
     }
 
@@ -132,7 +141,7 @@ class OrionSystemsControl {
             logger.warn(`SystemsControl: Cannot change in-flight limit — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
         }
-        globalAccessPoint.loadSheddingSystem()?.setMaxInFlight(limit);
+        loadSheddingSystemModule.probeModule()?.setMaxInFlight(limit);
         return true;
     }
 
@@ -143,18 +152,18 @@ class OrionSystemsControl {
             logger.warn(`SystemsControl: Cannot unblock actor — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
         }
-        globalAccessPoint.abuseDetectionSystem()?.unblock(actorId);
+        abuseDetectionSystemModule.probeModule()?.unblock(actorId);
         return true;
     }
 
     // ── Event loop monitor ─────────────────────────────────────────────────────────
 
     deactivateEventLoopMonitor() {
-        globalAccessPoint.eventLoopMonitor()?.stop();
+        eventLoopMonitorModule.probeModule()?.stop();
     }
 
     reactivateEventLoopMonitor() {
-        globalAccessPoint.eventLoopMonitor()?.start();
+        eventLoopMonitorModule.probeModule()?.start();
     }
 
     // ── Unified status snapshot ────────────────────────────────────────────────────
@@ -166,12 +175,12 @@ class OrionSystemsControl {
             etsLockdown: !!globalAccessPoint.ETS_LOCKDOWN(),
             elmDegraded: !!globalAccessPoint.getValue('ELM_DEGRADED'),
             security: Object.fromEntries([...SECURITY_SYSTEMS].map(s => [s, !!globalAccessPoint.getValue(s)])),
-            circuitBreakers: globalAccessPoint.circuitBreakerSystem()?.getAllStates() || {},
-            loadShedder: globalAccessPoint.loadSheddingSystem()?.getStats() || null,
-            abuseDetection: globalAccessPoint.abuseDetectionSystem()?.getStats() || null,
+            circuitBreakers: circuitBreakerSystemModule.probeModule()?.getAllStates() || {},
+            loadShedder: loadSheddingSystemModule.probeModule()?.getStats() || null,
+            abuseDetection: abuseDetectionSystemModule.probeModule()?.getStats() || null,
             errorTracker: errorTrackerSystem.getInsightSummary(),
-            memoryMonitor: globalAccessPoint.memoryMonitioringSystem()?.getMemoryStats() || null,
-            eventLoop: globalAccessPoint.eventLoopMonitor()?.getStats() || null
+            memoryMonitor: memoryMonitoringSystemModule.probeModule()?.getMemoryStats() || null,
+            eventLoop: eventLoopMonitorModule.probeModule()?.getStats() || null
         };
     }
 }

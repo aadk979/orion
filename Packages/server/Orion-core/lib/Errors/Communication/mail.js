@@ -1,11 +1,11 @@
 const Mail = {
-    'UNABLE-TO-SEND-MAIL': {
+    'MAIL::SEND-FAILED::A::i': {
         status: 500,
         context: 'Unable to send email due to server error',
-        errorCode: 'UNABLE-TO-SEND-MAIL',
+        errorCode: 'MAIL::SEND-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists'],
-        clientSafeErrorCode: 'UNKNOWN-ERROR'
+        clientSafeErrorCode: 'GENERAL::UNKNOWN-ERROR::A::i'
     }
 };
 

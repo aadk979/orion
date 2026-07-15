@@ -19,7 +19,7 @@ const verifyTOTPToken = async (token, secret, window = 1) => {
             return { error: false, valid: true };
         }
 
-        return { error: true, errorCode: 'TOTP-INVALID-TOKEN' };
+        return { error: true, errorCode: 'TOTP::INVALID-TOKEN::A::p' };
     };
 
     const parameters = { token, secret, window };

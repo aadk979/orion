@@ -4,10 +4,20 @@ import { formatTime, getCurrentUnixTime } from '../../Utils/Date&Time.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { errorTrackerSystem } from '../../Utils/Systems/ErrorTrackerSystem.js';
 import { respondWithError } from '../Response/response.js';
+import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'serverUtilities.js');
+const serverModule = new SafeModuleHandler('ServerState', 'server', 'serverUtilities.js');
+const memoryMonitoringSystemModule = new SafeModuleHandler('MemoryMonitoringSystem', 'memoryMonitioringSystem', 'serverUtilities.js');
+const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventLoopMonitor', 'serverUtilities.js');
+const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'serverUtilities.js');
+const circuitBreakerSystemModule = new SafeModuleHandler('CircuitBreakerSystem', 'circuitBreakerSystem', 'serverUtilities.js');
+const abuseDetectionSystemModule = new SafeModuleHandler('AbuseDetectionSystem', 'abuseDetectionSystem', 'serverUtilities.js');
+
 
 const serverUtilitiesMiddleware = async (request, response, next) => {
-    const systemConfig = globalAccessPoint.systemConfig();
-    const server = globalAccessPoint.server();
+    const systemConfig = systemConfigModule.getModule();
+    const server = serverModule.getModule();
 
     const path = request.path;
 
@@ -30,11 +40,11 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
                 uptime,
                 timestamp: getCurrentUnixTime(),
                 orionSystemInfo: { __Version__, __Status__ },
-                memory: globalAccessPoint.memoryMonitioringSystem()?.getMemoryStats() || null,
-                eventLoop: globalAccessPoint.eventLoopMonitor()?.getStats() || null,
-                loadShedder: globalAccessPoint.loadSheddingSystem()?.getStats() || null,
-                circuitBreakers: globalAccessPoint.circuitBreakerSystem()?.getAllStates() || {},
-                abuseDetection: globalAccessPoint.abuseDetectionSystem()?.getStats() || null,
+                memory: memoryMonitoringSystemModule.probeModule()?.getMemoryStats() || null,
+                eventLoop: eventLoopMonitorModule.probeModule()?.getStats() || null,
+                loadShedder: loadSheddingSystemModule.probeModule()?.getStats() || null,
+                circuitBreakers: circuitBreakerSystemModule.probeModule()?.getAllStates() || {},
+                abuseDetection: abuseDetectionSystemModule.probeModule()?.getStats() || null,
                 errors: errorTrackerSystem.getInsightSummary()
             };
 
@@ -56,7 +66,7 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
             return routeHandlerResetCookies(request, response);
         }
 
-        return respondWithError(response, 'UNKNOWN-API-ROUTE');
+        return respondWithError(response, 'GENERAL::UNKNOWN-API-ROUTE::A::p');
     }
 
     return next();

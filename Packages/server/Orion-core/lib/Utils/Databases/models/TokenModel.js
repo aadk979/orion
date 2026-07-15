@@ -1,7 +1,10 @@
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getCurrentUnixTime } from '../../Date&Time.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
-const query = (text, params) => globalAccessPoint.db().query(text, params);
+const dbModule = new SafeModuleHandler('Database', 'db', 'TokenModel.js');
+
+
+const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const TokenModel = {
     /**
@@ -16,7 +19,7 @@ export const TokenModel = {
             );
             return { error: false };
         } catch (e) {
-            return { error: true, errorCode: 'DATABASE-ERROR', message: e.message };
+            return { error: true, errorCode: 'DATABASE::OPERATION-FAILED::A::i', message: e.message };
         }
     },
 
@@ -89,7 +92,7 @@ export const TokenModel = {
      */
     async removeExpiredTokens(uid) {
         const now = getCurrentUnixTime();
-        const client = await globalAccessPoint.db().getPool().connect();
+        const client = await dbModule.getModule().getPool().connect();
 
         try {
             await client.query('BEGIN');

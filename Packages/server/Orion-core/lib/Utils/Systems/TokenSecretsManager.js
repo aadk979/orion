@@ -5,6 +5,10 @@ import { readFromCaller, removeFromCaller, writeToCaller } from "../FileHandler.
 import { logger } from "../logger.js";
 import { Snapshotter } from "./Snapshotter.js";
 import { SecretsCrypto } from "./SecretsCrypto.js";
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const redisInstanceModule = new SafeModuleHandler('RedisInstance', 'redisInstance', 'TokenSecretsManager.js');
+
 
 const KEY_TYPES = [
     { algorithm: "ES256", size: 256, type: "ECDSA" },
@@ -101,7 +105,7 @@ class TokenSecretsManager {
 
         let fileRead = await readFromCaller(this.TOKEN_SECRETS_FILE_NAME);
 
-        if ((fileRead.error && fileRead.errorCode !== "FILE-NOT-FOUND") || (fileRead?.data && !fileRead.json)) {
+        if ((fileRead.error && fileRead.errorCode !== "FILE-OPS::FILE-NOT-FOUND::A::p") || (fileRead?.data && !fileRead.json)) {
             await removeFromCaller(this.TOKEN_SECRETS_FILE_NAME);
             logger.warn(`Token Secrets Manager: Token secrets file for domain (${this.domain}) reset due to error/corruption`);
             fileRead.data = undefined;
@@ -126,7 +130,7 @@ class TokenSecretsManager {
     }
 
     async _initializeCluster() {
-        const redisInstance = globalAccessPoint.redisInstance();
+        const redisInstance = redisInstanceModule.probeModule();
 
         const redisKeysResult = await redisInstance.keys();
         const redisKeyNames = redisKeysResult?.data || [];
@@ -201,7 +205,7 @@ class TokenSecretsManager {
         if (searchPast) return searchPast;
 
         if (this.instanceType === "CLUSTER") {
-            const redisInstance = globalAccessPoint.redisInstance();
+            const redisInstance = redisInstanceModule.probeModule();
             const redisKey = `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${keyPairId}`;
             const key = await redisInstance.getData(redisKey);
             if (!key?.data || isUnixExpired(key.data.publicKeyExp)) {
@@ -269,7 +273,7 @@ class TokenSecretsManager {
             // accumulating stale entries that Redis TTL alone may not clean up
             // fast enough (depending on the TTL precision of the Redis adapter).
             if (this.instanceType === "CLUSTER") {
-                const redisInstance = globalAccessPoint.redisInstance();
+                const redisInstance = redisInstanceModule.probeModule();
 
                 if (expired.length > 0) {
                     await Promise.all(

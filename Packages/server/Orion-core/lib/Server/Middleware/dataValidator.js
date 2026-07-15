@@ -12,7 +12,7 @@ const dataValidator = async (request, response, next) => {
     const { error, value } = schema.validate(data);
 
     if (error) {
-        return respondWithError(response, 'DV-INVALID-DATA');
+        return respondWithError(response, 'DATA-VALIDATION::INVALID-DATA::A::p');
     }
 
     request.body.packet = value;

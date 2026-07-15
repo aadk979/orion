@@ -7,13 +7,17 @@ import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { stringifyCookieData } from '../../../CookieUtils.js';
+import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'generateAuthenticationOptions.js');
+
 
 const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.passkey) {
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
         const lowerCaseEmail = parameters.email.toLowerCase();
@@ -23,21 +27,21 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
         const emailValid = isValidEmail(sanitizedEmail);
 
         if (!emailValid) {
-            return { error: true, errorCode: 'PASSKEY-AUTH-INVALID-EMAIL' };
+            return { error: true, errorCode: 'PASSKEY::AUTH-INVALID-EMAIL::A::p' };
         }
 
         if (globalAccessPoint.allowedEmailDomains() !== '*') {
             const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
-                return respondWithError(parameters.response, 'EMAIL-DOMAIN-NOT-ALLOWED');
+                return respondWithError(parameters.response, 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p');
             }
         }
 
         const user = await UserModel.getUserByEmail(sanitizedEmail);
 
         if (!user) {
-            return { error: true, errorCode: 'PASSKEY-ACC-NO-EXIST' };
+            return { error: true, errorCode: 'PASSKEY::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const passkey = await PasskeyModel.getPasskey(user.uid);
@@ -45,7 +49,7 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
         if (!passkey) {
             return {
                 error: true,
-                errorCode: 'PASSKEY-AUTH-NO-ACTIVE-PASSKEY'
+                errorCode: 'PASSKEY::AUTH-NO-ACTIVE-PASSKEY::A::p'
             };
         }
 

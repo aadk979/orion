@@ -1,9 +1,12 @@
-import { globalAccessPoint } from '../GlobalAccessPoint.js';
 import { generateEmailFromTemplate } from './mailConstructor.js';
 import { sendMail } from './mailer.js';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'sendMail.js');
+
 
 const generateAndSendMail = async (numPath, to, details) => {
-    details.APPNAME = globalAccessPoint.systemConfig()?.app?.appName || 'Orion';
+    details.APPNAME = systemConfigModule.getModule()?.app?.appName || 'Orion';
 
     const mail = generateEmailFromTemplate(numPath, details);
 

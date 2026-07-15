@@ -8,7 +8,7 @@ const getSafePath = filePath => {
     const resolvedPath = path.resolve(baseDir, filePath);
 
     if (!resolvedPath.startsWith(baseDir)) {
-        return { error: true, errorCode: 'PATH-TRAVERSAL-ATTEMPT' };
+        return { error: true, errorCode: 'GENERAL::PATH-TRAVERSAL::A::p' };
     }
 
     return resolvedPath;

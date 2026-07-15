@@ -1,10 +1,13 @@
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel, UserProviderModel } from '../../Databases/models/index.js';
 import { generateUID } from '../../valueGenerator.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { logger } from '../../logger.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'Account.js');
+
 
 /**
  * Check if an account exists for the given email.
@@ -25,7 +28,7 @@ const checkAndAddProviderToAccount = async (email, providerName) => {
         const user = await UserModel.getUserByEmail(parameters.email);
 
         if (!user) {
-            return { error: true, errorCode: 'O-AUTH-ACC-DOESNT-EXIST' };
+            return { error: true, errorCode: 'OAUTH::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const hasProvider = await UserProviderModel.hasProvider(user.uid, parameters.providerName);
@@ -47,7 +50,7 @@ const checkAndAddProviderToAccount = async (email, providerName) => {
  */
 const createAccountWithProvider = async (email, providerName) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
         const uid = generateUID(parameters.email);
 
         const createResult = await UserModel.createUser({
@@ -58,7 +61,7 @@ const createAccountWithProvider = async (email, providerName) => {
         });
 
         if (createResult.error) {
-            return { error: true, errorCode: 'O-AUTH-UNABLE-TO-CREATE-ACC' };
+            return { error: true, errorCode: 'OAUTH::CREATE-ACCOUNT-FAILED::A::i' };
         }
 
         await UserProviderModel.addProvider(uid, parameters.providerName);

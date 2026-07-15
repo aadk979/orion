@@ -18,6 +18,12 @@ import { getIpRange, isIpInRange } from '../../Ip.js';
 import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { SUPPORTED_TOKENS } from '../ResourceAccessManagment/configs.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'ResourceTokens.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'ResourceTokens.js');
+const tokenSecretsManagerModule = new SafeModuleHandler('TokenSecretsManager', 'tokenSecretsManager', 'ResourceTokens.js');
+
 
 const MAX_FILES_ACCESS_PER_HOUR = 25;
 
@@ -34,32 +40,32 @@ async function generateResourceToken(
     customData = {}
 ) {
     if (!accessibleCallbacks || !Array.isArray(accessibleCallbacks) || accessibleCallbacks.length <= 0) {
-        return { error: true, errorCode: 'RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY' };
+        return { error: true, errorCode: 'TOKEN-RESOURCE::INVALID-CALLBACKS-ARRAY::A::p' };
     }
 
     if (!SUPPORTED_TOKENS.find(val => val.tokenType === viewType.toUpperCase().trim())) {
-        return { error: true, errorCode: 'RESOURCE-TOKENS-INVALID-VIEW-TYPE' };
+        return { error: true, errorCode: 'TOKEN-RESOURCE::INVALID-VIEW-TYPE::A::p' };
     }
 
     if (viewType.toUpperCase().trim() === 'PUBLIC') {
-        return { error: true, errorCode: 'RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE' };
+        return { error: true, errorCode: 'TOKEN-RESOURCE::VIEW-TYPE-NOT-ACCEPTABLE::A::p' };
     }
 
     if (
-        Math.floor((parseDuration(globalAccessPoint.systemConfig().tokens?.lifespans.resourceTokens || '1h') / 1) * 60 * 60 * 1000) *
+        Math.floor((parseDuration(systemConfigModule.getModule().tokens?.lifespans.resourceTokens || '1h') / 1) * 60 * 60 * 1000) *
         MAX_FILES_ACCESS_PER_HOUR <
         maxRetrievals
     ) {
-        return { error: true, errorCode: 'RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH' };
+        return { error: true, errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-TOO-HIGH::A::p' };
     }
 
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
 
-    const secret = await globalAccessPoint.tokenSecretsManager().getRandomKeyPair('resource_access');
-    const expiry = globalAccessPoint.systemConfig().tokens?.lifespans.resourceAccessTokens || '1h';
+    const secret = await tokenSecretsManagerModule.getModule().getRandomKeyPair('resource_access');
+    const expiry = systemConfigModule.getModule().tokens?.lifespans.resourceAccessTokens || '1h';
     const aud = globalAccessPoint.allowedClientUrls();
-    const iss = globalAccessPoint.systemConfig().server.urls;
+    const iss = systemConfigModule.getModule().server.urls;
 
     const hashedFingerprint = await hashString(fingerprint);
     const ipRange = getIpRange(ip);
@@ -121,9 +127,9 @@ async function generateResourceToken(
             metadata: {
                 reason: 'DATABASE_ERROR'
             },
-            errorCode: 'UNABLE-TO-GENERATE-RESOURCE-TOKEN'
+            errorCode: 'TOKEN-RESOURCE::GENERATION-FAILED::A::i'
         });
-        return { error: true, errorCode: 'UNABLE-TO-GENERATE-RESOURCE-TOKEN' };
+        return { error: true, errorCode: 'TOKEN-RESOURCE::GENERATION-FAILED::A::i' };
     }
 
     const token = jwt.sign(payload, secret.privateKey, { expiresIn: expiry, algorithm: 'RS256', keyid: secret.keyPairId });
@@ -153,7 +159,7 @@ async function generateResourceToken(
 }
 
 async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, clientUrl) {
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
 
     try {
@@ -169,48 +175,48 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
                 ipAddress: ip,
                 impact: 'Resource token validation failed - missing token',
                 metadata: { reason: 'MISSING_TOKEN' },
-                errorCode: 'MISSING-RESOURCE-TOKEN'
+                errorCode: 'TOKEN-RESOURCE::MISSING::A::p'
             });
-            return { error: true, errorCode: 'MISSING-RESOURCE-TOKEN' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::MISSING::A::p' };
         }
 
         const decodedHeader = jwt.decode(token, { complete: true }).header;
-        const secret = await globalAccessPoint.tokenSecretsManager().getKeyPairById(decodedHeader.kid, 'resource_access');
+        const secret = await tokenSecretsManagerModule.getModule().getKeyPairById(decodedHeader.kid, 'resource_access');
 
         if (secret.notFound) {
-            return { error: true, errorCode: 'RESOURCE-TOKEN-KEY-NOT-FOUND' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::KEY-NOT-FOUND::A::i' };
         }
 
-        const serverUrl = globalAccessPoint.systemConfig().server.selfUrl;
+        const serverUrl = systemConfigModule.getModule().server.selfUrl;
 
         const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
 
         if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.allowedClientUrls().includes(clientUrl)) {
-            return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-INVALID-AUD' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::INVALID-AUD::A::p' };
         }
 
         if (!validatedToken.iss.includes(serverUrl)) {
-            return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::ISS-NOT-ALLOWED::A::p' };
         }
 
         if (!(await isIpInRange(ip, validatedToken.ipRange)) && !validatedToken.shareAllowed) {
-            return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::IP-NOT-IN-RANGE::A::p' };
         }
 
         const tokenData = await TokenModel.getToken(validatedToken.tokenData.tokenId);
 
         if (!tokenData) {
-            return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::TOKEN-ID-NOT-FOUND::A::p' };
         }
 
         if (tokenData.type !== 'RESOURCE_TOKEN') {
-            return { error: true, errorCode: 'INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::TOKEN-TYPE-MISMATCH::A::p' };
         }
 
         if (tokenData.retrieval_count >= tokenData.max_retrievals) {
             await TokenModel.deleteToken(validatedToken.tokenData.tokenId);
             await TokenModel.removeTokenRef(validatedToken.uid, validatedToken.tokenData.tokenId);
-            return { error: true, errorCode: 'MAX-RESOURCE-RETRIEVALS-HIT' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-HIT::A::p' };
         }
 
         await TokenModel.updateToken(validatedToken.tokenData.tokenId, {
@@ -236,10 +242,10 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
         return { error: false, valid: true, data: validatedToken, customData: validatedToken.customData };
     } catch (e) {
         if (e.message === 'jwt expired') {
-            return { error: true, errorCode: 'RESOURCE-TOKEN-EXPIRED' };
+            return { error: true, errorCode: 'TOKEN-RESOURCE::EXPIRED::A::p' };
         }
 
-        return { error: true, errorCode: 'UNABLE-TO-VALIDATE-RESOURCE-TOKEN' };
+        return { error: true, errorCode: 'TOKEN-RESOURCE::VALIDATION-FAILED::B::p' };
     }
 }
 

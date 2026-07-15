@@ -1,7 +1,7 @@
 import { internalErrors } from '../../Errors/internal-errors.js';
 import { logger } from '../../Utils/logger.js';
 
-const EXPOSED_HEADERS = ['orion-flow-activation', 'orion-response-refresh', 'orion-dip-failure', 'orion-served-by'];
+const EXPOSED_HEADERS = ['orion-flow-activation', 'orion-response-refresh', 'orion-served-by'];
 
 const respondWithError = (response, errorCode) => {
     if (!internalErrors[errorCode]) {
@@ -23,7 +23,7 @@ const respondWithError = (response, errorCode) => {
         response.setHeader('orion-flow-activation', clientError.flow);
     }
 
-    const error = clientError || internalErrors['UNKNOWN-ERROR'];
+    const error = clientError || internalErrors['GENERAL::UNKNOWN-ERROR::A::i'];
 
     if (trueError?.clientSafeErrorCode) {
         logger.warn(`Obfuscated error '${errorCode}' → client receives '${trueError.clientSafeErrorCode}'`);

@@ -9,13 +9,18 @@ import { fileURLToPath } from 'url';
 import { isValidEmail, isPasswordSafe, isValidEmailDomain } from '../../Validator.js';
 import { generateUID } from '../../valueGenerator.js';
 import { logger } from "../../logger.js";
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'CreateAccount.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'CreateAccount.js');
+
 
 const createAccount = async (email, password) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.passkey) {
             auditTrail.record({
@@ -32,9 +37,9 @@ const createAccount = async (email, password) => {
                 ipAddress: requestMetadata?.ip,
                 impact: 'Account creation blocked - method disabled',
                 metadata: { reason: 'EMAIL_PASSWORD_DISABLED' },
-                errorCode: 'ACC-REG-EMAIL-PASSWORD-DISABLED'
+                errorCode: 'ACCOUNT-REG::EMAIL-PASSWORD-DISABLED::A::p'
             });
-            return { error: true, errorCode: 'ACC-REG-EMAIL-PASSWORD-DISABLED' };
+            return { error: true, errorCode: 'ACCOUNT-REG::EMAIL-PASSWORD-DISABLED::A::p' };
         }
 
         const lowerCaseEmail = parameters.email.toLowerCase();
@@ -59,16 +64,16 @@ const createAccount = async (email, password) => {
                 ipAddress: requestMetadata?.ip,
                 impact: 'Account creation blocked - invalid email',
                 metadata: { reason: 'INVALID_EMAIL_FORMAT' },
-                errorCode: 'ACC-REG-INVALID-EMAIL'
+                errorCode: 'ACCOUNT-REG::INVALID-EMAIL::A::p'
             });
-            return { error: true, errorCode: 'ACC-REG-INVALID-EMAIL' };
+            return { error: true, errorCode: 'ACCOUNT-REG::INVALID-EMAIL::A::p' };
         }
 
         if (globalAccessPoint.allowedEmailDomains() !== '*') {
             const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
-                return respondWithError(parameters.response, 'EMAIL-DOMAIN-NOT-ALLOWED');
+                return respondWithError(parameters.response, 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p');
             }
         }
 
@@ -89,9 +94,9 @@ const createAccount = async (email, password) => {
                 ipAddress: requestMetadata?.ip,
                 impact: 'Account creation blocked - account already exists',
                 metadata: { reason: 'ACCOUNT_EXISTS' },
-                errorCode: 'ACC-REG-ACC-EXISTS'
+                errorCode: 'ACCOUNT-REG::ACCOUNT-EXISTS::A::p'
             });
-            return { error: true, errorCode: 'ACC-REG-ACC-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-REG::ACCOUNT-EXISTS::A::p' };
         }
 
         const passwordStrong = isPasswordSafe(sanitizedPassword);
@@ -111,9 +116,9 @@ const createAccount = async (email, password) => {
                 ipAddress: requestMetadata?.ip,
                 impact: 'Account creation blocked - weak password',
                 metadata: { reason: 'WEAK_PASSWORD' },
-                errorCode: 'ACC-REG-PASSWORD-WEAK'
+                errorCode: 'ACCOUNT-REG::PASSWORD-WEAK::A::p'
             });
-            return { error: true, errorCode: 'ACC-REG-PASSWORD-WEAK' };
+            return { error: true, errorCode: 'ACCOUNT-REG::PASSWORD-WEAK::A::p' };
         }
 
         const hashedPassword = await hashString(sanitizedPassword);
@@ -143,9 +148,9 @@ const createAccount = async (email, password) => {
                 metadata: {
                     reason: 'DATABASE_ERROR'
                 },
-                errorCode: 'ACC-REG-UNABLE-TO-CREATE-ACC'
+                errorCode: 'ACCOUNT-REG::CREATE-FAILED::A::i'
             });
-            return { error: true, errorCode: 'ACC-REG-UNABLE-TO-CREATE-ACC' };
+            return { error: true, errorCode: 'ACCOUNT-REG::CREATE-FAILED::A::i' };
         }
 
         auditTrail.record({

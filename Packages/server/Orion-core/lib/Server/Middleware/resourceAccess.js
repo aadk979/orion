@@ -44,8 +44,8 @@ const resourceAccessMiddleware = async (request, response, next) => {
 
             const tokenValidation = await validateResourceToken(token, undefined, ip, clientUrl);
 
-            if (tokenValidation?.errorCode === 'RESOURCE-TOKEN-EXPIRED') {
-                return res.status(401).json({ status: 'error', code: 'RESOURCE-TOKEN-EXPIRED', message: 'Access denied. The resource token has expired.' });
+            if (tokenValidation?.errorCode === 'TOKEN-RESOURCE::EXPIRED::A::p') {
+                return res.status(401).json({ status: 'error', code: 'TOKEN-RESOURCE::EXPIRED::A::p', message: 'Access denied. The resource token has expired.' });
             }
 
             if (tokenValidation.error) {
@@ -53,7 +53,7 @@ const resourceAccessMiddleware = async (request, response, next) => {
                     .status(401)
                     .json({
                         status: 'error',
-                        code: tokenValidation.errorCode || 'RESOURCE-TOKEN-VALIDATION-FAILED',
+                        code: tokenValidation.errorCode || 'TOKEN-RESOURCE::VALIDATION-FAILED::A::p',
                         message: 'Access denied. Unable to validate the resource token.'
                     });
             }
@@ -61,13 +61,13 @@ const resourceAccessMiddleware = async (request, response, next) => {
             if (!tokenValidation.valid) {
                 return res
                     .status(401)
-                    .json({ status: 'error', code: 'RESOURCE-TOKEN-INVALID', message: 'Access denied. The provided resource token is invalid.' });
+                    .json({ status: 'error', code: 'TOKEN-RESOURCE::INVALID::A::p', message: 'Access denied. The provided resource token is invalid.' });
             }
 
             if (!tokenValidation.data.accessibleCallbacks.includes(filePath)) {
                 return res
                     .status(403)
-                    .json({ status: 'error', code: 'RESOURCE-TOKEN-NOT-AUTHORIZED', message: 'Access denied. You are not authorized to view this resource.' });
+                    .json({ status: 'error', code: 'TOKEN-RESOURCE::NOT-AUTHORIZED::A::p', message: 'Access denied. You are not authorized to view this resource.' });
             }
 
             const callbacks = globalAccessPoint.resourceAccessSystem_Config();
@@ -86,7 +86,7 @@ const resourceAccessMiddleware = async (request, response, next) => {
                 return;
             }
 
-            return respondWithBuffer(res, callbackResult.base64File, callbackResult.mimeType, viewMode);
+            return await respondWithBuffer(res, callbackResult.base64File, callbackResult.mimeType, viewMode);
         }
 
         return nextFunc();

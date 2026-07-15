@@ -9,6 +9,12 @@ import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { toShortPayload, toVerbosePayload } from './tokenFieldMap.js';
 import { compressURLs, decompressURLs } from '../../Compressor.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'AccessTokens.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'AccessTokens.js');
+const tokenSecretsManagerAccessModule = new SafeModuleHandler('TokenSecretsManager(access)', 'TOKEN_SECRETS_MANAGER_access', 'AccessTokens.js');
+
 
 async function generateAccessToken(
     uid,
@@ -19,17 +25,17 @@ async function generateAccessToken(
     ip,
     userAgent
 ) {
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
     const securityTier = globalAccessPoint.tokenSecurityTier();
 
-    const secret = await globalAccessPoint.TOKEN_SECRETS_MANAGER_access().getRandomSigningKeyPair();
-    const expiry = globalAccessPoint.systemConfig().tokens?.lifespans.accessTokens || '15m';
+    const secret = await tokenSecretsManagerAccessModule.getModule().getRandomSigningKeyPair();
+    const expiry = systemConfigModule.getModule().tokens?.lifespans.accessTokens || '15m';
 
     const accessTokenLinkCode = generateId('AT_LINK', 10);
 
     const aud = compressURLs(globalAccessPoint.allowedClientUrls());
-    const iss = compressURLs(globalAccessPoint.systemConfig().server.urls);
+    const iss = compressURLs(systemConfigModule.getModule().server.urls);
 
     let tokenData = null;
 
@@ -149,9 +155,9 @@ async function generateAccessToken(
                 role: role,
                 securityTier: securityTier
             },
-            errorCode: 'UNABLE-TO-GENERATE-ACCESS-TOKEN'
+            errorCode: 'TOKEN-ACCESS::GENERATION-FAILED::A::i'
         });
-        return { error: true, errorCode: 'UNABLE-TO-GENERATE-ACCESS-TOKEN' };
+        return { error: true, errorCode: 'TOKEN-ACCESS::GENERATION-FAILED::A::i' };
     }
 
     const shortPayload = toShortPayload(payload);
@@ -183,7 +189,7 @@ async function generateAccessToken(
 }
 
 async function validateAccessToken(token, fingerprint, ip, clientUrl) {
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
     const configuredSecurityTier = globalAccessPoint.tokenSecurityTier();
 
@@ -203,17 +209,17 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
                 ipAddress: ip,
                 impact: 'Access token validation failed - missing token',
                 metadata: { reason: 'MISSING_TOKEN' },
-                errorCode: 'MISSING-AUTHENTICATION-TOKEN'
+                errorCode: 'AUTH::MISSING-TOKEN::A::p'
             });
-            return { error: true, errorCode: 'MISSING-AUTHENTICATION-TOKEN' };
+            return { error: true, errorCode: 'AUTH::MISSING-TOKEN::A::p' };
         }
 
         const decodedHeader = jwt.decode(token, { complete: true }).header;
-        const secret = await globalAccessPoint.TOKEN_SECRETS_MANAGER_access().findKeyPair(decodedHeader.kid);
-        const serverUrl = globalAccessPoint.systemConfig().server.selfUrl;
+        const secret = await tokenSecretsManagerAccessModule.getModule().findKeyPair(decodedHeader.kid);
+        const serverUrl = systemConfigModule.getModule().server.selfUrl;
 
         if (!secret) {
-            return { error: true, errorCode: 'ACCESS-TOKEN-KEY-NOT-FOUND' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::KEY-NOT-FOUND::A::i' };
         }
 
         const rawDecoded = jwt.verify(token, secret._nodePublicKey, { algorithms: [secret.generationConfig.algorithm] });
@@ -225,17 +231,17 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
 
         // Validate audience and issuer for all tiers
         if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.allowedClientUrls().includes(clientUrl)) {
-            return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-INVALID-AUD' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::INVALID-AUD::A::p' };
         }
 
         if (!validatedToken.iss.includes(serverUrl)) {
-            return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-ISS-NOT-ALLOWED' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::ISS-NOT-ALLOWED::A::p' };
         }
 
         const securityTier = validatedToken.securityTier;
 
         if (securityTier !== configuredSecurityTier) {
-            return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-TIER-CONFLICT' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::TIER-CONFLICT::A::i' };
         }
 
         // Tier 1: Stateless - no additional validation needed
@@ -247,17 +253,17 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         const tokenData = await TokenModel.getToken(validatedToken.tokenData.tokenId);
 
         if (!tokenData) {
-            return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-ID-NOT-FOUND' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::TOKEN-ID-NOT-FOUND::A::p' };
         }
 
         if (tokenData.type !== 'ACCESS_TOKEN') {
-            return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-TOKEN-TYPE-MISMATCH' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::TOKEN-TYPE-MISMATCH::A::p' };
         }
 
         // Tier 2: IP validation only
         if (securityTier === 2) {
             if (!(await isIpInRange(ip, validatedToken.ipRange))) {
-                return { error: true, errorCode: 'INVALID-ACCESS-TOKEN-IP-NOT-IN-RANGE' };
+                return { error: true, errorCode: 'TOKEN-ACCESS::IP-NOT-IN-RANGE::A::p' };
             }
         }
 
@@ -268,7 +274,7 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
                 riskScore += 30;
             }
             if (riskScore >= 50) {
-                return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
+                return { error: true, errorCode: 'STEP-UP::REQUIRED::A::p', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
 
@@ -282,7 +288,7 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
                 riskScore += 40;
             }
             if (riskScore >= 50) {
-                return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
+                return { error: true, errorCode: 'STEP-UP::REQUIRED::A::p', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
 
@@ -310,10 +316,10 @@ async function validateAccessToken(token, fingerprint, ip, clientUrl) {
         return { error: false, valid: true, data: validatedToken };
     } catch (e) {
         if (e.message === 'jwt expired') {
-            return { error: true, errorCode: 'ACCESS-TOKEN-EXPIRED' };
+            return { error: true, errorCode: 'TOKEN-ACCESS::EXPIRED::A::p' };
         }
 
-        return { error: true, errorCode: 'UNABLE-TO-VALIDATE-ACCESS-TOKEN' };
+        return { error: true, errorCode: 'TOKEN-ACCESS::VALIDATION-FAILED::A::p' };
     }
 }
 

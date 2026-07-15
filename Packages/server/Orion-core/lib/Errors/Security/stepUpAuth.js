@@ -1,71 +1,80 @@
 const StepUpAuth = {
-    'STEP-UP-AUTH-SESSION-EXPIRED': {
+    'STEP-UP::REQUIRED::A::p': {
+        status: 401,
+        customStatus: 601,
+        context: 'Step-up authentication is required to complete this request',
+        errorCode: 'STEP-UP::REQUIRED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Complete the step-up authentication flow to re-verify your identity'],
+        flow: 'FLOW-STEP-UP-AUTH'
+    },
+    'STEP-UP::SESSION-EXPIRED::A::p': {
         status: 401,
         context: 'The step-up authentication session has expired',
-        errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED',
+        errorCode: 'STEP-UP::SESSION-EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['Restart the step-up authentication flow']
     },
-    'STEP-UP-AUTH-MISSING-CONTEXT': {
+    'STEP-UP::MISSING-CONTEXT::A::p': {
         status: 401,
         context: 'The step-up authentication context is missing',
-        errorCode: 'STEP-UP-AUTH-MISSING-CONTEXT',
+        errorCode: 'STEP-UP::MISSING-CONTEXT::A::p',
         fault: 'CLIENT',
         solutions: ['The step-up flow was not properly initiated']
     },
-    'STEP-UP-AUTH-INVALID-CODE': {
+    'STEP-UP::INVALID-CODE::A::p': {
         status: 401,
         context: 'The step-up authentication code is invalid',
-        errorCode: 'STEP-UP-AUTH-INVALID-CODE',
+        errorCode: 'STEP-UP::INVALID-CODE::A::p',
         fault: 'CLIENT',
         solutions: ['Enter the correct code from your email or authenticator app']
     },
-    'STEP-UP-AUTH-USERAGENT-MISMATCH': {
+    'STEP-UP::USERAGENT-MISMATCH::A::p': {
         status: 401,
         context: 'The step-up authentication browser does not match the original request',
-        errorCode: 'STEP-UP-AUTH-USERAGENT-MISMATCH',
+        errorCode: 'STEP-UP::USERAGENT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['Complete step-up authentication from the same browser']
     },
-    'STEP-UP-AUTH-IP-MISMATCH': {
+    'STEP-UP::IP-MISMATCH::A::p': {
         status: 401,
         context: 'The step-up authentication IP address is too different from the original request',
-        errorCode: 'STEP-UP-AUTH-IP-MISMATCH',
+        errorCode: 'STEP-UP::IP-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['Complete step-up authentication from the same network']
     },
-    'STEP-UP-AUTH-SECRET-MISMATCH': {
+    'STEP-UP::SECRET-MISMATCH::A::p': {
         status: 401,
         context: 'The step-up authentication flow secret does not match',
-        errorCode: 'STEP-UP-AUTH-SECRET-MISMATCH',
+        errorCode: 'STEP-UP::SECRET-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['Restart the step-up authentication flow']
     },
-    'STEP-UP-AUTH-TOKEN-INVALID': {
+    'STEP-UP::TOKEN-INVALID::A::p': {
         status: 401,
         context: 'The step-up authentication token is invalid',
-        errorCode: 'STEP-UP-AUTH-TOKEN-INVALID',
+        errorCode: 'STEP-UP::TOKEN-INVALID::A::p',
         fault: 'CLIENT',
         solutions: ['Complete step-up authentication again']
     },
-    'STEP-UP-AUTH-TOKEN-EXPIRED': {
+    'STEP-UP::TOKEN-EXPIRED::A::p': {
         status: 401,
         context: 'The step-up authentication token has expired',
-        errorCode: 'STEP-UP-AUTH-TOKEN-EXPIRED',
+        errorCode: 'STEP-UP::TOKEN-EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['Complete step-up authentication again']
     },
-    'STEP-UP-AUTH-UNABLE-TO-SEND-EMAIL': {
+    'STEP-UP::UNABLE-TO-SEND-EMAIL::A::i': {
         status: 500,
         context: 'Unable to send step-up authentication email',
-        errorCode: 'STEP-UP-AUTH-UNABLE-TO-SEND-EMAIL',
+        errorCode: 'STEP-UP::UNABLE-TO-SEND-EMAIL::A::i',
         fault: 'SERVER',
         solutions: ['Try again in a moment or use a different verification method']
     },
-    'STEP-UP-AUTH-INVALID-TOTP': {
+    'STEP-UP::INVALID-TOTP::A::p': {
         status: 401,
         context: 'The TOTP code provided for step-up authentication is invalid',
-        errorCode: 'STEP-UP-AUTH-INVALID-TOTP',
+        errorCode: 'STEP-UP::INVALID-TOTP::A::p',
         fault: 'CLIENT',
         solutions: ['Check the code in your authenticator app and try again']
     }

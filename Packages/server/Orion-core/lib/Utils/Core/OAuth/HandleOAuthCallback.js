@@ -15,12 +15,18 @@ import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { isValidEmailDomain } from '../../Validator.js';
 import { userControl } from '../AccountManagment/UserControl.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'HandleOAuthCallback.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'HandleOAuthCallback.js');
+const oAuthToolKitModule = new SafeModuleHandler('OAuthToolKit', 'oAuthToolKit', 'HandleOAuthCallback.js');
+
 
 const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, userAgent, deviceId, deviceCode) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
-        const oAuthToolKit = globalAccessPoint.oAuthToolKit();
+        const oAuthToolKit = oAuthToolKitModule.getModule();
 
         const stateFromClient = JSON.parse(base64Decode(parameters.state));
 
@@ -43,9 +49,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                     reason: 'INVALID_OR_EXPIRED_REQUEST',
                     requestId: stateFromClient.requestId
                 },
-                errorCode: 'O-AUTH-REQUEST-INVALID-OR-EXPIRED'
+                errorCode: 'OAUTH::REQUEST-EXPIRED::A::p'
             });
-            return { error: true, errorCode: 'O-AUTH-REQUEST-INVALID-OR-EXPIRED' };
+            return { error: true, errorCode: 'OAUTH::REQUEST-EXPIRED::A::p' };
         }
 
         if (!(await verifyHash(parameters.flowSecret, stateFromServer.hashed_flow_secret))) {
@@ -65,9 +71,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                     reason: 'FLOW_SECRET_MISMATCH',
                     requestId: stateFromClient.requestId
                 },
-                errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH'
+                errorCode: 'OAUTH::FLOW-SECRET-MISMATCH::A::p'
             });
-            return { error: true, errorCode: 'O-AUTH-FLOW-SECRET-MISMATCH' };
+            return { error: true, errorCode: 'OAUTH::FLOW-SECRET-MISMATCH::A::p' };
         }
 
         if (!(await isIpInRange(parameters.ip, stateFromServer.ip_range))) {
@@ -87,9 +93,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                     reason: 'IP_MISMATCH',
                     requestId: stateFromClient.requestId
                 },
-                errorCode: 'O-AUTH-IP-MISMATCH'
+                errorCode: 'OAUTH::IP-MISMATCH::A::p'
             });
-            return { error: true, errorCode: 'O-AUTH-IP-MISMATCH' };
+            return { error: true, errorCode: 'OAUTH::IP-MISMATCH::A::p' };
         }
 
         if (!(await verifyHash(stateFromClient.challenge, stateFromServer.hashed_challenge))) {
@@ -109,9 +115,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                     reason: 'INVALID_STATE_CHALLENGE',
                     requestId: stateFromClient.requestId
                 },
-                errorCode: 'O-AUTH-INVALID-STATE-CHALLENGE'
+                errorCode: 'OAUTH::INVALID-STATE-CHALLENGE::A::p'
             });
-            return { error: true, errorCode: 'O-AUTH-INVALID-STATE-CHALLENGE' };
+            return { error: true, errorCode: 'OAUTH::INVALID-STATE-CHALLENGE::A::p' };
         }
 
         const provider = stateFromServer.provider_name.trim().toLowerCase();
@@ -159,9 +165,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                     provider: provider,
                     requestId: stateFromClient.requestId
                 },
-                errorCode: 'O-AUTH-EMAIL-NOT-VERIFIED'
+                errorCode: 'OAUTH::EMAIL-NOT-VERIFIED::A::p'
             });
-            return { error: true, errorCode: 'O-AUTH-EMAIL-NOT-VERIFIED' };
+            return { error: true, errorCode: 'OAUTH::EMAIL-NOT-VERIFIED::A::p' };
         }
 
         if (globalAccessPoint.allowedEmailDomains() !== '*') {
@@ -185,10 +191,10 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                         provider: provider,
                         requestId: stateFromClient.requestId
                     },
-                    errorCode: 'O-AUTH-EMAIL-NOT-VERIFIED'
+                    errorCode: 'OAUTH::EMAIL-NOT-VERIFIED::A::p'
                 });
 
-                return { error: true, errorCode: 'EMAIL-DOMAIN-NOT-ALLOWED' };
+                return { error: true, errorCode: 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p' };
             }
         }
 
@@ -221,7 +227,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
         const userAccState = await userControl.getUserAccountState().byEmail(oAuthResponse.email);
 
         if (userAccState.disabled) {
-            return { error: true, errorCode: 'O-AUTH-ACC-DISABLED' };
+            return { error: true, errorCode: 'OAUTH::ACCOUNT-DISABLED::A::p' };
         }
 
         const deviceAuthorizationEnabled = globalAccessPoint.deviceAuthorization();
@@ -230,7 +236,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             if (!parameters?.deviceId || !parameters?.deviceCode) {
                 const cookies = [{ key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }];
 
-                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies };
+                return { error: true, errorCode: 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p', cookies };
             }
 
             const deviceRecognition = await isDeviceRecognizedForUserEmail(
@@ -247,7 +253,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                     { key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }
                 ];
 
-                return { error: true, errorCode: 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED', cookies };
+                return { error: true, errorCode: 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p', cookies };
             }
         }
 
@@ -284,7 +290,7 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             signedIn: true
         };
 
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         const tokenCookies = [
             { key: 'ACCESS_TOKEN', data: accessToken.token, maxAge: parseDuration(systemConfig.tokens.lifespans.accessTokens) },
@@ -329,8 +335,8 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
     const functionSource = fileURLToPath(import.meta.url);
     const results = await tryCatch(Function, true, parameters, 'handleOAuthCallback', functionSource);
 
-    if (results.error && results.errorCode === 'UNKNOWN-ERROR') {
-        return { error: true, errorCode: 'O-AUTH-CALLBACK-PROCESSING-FAILED' };
+    if (results.error && results.errorCode === 'GENERAL::UNKNOWN-ERROR::A::i') {
+        return { error: true, errorCode: 'OAUTH::CALLBACK-PROCESSING-FAILED::A::i' };
     }
 
     return results;
@@ -352,7 +358,7 @@ const routeHandlerHandleOAuthCallback = async (request, response) => {
 
     const callback = await handleOAuthCallback(code, state, flowSecret, fingerprint, ip, userAgent, deviceId, deviceCode);
 
-    if (callback.error && callback.errorCode !== 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED') {
+    if (callback.error && callback.errorCode !== 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p') {
         return respondWithError(response, callback.errorCode);
     }
 

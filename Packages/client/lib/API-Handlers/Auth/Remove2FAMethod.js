@@ -1,29 +1,15 @@
-async function initiate2FAMethodRemoval({ Api, getAuthHeader, dipConfig, This, method }) {
+async function initiate2FAMethodRemoval({ Api, getAuthHeader, This, method }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
-    const encryptedPayload = await Api.prepareDataForEncryption({ method });
-
-    const postEncryptionPayload = {
-        packet: { encryptedString: encryptedPayload.encryptedString }
-    };
-
-    const dipSignature = await Api.prepareDataForDIP(postEncryptionPayload, dipConfig);
-
-    const dipOptions = {
-        ...dipConfig,
-        dipState: 'ACTIVE',
-        dipSignature: dipSignature.dipSignature,
-        salt: dipSignature.salt,
-        timestamp: dipSignature.timestamp
+    const payload = {
+        packet: { method }
     };
 
     const res = await Api.fetch(
         `/${This.systemConfig.nameSpace}/api/v1/action/initiate-2fa-method-removal`,
         'POST',
         authHeader.authHead,
-        postEncryptionPayload,
-        dipOptions,
-        encryptedPayload.encryption
+        payload
     );
 
     const data = await res.json();
@@ -33,32 +19,18 @@ async function initiate2FAMethodRemoval({ Api, getAuthHeader, dipConfig, This, m
     return { error: false, sent: true };
 }
 
-async function complete2FAMethodRemoval({ Api, getAuthHeader, dipConfig, This, code }) {
+async function complete2FAMethodRemoval({ Api, getAuthHeader, This, code }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
-    const encryptedPayload = await Api.prepareDataForEncryption({ code });
-
-    const postEncryptionPayload = {
-        packet: { encryptedString: encryptedPayload.encryptedString }
-    };
-
-    const dipSignature = await Api.prepareDataForDIP(postEncryptionPayload, dipConfig);
-
-    const dipOptions = {
-        ...dipConfig,
-        dipState: 'ACTIVE',
-        dipSignature: dipSignature.dipSignature,
-        salt: dipSignature.salt,
-        timestamp: dipSignature.timestamp
+    const payload = {
+        packet: { code }
     };
 
     const res = await Api.fetch(
         `/${This.systemConfig.nameSpace}/api/v1/action/complete-2fa-method-removal`,
         'POST',
         authHeader.authHead,
-        postEncryptionPayload,
-        dipOptions,
-        encryptedPayload.encryption
+        payload
     );
 
     const data = await res.json();

@@ -1,13 +1,11 @@
-async function getUserProfile({ Api, getAuthHeader, dipConfig, This }) {
+async function getUserProfile({ Api, getAuthHeader, This }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
     const res = await Api.fetch(
         `/${This.systemConfig.nameSpace}/api/v1/action/get-user-profile`,
         'POST',
         authHeader.authHead,
-        {},
-        null,
-        null
+        {}
     );
 
     const data = await res.json();

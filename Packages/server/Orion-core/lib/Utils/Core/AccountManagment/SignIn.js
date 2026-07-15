@@ -13,12 +13,17 @@ import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
 import { stringifyCookieData } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { userControl } from './UserControl.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'SignIn.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignIn.js');
+
 
 const signInWithPassword = async (email, password, fingerprint, ip, userAgent) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.emailPassword) {
             auditTrail.record({
@@ -35,9 +40,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
                 ipAddress: parameters.ip,
                 impact: 'Sign in blocked - method disabled',
                 metadata: { reason: 'EMAIL_PASSWORD_DISABLED' },
-                errorCode: 'ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED'
+                errorCode: 'ACCOUNT-SIGNIN::EMAIL-PASSWORD-DISABLED::A::p'
             });
-            return { error: true, errorCode: 'ACC-SIGN-IN-EMAIL-PASSWORD-DISABLED' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::EMAIL-PASSWORD-DISABLED::A::p' };
         }
 
         const lowerCaseEmail = parameters.email.toLowerCase();
@@ -62,22 +67,22 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
                 ipAddress: parameters.ip,
                 impact: 'Sign in blocked - invalid email format',
                 metadata: { reason: 'INVALID_EMAIL_FORMAT' },
-                errorCode: 'ACC-SIGN-IN-INVALID-EMAIL'
+                errorCode: 'ACCOUNT-SIGNIN::INVALID-EMAIL::A::p'
             });
-            return { error: true, errorCode: 'ACC-SIGN-IN-INVALID-EMAIL' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::INVALID-EMAIL::A::p' };
         }
 
         if (globalAccessPoint.allowedEmailDomains() !== '*') {
             const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
-                return { error: true, errorCode: "EMAIL-DOMAIN-NOT-ALLOWED" };
+                return { error: true, errorCode: "ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p" };
             }
         }
 
         const userAccState = await userControl.getUserAccountState().byEmail(sanitizedEmail);
 
-        if (userAccState.error && userAccState.errorCode === 'USER-CONTROL-NO-SUCH-USER') {
+        if (userAccState.error && userAccState.errorCode === 'USER-CONTROL::NO-SUCH-USER::A::p') {
             auditTrail.record({
                 user: { email: parameters.email },
                 device: {
@@ -92,13 +97,13 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
                 ipAddress: parameters.ip,
                 impact: 'Sign in blocked - account does not exist',
                 metadata: { reason: 'ACCOUNT_NOT_FOUND' },
-                errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS'
+                errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p'
             });
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         if (userAccState.disabled) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-DISABLED' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p' };
         }
 
         const uid = await userControl.getUserUidByEmail(sanitizedEmail);
@@ -120,9 +125,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
                 ipAddress: parameters.ip,
                 impact: 'Sign in blocked - no password setup',
                 metadata: { reason: 'NO_PASSWORD_SETUP' },
-                errorCode: 'ACC-SIGN-IN-NO-PASSWORD-SETUP'
+                errorCode: 'ACCOUNT-SIGNIN::NO-PASSWORD-SETUP::A::p'
             });
-            return { error: true, errorCode: 'ACC-SIGN-IN-NO-PASSWORD-SETUP' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::NO-PASSWORD-SETUP::A::p' };
         }
 
         const passwordMatch = await verifyHash(sanitizedPassword, user.password_hash);
@@ -142,9 +147,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
                 ipAddress: parameters.ip,
                 impact: 'Sign in blocked - invalid password',
                 metadata: { reason: 'INVALID_PASSWORD' },
-                errorCode: 'ACC-SIGN-IN-INVALID-PASSWORD'
+                errorCode: 'ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p'
             });
-            return { error: true, errorCode: 'ACC-SIGN-IN-INVALID-PASSWORD' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p' };
         }
 
         const accessToken = await generateAccessToken(

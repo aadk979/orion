@@ -11,6 +11,10 @@ import { UserModel, PasskeyModel, TOTPModel } from '../../Databases/models/index
 import { parseDuration } from '../../Date&Time.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../AccountManagment/Passkeys/completeAuthentication.js';
 import { verifyTOTPToken } from '../AccountManagment/TOTP.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'DeviceAuthorization.js');
+
 
 const routeHandlerDeviceAuthorization = async (request, response) => {
     const headers = request.headers;
@@ -21,7 +25,7 @@ const routeHandlerDeviceAuthorization = async (request, response) => {
     const flowSecret = parseCookieData(request.cookies['deviceAuthFlowSecret']) || '';
 
     if (!requestId) {
-        return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-REQUEST-ID');
+        return respondWithError(response, 'DEVICE-AUTH::MISSING-REQUEST-ID::A::p');
     }
 
     const code = request.body.packet.authorizationCode;
@@ -50,20 +54,20 @@ const routeHandlerGetAvailable2faMethods = async (request, response) => {
     const email = request.cookies['deviceAuthEmailOffset'];
 
     if (!email) {
-        return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET');
+        return respondWithError(response, 'DEVICE-AUTH::MISSING-EMAIL-OFFSET::A::p');
     }
 
     const uid = await UserModel.getUidByEmail(email);
 
     if (!uid) {
-        return respondWithError(response, 'ACC-SIGN-IN-ACC-NO-EXISTS');
+        return respondWithError(response, 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p');
     }
 
     const hasPasskey = await PasskeyModel.hasPasskey(uid);
     const totpEnabled = await TOTPModel.isEnabled(uid);
 
     const totpSystemDisabled = globalAccessPoint.getValue('totpSystemDisabled');
-    const passkeySystemDisabled = !globalAccessPoint.systemConfig()?.authMethods?.passkey;
+    const passkeySystemDisabled = !systemConfigModule.getModule()?.authMethods?.passkey;
 
     const methods = {
         'email-code': true,
@@ -78,7 +82,7 @@ const routeHandlerSendDeviceAuthorizationMail = async (request, response) => {
     const email = request.cookies['deviceAuthEmailOffset'];
 
     if (!email) {
-        return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET');
+        return respondWithError(response, 'DEVICE-AUTH::MISSING-EMAIL-OFFSET::A::p');
     }
 
     const headers = request.headers;
@@ -115,7 +119,7 @@ const routeHandlerAuthorizeDeviceWithPasskey = async (request, response) => {
     const email = request.cookies['deviceAuthEmailOffset'];
 
     if (!email) {
-        return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET');
+        return respondWithError(response, 'DEVICE-AUTH::MISSING-EMAIL-OFFSET::A::p');
     }
 
     const cookie = request.cookies['PASSKEY-AUTHENTICATION-INFO-STEP-1'];
@@ -159,11 +163,11 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
     const email = request.cookies['deviceAuthEmailOffset'];
 
     if (!email) {
-        return respondWithError(response, 'DEVICE-AUTHORIZATION-MISSING-EMAIL-OFFSET');
+        return respondWithError(response, 'DEVICE-AUTH::MISSING-EMAIL-OFFSET::A::p');
     }
 
     if (globalAccessPoint.getValue('totpSystemDisabled')) {
-        return respondWithError(response, 'TOTP-SYSTEM-DISABLED');
+        return respondWithError(response, 'TOTP::SYSTEM-DISABLED::A::i');
     }
 
     const totpCode = request.body.packet.totpCode || request.body.packet.code;
@@ -172,13 +176,13 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
     const uid = await UserModel.getUidByEmail(email);
 
     if (!uid) {
-        return respondWithError(response, 'ACC-SIGN-IN-ACC-NO-EXISTS');
+        return respondWithError(response, 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p');
     }
 
     const totpConfig = await TOTPModel.getTOTPConfig(uid);
 
     if (!totpConfig?.enabled) {
-        return respondWithError(response, 'TOTP-NOT-ENABLED');
+        return respondWithError(response, 'TOTP::NOT-ENABLED::A::p');
     }
 
     const secret = totpConfig.secret;
@@ -186,7 +190,7 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
     const verification = await verifyTOTPToken(totpCode, secret);
 
     if (verification.error) {
-        return respondWithError(response, 'DEVICE-AUTHORIZATION-INVALID-TOTP');
+        return respondWithError(response, 'DEVICE-AUTH::INVALID-TOTP::A::p');
     }
 
     const authorization = await authorizeDeviceDirect(email, undefined, userAgent);

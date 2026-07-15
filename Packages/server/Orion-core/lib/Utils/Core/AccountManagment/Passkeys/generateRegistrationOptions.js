@@ -1,5 +1,4 @@
 import { generateRegistrationOptions } from '@simplewebauthn/server';
-import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { UserModel, PasskeyModel } from '../../../Databases/models/index.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
@@ -7,13 +6,17 @@ import { isValidEmail } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { stringifyCookieData } from '../../../CookieUtils.js';
 import { fileURLToPath } from 'url';
+import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'generateRegistrationOptions.js');
+
 
 const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.passkey) {
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
         const rpName = 'Orion';
@@ -25,13 +28,13 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
         const emailValid = isValidEmail(sanitizedEmail);
 
         if (!emailValid) {
-            return { error: true, errorCode: 'PASSKEY-REG-INVALID-EMAIL' };
+            return { error: true, errorCode: 'PASSKEY::REGISTRATION-INVALID-EMAIL::A::p' };
         }
 
         const user = await UserModel.getUserByEmail(sanitizedEmail);
 
         if (!user) {
-            return { error: true, errorCode: 'PASSKEY-ACC-NO-EXIST' };
+            return { error: true, errorCode: 'PASSKEY::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const existingPasskey = await PasskeyModel.hasPasskey(user.uid);
@@ -39,7 +42,7 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
         if (existingPasskey) {
             return {
                 error: true,
-                errorCode: 'PASSKEY-REGISTRATION-ACTIVE-PASSKEY-DETECTED'
+                errorCode: 'PASSKEY::REGISTRATION-ALREADY-ACTIVE::A::p'
             };
         }
 

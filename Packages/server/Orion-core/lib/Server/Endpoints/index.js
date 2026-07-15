@@ -20,8 +20,6 @@ import {
     routeHandlerAuthorizeDeviceWithTOTP
 } from '../../Utils/Core/SecurityManagment/DeviceAuthorization.js';
 import { routeHandlerInitiate2FAMethodRemoval, routeHandlerComplete2FAMethodRemoval } from '../../Utils/Core/SecurityManagment/Remove2FAMethod.js';
-import { routeHandlerGenerateDipConfig } from '../../Utils/Core/SecurityManagment/Dip.js';
-import { routeHandlerKeyRequest } from '../../Utils/Core/SecurityManagment/KeyRequest.js';
 import {
     routeHandlerGenerateNoAuthTokenCreationTransaction,
     routeHandlerGenerateNoAuthToken,
@@ -84,18 +82,6 @@ const defaultServerRoutes = {
             requireAuth: false,
             method: 'POST',
             callback: routeHandlerDeviceHasNoAuthToken
-        },
-        {
-            path: `/${NAME_SPACE}/api/v1/request/encryption-request-key`,
-            requireAuth: false,
-            method: 'POST',
-            callback: routeHandlerKeyRequest
-        },
-        {
-            path: `/${NAME_SPACE}/api/v1/action/configure-dip`,
-            requireAuth: false,
-            method: 'POST',
-            callback: routeHandlerGenerateDipConfig
         },
         {
             path: `/${NAME_SPACE}/api/v1/action/generate-passkey-registration-options`,

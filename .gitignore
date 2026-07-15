@@ -3,12 +3,7 @@ Testing/Server/orion.config.js
 # Ignore all node_modules everywhere
 node_modules/
 
-1.js
-
-
 *.log
-
-experimentals
 
 orion.internal*
 
@@ -17,3 +12,17 @@ temp.*
 playground
 
 ClientTest
+
+gipsy.*
+
+node_modules
+
+*.log
+*.db
+
+logs
+
+r_sync.internal.*
+r_sync.internal.*
+
+.env.*

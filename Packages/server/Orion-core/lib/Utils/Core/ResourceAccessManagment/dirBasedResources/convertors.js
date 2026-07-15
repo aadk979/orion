@@ -22,9 +22,17 @@ const base64ToFile = (base64String, outputPath) => {
     }
 };
 
-const getFileType = async (base64File, filePath) => {
+/**
+ * Resolves a MIME type by sniffing magic bytes, falling back to the path extension.
+ *
+ * @param {Buffer|string} file - Raw buffer, or a base64-encoded string to decode.
+ * @param {string|null} filePath - Optional path used only for extension fallback.
+ */
+const getFileType = async (file, filePath) => {
     try {
-        const buffer = Buffer.from(base64File, 'base64');
+        // Callers that already hold the decoded bytes pass the buffer through directly
+        // rather than paying for a second base64 decode of the whole payload.
+        const buffer = Buffer.isBuffer(file) ? file : Buffer.from(file, 'base64');
         const detectedType = await fileTypeFromBuffer(buffer);
 
         if (detectedType && detectedType.mime) {

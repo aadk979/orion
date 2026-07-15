@@ -1,52 +1,59 @@
 const Captcha = {
-    'INVALID-CAPTCHA-RESPONSE': {
+    'CAPTCHA::INVALID-RESPONSE::A::p': {
         status: 400,
         context: 'The captcha response is invalid',
-        errorCode: 'INVALID-CAPTCHA-RESPONSE',
+        errorCode: 'CAPTCHA::INVALID-RESPONSE::A::p',
         fault: 'CLIENT',
         solutions: ['Complete the captcha challenge correctly']
     },
-    'INVALID-CAPTCHA-TRANSACTION-ID': {
+    'CAPTCHA::INVALID-TRANSACTION-ID::A::p': {
         status: 400,
         context: 'The captcha transaction ID is invalid',
-        errorCode: 'INVALID-CAPTCHA-TRANSACTION-ID',
+        errorCode: 'CAPTCHA::INVALID-TRANSACTION-ID::A::p',
         fault: 'CLIENT',
         solutions: ['Start a new captcha transaction']
     },
-    'CAPTCHA-SYSTEM-VERSION-ERROR': {
+    'CAPTCHA::SYSTEM-VERSION-ERROR::A::i': {
         status: 500,
         context: 'Captcha system version mismatch error',
-        errorCode: 'CAPTCHA-SYSTEM-VERSION-ERROR',
+        errorCode: 'CAPTCHA::SYSTEM-VERSION-ERROR::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'INVALID-CAPTCHA-TRANSACTION-IP': {
+    'CAPTCHA::TRANSACTION-IP-MISMATCH::A::p': {
         status: 401,
         context: 'Captcha transaction IP address does not match the original request',
-        errorCode: 'INVALID-CAPTCHA-TRANSACTION-IP',
+        errorCode: 'CAPTCHA::TRANSACTION-IP-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-CAPTCHA-TRANSACTION-FINGERPRINT': {
+    'CAPTCHA::TRANSACTION-FINGERPRINT-MISMATCH::A::p': {
         status: 401,
         context: 'Captcha transaction fingerprint does not match the original request',
-        errorCode: 'INVALID-CAPTCHA-TRANSACTION-FINGERPRINT',
+        errorCode: 'CAPTCHA::TRANSACTION-FINGERPRINT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-CAPTCHA-TRANSACTION-USERAGENT': {
+    'CAPTCHA::TRANSACTION-USERAGENT-MISMATCH::A::p': {
         status: 401,
         context: 'Captcha transaction user agent does not match the original request',
-        errorCode: 'INVALID-CAPTCHA-TRANSACTION-USERAGENT',
+        errorCode: 'CAPTCHA::TRANSACTION-USERAGENT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-CAPTCHA-CODE': {
+    'CAPTCHA::INVALID-CODE::A::p': {
         status: 400,
         context: 'The captcha code is invalid',
-        errorCode: 'INVALID-CAPTCHA-CODE',
+        errorCode: 'CAPTCHA::INVALID-CODE::A::p',
         fault: 'CLIENT',
         solutions: ['Enter the correct captcha code']
+    },
+    'CAPTCHA::TRANSACTION-EXPIRED::A::p': {
+        status: 401,
+        context: 'The captcha transaction has expired',
+        errorCode: 'CAPTCHA::TRANSACTION-EXPIRED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Start a new captcha transaction']
     }
 };
 

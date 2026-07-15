@@ -1,6 +1,5 @@
 import { respondWithError, respondWithSuccess } from '../../../../../Server/Response/response.js';
 import { parseDuration } from '../../../../Date&Time.js';
-import { globalAccessPoint } from '../../../../GlobalAccessPoint.js';
 import { getIp } from '../../../../Ip.js';
 import { tryCatch } from '../../../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -10,12 +9,17 @@ import { veryifyAndCompletePasskeyAuthentication } from '../completeAuthenticati
 import { stringifyCookieData } from '../../../../CookieUtils.js';
 import { requestContext } from '../../../../../Server/Middleware/requestMetadata.js';
 import { userControl } from '../../UserControl.js';
+import { SafeModuleHandler } from '../../../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'SignInWithPasskey.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignInWithPasskey.js');
+
 
 const signInWithPasskey = async (authenticationResponse, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.passkey) {
             auditTrail.record({
@@ -32,15 +36,15 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
                 ipAddress: parameters.ip,
                 impact: 'Passkey sign in blocked - method disabled',
                 metadata: { reason: 'PASSKEY_DISABLED' },
-                errorCode: 'PASSKEY-SIGN-IN-DISABLED'
+                errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i'
             });
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
         const userAccState = await userControl.getUserAccountState().byEmail(parameters.email);
 
         if (userAccState.disabled) {
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-ACC-DISABLED' };
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-ACCOUNT-DISABLED::A::p' };
         }
 
         const verification = await veryifyAndCompletePasskeyAuthentication(
@@ -89,9 +93,9 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
                 ipAddress: parameters.ip,
                 impact: 'Passkey authentication failed - unable to authenticate',
                 metadata: { reason: 'AUTHENTICATION_FAILED' },
-                errorCode: 'PASSKEY-UNABLE-TO-AUTHENTICATE'
+                errorCode: 'PASSKEY::AUTH-UNAVAILABLE::A::i'
             });
-            return { error: true, errorCode: 'PASSKEY-UNABLE-TO-AUTHENTICATE' };
+            return { error: true, errorCode: 'PASSKEY::AUTH-UNAVAILABLE::A::i' };
         }
 
         const accessToken = await generateAccessToken(

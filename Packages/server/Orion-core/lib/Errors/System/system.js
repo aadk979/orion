@@ -1,59 +1,73 @@
 const System = {
-    'TOKEN-SECRETS-AUTO-EXPORT': {
+    'SYSTEM::TOKEN-SECRETS-EXPORT-FAILED::A::i': {
         status: 500,
         context: 'An error occurred during automatic token secrets export',
-        errorCode: 'TOKEN-SECRETS-AUTO-EXPORT',
+        errorCode: 'SYSTEM::TOKEN-SECRETS-EXPORT-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'INTERNAL-SERVER-ERROR': {
+    'SYSTEM::INTERNAL-ERROR::A::i': {
         status: 500,
         context: 'An internal server error has occurred',
-        errorCode: 'INTERNAL-SERVER-ERROR',
+        errorCode: 'SYSTEM::INTERNAL-ERROR::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'AUDIT-SYSTEM-NOT-INITIALIZED': {
+    'SYSTEM::AUDIT-NOT-INITIALIZED::A::i': {
         status: 500,
         context: 'The audit system has not been initialized',
-        errorCode: 'AUDIT-SYSTEM-NOT-INITIALIZED',
+        errorCode: 'SYSTEM::AUDIT-NOT-INITIALIZED::A::i',
         fault: 'SERVER',
         solutions: ['Contact support to initialize the audit system']
     },
-    'AUDIT-INSERT-FAILED': {
+    'SYSTEM::AUDIT-INSERT-FAILED::A::i': {
         status: 500,
         context: 'Failed to insert audit record',
-        errorCode: 'AUDIT-INSERT-FAILED',
+        errorCode: 'SYSTEM::AUDIT-INSERT-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'SERVER-UNHEALTHY': {
+    'SYSTEM::UNHEALTHY::A::i': {
         status: 503,
         context: 'The server is currently in an unhealthy state and cannot process requests',
-        errorCode: 'SERVER-UNHEALTHY',
+        errorCode: 'SYSTEM::UNHEALTHY::A::i',
         fault: 'SERVER',
         solutions: ['Try again in a few minutes and contact support if the issue persists']
     },
-    'SERVER-OVERLOADED': {
+    'SYSTEM::OVERLOADED::A::i': {
         status: 503,
         context: 'The server is currently overloaded and cannot accept new requests',
-        errorCode: 'SERVER-OVERLOADED',
+        errorCode: 'SYSTEM::OVERLOADED::A::i',
         fault: 'SERVER',
         solutions: ['Try again shortly — the server is under high load']
     },
-    'REQUEST-BLOCKED-ABUSE': {
+    'SYSTEM::REQUEST-BLOCKED-ABUSE::A::p': {
         status: 403,
         context: 'This request has been blocked due to suspicious activity from your device or network',
-        errorCode: 'REQUEST-BLOCKED-ABUSE',
+        errorCode: 'SYSTEM::REQUEST-BLOCKED-ABUSE::A::p',
         fault: 'CLIENT',
         solutions: ['Wait for the temporary block to expire and contact support if you believe this is a mistake']
     },
-    'CIRCUIT-BREAKER-OPEN': {
+    'SYSTEM::CIRCUIT-BREAKER-OPEN::A::i': {
         status: 503,
         context: 'A required service dependency is temporarily unavailable',
-        errorCode: 'CIRCUIT-BREAKER-OPEN',
+        errorCode: 'SYSTEM::CIRCUIT-BREAKER-OPEN::A::i',
         fault: 'SERVER',
         solutions: ['Try again in a few minutes — the service is recovering from an error state']
+    },
+    'SYSTEM::MODULE-UNAVAILABLE::A::i': {
+        status: 500,
+        context: 'A required internal module is unavailable and the request cannot be processed',
+        errorCode: 'SYSTEM::MODULE-UNAVAILABLE::A::i',
+        fault: 'SERVER',
+        solutions: ['Try again in a few minutes and contact support if the issue persists']
+    },
+    'SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i': {
+        status: 500,
+        context: 'No signing key pair is currently available to sign this token',
+        errorCode: 'SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i',
+        fault: 'SERVER',
+        solutions: ['Try again in a few minutes and contact support if the issue persists']
     }
 };
 

@@ -1,36 +1,36 @@
 const NoAuthToken = {
-    'INVALID-NO-AUTH-TOKEN': {
+    'NO-AUTH-TOKEN::INVALID::A::p': {
         status: 401,
         context: 'The no-auth token is invalid',
-        errorCode: 'INVALID-NO-AUTH-TOKEN',
+        errorCode: 'NO-AUTH-TOKEN::INVALID::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'EXPIRED-NO-AUTH-TOKEN': {
+    'NO-AUTH-TOKEN::EXPIRED::A::p': {
         status: 401,
         context: 'The no-auth token has expired',
-        errorCode: 'EXPIRED-NO-AUTH-TOKEN',
+        errorCode: 'NO-AUTH-TOKEN::EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'NO-AUTH-TOKEN-UNAUTHORIZED': {
+    'NO-AUTH-TOKEN::UNAUTHORIZED::A::p': {
         status: 401,
         context: 'The no-auth token is invalid',
-        errorCode: 'NO-AUTH-TOKEN-UNAUTHORIZED',
+        errorCode: 'NO-AUTH-TOKEN::UNAUTHORIZED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'NO-AUTH-TOKEN-NOT-FOUND': {
+    'NO-AUTH-TOKEN::NOT-FOUND::A::p': {
         status: 401,
         context: 'The no-auth token was not found',
-        errorCode: 'NO-AUTH-TOKEN-NOT-FOUND',
+        errorCode: 'NO-AUTH-TOKEN::NOT-FOUND::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'NO-AUTH-TOKEN-DISABLED': {
+    'NO-AUTH-TOKEN::SYSTEM-DISABLED::A::i': {
         status: 503,
         context: 'The no-auth token system has been disabled',
-        errorCode: 'NO-AUTH-TOKEN-DISABLED',
+        errorCode: 'NO-AUTH-TOKEN::SYSTEM-DISABLED::A::i',
         fault: 'NEITHER',
         solutions: ['NONE']
     }

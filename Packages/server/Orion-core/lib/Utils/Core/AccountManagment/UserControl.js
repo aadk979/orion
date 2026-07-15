@@ -1,6 +1,10 @@
 import { hashString } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel } from '../../Databases/models/index.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'UserControl.js');
+
 
 class OrionUserControl {
     constructor() {
@@ -13,7 +17,7 @@ class OrionUserControl {
 
     checkUserExist() {
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             if (!email) {
                 auditTrail.record({
@@ -27,9 +31,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User existence check failed - no email provided',
                     metadata: { reason: 'NO_EMAIL_PROVIDED' },
-                    errorCode: 'USER-CONTROL-NO-EMAIL-PROVIDED'
+                    errorCode: 'USER-CONTROL::NO-EMAIL-PROVIDED::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-EMAIL-PROVIDED' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-EMAIL-PROVIDED::A::p' };
             }
 
             const exists = await UserModel.emailExists(email);
@@ -69,7 +73,7 @@ class OrionUserControl {
         };
 
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             if (!uid) {
                 auditTrail.record({
@@ -83,9 +87,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User existence check failed - no UID provided',
                     metadata: { reason: 'NO_UID_PROVIDED' },
-                    errorCode: 'USER-CONTROL-NO-UID-PROVIDED'
+                    errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-UID-PROVIDED' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p' };
             }
 
             const user = await UserModel.getUserByUid(uid);
@@ -127,7 +131,7 @@ class OrionUserControl {
 
     disableUserAccount() {
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             const userExist = await this.checkUserExist().byUid(uid);
 
@@ -147,9 +151,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User account disable failed - user does not exist',
                     metadata: { uid: uid, reason: 'USER_NOT_FOUND' },
-                    errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                    errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
             }
 
             const user = await UserModel.getUserByUid(uid);
@@ -172,7 +176,7 @@ class OrionUserControl {
         };
 
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             const userExist = await this.checkUserExist().byEmail(email);
 
@@ -192,9 +196,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User account disable failed - user does not exist',
                     metadata: { email: email, reason: 'USER_NOT_FOUND' },
-                    errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                    errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
             }
 
             const uid = await UserModel.getUidByEmail(email);
@@ -221,7 +225,7 @@ class OrionUserControl {
 
     enableUserAccount() {
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             const userExist = await this.checkUserExist().byUid(uid);
 
@@ -241,9 +245,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User account enable failed - user does not exist',
                     metadata: { uid: uid, reason: 'USER_NOT_FOUND' },
-                    errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                    errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
             }
 
             const user = await UserModel.getUserByUid(uid);
@@ -266,7 +270,7 @@ class OrionUserControl {
         };
 
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             const userExist = await this.checkUserExist().byEmail(email);
 
@@ -286,9 +290,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User account enable failed - user does not exist',
                     metadata: { email: email, reason: 'USER_NOT_FOUND' },
-                    errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                    errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
             }
 
             const uid = await UserModel.getUidByEmail(email);
@@ -315,7 +319,7 @@ class OrionUserControl {
 
     getUserAccountState() {
         const byUid = async uid => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             const user = await UserModel.getUserByUid(uid);
 
@@ -331,9 +335,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User account state check failed - user does not exist',
                     metadata: { uid: uid, reason: 'USER_NOT_FOUND' },
-                    errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                    errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
             }
 
             auditTrail.record({
@@ -353,7 +357,7 @@ class OrionUserControl {
         };
 
         const byEmail = async email => {
-            const auditTrail = globalAccessPoint.auditTrailSystem();
+            const auditTrail = auditTrailSystemModule.getModule();
 
             const user = await UserModel.getUserByEmail(email);
 
@@ -369,9 +373,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User account state check failed - user does not exist',
                     metadata: { email: email, reason: 'USER_NOT_FOUND' },
-                    errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                    errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+                return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
             }
 
             auditTrail.record({
@@ -394,7 +398,7 @@ class OrionUserControl {
     }
 
     async getUserUidByEmail(email) {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
 
         if (!email) {
             auditTrail.record({
@@ -408,9 +412,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User UID lookup failed - no email provided',
                 metadata: { reason: 'NO_EMAIL_PROVIDED' },
-                errorCode: 'USER-CONTROL-NO-EMAIL-PROVIDED'
+                errorCode: 'USER-CONTROL::NO-EMAIL-PROVIDED::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-EMAIL-PROVIDED' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-EMAIL-PROVIDED::A::p' };
         }
 
         const uid = await UserModel.getUidByEmail(email);
@@ -427,9 +431,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User UID lookup failed - user does not exist',
                 metadata: { email: email, reason: 'USER_NOT_FOUND' },
-                errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         auditTrail.record({
@@ -449,7 +453,7 @@ class OrionUserControl {
     }
 
     async getUserEmailByUid(uid) {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
 
         if (!uid) {
             auditTrail.record({
@@ -463,9 +467,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User email lookup failed - no UID provided',
                 metadata: { reason: 'NO_UID_PROVIDED' },
-                errorCode: 'USER-CONTROL-NO-UID-PROVIDED'
+                errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-UID-PROVIDED' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p' };
         }
 
         const user = await UserModel.getUserByUid(uid);
@@ -482,9 +486,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User email lookup failed - user does not exist',
                 metadata: { uid: uid, reason: 'USER_NOT_FOUND' },
-                errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         auditTrail.record({
@@ -504,7 +508,7 @@ class OrionUserControl {
     }
 
     async updateUserRole(uid, role, customRolesAllowed) {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const STANDARD_ROLES = ['USER', 'ADMIN'];
 
         if (!role) {
@@ -519,9 +523,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User role update failed - no role provided',
                 metadata: { uid: uid, reason: 'NO_ROLE_PROVIDED' },
-                errorCode: 'USER-CONTROL-NO-USER-ROLE-PROVIDED'
+                errorCode: 'USER-CONTROL::NO-ROLE-PROVIDED::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-USER-ROLE-PROVIDED' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-ROLE-PROVIDED::A::p' };
         }
 
         if (!uid) {
@@ -536,9 +540,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User role update failed - no UID provided',
                 metadata: { role: role, reason: 'NO_UID_PROVIDED' },
-                errorCode: 'USER-CONTROL-NO-UID-PROVIDED'
+                errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-UID-PROVIDED' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p' };
         }
 
         if (!STANDARD_ROLES.includes(role.toUpperCase()) && !customRolesAllowed) {
@@ -553,9 +557,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User role update failed - not a standard role and custom roles not allowed',
                 metadata: { uid: uid, role: role, reason: 'NOT_STANDARD_ROLE' },
-                errorCode: 'USER-CONTROL-NOT-STANDARD-ROLE'
+                errorCode: 'USER-CONTROL::NOT-STANDARD-ROLE::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NOT-STANDARD-ROLE' };
+            return { error: true, errorCode: 'USER-CONTROL::NOT-STANDARD-ROLE::A::p' };
         }
 
         if (customRolesAllowed) {
@@ -573,9 +577,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User role update failed - custom roles allowed but not configured',
                     metadata: { uid: uid, role: role, reason: 'CUSTOM_ROLES_NOT_CONFIGURED' },
-                    errorCode: 'USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED'
+                    errorCode: 'USER-CONTROL::CUSTOM-ROLES-NOT-CONFIGURED::A::i'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-CUSTOM-ROLES-ALLOWED-BUT-NOT-CONFIGURED' };
+                return { error: true, errorCode: 'USER-CONTROL::CUSTOM-ROLES-NOT-CONFIGURED::A::i' };
             }
 
             if (!allowedRoles.includes(role.toUpperCase())) {
@@ -590,9 +594,9 @@ class OrionUserControl {
                     ipAddress: 'LOCAL-SYSTEM',
                     impact: 'User role update failed - role not found in custom role configuration',
                     metadata: { uid: uid, role: role, allowedRoles: allowedRoles, reason: 'ROLE_NOT_IN_CONFIGURATION' },
-                    errorCode: 'USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION'
+                    errorCode: 'USER-CONTROL::ROLE-NOT-FOUND-IN-CONFIG::A::p'
                 });
-                return { error: true, errorCode: 'USER-CONTROL-ROLE-NOT-FOUND-IN-CUSTOM-ROLE-CONFIGURATION' };
+                return { error: true, errorCode: 'USER-CONTROL::ROLE-NOT-FOUND-IN-CONFIG::A::p' };
             }
         }
 
@@ -610,9 +614,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User role update failed - user does not exist',
                 metadata: { uid: uid, role: role, reason: 'USER_NOT_FOUND' },
-                errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const previousRole = user.role;
@@ -641,7 +645,7 @@ class OrionUserControl {
     }
 
     async updateUserPassword(uid, newPassword) {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
 
         if (!uid) {
             auditTrail.record({
@@ -655,9 +659,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User password update failed - no UID provided',
                 metadata: { reason: 'NO_UID_PROVIDED' },
-                errorCode: 'USER-CONTROL-NO-UID-PROVIDED'
+                errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-UID-PROVIDED' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-UID-PROVIDED::A::p' };
         }
 
         if (!newPassword) {
@@ -672,9 +676,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User password update failed - no password provided',
                 metadata: { uid: uid, reason: 'NO_PASSWORD_PROVIDED' },
-                errorCode: 'USER-CONTROL-NO-PASSWORD-PROVIDED'
+                errorCode: 'USER-CONTROL::NO-PASSWORD-PROVIDED::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-PASSWORD-PROVIDED' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-PASSWORD-PROVIDED::A::p' };
         }
 
         const user = await UserModel.getUserByUid(uid);
@@ -691,9 +695,9 @@ class OrionUserControl {
                 ipAddress: 'LOCAL-SYSTEM',
                 impact: 'User password update failed - user does not exist',
                 metadata: { uid: uid, reason: 'USER_NOT_FOUND' },
-                errorCode: 'USER-CONTROL-NO-SUCH-USER'
+                errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p'
             });
-            return { error: true, errorCode: 'USER-CONTROL-NO-SUCH-USER' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const newPasswordHash = await hashString(newPassword);

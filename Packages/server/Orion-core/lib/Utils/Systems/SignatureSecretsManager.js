@@ -6,6 +6,10 @@ import { logger } from "../logger.js";
 import { Snapshotter } from "./Snapshotter.js";
 import { SecretsCrypto } from "./SecretsCrypto.js";
 import crypto from 'crypto';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const redisInstanceModule = new SafeModuleHandler('RedisInstance', 'redisInstance', 'SignatureSecretsManager.js');
+
 
 const KEY_TYPES = [
     { algorithm: "ES256", size: 256, type: "ECDSA" },
@@ -99,7 +103,7 @@ class SignatureSecretsManager {
 
         let fileRead = await readFromCaller(this.SIGNATURE_SECRETS_FILE_NAME);
 
-        if ((fileRead.error && fileRead.errorCode !== "FILE-NOT-FOUND") || (fileRead?.data && !fileRead.json)) {
+        if ((fileRead.error && fileRead.errorCode !== "FILE-OPS::FILE-NOT-FOUND::A::p") || (fileRead?.data && !fileRead.json)) {
             await removeFromCaller(this.SIGNATURE_SECRETS_FILE_NAME);
             logger.warn(`Signature Secrets Manager: Secrets file for domain (${this.domain}) reset due to error/corruption`);
             fileRead.data = undefined;
@@ -124,7 +128,7 @@ class SignatureSecretsManager {
     }
 
     async _initializeCluster() {
-        const redisInstance = globalAccessPoint.redisInstance();
+        const redisInstance = redisInstanceModule.probeModule();
 
         const redisKeysResult = await redisInstance.keys();
         const redisKeyNames = redisKeysResult?.data || [];
@@ -199,7 +203,7 @@ class SignatureSecretsManager {
         if (searchPast) return searchPast;
 
         if (this.instanceType === "CLUSTER") {
-            const redisInstance = globalAccessPoint.redisInstance();
+            const redisInstance = redisInstanceModule.probeModule();
             const redisKey = `${CLUSTER_KEY_START_PREFIX}_${this.domain}_${keyPairId}`;
             const key = await redisInstance.getData(redisKey);
             if (!key?.data || isUnixExpired(key.data.publicKeyExp)) {
@@ -263,7 +267,7 @@ class SignatureSecretsManager {
             // entries. Previously this always called writeToCaller() regardless of
             // instance type, writing a local file that other cluster nodes never read.
             if (this.instanceType === "CLUSTER") {
-                const redisInstance = globalAccessPoint.redisInstance();
+                const redisInstance = redisInstanceModule.probeModule();
 
                 if (expired.length > 0) {
                     await Promise.all(

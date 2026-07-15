@@ -47,7 +47,7 @@ const tryCatch = async (Function, async, parameters, functionName, functionSourc
 
         console.log('<END_ERROR>');
 
-        return { error: true, errorCode: 'UNKNOWN-ERROR', context: e.message, trace };
+        return { error: true, errorCode: 'GENERAL::UNKNOWN-ERROR::A::i', context: e.message, trace };
     }
 };
 

@@ -1,134 +1,127 @@
 const ResourceTokens = {
-    'RESOURCE-TOKEN-EXPIRED': {
+    'TOKEN-RESOURCE::EXPIRED::A::p': {
         status: 401,
         context: 'The provided resource token has expired',
-        errorCode: 'RESOURCE-TOKEN-EXPIRED',
+        errorCode: 'TOKEN-RESOURCE::EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'RESOURCE-TOKEN-VALIDATION-FAILED': {
+    'TOKEN-RESOURCE::VALIDATION-FAILED::A::p': {
         status: 401,
         context: 'The provided resource token validation failed',
-        errorCode: 'RESOURCE-TOKEN-VALIDATION-FAILED',
+        errorCode: 'TOKEN-RESOURCE::VALIDATION-FAILED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'RESOURCE-TOKEN-INVALID': {
+    'TOKEN-RESOURCE::INVALID::A::p': {
         status: 401,
         context: 'The provided resource token is invalid',
-        errorCode: 'RESOURCE-TOKEN-INVALID',
+        errorCode: 'TOKEN-RESOURCE::INVALID::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'RESOURCE-TOKEN-NOT-AUTHORIZED': {
+    'TOKEN-RESOURCE::NOT-AUTHORIZED::A::p': {
         status: 403,
         context: 'The resource token does not authorize access to the requested resource',
-        errorCode: 'RESOURCE-TOKEN-NOT-AUTHORIZED',
+        errorCode: 'TOKEN-RESOURCE::NOT-AUTHORIZED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY': {
+    'TOKEN-RESOURCE::INVALID-CALLBACKS-ARRAY::A::p': {
         status: 400,
         context: 'The accessible callbacks array provided is invalid',
-        errorCode: 'RESOURCE-TOKENS-INVALID-ACCESSIBLE-CALLBACKS-ARRAY',
+        errorCode: 'TOKEN-RESOURCE::INVALID-CALLBACKS-ARRAY::A::p',
         fault: 'CLIENT',
         solutions: ['Provide a valid accessible callbacks array']
     },
-    'RESOURCE-TOKENS-INVALID-VIEW-TYPE': {
+    'TOKEN-RESOURCE::INVALID-VIEW-TYPE::A::p': {
         status: 400,
         context: 'The view type provided is invalid',
-        errorCode: 'RESOURCE-TOKENS-INVALID-VIEW-TYPE',
+        errorCode: 'TOKEN-RESOURCE::INVALID-VIEW-TYPE::A::p',
         fault: 'CLIENT',
         solutions: ['Provide a valid view type']
     },
-    'RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE': {
+    'TOKEN-RESOURCE::VIEW-TYPE-NOT-ACCEPTABLE::A::p': {
         status: 400,
         context: 'The view type provided is not acceptable',
-        errorCode: 'RESOURCE-TOKENS-VIEW-TYPE-NOT-ACCEPTABLE',
+        errorCode: 'TOKEN-RESOURCE::VIEW-TYPE-NOT-ACCEPTABLE::A::p',
         fault: 'CLIENT',
         solutions: ['Use an acceptable view type']
     },
-    'RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH': {
+    'TOKEN-RESOURCE::MAX-RETRIEVALS-TOO-HIGH::A::p': {
         status: 400,
         context: 'The maximum retrievals value provided is too high',
-        errorCode: 'RESOURCE-TOKENS-MAX-RETRIEVALS-TOO-HIGH',
+        errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-TOO-HIGH::A::p',
         fault: 'CLIENT',
         solutions: ['Provide a lower maximum retrievals value']
     },
-    'UNABLE-TO-GENERATE-RESOURCE-TOKEN': {
+    'TOKEN-RESOURCE::GENERATION-FAILED::A::i': {
         status: 500,
         context: 'An unknown error has occurred during the resource token generation process',
-        errorCode: 'UNABLE-TO-GENERATE-RESOURCE-TOKEN',
+        errorCode: 'TOKEN-RESOURCE::GENERATION-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'MISSING-RESOURCE-TOKEN': {
+    'TOKEN-RESOURCE::MISSING::A::p': {
         status: 401,
         context: 'The resource token is missing',
-        errorCode: 'MISSING-RESOURCE-TOKEN',
+        errorCode: 'TOKEN-RESOURCE::MISSING::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'RESOURCE-TOKEN-KEY-NOT-FOUND': {
+    'TOKEN-RESOURCE::KEY-NOT-FOUND::A::i': {
         status: 401,
         context: 'The resource token key could not be found',
-        errorCode: 'RESOURCE-TOKEN-KEY-NOT-FOUND',
+        errorCode: 'TOKEN-RESOURCE::KEY-NOT-FOUND::A::i',
         fault: 'NEITHER',
         solutions: ['NONE']
     },
-    'INVALID-RESOURCE-TOKEN-INVALID-AUD': {
+    'TOKEN-RESOURCE::INVALID-AUD::A::p': {
         status: 401,
         context: 'The provided resource token has an invalid audience',
-        errorCode: 'INVALID-RESOURCE-TOKEN-INVALID-AUD',
+        errorCode: 'TOKEN-RESOURCE::INVALID-AUD::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED': {
+    'TOKEN-RESOURCE::ISS-NOT-ALLOWED::A::p': {
         status: 401,
         context: 'The provided resource token issuer is not allowed',
-        errorCode: 'INVALID-RESOURCE-TOKEN-ISS-NOT-ALLOWED',
+        errorCode: 'TOKEN-RESOURCE::ISS-NOT-ALLOWED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE': {
+    'TOKEN-RESOURCE::IP-NOT-IN-RANGE::A::p': {
         status: 401,
         context: 'The provided resource token is invalid for the current IP address',
-        errorCode: 'INVALID-RESOURCE-TOKEN-IP-NOT-IN-RANGE',
+        errorCode: 'TOKEN-RESOURCE::IP-NOT-IN-RANGE::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND': {
+    'TOKEN-RESOURCE::TOKEN-ID-NOT-FOUND::A::p': {
         status: 401,
         context: 'The provided resource token is invalid',
-        errorCode: 'INVALID-RESOURCE-TOKEN-TOKEN-ID-NOT-FOUND',
+        errorCode: 'TOKEN-RESOURCE::TOKEN-ID-NOT-FOUND::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH': {
+    'TOKEN-RESOURCE::TOKEN-TYPE-MISMATCH::A::p': {
         status: 401,
         context: 'The provided resource token is invalid',
-        errorCode: 'INVALID-RESOURCE-TOKEN-TOKEN-TYPE-MISMATCH',
+        errorCode: 'TOKEN-RESOURCE::TOKEN-TYPE-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'MAX-RESOURCE-RETRIEVALS-HIT': {
+    'TOKEN-RESOURCE::MAX-RETRIEVALS-HIT::A::p': {
         status: 401,
         context: 'The maximum number of resource retrievals has been reached',
-        errorCode: 'MAX-RESOURCE-RETRIEVALS-HIT',
+        errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-HIT::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    'UNABLE-TO-VALIDATE-RESOURCE-TOKEN': {
+    'TOKEN-RESOURCE::VALIDATION-FAILED::B::p': {
         status: 401,
         context: 'The provided resource token is invalid',
-        errorCode: 'UNABLE-TO-VALIDATE-RESOURCE-TOKEN',
-        fault: 'CLIENT',
-        solutions: ['NONE']
-    },
-    'PATH-TRAVERSAL-ATTEMPT': {
-        status: 403,
-        context: 'A path traversal attempt was detected',
-        errorCode: 'PATH-TRAVERSAL-ATTEMPT',
+        errorCode: 'TOKEN-RESOURCE::VALIDATION-FAILED::B::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     }

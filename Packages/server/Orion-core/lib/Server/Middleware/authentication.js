@@ -16,6 +16,10 @@ import { parseCookieData, stringifyCookieData } from '../../Utils/CookieUtils.js
 import { slugParser } from '../../Utils/Parsers.js';
 import { generateStepUpContextToken } from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
 import { requestContext } from './requestMetadata.js';
+import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'authentication.js');
+
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -24,7 +28,6 @@ const TOKEN_TYPES = ['ACCESS_BEARER', 'NO_AUTH_BEARER', 'NO_BEARER'];
 const ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER = [
     `/${NAME_SPACE}/api/v1/action/sign-in-user`,
     `/${NAME_SPACE}/api/v1/action/sign-up-user`,
-    `/${NAME_SPACE}/api/v1/request/encryption-request-key`,
     `/${NAME_SPACE}/api/v1/action/generate-passkey-authentication-options`,
     `/${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`,
     `/${NAME_SPACE}/api/v1/action/get-o-auth-redirect-url`,
@@ -47,8 +50,7 @@ const ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER = [
 const ROUTES_ACCESSIBLE_WITH_NO_BEARER = [
     `/${NAME_SPACE}/api/v1/action/generate-no-auth-token-transaction`,
     `/${NAME_SPACE}/api/v1/action/generate-no-auth-token`,
-    `/${NAME_SPACE}/api/v1/request/have-no-auth-token`,
-    `/${NAME_SPACE}/api/v1/action/configure-dip`
+    `/${NAME_SPACE}/api/v1/request/have-no-auth-token`
 ];
 
 const STEP_UP_FLOW_ROUTES = [
@@ -72,7 +74,7 @@ const handleIsAuthStateCheck = parameters => {
 
 const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     const endpoint = defaultServerRoutes.endpoints.find(item => item.path === slugParser(parameters.request.path));
-    const endpointBackUp = globalAccessPoint.systemConfig().api.customEndpoints.find(item => item.path === slugParser(parameters.request.path));
+    const endpointBackUp = systemConfigModule.getModule().api.customEndpoints.find(item => item.path === slugParser(parameters.request.path));
 
     if (!endpoint && !endpointBackUp && !reqIsAuthStateCheck) {
         return { error: true, errorCode: 'UNKOWN-API-ROUTE' };
@@ -96,7 +98,7 @@ const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
 
 const handleValidateTokenTypeAndpresence = (parameters, tokenType, noAuthTokenEnabled) => {
     if (!TOKEN_TYPES.includes(tokenType)) {
-        return { error: true, errorCode: 'INVALID-AUTHENTICATION-TOKEN-TYPE' };
+        return { error: true, errorCode: 'AUTH::INVALID-TOKEN-TYPE::A::p' };
     }
 
     if (
@@ -105,11 +107,11 @@ const handleValidateTokenTypeAndpresence = (parameters, tokenType, noAuthTokenEn
         !parameters.request.cookies['ACCESS_TOKEN'] &&
         !parameters.request.cookies['REFRESH_TOKEN']
     ) {
-        return { error: true, errorCode: 'MISSING-AUTHENTICATION-TOKEN' };
+        return { error: true, errorCode: 'AUTH::MISSING-TOKEN::A::p' };
     }
 
     if (tokenType === 'NO_AUTH_BEARER' && !parameters.request.cookies['NO_AUTH_TOKEN'] && noAuthTokenEnabled) {
-        return { error: true, errorCode: 'MISSING-AUTHENTICATION-TOKEN' };
+        return { error: true, errorCode: 'AUTH::MISSING-TOKEN::A::p' };
     }
 
     return { error: false };
@@ -156,7 +158,7 @@ const authenticationMiddleware = async (request, response, next) => {
 
                 if (verification.error || !verification.valid) {
                     // ── Step-Up Auth gate ─────────────────────────────────────────────
-                    if (verification.errorCode === 'STEP-UP-AUTH-REQUIRED') {
+                    if (verification.errorCode === 'STEP-UP::REQUIRED::A::p') {
                         const uid = verification.uid;
                         const currentMetadata = requestContext.getStore();
 
@@ -176,31 +178,31 @@ const authenticationMiddleware = async (request, response, next) => {
                             maxAge: parseDuration('10m')
                         });
 
-                        return respondWithError(parameters.response, 'STEP-UP-AUTH-REQUIRED');
+                        return respondWithError(parameters.response, 'STEP-UP::REQUIRED::A::p');
                         // respondWithError auto-sets: orion-flow-activation: FLOW-STEP-UP-AUTH
                     }
                     // ─────────────────────────────────────────────────────────────────
 
-                    if (verification.errorCode !== 'ACCESS-TOKEN-EXPIRED' && verification.errorCode !== 'MISSING-AUTHENTICATION-TOKEN') {
+                    if (verification.errorCode !== 'TOKEN-ACCESS::EXPIRED::A::p' && verification.errorCode !== 'AUTH::MISSING-TOKEN::A::p') {
                         return respondWithError(parameters.response, verification.errorCode);
                     }
 
-                    if (verification.errorCode === 'ACCESS-TOKEN-EXPIRED' || verification.errorCode === 'MISSING-AUTHENTICATION-TOKEN') {
+                    if (verification.errorCode === 'TOKEN-ACCESS::EXPIRED::A::p' || verification.errorCode === 'AUTH::MISSING-TOKEN::A::p') {
                         if (!parameters.request.cookies['REFRESH_TOKEN']) {
-                            return respondWithError(parameters.response, 'MISSING-AUTHENTICATION-TOKEN');
+                            return respondWithError(parameters.response, 'AUTH::MISSING-TOKEN::A::p');
                         }
 
                         const refreshVerification = await validateRefreshToken(parameters.request.cookies['REFRESH_TOKEN'], fingerprint, ip, clientUrl);
 
                         if (refreshVerification.error || !refreshVerification.valid) {
-                            if (refreshVerification.errorCode === 'STEP-UP-AUTH-REQUIRED') {
+                            if (refreshVerification.errorCode === 'STEP-UP::REQUIRED::A::p') {
                                 const uid = refreshVerification.uid;
                                 const currentMetadata = requestContext.getStore();
 
                                 if (currentMetadata?.stepUpAuthComplete && currentMetadata?.stepUpUid === uid) {
                                     // Can't proceed without a valid access token — force re-auth
                                     handleSessionClearance(parameters);
-                                    return respondWithError(parameters.response, 'MISSING-AUTHENTICATION-TOKEN');
+                                    return respondWithError(parameters.response, 'AUTH::MISSING-TOKEN::A::p');
                                 }
 
                                 const stepUpContextToken = await generateStepUpContextToken(uid);
@@ -212,7 +214,7 @@ const authenticationMiddleware = async (request, response, next) => {
                                     maxAge: parseDuration('10m')
                                 });
 
-                                return respondWithError(parameters.response, 'STEP-UP-AUTH-REQUIRED');
+                                return respondWithError(parameters.response, 'STEP-UP::REQUIRED::A::p');
                             }
 
                             return respondWithError(parameters.response, refreshVerification.errorCode);
@@ -225,7 +227,7 @@ const authenticationMiddleware = async (request, response, next) => {
                         if (currentMaxRefreshes != null && currentRefreshCount >= currentMaxRefreshes) {
                             handleSessionClearance(parameters);
 
-                            return respondWithError(parameters.response, 'REFRESH-TOKEN-LIMIT-HIT');
+                            return respondWithError(parameters.response, 'AUTH::REFRESH-LIMIT-HIT::A::p');
                         }
 
                         const accessTokenLinkCode = refreshVerification.data?.tokenData?.accessTokenLinkCode || refreshVerification.data?.accessTokenLinkCode;
@@ -269,7 +271,7 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, verification.errorCode);
                         }
 
-                        const tokenLifespans = globalAccessPoint.systemConfig().tokens.lifespans;
+                        const tokenLifespans = systemConfigModule.getModule().tokens.lifespans;
 
                         parameters.response.cookie('ACCESS_TOKEN', stringifyCookieData(newAccessToken.token), {
                             httpOnly: true,
@@ -310,7 +312,7 @@ const authenticationMiddleware = async (request, response, next) => {
                 }
 
                 if (authRequired) {
-                    return respondWithError(parameters.response, 'UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE');
+                    return respondWithError(parameters.response, 'AUTH::INSUFFICIENT-PRIVILEGE::A::p');
                 }
 
                 const path = slugParser(parameters.request.path);
@@ -322,7 +324,7 @@ const authenticationMiddleware = async (request, response, next) => {
 
                 // Check if route exists in the accessible routes for no auth bearer, if not and the route is set by default, return an error. Else verify route was set by the user via setBy and allow access.
                 if (!ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER.includes(path) && setBy === 1) {
-                    return respondWithError(parameters.response, 'INVALID-BEARER-FOR-CURRENT-ROUTE');
+                    return respondWithError(parameters.response, 'AUTH::BEARER-MISMATCH::A::p');
                 }
 
                 const noAuthToken = parseCookieData(parameters.request.cookies['NO_AUTH_TOKEN']) || 'NONE';
@@ -343,17 +345,17 @@ const authenticationMiddleware = async (request, response, next) => {
                 }
 
                 if (authRequired) {
-                    return respondWithError(parameters.response, 'UNAUTHORIZED-TO-ACCESS-PROTECTED-ROUTE');
+                    return respondWithError(parameters.response, 'AUTH::INSUFFICIENT-PRIVILEGE::A::p');
                 }
 
                 if (!ROUTES_ACCESSIBLE_WITH_NO_BEARER.includes(slugParser(parameters.request.path))) {
-                    return respondWithError(parameters.response, 'INVALID-BEARER-FOR-CURRENT-ROUTE');
+                    return respondWithError(parameters.response, 'AUTH::BEARER-MISMATCH::A::p');
                 }
 
                 return parameters.next();
 
             default:
-                return respondWithError(parameters.response, 'INVALID-AUTHENTICATION-TOKEN-TYPE');
+                return respondWithError(parameters.response, 'AUTH::INVALID-TOKEN-TYPE::A::p');
         }
     };
 

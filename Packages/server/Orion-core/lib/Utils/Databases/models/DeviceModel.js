@@ -1,7 +1,10 @@
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { getCurrentUnixTime } from '../../Date&Time.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
-const query = (text, params) => globalAccessPoint.db().query(text, params);
+const dbModule = new SafeModuleHandler('Database', 'db', 'DeviceModel.js');
+
+
+const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const DeviceModel = {
     /**
@@ -72,7 +75,7 @@ export const DeviceModel = {
      */
     async removeExpiredDevices(uid) {
         const now = getCurrentUnixTime();
-        const client = await globalAccessPoint.db().getPool().connect();
+        const client = await dbModule.getModule().getPool().connect();
 
         try {
             await client.query('BEGIN');

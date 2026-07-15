@@ -1,64 +1,64 @@
 const TwoFARemoval = {
-    '2FA-REMOVAL-METHOD-NOT-ENABLED': {
+    'TWO-FA::METHOD-NOT-ENABLED::A::p': {
         status: 400,
         context: 'The specified 2FA method is not enabled on this account',
-        errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED',
+        errorCode: 'TWO-FA::METHOD-NOT-ENABLED::A::p',
         fault: 'CLIENT',
         solutions: ['Verify the 2FA method you are trying to remove is enabled']
     },
-    '2FA-REMOVAL-INVALID-METHOD': {
+    'TWO-FA::INVALID-METHOD::A::p': {
         status: 400,
         context: 'Invalid 2FA method specified for removal',
-        errorCode: '2FA-REMOVAL-INVALID-METHOD',
+        errorCode: 'TWO-FA::INVALID-METHOD::A::p',
         fault: 'CLIENT',
         solutions: ['Specify a valid method: totp or passkey']
     },
-    '2FA-REMOVAL-REQUEST-EXPIRED': {
+    'TWO-FA::REQUEST-EXPIRED::A::p': {
         status: 401,
         context: 'The 2FA removal request has expired',
-        errorCode: '2FA-REMOVAL-REQUEST-EXPIRED',
+        errorCode: 'TWO-FA::REQUEST-EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['Start a new 2FA removal request']
     },
-    '2FA-REMOVAL-INVALID-CODE': {
+    'TWO-FA::INVALID-CODE::A::p': {
         status: 401,
         context: 'The verification code provided is invalid',
-        errorCode: '2FA-REMOVAL-INVALID-CODE',
+        errorCode: 'TWO-FA::INVALID-CODE::A::p',
         fault: 'CLIENT',
         solutions: ['Use the correct code from your email']
     },
-    '2FA-REMOVAL-USERAGENT-MISMATCH': {
+    'TWO-FA::USERAGENT-MISMATCH::A::p': {
         status: 401,
         context: 'The user agent does not match the original removal request',
-        errorCode: '2FA-REMOVAL-USERAGENT-MISMATCH',
+        errorCode: 'TWO-FA::USERAGENT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    '2FA-REMOVAL-IP-MISMATCH': {
+    'TWO-FA::IP-MISMATCH::A::p': {
         status: 401,
         context: 'The IP address does not match the original removal request',
-        errorCode: '2FA-REMOVAL-IP-MISMATCH',
+        errorCode: 'TWO-FA::IP-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    '2FA-REMOVAL-FINGERPRINT-MISMATCH': {
+    'TWO-FA::FINGERPRINT-MISMATCH::A::p': {
         status: 401,
         context: 'The device fingerprint does not match the original removal request',
-        errorCode: '2FA-REMOVAL-FINGERPRINT-MISMATCH',
+        errorCode: 'TWO-FA::FINGERPRINT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE']
     },
-    '2FA-REMOVAL-UNABLE-TO-SEND-EMAIL': {
+    'TWO-FA::EMAIL-SEND-FAILED::A::i': {
         status: 500,
         context: 'Unable to send 2FA removal verification email',
-        errorCode: '2FA-REMOVAL-UNABLE-TO-SEND-EMAIL',
+        errorCode: 'TWO-FA::EMAIL-SEND-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    '2FA-REMOVAL-MISSING-REQUEST-ID': {
+    'TWO-FA::MISSING-REQUEST-ID::A::p': {
         status: 400,
         context: 'The expected 2FA removal request ID is missing',
-        errorCode: '2FA-REMOVAL-MISSING-REQUEST-ID',
+        errorCode: 'TWO-FA::MISSING-REQUEST-ID::A::p',
         fault: 'CLIENT',
         solutions: ['Start a new 2FA removal request']
     }

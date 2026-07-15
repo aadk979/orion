@@ -47,7 +47,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
         if (authedUser && (!deviceId || !deviceCode)) {
             handleCookieClearence(parameters.response);
 
-            return respondWithError(parameters.response, 'DEVICE-MISSING-META-DATA');
+            return respondWithError(parameters.response, 'DEVICE-AUTH::MISSING-METADATA::A::p');
         }
 
         if (authedUser === true) {
@@ -65,7 +65,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
                 return parameters.next();
             }
 
-            return respondWithError(parameters.response, 'DEVICE-UNRECOGNIZED');
+            return respondWithError(parameters.response, 'DEVICE-AUTH::UNRECOGNIZED::A::p');
         }
 
         if (authedUser === false) {
@@ -81,14 +81,14 @@ const deviceCheckMiddlware = async (request, response, next) => {
                 const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), email);
 
                 if (!emailValidation) {
-                    return respondWithError(parameters.response, 'EMAIL-DOMAIN-NOT-ALLOWED');
+                    return respondWithError(parameters.response, 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p');
                 }
             }
 
             const userAccState = await userControl.getUserAccountState().byEmail(email);
 
             if (userAccState.disabled) {
-                return respondWithError(parameters.response, 'DEVICE-2FA-ACC-DISABLED');
+                return respondWithError(parameters.response, 'DEVICE-AUTH::ACCOUNT-DISABLED::A::p');
             }
 
             if (!deviceId || !deviceCode) {
@@ -102,7 +102,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
                 // Update note: the client sdk no longer listens for the error code to trigger the flow but listens for the orion-flow-activation header as to allow future support for other flows
-                return respondWithError(parameters.response, 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED');
+                return respondWithError(parameters.response, 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p');
             }
 
             const check = await isDeviceRecognizedForUserEmail(email, userAgent, deviceId, deviceCode);
@@ -121,7 +121,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
                 });
 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
-                return respondWithError(parameters.response, 'DEVICE-2FA-DEVICE-AUTHORIZATION-STARTED');
+                return respondWithError(parameters.response, 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p');
             }
 
             return parameters.next();

@@ -1,6 +1,5 @@
 import { ApiInterface } from '../Utils/Api-2.js';
 import { getAuthHeader } from '../Utils/Authorisation.js';
-import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
 import { startAuthentication } from '../External-Scripts/webAuthn.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,29 +186,14 @@ const createApiLayer = (serverURL, nameSpace, slug) => {
         AUTH_TOTP: `/${nameSpace}/api/v1/action/authorize-device-with-totp`
     };
 
-    const apiCall = async (endpoint, payload = null, encryptKeys = []) => {
-        const dipConfig = globalAccessPoint.getValue('dipConfig');
+    const apiCall = async (endpoint, payload = null) => {
         const authHeader = await getAuthHeader(false, 'NO_AUTH_BEARER');
 
-        let reqPayload = payload ? { packet: payload } : null;
-        let encryptionMeta = null;
+        // Payloads travel as plain JSON over TLS 1.3 — the DIP integrity envelope and
+        // hybrid transport encryption were decommissioned. See Graveyard/.
+        const reqPayload = payload ? { packet: payload } : null;
 
-        if (payload && encryptKeys.length > 0) {
-            const encryptedData = await Api.prepareDataForEncryption(payload);
-            reqPayload = { packet: { encryptedString: encryptedData.encryptedString } };
-            encryptionMeta = encryptedData.encryption;
-        }
-
-        let dipOptions = null;
-        if (reqPayload) {
-            const signature = await Api.prepareDataForDIP(reqPayload, dipConfig);
-            dipOptions = {
-                ...dipConfig, dipState: 'ACTIVE',
-                dipSignature: signature.dipSignature, salt: signature.salt, timestamp: signature.timestamp
-            };
-        }
-
-        const req = await Api.fetch(endpoint, 'POST', authHeader.authHead, reqPayload, dipOptions, encryptionMeta);
+        const req = await Api.fetch(endpoint, 'POST', authHeader.authHead, reqPayload);
         return await req.json();
     };
 

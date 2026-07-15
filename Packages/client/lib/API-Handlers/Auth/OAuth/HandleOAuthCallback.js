@@ -1,6 +1,6 @@
 import { globalAccessPoint } from "../../../Utils/GlobalAccessPoint.js";
 
-async function handleOAuthCallback({ Api, getAuthHeader, dipConfig, This }) {
+async function handleOAuthCallback({ Api, getAuthHeader, This }) {
     // Extract code and state from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -17,19 +17,9 @@ async function handleOAuthCallback({ Api, getAuthHeader, dipConfig, This }) {
         }
     };
 
-    const dipSignature = await Api.prepareDataForDIP(packet, dipConfig);
-
-    const dipOptions = {
-        ...dipConfig,
-        dipState: 'ACTIVE',
-        dipSignature: dipSignature.dipSignature,
-        salt: dipSignature.salt,
-        timestamp: dipSignature.timestamp
-    };
-
     const authHeader = await getAuthHeader(false, 'NO_AUTH_BEARER');
 
-    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/handle-o-auth-callback`, 'POST', authHeader.authHead, packet, dipOptions, null);
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/handle-o-auth-callback`, 'POST', authHeader.authHead, packet);
 
     const data = await res.json();
 

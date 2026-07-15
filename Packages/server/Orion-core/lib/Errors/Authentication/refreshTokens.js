@@ -1,105 +1,113 @@
 const RefreshTokens = {
-    'UNABLE-TO-GENERATE-REFRESH-TOKEN': {
+    'TOKEN-REFRESH::GENERATION-FAILED::A::i': {
         status: 500,
         context: 'An unknown error has occurred during the token generation process',
-        errorCode: 'UNABLE-TO-GENERATE-REFRESH-TOKEN',
+        errorCode: 'TOKEN-REFRESH::GENERATION-FAILED::A::i',
         fault: 'SERVER',
         solutions: ['Try again in 10 minutes and contact support if the issue persists']
     },
-    'UNABLE-TO-VALIDATE-REFRESH-TOKEN': {
+    'TOKEN-REFRESH::VALIDATION-FAILED::A::p': {
         status: 401,
         customStatus: 600,
         context: 'The provided refresh token is invalid',
-        errorCode: 'UNABLE-TO-VALIDATE-REFRESH-TOKEN',
+        errorCode: 'TOKEN-REFRESH::VALIDATION-FAILED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'REFRESH-TOKEN-EXPIRED': {
+    'TOKEN-REFRESH::EXPIRED::A::p': {
         status: 401,
         customStatus: 601,
         context: 'The provided refresh token has expired',
-        errorCode: 'REFRESH-TOKEN-EXPIRED',
+        errorCode: 'TOKEN-REFRESH::EXPIRED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE': {
+    'TOKEN-REFRESH::IP-NOT-IN-RANGE::A::p': {
         status: 401,
         context: 'The provided refresh token is invalid for the current IP address',
-        errorCode: 'INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE',
+        errorCode: 'TOKEN-REFRESH::IP-NOT-IN-RANGE::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH': {
+    'TOKEN-REFRESH::FINGERPRINT-MISMATCH::A::p': {
         status: 401,
         context: 'The provided refresh token is invalid for the current device',
-        errorCode: 'INVALID-REFRESH-TOKEN-DEVICE-FINGERPRINT-MISMATCH',
+        errorCode: 'TOKEN-REFRESH::FINGERPRINT-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND': {
+    'TOKEN-REFRESH::TOKEN-ID-NOT-FOUND::A::p': {
         status: 401,
         context: 'The provided refresh token is invalid',
-        errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND',
+        errorCode: 'TOKEN-REFRESH::TOKEN-ID-NOT-FOUND::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH': {
+    'TOKEN-REFRESH::TOKEN-TYPE-MISMATCH::A::p': {
         status: 401,
         context: 'The provided refresh token is invalid',
-        errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH',
+        errorCode: 'TOKEN-REFRESH::TOKEN-TYPE-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-TOKEN-CHALLENGE-MISMATCH': {
+    'TOKEN-REFRESH::CHALLENGE-MISMATCH::A::p': {
         status: 401,
         context: 'The provided refresh token is invalid',
-        errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-CHALLENGE-MISMATCH',
+        errorCode: 'TOKEN-REFRESH::CHALLENGE-MISMATCH::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-INVALID-AUD': {
+    'TOKEN-REFRESH::INVALID-AUD::A::p': {
         status: 401,
         context: 'The provided refresh token has an invalid audience',
-        errorCode: 'INVALID-REFRESH-TOKEN-INVALID-AUD',
+        errorCode: 'TOKEN-REFRESH::INVALID-AUD::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED': {
+    'TOKEN-REFRESH::ISS-NOT-ALLOWED::A::p': {
         status: 401,
         context: 'The provided refresh token issuer is not allowed',
-        errorCode: 'INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED',
+        errorCode: 'TOKEN-REFRESH::ISS-NOT-ALLOWED::A::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1': {
+    'TOKEN-REFRESH::FINGERPRINT-MISMATCH::B::p': {
         status: 401,
         context: 'The provided refresh token device fingerprint type 1 does not match',
-        errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-1',
+        errorCode: 'TOKEN-REFRESH::FINGERPRINT-MISMATCH::B::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2': {
+    'TOKEN-REFRESH::FINGERPRINT-MISMATCH::C::p': {
         status: 401,
         context: 'The provided refresh token device fingerprint type 2 does not match',
-        errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-DEVICE-FINGERPRINT-MISMATCH-TYPE-2',
+        errorCode: 'TOKEN-REFRESH::FINGERPRINT-MISMATCH::C::p',
         fault: 'CLIENT',
         solutions: ['NONE'],
         logout: true
     },
-    'REFRESH-TOKEN-KEY-NOT-FOUND': {
+    'TOKEN-REFRESH::KEY-NOT-FOUND::A::i': {
         status: 401,
         context: 'The refresh token key could not be found',
-        errorCode: 'REFRESH-TOKEN-KEY-NOT-FOUND',
+        errorCode: 'TOKEN-REFRESH::KEY-NOT-FOUND::A::i',
+        fault: 'NEITHER',
+        solutions: ['NONE'],
+        logout: true
+    },
+    'TOKEN-REFRESH::TIER-CONFLICT::A::i': {
+        status: 401,
+        context: 'The refresh token security tier does not match the configured tier',
+        errorCode: 'TOKEN-REFRESH::TIER-CONFLICT::A::i',
         fault: 'NEITHER',
         solutions: ['NONE'],
         logout: true

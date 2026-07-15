@@ -1,12 +1,15 @@
 import nodemailer from 'nodemailer';
-import { globalAccessPoint } from '../GlobalAccessPoint.js';
 import { logger } from '../logger.js';
 import { tryCatch } from '../TryCatch.js';
 import { fileURLToPath } from 'url';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'mailer.js');
+
 
 const sendMail = async (to, subject, text) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         const transporter = nodemailer.createTransport({
             service: systemConfig.mail.service,
@@ -26,7 +29,7 @@ const sendMail = async (to, subject, text) => {
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 logger.error('MAIL ERROR: ' + error);
-                return { error: true, errorCode: 'UNABLE-TO-SEND-MAIL' };
+                return { error: true, errorCode: 'MAIL::SEND-FAILED::A::i' };
             }
         });
 

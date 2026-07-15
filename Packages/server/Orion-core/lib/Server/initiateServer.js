@@ -1,7 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
 import compression from "compression";
@@ -14,8 +13,6 @@ import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
 import { defaultServerRoutes } from './Endpoints/index.js';
 import { dataValidator } from './Middleware/dataValidator.js';
 import { authenticationMiddleware } from './Middleware/authentication.js';
-import { decryptionMiddleware } from './Middleware/decryptor.js';
-import { dipMiddleware } from './Middleware/dip.js';
 import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.js';
 import { getCurrentUnixTime, parseDuration } from '../Utils/Date&Time.js';
 import { OAuthProviderToolkit } from '../Utils/Core/OAuth/OrionOAuthToolKit.js';
@@ -35,16 +32,20 @@ import { GracefulShutdownSystem } from '../Utils/Systems/GracefulShutdownSystem.
 import { OrionSystemsControl } from '../Utils/SystemsControl.js';
 import { loadSheddingMiddleware } from './Middleware/loadSheddingMiddleware.js';
 import { abuseCheckMiddleware } from './Middleware/abuseCheckMiddleware.js';
+import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
+import { DynamicGlobalRateLimiter } from '../Utils/Systems/DynamicGlobalRateLimiter.js';
+import { rateLimitPolicy, validateRateLimitPolicy } from '../General/index.js';
+
+const loggerModule = new SafeModuleHandler('Logger', 'logger', 'initiateServer.js');
+
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
-    rateLimitWindowMs: 15 * 60 * 1000,
-    maxRequests: 200,
     sizeLimit: '10mb'
 });
 
 // Prepares the middleware stack
-const buildMiddlewarePipeline = systemConfig => {
+const buildMiddlewarePipeline = (systemConfig, rateLimiter) => {
     const OriginVerifier = new originVerifier(systemConfig);
     const HeaderParser = new headerParser(systemConfig);
 
@@ -59,6 +60,9 @@ const buildMiddlewarePipeline = systemConfig => {
         // Custom middlewares
         serverUtilitiesMiddleware,
         requestMetadataMiddleware,
+        // Edge rate-limit pass — first point where the IP and fingerprint actors are
+        // resolved, and ahead of every expensive downstream check.
+        rateLimiter.middleware,
         serverStatusMiddlware,
         loadSheddingMiddleware,
         resourceAccessMiddleware,
@@ -66,22 +70,13 @@ const buildMiddlewarePipeline = systemConfig => {
         HeaderParser.verifyHeader,
         abuseCheckMiddleware,
         authenticationMiddleware,
-        dipMiddleware,
-        decryptionMiddleware,
+        // Account rate-limit pass — authentication has now populated req.user, so the
+        // account actor can be charged. No-ops for unauthenticated requests.
+        rateLimiter.accountMiddleware,
         dataValidator,
         deviceCheckMiddlware
     ];
 };
-
-// Rate limiter middleware
-const createRateLimiter = ({ rateLimitWindowMs, maxRequests }) =>
-    rateLimit({
-        windowMs: rateLimitWindowMs,
-        max: maxRequests,
-        message: 'Rate limit exceeded. Try again later.',
-        legacyHeaders: false,
-        standardHeaders: true
-    });
 
 // Register all endpoints (core + custom)
 const registerRoutes = (app, routes, middlewares) => {
@@ -167,7 +162,7 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.setValue('db', dbManager.db());
         globalAccessPoint.setValue('systemConfig', mergedConfig);
 
-        globalAccessPoint.logger().configureFromGlobalAccessPoint();
+        loggerModule.getModule().configureFromGlobalAccessPoint();
 
         globalAccessPoint.setValue('volatileSecretsManager', volatileSecretsManager);
         globalAccessPoint.setValue('memoryMonitioringSystem', memoryMonitioringSystem);
@@ -211,15 +206,19 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
 
         await handleOnStartConfiguration();
 
+        // Init rate limiter — policy is validated before the limiter is mounted so a
+        // malformed cost table fails the boot rather than silently mis-throttling.
+        validateRateLimitPolicy(rateLimitPolicy);
+        const rateLimiter = new DynamicGlobalRateLimiter({
+            defaultTTL: systemConfig?.utilities?.rateLimiter?.defaultTTL ?? 300
+        });
+
         const app = express();
 
         app.set('trust proxy', 1);
 
-        // Apply rate limiter
-        app.use(createRateLimiter(mergedConfig));
-
         // Apply middleware stack
-        const middlewares = buildMiddlewarePipeline(mergedConfig);
+        const middlewares = buildMiddlewarePipeline(mergedConfig, rateLimiter);
         middlewares.forEach(mw => app.use(mw));
 
         // Register endpoints

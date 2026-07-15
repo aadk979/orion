@@ -6,23 +6,27 @@ import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import QRCode from 'qrcode';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SetupTOTP.js');
+
 
 const generateTOTPSetupSecret = async (uid) => {
     const Function = async (parameters) => {
-        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
 
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
         if (totpEnabled) {
-            return { error: true, errorCode: 'TOTP-ALREADY-ENABLED' };
+            return { error: true, errorCode: 'TOTP::ALREADY-ENABLED::A::p' };
         }
 
         const { error, secret } = await generateTOTPSecret();
@@ -68,20 +72,20 @@ const generateTOTPSetupSecret = async (uid) => {
 
 const verifyAndEnableTOTP = async (uid, totpCode) => {
     const Function = async (parameters) => {
-        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
 
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const pendingSecret = await TOTPModel.getPendingSecret(parameters.uid);
         if (!pendingSecret) {
-            return { error: true, errorCode: 'TOTP-NO-PENDING-SECRET' };
+            return { error: true, errorCode: 'TOTP::NO-PENDING-SECRET::A::p' };
         }
 
         const verification = await verifyTOTPToken(parameters.totpCode, pendingSecret);
@@ -97,10 +101,10 @@ const verifyAndEnableTOTP = async (uid, totpCode) => {
                     requestId: requestMetadata?.requestId,
                     impact: 'TOTP verification failed during setup',
                     metadata: { reason: 'INVALID_CODE' },
-                    errorCode: 'TOTP-INVALID-TOKEN'
+                    errorCode: 'TOTP::INVALID-TOKEN::A::p'
                 });
             }
-            return { error: true, errorCode: 'TOTP-INVALID-TOKEN' };
+            return { error: true, errorCode: 'TOTP::INVALID-TOKEN::A::p' };
         }
 
         // Verification succeeded — promote pending secret and enable TOTP

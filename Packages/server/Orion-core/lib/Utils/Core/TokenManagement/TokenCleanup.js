@@ -11,5 +11,7 @@ export async function cleanUpTokens(uid) {
     const parameters = { uid };
     const functionSource = fileURLToPath(import.meta.url);
 
-    return await tryCatch(Function, false, parameters, 'cleanUpTokens', functionSource);
+    // Function is async: tryCatch must await it inside its own try block, otherwise a
+    // rejected pool query escapes unlogged instead of returning a handled error object.
+    return await tryCatch(Function, true, parameters, 'cleanUpTokens', functionSource);
 }

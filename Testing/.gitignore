@@ -1,0 +1,13 @@
+# Per-process scratch dir that test bootstrap chdir's into (logger's logs/,
+# FileHandler output, errors.json, etc.). Also matched by the root gipsy.* rule.
+gipsy.test-artifacts/
+
+# Integration harness: real config (may hold credentials) + its scratch dir.
+# Both also match the repo-wide gipsy.* rule; listed here for clarity.
+integration/gipsy.orion.config.js
+integration/gipsy.integration-artifacts/
+
+# Defensive: stray side-effect artifacts if a test ever runs without bootstrap.
+logs/
+errors.json
+*.log

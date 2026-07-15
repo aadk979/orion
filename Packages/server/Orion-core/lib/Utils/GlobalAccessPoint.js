@@ -35,13 +35,13 @@ class GlobalAccessPoint {
     }
 
     getValue(name) {
+        
         if (!(name in this._values) && this._lockedKeys.has(name)) {
             logger.error(`CRITICAL: Requested value for key ${name} does not exist.`);
-            throw new Error(`GlobalAccessPoint: No value found for key "${name}"`);
-        }
-
-        if (!(name in this._values)) {
-            return undefined;
+            const error = new Error(`GlobalAccessPoint: Missing value for key ${name}`);
+            error.keyName = name;
+            error.code = "GAP:$:VALUE_NOT_FOUND";
+            throw error;
         }
 
         return this._values[name];
@@ -150,13 +150,6 @@ class GlobalAccessPoint {
     }
 
     /**
-     * @returns {Object | undefined}
-     */
-    dip() {
-        return this.getValue('dip');
-    }
-
-    /**
      * @returns {Array<string> | undefined}
      */
     allowedClientUrls() {
@@ -203,20 +196,6 @@ class GlobalAccessPoint {
      */
     allowedUserRoles() {
         return this.getValue('allowedUserRoles');
-    }
-
-    /**
-     * @returns {boolean | undefined}
-     */
-    dipConfigsAvailable() {
-        return this.getValue('dipConfigsAvailable');
-    }
-
-    /**
-     * @returns {boolean | undefined}
-     */
-    encryptionConfigsAvailable() {
-        return this.getValue('encryptionConfigsAvailable');
     }
 
     /**

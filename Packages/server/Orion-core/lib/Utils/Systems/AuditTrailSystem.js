@@ -3,13 +3,16 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../logger.js';
-import { globalAccessPoint } from '../GlobalAccessPoint.js';
 import { generateId } from '../valueGenerator.js';
 import {
     AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION,
     AUDIT_WAL_FILE_NAME,
     AUDIT_WAL_PUBLIC_KEY_FILE_NAME
 } from '../../orion.meta.js';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'AuditTrailSystem.js');
+
 
 const DEFAULT_FLUSH_THRESHOLD = 50;
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
@@ -17,7 +20,7 @@ const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
 class AuditTrailSystem {
     constructor(enabled) {
         if (enabled) {
-            const systemConfig = globalAccessPoint.systemConfig();
+            const systemConfig = systemConfigModule.getModule();
             this.enabled = true;
 
             this.config = {
@@ -326,7 +329,7 @@ class AuditTrailSystem {
 
             if (!this.pool) {
                 logger?.warn?.('Audit trail system not properly initialized');
-                return { error: true, errorCode: 'AUDIT-SYSTEM-NOT-INITIALIZED' };
+                return { error: true, errorCode: 'SYSTEM::AUDIT-NOT-INITIALIZED::A::i' };
             }
 
             const seq = this._sequenceNumber++;

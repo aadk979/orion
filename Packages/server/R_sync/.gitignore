@@ -1,0 +1,11 @@
+node_modules
+
+*.log
+*.db
+
+logs
+
+r_sync.internal.*
+r_sync.internal.*
+
+.env.*

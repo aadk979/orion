@@ -3,6 +3,10 @@ import { InMemoryDB } from '../Databases/EphemeralDatabases/localMemoryDB.js';
 import { logger } from '../logger.js';
 import { respondWithError } from '../../Server/Response/response.js';
 import { rateLimitPolicy, resolveEndpointPolicy } from '../../General/index.js';
+import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
+
+const redisInstanceModule = new SafeModuleHandler('RedisInstance', 'redisInstance', 'DynamicGlobalRateLimiter.js');
+
 
 /**
  * DynamicGlobalRateLimiter — Centralized, Policy-Driven Rate Limiter
@@ -118,46 +122,59 @@ class DynamicGlobalRateLimiter {
     /**
      * Builds the actor identifier list for a request.
      * Each actor maps to ONE canonical bucket — cost is applied uniformly from the resolved policy.
-     * 
+     *
+     * Scope selects which actor buckets participate, because the limiter mounts at two
+     * points in the pipeline. The 'edge' scope runs before authentication, where only
+     * transport-level identity exists. The 'account' scope runs after authentication,
+     * once `req.user` has been populated. Splitting them keeps throttling ahead of the
+     * expensive auth path without double-deducting from any single bucket.
+     *
      * @param {Object} req      - Express request object
      * @param {Object} metadata - Request context metadata
      * @param {Object} policy   - Resolved endpoint policy ({ cost, ttl })
+     * @param {'edge'|'account'} scope - Which actor buckets to collect
      * @returns {Array<{ type: string, value: string, maxTokens: number, refillRate: number, cost: number, ttl: number }>}
      */
-    _collectIdentifiers(req, metadata, policy) {
+    _collectIdentifiers(req, metadata, policy, scope = 'edge') {
         const identifiers = [];
         const cost = policy.cost;
         const ttl = policy.ttl || this.defaultTTL;
 
-        // IP actor bucket
-        const reqIp = metadata?.ip || req.ip;
-        if (reqIp) {
-            const ipConfig = this.actorConfig.ip;
-            identifiers.push({
-                type: 'ip',
-                value: reqIp,
-                maxTokens: ipConfig.maxTokens,
-                refillRate: ipConfig.refillRate,
-                cost,
-                ttl
-            });
+        if (scope === 'edge') {
+            // IP actor bucket
+            const reqIp = metadata?.ip || req.ip;
+            if (reqIp) {
+                const ipConfig = this.actorConfig.ip;
+                identifiers.push({
+                    type: 'ip',
+                    value: reqIp,
+                    maxTokens: ipConfig.maxTokens,
+                    refillRate: ipConfig.refillRate,
+                    cost,
+                    ttl
+                });
+            }
+
+            // Fingerprint actor bucket (stricter capacity)
+            const reqFp = metadata?.fingerprint || req.headers['orion-fingerprint'];
+            if (reqFp) {
+                const fpConfig = this.actorConfig.fp;
+                identifiers.push({
+                    type: 'fp',
+                    value: reqFp,
+                    maxTokens: fpConfig.maxTokens,
+                    refillRate: fpConfig.refillRate,
+                    cost,
+                    ttl
+                });
+            }
+
+            return identifiers;
         }
 
-        // Fingerprint actor bucket (stricter capacity)
-        const reqFp = metadata?.fingerprint || req.headers['orion-fingerprint'];
-        if (reqFp) {
-            const fpConfig = this.actorConfig.fp;
-            identifiers.push({
-                type: 'fp',
-                value: reqFp,
-                maxTokens: fpConfig.maxTokens,
-                refillRate: fpConfig.refillRate,
-                cost,
-                ttl
-            });
-        }
-
-        // Account actor bucket (post-auth only — user identity must be present)
+        // Account actor bucket (post-auth only — user identity must be present).
+        // metadata is frozen before the auth middleware runs, so `req.user` is the
+        // only source that reflects a completed authentication.
         const user = req.user || metadata?.user || {};
         const identity = user.uid || user.email;
         if (identity) {
@@ -175,7 +192,24 @@ class DynamicGlobalRateLimiter {
         return identifiers;
     }
 
-    get middleware() {
+    /**
+     * Reports remaining tokens without letting a later, more generous bucket mask an
+     * earlier constrained one — the header should always reflect the tightest bucket seen.
+     */
+    _applyRemainingHeader(res, remaining) {
+        if (typeof remaining !== 'number') return;
+
+        const current = res.getHeader('X-RateLimit-Remaining');
+        if (typeof current === 'number' && current <= remaining) return;
+
+        res.setHeader('X-RateLimit-Remaining', remaining);
+    }
+
+    /**
+     * Builds a scoped limiter middleware. Both mount points share one policy resolution
+     * path and one bucket engine — only the participating actor set differs.
+     */
+    _buildMiddleware(scope) {
         return async (req, res, next) => {
             try {
                 // ── 1. Gather request context ────────────────────────────────
@@ -185,7 +219,11 @@ class DynamicGlobalRateLimiter {
                 const policy = this._resolvePolicy(req.method, req.path);
 
                 // ── 3. Collect actor identifiers with policy-driven cost ─────
-                const identifiers = this._collectIdentifiers(req, metadata, policy);
+                const identifiers = this._collectIdentifiers(req, metadata, policy, scope);
+
+                // Nothing to charge — unauthenticated requests skip the account pass
+                // entirely rather than paying for a round-trip that deducts nothing.
+                if (identifiers.length === 0) return next();
 
                 // ── 4. Evaluate rate limit against shared actor buckets ──────
                 const limitResponse = await this._checkLimit(identifiers);
@@ -196,11 +234,11 @@ class DynamicGlobalRateLimiter {
                     res.setHeader('X-RateLimit-Remaining', limitResponse.remaining);
                     res.setHeader('X-RateLimit-Reset', limitResponse.resetTimestamp);
 
-                    return respondWithError(res, 'RATE-LIMIT-EXCEEDED');
+                    return respondWithError(res, 'GENERAL::RATE-LIMIT-EXCEEDED::A::p');
                 }
 
                 // ── 5. Attach rate-limit metadata for downstream observation ─
-                res.setHeader('X-RateLimit-Remaining', limitResponse.remaining || 'MAX');
+                this._applyRemainingHeader(res, limitResponse.remaining);
 
                 return next();
 
@@ -210,6 +248,22 @@ class DynamicGlobalRateLimiter {
                 return next();
             }
         };
+    }
+
+    /**
+     * Edge pass — charges the IP and fingerprint buckets. Mount immediately after
+     * request metadata resolution so throttling precedes the expensive auth path.
+     */
+    get middleware() {
+        return this._buildMiddleware('edge');
+    }
+
+    /**
+     * Account pass — charges the account bucket. Mount after the authentication
+     * middleware, which is the first point where `req.user` is populated.
+     */
+    get accountMiddleware() {
+        return this._buildMiddleware('account');
     }
 
     /**
@@ -228,9 +282,17 @@ class DynamicGlobalRateLimiter {
         const validIdentifiers = allValid ? identifiers : identifiers.filter(id => id && id.value);
         if (validIdentifiers.length === 0) return { passed: true };
 
-        // Cache clusterMode on first invocation — it's immutable at runtime
+        // Cache clusterMode on first invocation — it's immutable at runtime.
+        // clusterMode is a locked GAP key, so getValue throws when boot never set it.
+        // That throw would surface in the middleware catch and fail the request open,
+        // so an unresolved flag degrades to single-node evaluation instead.
         if (this._isCluster === null) {
-            this._isCluster = !!globalAccessPoint.clusterMode();
+            try {
+                this._isCluster = !!globalAccessPoint.clusterMode();
+            } catch (err) {
+                logger.warn('RateLimiter: clusterMode unresolved, evaluating against local memory:', err.message);
+                this._isCluster = false;
+            }
         }
         
         if (this._isCluster) {
@@ -277,7 +339,7 @@ class DynamicGlobalRateLimiter {
     }
 
     async _evaluateRedis(identifiers) {
-        const redisInstance = globalAccessPoint.redisInstance();
+        const redisInstance = redisInstanceModule.probeModule();
         if (!redisInstance || !redisInstance.client) {
             logger.warn('RateLimiter: Cluster mode is enabled but Redis is missing. Falling back to local memory limit.');
             return this._evaluateLocal(identifiers);

@@ -1,25 +1,28 @@
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { PasskeyModel } from '../../../Databases/models/index.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { fileURLToPath } from 'url';
+import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'completeAuthentication.js');
+
 
 const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.passkey) {
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
         const cookie = parameters.cookie ? JSON.parse(parameters.cookie) : undefined;
 
         if (!cookie) {
-            return { error: true, errorCode: 'PASSKEY-AUTH-EXPIRED' };
+            return { error: true, errorCode: 'PASSKEY::AUTH-EXPIRED::A::p' };
         }
 
         if (cookie.email !== parameters.email) {
-            return { error: true, errorCode: 'PASSKEY-AUTH-EMAIL-MISMATCH' };
+            return { error: true, errorCode: 'PASSKEY::AUTH-EMAIL-MISMATCH::A::p' };
         }
 
         const passkey = await PasskeyModel.getPasskey(cookie.uid);
@@ -46,7 +49,7 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
         });
 
         if (!verification.verified) {
-            return { error: true, errorCode: 'PASSKEY-AUTH-FAILED' };
+            return { error: true, errorCode: 'PASSKEY::AUTH-FAILED::A::i' };
         }
 
         await PasskeyModel.updateCounter(passkey.credential_id, verification.authenticationInfo.newCounter);

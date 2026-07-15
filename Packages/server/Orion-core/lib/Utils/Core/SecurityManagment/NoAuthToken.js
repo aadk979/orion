@@ -10,6 +10,10 @@ import { generateRequestId } from '../../valueGenerator.js';
 import { cronScheduler } from '../../Cron.js';
 import { verifyCaptcha, generateCaptchaImage } from '../../CustomCaptchaSystem.js';
 import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const signatureSecretsManagerModule = new SafeModuleHandler('SignatureSecretsManager(internal)', 'SIGNATURE_SECRETS_MANAGER_internal', 'NoAuthToken.js');
+
 
 const captchaSystemVersion = '[orion:v1]-[1.0.0]-[BETA]';
 
@@ -42,7 +46,7 @@ const generateNoAuthTokenCreationTransaction = async (ip, fingerprint, userAgent
         });
 
         if (storage && storage.error) {
-            return { error: true, errorCode: 'DATABASE-ERROR' };
+            return { error: true, errorCode: 'DATABASE::OPERATION-FAILED::A::i' };
         }
 
         cronScheduler.addEvent(transactionId, deletionFunction, '5m', { docId: transactionId });
@@ -92,31 +96,31 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
             typeof parameters.transactionId !== 'string' ||
             !parameters.transactionId.startsWith('REQ_NO_AUTH_TOKEN_CREATION_TRANSACTION')
         ) {
-            return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-ID' };
+            return { error: true, errorCode: 'CAPTCHA::INVALID-TRANSACTION-ID::A::p' };
         }
 
         // ── 1. Fetch and validate transaction ────────────────────────────────
         const txn = await RequestModel.getNoAuthTransaction(parameters.transactionId);
 
         if (!txn) {
-            return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-ID' };
+            return { error: true, errorCode: 'CAPTCHA::INVALID-TRANSACTION-ID::A::p' };
         }
 
         // ── 2. Server-side expiry check (independent of cron) ────────────────
         if (Date.now() - txn.server_created_at > CAPTCHA_MAX_AGE_MS) {
             await deletionFunction({ docId: parameters.transactionId });
-            return { error: true, errorCode: 'EXPIRED-CAPTCHA-TRANSACTION' };
+            return { error: true, errorCode: 'CAPTCHA::TRANSACTION-EXPIRED::A::p' };
         }
 
         // ── 3. Version check ─────────────────────────────────────────────────
         if (txn.captcha_version !== captchaSystemVersion) {
-            return { error: true, errorCode: 'CAPTCHA-SYSTEM-VERSION-ERROR' };
+            return { error: true, errorCode: 'CAPTCHA::SYSTEM-VERSION-ERROR::A::i' };
         }
 
         // ── 4. Bind checks: IP, fingerprint, user-agent ──────────────────────
         if (!(await isIpInRange(parameters.ip, txn.ip_range))) {
             await deletionFunction({ docId: parameters.transactionId });
-            return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-IP' };
+            return { error: true, errorCode: 'CAPTCHA::TRANSACTION-IP-MISMATCH::A::p' };
         }
 
         // Fingerprint is an advisory risk signal, not a hard gate
@@ -126,12 +130,12 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
         }
         if (fpRiskScore >= 50) {
             await deletionFunction({ docId: parameters.transactionId });
-            return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-FINGERPRINT' };
+            return { error: true, errorCode: 'CAPTCHA::TRANSACTION-FINGERPRINT-MISMATCH::A::p' };
         }
 
         if (txn.user_agent !== parameters.userAgent) {
             await deletionFunction({ docId: parameters.transactionId });
-            return { error: true, errorCode: 'INVALID-CAPTCHA-TRANSACTION-USERAGENT' };
+            return { error: true, errorCode: 'CAPTCHA::TRANSACTION-USERAGENT-MISMATCH::A::p' };
         }
 
         // ── 5. CAPTCHA code check ────────────────────────────────────────────
@@ -141,18 +145,18 @@ const generateNoAuthToken = async (ip, fingerprint, userAgent, recaptchaResponse
 
         if (!isCodeValid) {
             await deletionFunction({ docId: parameters.transactionId });
-            return { error: true, errorCode: 'INVALID-CAPTCHA-CODE' };
+            return { error: true, errorCode: 'CAPTCHA::INVALID-CODE::A::p' };
         }
 
         // ── 6. Consume transaction immediately (replay protection) ───────────
         await deletionFunction({ docId: parameters.transactionId });
 
         // ── 7. Sign the token with SignatureSecretsManager ───────────────────
-        const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
+        const ssm = signatureSecretsManagerModule.getModule();
         const signingPair = await ssm.getRandomSigningKeyPair();
 
         if (!signingPair) {
-            return { error: true, errorCode: 'SIGNING-KEY-UNAVAILABLE' };
+            return { error: true, errorCode: 'SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i' };
         }
 
         const exp = getFutureUnixTime('1d');
@@ -238,7 +242,7 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
         // ── 1. Split token into payload + signature ───────────────────────────
         const dotIndex = parameters.token.indexOf('.');
         if (dotIndex === -1) {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         const payloadB64 = parameters.token.slice(0, dotIndex);
@@ -249,18 +253,18 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
         try {
             payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
         } catch {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         // ── 3. Structural + type check ────────────────────────────────────────
         // fpHash is now required — tokens without it (e.g. old format) are rejected
         if (!payload || payload.type !== 'NO_AUTH_TOKEN' || !payload.exp || !payload.kid || !payload.fpHash || !payload.ipRange) {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         // ── 4. Expiry check ───────────────────────────────────────────────────
         if (getCurrentUnixTime() > payload.exp) {
-            return { error: true, errorCode: 'EXPIRED-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::EXPIRED::A::p' };
         }
 
         // ── 5. Cryptographic signature verification ───────────────────────────
@@ -268,12 +272,12 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
         // the payload (ip, userAgent, fpHash, exp) invalidates the signature.
         // We must pass the raw decoded JSON string to ssm.verify(), as that is
         // what was passed to ssm.sign() during generation.
-        const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
+        const ssm = signatureSecretsManagerModule.getModule();
         const rawPayloadString = Buffer.from(payloadB64, 'base64url').toString('utf8');
         const signatureValid = await ssm.verify(rawPayloadString, signature, payload.kid);
 
         if (!signatureValid) {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         // ── 6. Device binding checks ──────────────────────────────────────────
@@ -282,11 +286,11 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
         // Checks are ordered cheapest-first (string compare before bcrypt).
         // All return the same error code to avoid revealing which field failed.
         if (!(await isIpInRange(parameters.ip, payload.ipRange))) {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         if (payload.userAgent !== parameters.userAgent) {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         // Fingerprint is an advisory risk signal, not a hard gate
@@ -295,7 +299,7 @@ const validateNoAuthToken = async (token, ip, fingerprint, userAgent) => {
             riskScore += 30;
         }
         if (riskScore >= 50) {
-            return { error: true, errorCode: 'INVALID-NO-AUTH-TOKEN' };
+            return { error: true, errorCode: 'NO-AUTH-TOKEN::INVALID::A::p' };
         }
 
         return { error: false, valid: true };
@@ -316,20 +320,20 @@ export const routeHandlerDeviceHasNoAuthToken = async (request, response) => {
     const noAuthTokenEnabled = globalAccessPoint.captcha();
 
     if (!noAuthTokenEnabled) {
-        return respondWithError(response, 'NO-AUTH-TOKEN-DISABLED');
+        return respondWithError(response, 'NO-AUTH-TOKEN::SYSTEM-DISABLED::A::i');
     }
 
     const authHeader = request.headers['authorization'] || 'DEFAULT NONE';
     const tokenType = authHeader.split(' ')[0];
 
     if (tokenType !== 'NO_BEARER') {
-        return respondWithError(response, 'NO-AUTH-TOKEN-UNAUTHORIZED');
+        return respondWithError(response, 'NO-AUTH-TOKEN::UNAUTHORIZED::A::p');
     }
 
     const token = parseCookieData(request.cookies['NO_AUTH_TOKEN']) || 'NONE';
 
     if (token === 'NONE') {
-        return respondWithError(response, 'NO-AUTH-TOKEN-NOT-FOUND');
+        return respondWithError(response, 'NO-AUTH-TOKEN::NOT-FOUND::A::p');
     }
 
     const userAgent = (request.headers['orion-user-agent'] || '').slice(0, MAX_USER_AGENT_LENGTH);

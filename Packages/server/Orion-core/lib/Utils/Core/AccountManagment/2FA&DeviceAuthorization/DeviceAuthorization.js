@@ -25,7 +25,7 @@ const cleanUpDevices = async uid => {
 
 const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
     if (!code || !deviceId) {
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     const cleanDeviceId = parseCookieData(deviceId);
@@ -34,14 +34,14 @@ const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
     const userExists = await UserModel.uidExists(uid);
 
     if (!userExists) {
-        return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+        return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
     }
 
     const activeRefs = await DeviceModel.getActiveDeviceRefs(uid);
     const deviceRef = activeRefs.find(item => item.device_id === cleanDeviceId);
 
     if (!deviceRef) {
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     const device = await DeviceModel.getDevice(deviceRef.device_id);
@@ -49,19 +49,19 @@ const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
     if (!device) {
         // Ghost ref — clean it up
         await DeviceModel.removeDeviceRef(uid, deviceRef.device_id);
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     if (!(await verifyHash(cleanCode, device.device_code_hash))) {
         await DeviceModel.deleteDevice(device.device_id);
         await DeviceModel.removeDeviceRef(uid, device.device_id);
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     if (!(await verifyHash(userAgent, device.user_agent_hash))) {
         await DeviceModel.deleteDevice(device.device_id);
         await DeviceModel.removeDeviceRef(uid, device.device_id);
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     return { error: false, valid: true };
@@ -69,7 +69,7 @@ const isDeviceRecognizedForUserUID = async (uid, userAgent, deviceId, code) => {
 
 const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) => {
     if (!code || !deviceId) {
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     const cleanDeviceId = parseCookieData(deviceId);
@@ -78,33 +78,33 @@ const isDeviceRecognizedForUserEmail = async (email, userAgent, deviceId, code) 
     const uid = await UserModel.getUidByEmail(email);
 
     if (!uid) {
-        return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+        return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
     }
 
     const activeRefs = await DeviceModel.getActiveDeviceRefs(uid);
     const deviceRef = activeRefs.find(item => item.device_id === cleanDeviceId);
 
     if (!deviceRef) {
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     const device = await DeviceModel.getDevice(deviceRef.device_id);
 
     if (!device) {
         await DeviceModel.removeDeviceRef(uid, deviceRef.device_id);
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     if (!(await verifyHash(cleanCode, device.device_code_hash))) {
         await DeviceModel.deleteDevice(device.device_id);
         await DeviceModel.removeDeviceRef(uid, device.device_id);
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     if (!(await verifyHash(userAgent, device.user_agent_hash))) {
         await DeviceModel.deleteDevice(device.device_id);
         await DeviceModel.removeDeviceRef(uid, device.device_id);
-        return { error: true, errorCode: 'DEVICE-UNRECOGNIZED' };
+        return { error: true, errorCode: 'DEVICE-AUTH::UNRECOGNIZED::A::p' };
     }
 
     return { error: false, valid: true };
@@ -117,7 +117,7 @@ const sendDeviceAuthorizationMail = async (email, ip, userAgent) => {
         const uid = await UserModel.getUidByEmail(to);
 
         if (!uid) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const code = generateRandomNumber(6);
@@ -157,7 +157,7 @@ const sendDeviceAuthorizationMail = async (email, ip, userAgent) => {
             cronScheduler.cancelEvent(reqId);
             await deletionFunction(parametersInternal);
 
-            return { error: true, errorCode: 'UNABLE-TO-SEND-DEVICE-AUTHORIZATION-EMAIL' };
+            return { error: true, errorCode: 'DEVICE-AUTH::EMAIL-SEND-FAILED::A::i' };
         }
 
         return { error: false, sent: true, reqId, flowSecret };
@@ -182,7 +182,7 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
         if (!UID && parameters.email) {
             UID = await UserModel.getUidByEmail(parameters.email);
             if (!UID) {
-                return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+                return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
             }
         }
 
@@ -254,23 +254,23 @@ const authorizeDeviceWithCode = async (reqID, code, flowSecret, ip, userAgent) =
         const storedData = await RequestModel.getDeviceAuthRequest(parseCookieData(parameters.reqID));
 
         if (!storedData) {
-            return { error: true, errorCode: 'DEVICE-AUTHORIZATION-AUTHORIZATION-REQUEST-EXPIRED' };
+            return { error: true, errorCode: 'DEVICE-AUTH::REQUEST-EXPIRED::A::p' };
         }
 
         if (!(await verifyHash(parameters.userAgent, storedData.user_agent_hash))) {
-            return { error: true, errorCode: 'DEVICE-AUTHORIZATION-USERAGENT-MISMATCH' };
+            return { error: true, errorCode: 'DEVICE-AUTH::USERAGENT-MISMATCH::A::p' };
         }
 
         if (!(await isIpInRange(parameters.ip, storedData.ip_range))) {
-            return { error: true, errorCode: 'DEVICE-AUTHORIZATION-IP-MISMATCH' };
+            return { error: true, errorCode: 'DEVICE-AUTH::IP-MISMATCH::A::p' };
         }
 
         if (!(await verifyHash(parameters.flowSecret, storedData.hashed_flow_secret))) {
-            return { error: true, errorCode: 'FLOW-SECRET-MISMATCH' };
+            return { error: true, errorCode: 'DEVICE-AUTH::FLOW-SECRET-MISMATCH::A::p' };
         }
 
         if (!(await verifyHash(parameters.code, storedData.code_hash))) {
-            return { error: true, errorCode: 'DEVICE-AUTHORIZATION-INVALID-CODE' };
+            return { error: true, errorCode: 'DEVICE-AUTH::INVALID-CODE::A::p' };
         }
 
         const authorization = await authorizeDeviceDirect(storedData.email, undefined, parameters.userAgent);

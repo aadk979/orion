@@ -9,7 +9,7 @@ const getUserProfile = async (uid) => {
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);

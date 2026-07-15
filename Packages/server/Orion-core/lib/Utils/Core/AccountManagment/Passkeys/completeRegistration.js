@@ -1,27 +1,30 @@
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
-import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
 import { PasskeyModel, UserSecurityModel } from '../../../Databases/models/index.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { parseCookieData } from '../../../CookieUtils.js';
 import { fileURLToPath } from 'url';
+import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'completeRegistration.js');
+
 
 const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async parameters => {
-        const systemConfig = globalAccessPoint.systemConfig();
+        const systemConfig = systemConfigModule.getModule();
 
         if (!systemConfig.authMethods.passkey) {
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
         const cookie = parameters.cookie ? parseCookieData(parameters.cookie) : undefined;
 
         if (!cookie) {
-            return { error: true, errorCode: 'PASSKEY-REGISTRATION-EXPIRED' };
+            return { error: true, errorCode: 'PASSKEY::REGISTRATION-EXPIRED::A::p' };
         }
 
         if (cookie.email !== parameters.email) {
-            return { error: true, errorCode: 'PASSKEY-REGISTRATION-EMAIL-MISMATCH' };
+            return { error: true, errorCode: 'PASSKEY::REGISTRATION-EMAIL-MISMATCH::A::p' };
         }
 
         const verification = await verifyRegistrationResponse({
@@ -32,7 +35,7 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
         });
 
         if (!verification.verified) {
-            return { error: true, errorCode: 'PASSKEY-REGISTRATION-FAILED' };
+            return { error: true, errorCode: 'PASSKEY::REGISTRATION-FAILED::A::i' };
         }
 
         const storageObj = {

@@ -10,7 +10,7 @@ const __dirname = dirname(__filename);
  * PostgresService — Connection pool + schema migration for Orion Alpine.
  *
  * All data access goes through model files that import this service
- * via globalAccessPoint.db().query() or globalAccessPoint.db().getPool().
+ * via dbModule.getModule().query() or dbModule.getModule().getPool().
  */
 class PostgresService {
     constructor(credentials) {

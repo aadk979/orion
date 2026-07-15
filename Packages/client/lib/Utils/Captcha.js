@@ -32,13 +32,6 @@ const buildNoAuthHeaders = async () => ({
   Authorization: "NO_BEARER",
   "orion-fingerprint": await getDeviceFingerprint(),
   "orion-user-agent": navigator.userAgent,
-  "orion-dip-state": "NONE",
-  "orion-dip-id": "DEFAULT NONE",
-  "orion-dip-signature": "DEFAULT NONE",
-  "orion-dip-salt": "DEFAULT NONE",
-  "orion-dip-timestamp": "DEFAULT NONE",
-  "orion-encryption-status": "NONE",
-  "orion-encryption-request-id": "NONE",
   "orion-api-system-version": "1.0.0[BETA]",
 });
 
@@ -526,7 +519,7 @@ async function checkAndDeployCaptcha(serverURL, nameSpace, slug, customStyles = 
 
   const data = await req.json();
 
-  if (data.error && data.errorData.errorCode !== "NO-AUTH-TOKEN-DISABLED") {
+  if (data.error && data.errorData.errorCode !== "NO-AUTH-TOKEN::SYSTEM-DISABLED::A::i") {
     await createModalCaptcha(serverURL, nameSpace, slug, customStyles);
   }
 }

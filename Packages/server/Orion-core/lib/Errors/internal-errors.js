@@ -15,13 +15,10 @@ import { Captcha } from './Security/captcha.js';
 import { NoAuthToken } from './Security/noAuthToken.js';
 import { DataValidation } from './Security/dataValidation.js';
 import { General } from './Security/general.js';
-import { Encryption } from './Security/encryption.js';
 import { Mail } from './Communication/mail.js';
-import { Dip } from './Security/dips.js';
 import { Database } from './System/database.js';
 import { FileOperations } from './System/fileOperations.js';
 import { System } from './System/system.js';
-import { writeToCaller } from "../Utils/FileHandler.js";
 
 const internalErrors = {
     ...AccessTokens,
@@ -41,14 +38,10 @@ const internalErrors = {
     ...NoAuthToken,
     ...DataValidation,
     ...General,
-    ...Encryption,
     ...Mail,
-    ...Dip,
     ...Database,
     ...FileOperations,
     ...System
 };
-
-writeToCaller("errors.json", internalErrors);
 
 export { internalErrors };

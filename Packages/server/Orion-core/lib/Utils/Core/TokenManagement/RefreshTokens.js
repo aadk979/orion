@@ -9,6 +9,14 @@ import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { toShortPayload, toVerbosePayload } from './tokenFieldMap.js';
 import { compressURLs, decompressURLs } from '../../Compressor.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { cleanUpTokens } from './TokenCleanup.js';
+import { logger } from '../../logger.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'RefreshTokens.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'RefreshTokens.js');
+const tokenSecretsManagerRefreshModule = new SafeModuleHandler('TokenSecretsManager(refresh)', 'TOKEN_SECRETS_MANAGER_refresh', 'RefreshTokens.js');
+
 
 async function generateRefreshToken(
     uid,
@@ -22,21 +30,21 @@ async function generateRefreshToken(
     refreshCount = 0,
     maxRefreshes = null
 ) {
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
     const securityTier = globalAccessPoint.tokenSecurityTier();
 
-    const secret = await globalAccessPoint.TOKEN_SECRETS_MANAGER_refresh().getRandomSigningKeyPair();
-    const expiry = globalAccessPoint.systemConfig().tokens?.lifespans.refreshTokens || '15m';
+    const secret = await tokenSecretsManagerRefreshModule.getModule().getRandomSigningKeyPair();
+    const expiry = systemConfigModule.getModule().tokens?.lifespans.refreshTokens || '15m';
 
     // Calculate max allowed refreshes on first issuance
     if (maxRefreshes === null) {
-        const accessExpiry = globalAccessPoint.systemConfig().tokens?.lifespans.accessTokens || '15m';
+        const accessExpiry = systemConfigModule.getModule().tokens?.lifespans.accessTokens || '15m';
         maxRefreshes = Math.floor(parseDuration(expiry) / parseDuration(accessExpiry)) + 3;
     }
 
     const aud = compressURLs(globalAccessPoint.allowedClientUrls());
-    const iss = compressURLs(globalAccessPoint.systemConfig().server.selfUrl);
+    const iss = compressURLs(systemConfigModule.getModule().server.selfUrl);
 
     let tokenData = null;
     let accessTokenLinkCode = accessTokenLinkCodeExternal;
@@ -159,10 +167,15 @@ async function generateRefreshToken(
                 role: role,
                 securityTier: securityTier
             },
-            errorCode: 'UNABLE-TO-GENERATE-REFRESH-TOKEN'
+            errorCode: 'TOKEN-REFRESH::GENERATION-FAILED::A::i'
         });
-        return { error: true, errorCode: 'UNABLE-TO-GENERATE-REFRESH-TOKEN' };
+        return { error: true, errorCode: 'TOKEN-REFRESH::GENERATION-FAILED::A::i' };
     }
+
+    // Reap this user's expired token rows. Rotation recurs for every active session and
+    // is the point where superseded tokens become garbage, so it doubles as the sweep
+    // trigger. Detached deliberately — a failed sweep must never fail token generation.
+    cleanUpTokens(uid).catch(err => logger.warn(`RefreshTokens: expired token sweep failed — ${err.message}`));
 
     const shortPayload = toShortPayload(payload);
     const token = jwt.sign(shortPayload, secret._nodePrivateKey, { expiresIn: expiry, algorithm: secret.generationConfig.algorithm, keyid: secret.keyPairId });
@@ -193,7 +206,7 @@ async function generateRefreshToken(
 }
 
 async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
-    const auditTrail = globalAccessPoint.auditTrailSystem();
+    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
     const configuredSecurityTier = globalAccessPoint.tokenSecurityTier();
 
@@ -213,17 +226,17 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
                 ipAddress: ip,
                 impact: 'Refresh token validation failed - missing token',
                 metadata: { reason: 'MISSING_TOKEN' },
-                errorCode: 'MISSING-AUTHENTICATION-TOKEN'
+                errorCode: 'AUTH::MISSING-TOKEN::A::p'
             });
-            return { error: true, errorCode: 'MISSING-AUTHENTICATION-TOKEN' };
+            return { error: true, errorCode: 'AUTH::MISSING-TOKEN::A::p' };
         }
 
         const decodedHeader = jwt.decode(token, { complete: true }).header;
-        const secret = await globalAccessPoint.TOKEN_SECRETS_MANAGER_refresh().findKeyPair(decodedHeader.kid);
-        const serverUrl = globalAccessPoint.systemConfig().server.selfUrl;
+        const secret = await tokenSecretsManagerRefreshModule.getModule().findKeyPair(decodedHeader.kid);
+        const serverUrl = systemConfigModule.getModule().server.selfUrl;
 
         if (!secret) {
-            return { error: true, errorCode: 'REFRESH-TOKEN-KEY-NOT-FOUND' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::KEY-NOT-FOUND::A::i' };
         }
 
         const rawDecoded = jwt.verify(token, secret._nodePublicKey, { algorithms: [secret.generationConfig.algorithm] });
@@ -235,17 +248,17 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
 
         // Validate audience and issuer for all tiers
         if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.allowedClientUrls().includes(clientUrl)) {
-            return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-INVALID-AUD' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::INVALID-AUD::A::p' };
         }
 
         if (!validatedToken.iss.includes(serverUrl)) {
-            return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-ISS-NOT-ALLOWED' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::ISS-NOT-ALLOWED::A::p' };
         }
 
         const securityTier = validatedToken.securityTier;
 
         if (securityTier !== configuredSecurityTier) {
-            return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-TIER-CONFLICT' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::TIER-CONFLICT::A::i' };
         }
 
         // Tier 1: Stateless - no additional validation needed
@@ -260,17 +273,17 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
         const tokenData = await TokenModel.getToken(validatedToken.tokenData.tokenId);
 
         if (!tokenData) {
-            return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-ID-NOT-FOUND' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::TOKEN-ID-NOT-FOUND::A::p' };
         }
 
         if (tokenData.type !== 'REFRESH_TOKEN') {
-            return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-TOKEN-TYPE-MISMATCH' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::TOKEN-TYPE-MISMATCH::A::p' };
         }
 
         // Tier 2: IP validation only
         if (securityTier === 2) {
             if (!(await isIpInRange(ip, validatedToken.ipRange))) {
-                return { error: true, errorCode: 'INVALID-REFRESH-TOKEN-IP-NOT-IN-RANGE' };
+                return { error: true, errorCode: 'TOKEN-REFRESH::IP-NOT-IN-RANGE::A::p' };
             }
         }
 
@@ -281,7 +294,7 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
                 riskScore += 30;
             }
             if (riskScore >= 50) {
-                return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
+                return { error: true, errorCode: 'STEP-UP::REQUIRED::A::p', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
 
@@ -295,7 +308,7 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
                 riskScore += 40;
             }
             if (riskScore >= 50) {
-                return { error: true, errorCode: 'STEP-UP-AUTH-REQUIRED', riskScore, uid: validatedToken.uid, data: validatedToken };
+                return { error: true, errorCode: 'STEP-UP::REQUIRED::A::p', riskScore, uid: validatedToken.uid, data: validatedToken };
             }
         }
 
@@ -323,10 +336,10 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
         return { error: false, valid: true, data: validatedToken };
     } catch (e) {
         if (e.message === 'jwt expired') {
-            return { error: true, errorCode: 'REFRESH-TOKEN-EXPIRED' };
+            return { error: true, errorCode: 'TOKEN-REFRESH::EXPIRED::A::p' };
         }
 
-        return { error: true, errorCode: 'UNABLE-TO-VALIDATE-REFRESH-TOKEN' };
+        return { error: true, errorCode: 'TOKEN-REFRESH::VALIDATION-FAILED::A::p' };
     }
 }
 

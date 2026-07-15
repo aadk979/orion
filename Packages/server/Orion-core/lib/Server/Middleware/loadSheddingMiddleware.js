@@ -1,12 +1,15 @@
-import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { respondWithError } from '../Response/response.js';
+import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
+
+const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'loadSheddingMiddleware.js');
+
 
 const loadSheddingMiddleware = (req, res, next) => {
-    const loadShedder = globalAccessPoint.loadSheddingSystem();
+    const loadShedder = loadSheddingSystemModule.probeModule();
     if (!loadShedder) return next();
 
     if (!loadShedder.canAccept()) {
-        return respondWithError(res, 'SERVER-OVERLOADED');
+        return respondWithError(res, 'SYSTEM::OVERLOADED::A::i');
     }
 
     let settled = false;

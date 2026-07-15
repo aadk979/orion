@@ -14,7 +14,6 @@ import { setupTOTP, verifyAndEnableTOTP } from './API-Handlers/Auth/SetupTOTP.js
 import { initiate2FAMethodRemoval, complete2FAMethodRemoval } from './API-Handlers/Auth/Remove2FAMethod.js';
 import { getUserProfile } from './API-Handlers/Auth/GetUserProfile.js';
 import { globalAccessPoint } from './Utils/GlobalAccessPoint.js';
-import { DIPCacheManager } from './DipCacheManager.js';
 
 class Orion {
     #authState = { status: 'IDLE' };
@@ -41,9 +40,6 @@ class Orion {
         globalAccessPoint.setValue('systemConfig', systemConfig);
 
         this.Api = new ApiInterface(systemConfig.serverUrl, systemConfig.nameSpace, systemConfig?.slug || '');
-
-        // Initialize DIP cache manager
-        this.dipCacheManager = new DIPCacheManager(systemConfig, this.Api, getAuthHeader);
     }
 
     #emitAuthState(newState) {
@@ -82,14 +78,11 @@ class Orion {
                 await orionVault.initDB();
                 await checkAndDeployCaptcha(this.systemConfig.serverUrl, this.systemConfig.nameSpace, this.systemConfig?.slug || '');
 
-                const dipConfig = await this.dipCacheManager.getDIPConfig(globalAccessPoint);
-                this.dipConfig = dipConfig;
-
                 const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
                 const request = await this.Api.fetch(`/${this.systemConfig.nameSpace}/api/v1/action/get-current-auth-state`, 'POST', authHeader.authHead);
                 const data = await request.json();
 
-                const allowedErrors = ['MISSING-AUTHENTICATION-TOKEN', 'ACCESS-TOKEN-EXPIRED', 'REFRESH-TOKEN-EXPIRED', 'MISSING-SESSION-ID-OR-SESSION-HMAC'];
+                const allowedErrors = ['AUTH::MISSING-TOKEN::A::p', 'TOKEN-ACCESS::EXPIRED::A::p', 'TOKEN-REFRESH::EXPIRED::A::p', 'AUTH::MISSING-SESSION-CREDENTIALS::A::p'];
 
                 if (data.error && !allowedErrors.includes(data.errorData?.errorCode)) {
                     throw new Error('Unknown error: ' + JSON.stringify(data));
@@ -145,7 +138,6 @@ class Orion {
             orionVault,
             email,
             password,
-            dipConfig: this.dipConfig,
             getAuthHeader,
             This: this
         };
@@ -170,8 +162,7 @@ class Orion {
             email,
             password,
             getAuthHeader,
-            This: this,
-            dipConfig: this.dipConfig
+            This: this
         });
     }
 
@@ -182,8 +173,7 @@ class Orion {
         return await signOutUser({
             Api: this.Api,
             getAuthHeader,
-            This: this,
-            dipConfig: this.dipConfig
+            This: this
         });
     }
 
@@ -194,7 +184,6 @@ class Orion {
         return await registerPasskey({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this
         });
     }
@@ -207,7 +196,6 @@ class Orion {
             email,
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this
         };
 
@@ -230,7 +218,6 @@ class Orion {
             email,
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this
         });
     }
@@ -242,7 +229,6 @@ class Orion {
         const result = await generateOAuthRedirectURL({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this,
             providerName
         });
@@ -266,8 +252,7 @@ class Orion {
             result = await handleOAuthCallback({
                 Api: this.Api,
                 getAuthHeader,
-                dipConfig: this.dipConfig,
-                This: this
+                    This: this
             });
         } catch (e) {
             if (e._orionDeviceAuthCompleted) {
@@ -307,7 +292,6 @@ class Orion {
         return await setupTOTP({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this
         });
     }
@@ -319,7 +303,6 @@ class Orion {
         return await verifyAndEnableTOTP({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this,
             totpCode
         });
@@ -332,7 +315,6 @@ class Orion {
         return await initiate2FAMethodRemoval({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this,
             method
         });
@@ -345,7 +327,6 @@ class Orion {
         return await complete2FAMethodRemoval({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this,
             code
         });
@@ -358,7 +339,6 @@ class Orion {
         return await getUserProfile({
             Api: this.Api,
             getAuthHeader,
-            dipConfig: this.dipConfig,
             This: this
         });
     }

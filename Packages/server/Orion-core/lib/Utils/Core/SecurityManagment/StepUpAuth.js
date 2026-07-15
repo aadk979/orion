@@ -15,6 +15,11 @@ import { veryifyAndCompletePasskeyAuthentication } from '../AccountManagment/Pas
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { getDeviceDetails } from '../../Device.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'StepUpAuth.js');
+const signatureSecretsManagerModule = new SafeModuleHandler('SignatureSecretsManager(internal)', 'SIGNATURE_SECRETS_MANAGER_internal', 'StepUpAuth.js');
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERNAL TOKEN HELPERS
@@ -38,11 +43,11 @@ import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
  * @returns {Promise<string>} Signed token string
  */
 const generateStepUpToken = async (uid, ip, userAgent, fingerprint) => {
-    const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
+    const ssm = signatureSecretsManagerModule.getModule();
     const signingPair = await ssm.getRandomSigningKeyPair();
 
     if (!signingPair) {
-        throw new Error('SIGNING-KEY-UNAVAILABLE');
+        throw new Error('SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i');
     }
 
     const exp = getFutureUnixTime('5h');
@@ -120,7 +125,7 @@ const validateStepUpToken = async (token, ip, userAgent, fingerprint) => {
         // ── 5. Cryptographic signature verification ───────────────────────────
         // We pass the raw decoded JSON string — exactly what was signed during
         // generation — so any payload tampering will invalidate the signature.
-        const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
+        const ssm = signatureSecretsManagerModule.getModule();
         const rawPayloadString = Buffer.from(payloadB64, 'base64url').toString('utf8');
         const signatureValid = await ssm.verify(rawPayloadString, signature, payload.kid);
 
@@ -168,11 +173,11 @@ const validateStepUpToken = async (token, ip, userAgent, fingerprint) => {
  */
 const generateStepUpContextToken = async uid => {
     const Function = async parameters => {
-        const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
+        const ssm = signatureSecretsManagerModule.getModule();
         const signingPair = await ssm.getRandomSigningKeyPair();
 
         if (!signingPair) {
-            return { error: true, errorCode: 'SIGNING-KEY-UNAVAILABLE' };
+            return { error: true, errorCode: 'SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i' };
         }
 
         const exp = getFutureUnixTime('10m');
@@ -209,7 +214,7 @@ const validateStepUpContextToken = async token => {
         // ── 1. Split token ────────────────────────────────────────────────────
         const dotIndex = parameters.token.indexOf('.');
         if (dotIndex === -1) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         const payloadB64 = parameters.token.slice(0, dotIndex);
@@ -220,26 +225,26 @@ const validateStepUpContextToken = async token => {
         try {
             payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
         } catch {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         // ── 3. Structural check ───────────────────────────────────────────────
         if (!payload || payload.type !== 'STEP_UP_CONTEXT' || !payload.uid || !payload.exp || !payload.kid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         // ── 4. Expiry check ───────────────────────────────────────────────────
         if (getCurrentUnixTime() > payload.exp) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         // ── 5. Cryptographic signature verification ───────────────────────────
-        const ssm = globalAccessPoint.SIGNATURE_SECRETS_MANAGER_internal();
+        const ssm = signatureSecretsManagerModule.getModule();
         const rawPayloadString = Buffer.from(payloadB64, 'base64url').toString('utf8');
         const signatureValid = await ssm.verify(rawPayloadString, signature, payload.kid);
 
         if (!signatureValid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         return { error: false, uid: payload.uid };
@@ -268,14 +273,14 @@ const getAvailableStepUpMethods = async uid => {
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'USER-NOT-FOUND' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);
         const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
 
         const totpSystemDisabled = globalAccessPoint.getValue('totpSystemDisabled');
-        const passkeySystemDisabled = !globalAccessPoint.systemConfig()?.authMethods?.passkey;
+        const passkeySystemDisabled = !systemConfigModule.getModule()?.authMethods?.passkey;
 
         return {
             error: false,
@@ -313,7 +318,7 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'USER-NOT-FOUND' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const email = user.email;
@@ -361,7 +366,7 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
             // Roll back: cancel cleanup task and delete the stored challenge record
             cronScheduler.cancelEvent(reqId);
             await RequestModel.deleteStepUpAuthRequest(reqId);
-            return { error: true, errorCode: 'EMAIL-SEND-FAILED' };
+            return { error: true, errorCode: 'STEP-UP::UNABLE-TO-SEND-EMAIL::A::i' };
         }
 
         return { error: false, reqId, flowSecret };
@@ -394,37 +399,37 @@ const verifyStepUpWithEmailCode = async (reqId, code, flowSecret, uid, ip, userA
         const storedData = await RequestModel.getStepUpAuthRequest(parameters.reqId);
 
         if (!storedData) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         // ── 2. UID ownership check ────────────────────────────────────────────
         // Prevents a different user from consuming another user's challenge.
         if (storedData.user_uid !== parameters.uid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SESSION-EXPIRED' };
+            return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
         // ── 3. User-Agent binding check ───────────────────────────────────────
         const uaValid = await verifyHash(parameters.userAgent, storedData.user_agent_hash);
         if (!uaValid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-USERAGENT-MISMATCH' };
+            return { error: true, errorCode: 'STEP-UP::USERAGENT-MISMATCH::A::p' };
         }
 
         // ── 4. IP range check ─────────────────────────────────────────────────
         const ipValid = await isIpInRange(parameters.ip, storedData.ip_range);
         if (!ipValid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-IP-MISMATCH' };
+            return { error: true, errorCode: 'STEP-UP::IP-MISMATCH::A::p' };
         }
 
         // ── 5. Flow secret check (CSRF-like session binding) ──────────────────
         const secretValid = await verifyHash(parameters.flowSecret, storedData.hashed_flow_secret);
         if (!secretValid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-SECRET-MISMATCH' };
+            return { error: true, errorCode: 'STEP-UP::SECRET-MISMATCH::A::p' };
         }
 
         // ── 6. One-time code check ────────────────────────────────────────────
         const codeValid = await verifyHash(parameters.code, storedData.code_hash);
         if (!codeValid) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-INVALID-CODE' };
+            return { error: true, errorCode: 'STEP-UP::INVALID-CODE::A::p' };
         }
 
         // ── 7. Consume challenge record ───────────────────────────────────────
@@ -461,7 +466,7 @@ const generateStepUpPasskeyOptions = async (uid, clientURL) => {
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'USER-NOT-FOUND' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const email = user.email;
@@ -469,7 +474,7 @@ const generateStepUpPasskeyOptions = async (uid, clientURL) => {
         const passkey = await PasskeyModel.getPasskey(parameters.uid);
 
         if (!passkey) {
-            return { error: true, errorCode: 'PASSKEY-AUTH-NO-ACTIVE-PASSKEY' };
+            return { error: true, errorCode: 'PASSKEY::AUTH-NO-ACTIVE-PASSKEY::A::p' };
         }
 
         const options = await generateAuthenticationOptions({
@@ -529,7 +534,7 @@ const verifyStepUpWithPasskey = async (authResponse, cookieData, uid, clientURL,
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'USER-NOT-FOUND' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const email = user.email;
@@ -586,25 +591,25 @@ const verifyStepUpWithPasskey = async (authResponse, cookieData, uid, clientURL,
  */
 const verifyStepUpWithTOTP = async (uid, totpCode, ip, userAgent, fingerprint) => {
     const Function = async parameters => {
-        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
 
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'USER-NOT-FOUND' };
+            return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
         const totpConfig = await TOTPModel.getTOTPConfig(parameters.uid);
 
         if (!totpConfig?.enabled) {
-            return { error: true, errorCode: 'TOTP-NOT-ENABLED' };
+            return { error: true, errorCode: 'TOTP::NOT-ENABLED::A::p' };
         }
 
         // ── Verify TOTP code ──────────────────────────────────────────────────
         const totpResult = await verifyTOTPToken(parameters.totpCode, totpConfig.secret);
 
         if (totpResult.error) {
-            return { error: true, errorCode: 'STEP-UP-AUTH-INVALID-TOTP' };
+            return { error: true, errorCode: 'STEP-UP::INVALID-TOTP::A::p' };
         }
 
         // ── Issue Step-Up Auth Token ──────────────────────────────────────────
@@ -634,13 +639,13 @@ const verifyStepUpWithTOTP = async (uid, totpCode, ip, userAgent, fingerprint) =
 const resolveStepUpContext = async (request, response) => {
     const rawContext = parseCookieData(request.cookies['stepUpContext']);
     if (!rawContext) {
-        respondWithError(response, 'STEP-UP-AUTH-MISSING-CONTEXT');
+        respondWithError(response, 'STEP-UP::MISSING-CONTEXT::A::p');
         return { ok: false };
     }
 
     const ctx = await validateStepUpContextToken(rawContext);
     if (ctx.error) {
-        respondWithError(response, ctx.errorCode || 'STEP-UP-AUTH-SESSION-EXPIRED');
+        respondWithError(response, ctx.errorCode || 'STEP-UP::SESSION-EXPIRED::A::p');
         return { ok: false };
     }
 
@@ -757,10 +762,10 @@ const routeHandlerVerifyStepUpEmail = async (request, response) => {
     const fingerprint = meta?.fingerprint || '';
 
     const code = request.body.packet?.code;
-    if (!code || typeof code !== 'string') return respondWithError(response, 'STEP-UP-AUTH-INVALID-CODE');
+    if (!code || typeof code !== 'string') return respondWithError(response, 'STEP-UP::INVALID-CODE::A::p');
 
     const reqId = parseCookieData(request.cookies['stepUpEmailReqId']);
-    if (!reqId) return respondWithError(response, 'STEP-UP-AUTH-SESSION-EXPIRED');
+    if (!reqId) return respondWithError(response, 'STEP-UP::SESSION-EXPIRED::A::p');
 
     // flowSecret defaults to empty string so verifyHash will deterministically
     // fail rather than throwing if the cookie is absent.

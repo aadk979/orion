@@ -3,13 +3,17 @@ import { cronScheduler } from '../../Cron.js';
 import { hashString } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { base64Encode } from '../../Encoders.js';
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { generateChallenge, generateRequestId } from '../../valueGenerator.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'GenerateRedirectURL.js');
+const oAuthToolKitModule = new SafeModuleHandler('OAuthToolKit', 'oAuthToolKit', 'GenerateRedirectURL.js');
+
 
 const SUPPORTED_PROVIDERS = [
     'GOOGLE',
@@ -33,7 +37,7 @@ const deleteFunction = async parameters => {
 
 const generateOAuthRedirectURL = async (providerName, ip) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         if (!SUPPORTED_PROVIDERS.includes(parameters.providerName.toUpperCase())) {
@@ -53,14 +57,14 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
                     reason: 'UNSUPPORTED_PROVIDER',
                     provider: parameters.providerName
                 },
-                errorCode: 'O-AUTH-UNSUPPORTED-PROVIDER'
+                errorCode: 'OAUTH::UNSUPPORTED-PROVIDER::A::p'
             });
-            return { error: true, errorCode: 'O-AUTH-UNSUPPORTED-PROVIDER' };
+            return { error: true, errorCode: 'OAUTH::UNSUPPORTED-PROVIDER::A::p' };
         }
 
-        const oAuthToolKit = globalAccessPoint.oAuthToolKit();
+        const oAuthToolKit = oAuthToolKitModule.getModule();
 
-        const requestId = generateRequestId('O-AUTH', 32);
+        const requestId = generateRequestId('OAUTH::GENERIC-ERROR::A::p', 32);
         const challenge = generateChallenge(32);
         const flowSecret = generateChallenge(32);
         const hashedFlowSecret = await hashString(flowSecret);
@@ -94,7 +98,9 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
 
         cronScheduler.addEvent(requestId, deleteFunction, '2m', { requestId });
 
-        const redirectURLResponse = oAuthToolKit.generateAuthUrl(parameters.providerName.toLowerCase(), encodedStateForClient);
+        const redirectURLResponse = oAuthToolKit.generateAuthUrl(parameters.providerName.toLowerCase(), encodedStateForClient, {
+            ...(stateForClient.nonce && { nonce: stateForClient.nonce })
+        });
 
         if (redirectURLResponse?.error) {
             auditTrail.record({
@@ -149,8 +155,8 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
     const functionSource = fileURLToPath(import.meta.url);
     const results = await tryCatch(Function, true, parameters, 'generateOAuthRedirectURL', functionSource);
 
-    if (results.error && results.errorCode === 'UNKNOWN-ERROR') {
-        return { error: true, errorCode: 'O-AUTH-UNABLE-TO-GENERATE-REDIRECT-URL' };
+    if (results.error && results.errorCode === 'GENERAL::UNKNOWN-ERROR::A::i') {
+        return { error: true, errorCode: 'OAUTH::REDIRECT-URL-GENERATION-FAILED::A::i' };
     }
 
     return results;

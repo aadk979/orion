@@ -11,44 +11,49 @@ import { cronScheduler } from '../../Cron.js';
 import { parseCookieData, stringifyCookieData } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { getDeviceDetails } from '../../Device.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'Remove2FAMethod.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'Remove2FAMethod.js');
+
 
 const VALID_METHODS = ['totp', 'passkey'];
 
 const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, userAgent) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         if (!VALID_METHODS.includes(parameters.method)) {
-            return { error: true, errorCode: '2FA-REMOVAL-INVALID-METHOD' };
+            return { error: true, errorCode: 'TWO-FA::INVALID-METHOD::A::p' };
         }
 
         if (parameters.method === 'totp' && globalAccessPoint.getValue('totpSystemDisabled')) {
-            return { error: true, errorCode: 'TOTP-SYSTEM-DISABLED' };
+            return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
         }
 
-        if (parameters.method === 'passkey' && !globalAccessPoint.systemConfig()?.authMethods?.passkey) {
-            return { error: true, errorCode: 'PASSKEY-SIGN-IN-DISABLED' };
+        if (parameters.method === 'passkey' && !systemConfigModule.getModule()?.authMethods?.passkey) {
+            return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         // Validate the method is actually enabled
         if (parameters.method === 'totp') {
             const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
             if (!totpEnabled) {
-                return { error: true, errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED' };
+                return { error: true, errorCode: 'TWO-FA::METHOD-NOT-ENABLED::A::p' };
             }
         }
 
         if (parameters.method === 'passkey') {
             const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);
             if (!hasPasskey) {
-                return { error: true, errorCode: '2FA-REMOVAL-METHOD-NOT-ENABLED' };
+                return { error: true, errorCode: 'TWO-FA::METHOD-NOT-ENABLED::A::p' };
             }
         }
 
@@ -86,7 +91,7 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
         if (send.error) {
             cronScheduler.cancelEvent(reqId);
             await deletionFunction(parametersInternal);
-            return { error: true, errorCode: '2FA-REMOVAL-UNABLE-TO-SEND-EMAIL' };
+            return { error: true, errorCode: 'TWO-FA::EMAIL-SEND-FAILED::A::i' };
         }
 
         if (auditTrail) {
@@ -117,25 +122,25 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
 
 const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent) => {
     const Function = async parameters => {
-        const auditTrail = globalAccessPoint.auditTrailSystem();
+        const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
 
         const storedData = await RequestModel.get2FARemovalRequest(parseCookieData(parameters.reqId));
 
         if (!storedData) {
-            return { error: true, errorCode: '2FA-REMOVAL-REQUEST-EXPIRED' };
+            return { error: true, errorCode: 'TWO-FA::REQUEST-EXPIRED::A::p' };
         }
 
         if (parameters.userAgent !== storedData.user_agent) {
-            return { error: true, errorCode: '2FA-REMOVAL-USERAGENT-MISMATCH' };
+            return { error: true, errorCode: 'TWO-FA::USERAGENT-MISMATCH::A::p' };
         }
 
         if (!(await isIpInRange(parameters.ip, storedData.ip_range))) {
-            return { error: true, errorCode: '2FA-REMOVAL-IP-MISMATCH' };
+            return { error: true, errorCode: 'TWO-FA::IP-MISMATCH::A::p' };
         }
 
         if (!(await verifyHash(parameters.fingerprint, storedData.fingerprint_hash))) {
-            return { error: true, errorCode: '2FA-REMOVAL-FINGERPRINT-MISMATCH' };
+            return { error: true, errorCode: 'TWO-FA::FINGERPRINT-MISMATCH::A::p' };
         }
 
         if (!(await verifyHash(parameters.code, storedData.code_hash))) {
@@ -154,17 +159,17 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
                     ipAddress: parameters.ip,
                     impact: '2FA removal verification failed - invalid code',
                     metadata: { method: storedData.method, reason: 'INVALID_CODE' },
-                    errorCode: '2FA-REMOVAL-INVALID-CODE'
+                    errorCode: 'TWO-FA::INVALID-CODE::A::p'
                 });
             }
-            return { error: true, errorCode: '2FA-REMOVAL-INVALID-CODE' };
+            return { error: true, errorCode: 'TWO-FA::INVALID-CODE::A::p' };
         }
 
         // Code verified, remove the 2FA method
         const user = await UserModel.getUserByUid(storedData.user_uid);
 
         if (!user) {
-            return { error: true, errorCode: 'ACC-SIGN-IN-ACC-NO-EXISTS' };
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
         }
 
         const method = storedData.method;
@@ -252,7 +257,7 @@ const routeHandlerComplete2FAMethodRemoval = async (request, response) => {
     const reqId = request.cookies['twoFARemovalRequestId'];
 
     if (!reqId) {
-        return respondWithError(response, '2FA-REMOVAL-MISSING-REQUEST-ID');
+        return respondWithError(response, 'TWO-FA::MISSING-REQUEST-ID::A::p');
     }
 
     const callback = await complete2FAMethodRemoval(reqId, code, fingerprint, ip, userAgent);

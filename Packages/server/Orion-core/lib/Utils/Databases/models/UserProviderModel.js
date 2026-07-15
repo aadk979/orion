@@ -1,6 +1,9 @@
-import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
-const query = (text, params) => globalAccessPoint.db().query(text, params);
+const dbModule = new SafeModuleHandler('Database', 'db', 'UserProviderModel.js');
+
+
+const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const UserProviderModel = {
     async addProvider(uid, providerName) {

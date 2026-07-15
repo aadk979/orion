@@ -1,13 +1,11 @@
-async function setupTOTP({ Api, getAuthHeader, dipConfig, This }) {
+async function setupTOTP({ Api, getAuthHeader, This }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
     const res = await Api.fetch(
         `/${This.systemConfig.nameSpace}/api/v1/action/generate-totp-secret`,
         'POST',
         authHeader.authHead,
-        {},
-        null,
-        null
+        {}
     );
 
     const data = await res.json();
@@ -17,32 +15,18 @@ async function setupTOTP({ Api, getAuthHeader, dipConfig, This }) {
     return { error: false, qrCode: data.data.qrCode, secret: data.data.secret };
 }
 
-async function verifyAndEnableTOTP({ Api, getAuthHeader, dipConfig, This, totpCode }) {
+async function verifyAndEnableTOTP({ Api, getAuthHeader, This, totpCode }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
-    const encryptedPayload = await Api.prepareDataForEncryption({ totpCode });
-
-    const postEncryptionPayload = {
-        packet: { encryptedString: encryptedPayload.encryptedString }
-    };
-
-    const dipSignature = await Api.prepareDataForDIP(postEncryptionPayload, dipConfig);
-
-    const dipOptions = {
-        ...dipConfig,
-        dipState: 'ACTIVE',
-        dipSignature: dipSignature.dipSignature,
-        salt: dipSignature.salt,
-        timestamp: dipSignature.timestamp
+    const payload = {
+        packet: { totpCode }
     };
 
     const res = await Api.fetch(
         `/${This.systemConfig.nameSpace}/api/v1/action/verify-and-enable-totp`,
         'POST',
         authHeader.authHead,
-        postEncryptionPayload,
-        dipOptions,
-        encryptedPayload.encryption
+        payload
     );
 
     const data = await res.json();

@@ -12,22 +12,21 @@
  */
 
 import { validateRASCallbacks } from '../Utils/Core/ResourceAccessManagment/callbackBasedResources/callbackValidator.js';
-import { cronScheduler } from '../Utils/Cron.js';
 import { readFromCaller, writeToCaller } from '../Utils/FileHandler.js';
 import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
 import { logger } from '../Utils/logger.js';
 import { validateClientUrls } from '../Utils/Validator.js';
 import { generateRandomNumber } from '../Utils/valueGenerator.js';
-import { PERSISTANT_CLIENT_URLS_FILE_NAME, SIGNATURE_SECRETS_FILE_NAME } from '../orion.meta.js';
+import { PERSISTANT_CLIENT_URLS_FILE_NAME } from '../orion.meta.js';
 import { EphemeralDatabaseManager } from '../Utils/Databases/EphemeralDatabases/index.js';
 import { HealthCheckModel } from '../Utils/Databases/models/index.js';
-import { getFutureUnixTime } from '../Utils/Date&Time.js';
-import { populateEphemeralConfigs } from '../Utils/Databases/EphemeralDatabases/configPopulator.js';
-import { generateNumberedStringsFromTemplate, getRandomElement } from '../Utils/ArrayUtilities.js';
 import { TokenSecretsManager } from "../Utils/Systems/TokenSecretsManager.js";
 import { SignatureSecretsManager } from "../Utils/Systems/SignatureSecretsManager.js";
-import { importPrivateKeyECC } from '../Utils/dedicatedCrypto.js';
-import { base64DecodeToUint8 } from '../Utils/Encoders.js';
+import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
+
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'onStartConfigurations.js');
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'onStartConfigurations.js');
+
 
 const utilDatabaseLiveCheck = async (maxRetries = 3, retryDelay = 1000) => {
     let attempts = 0;
@@ -35,8 +34,8 @@ const utilDatabaseLiveCheck = async (maxRetries = 3, retryDelay = 1000) => {
     while (attempts < maxRetries) {
         attempts++;
 
-        const randomKey = generateRandomNumber(36);
-        const randomData = generateRandomNumber(35);
+        const randomKey = generateRandomNumber(12);
+        const randomData = generateRandomNumber(5);
 
         const writeCheck = await HealthCheckModel.write(randomKey, { data: randomData });
 
@@ -149,7 +148,7 @@ const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryD
 };
 
 const handleAuditTrailSystemCheck = async () => {
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
     const auditSystemEnabled = systemConfig?.utilities?.auditTrailSystem?.enabled ?? false;
 
     if (!auditSystemEnabled) {
@@ -157,7 +156,7 @@ const handleAuditTrailSystemCheck = async () => {
         return;
     }
 
-    const auditSystem = globalAccessPoint.auditTrailSystem();
+    const auditSystem = auditTrailSystemModule.probeModule();
 
     if (!auditSystem) {
         throw new Error('AuditTrailSystem instance not found in globalAccessPoint');
@@ -175,7 +174,7 @@ const utilIsValidDomainFormat = domain => {
 };
 
 const handleConfigValidationForEmailDomains = () => {
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
     const domains = systemConfig?.authMethods?.allowedEmailDomains;
 
     if (!domains || domains.length === 0) {
@@ -218,17 +217,18 @@ const utilGetBooleanValuesForSystemSecurityConfig = status => {
 };
 
 const utilHasMailCredentials = () => {
-    const mail = globalAccessPoint.systemConfig()?.mail;
+    const mail = systemConfigModule.getModule()?.mail;
     return !!(mail && mail.service && mail.email && mail.password);
 };
 
 const handleConfigValidationForSystemSecurity = () => {
-    const currentConfigurableSystemSecurityModules = ['dip', 'captcha', 'deviceAuthorization'];
-    const systemConfig = globalAccessPoint.systemConfig();
+    // NOTE: 'dip' (Data Integrity Protocol) was removed here when that subsystem was
+    // decommissioned in favour of TLS 1.3. See Graveyard/.
+    const currentConfigurableSystemSecurityModules = ['captcha', 'deviceAuthorization'];
+    const systemConfig = systemConfigModule.getModule();
     const accessControlConfig = systemConfig?.utilities?.accessControl || { captcha: 'ENABLED', deviceAuthorization: 'ENABLED' };
-    const dataIntegrityConfig = systemConfig?.utilities?.dataIntegrity || { dip: 'ENABLED' };
-    
-    const combinedConfig = { ...accessControlConfig, ...dataIntegrityConfig };
+
+    const combinedConfig = { ...accessControlConfig };
 
     const slug = systemConfig?.api?.slug || '';
 
@@ -259,7 +259,7 @@ const handleConfigValidationForSystemSecurity = () => {
 const handleMailCredentialConflicts = () => {
     if (utilHasMailCredentials()) return;
 
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
 
     if (globalAccessPoint.deviceAuthorization()) {
         throw new Error('Configuration conflict: Device authorization is enabled but no mail credentials are configured (systemConfig.mail). Device authorization requires sending a one-time code via email. Either provide mail credentials or disable device authorization (utilities.systemSecurity.deviceAuthorization: "DISABLED").');
@@ -280,7 +280,7 @@ const handleMailCredentialConflicts = () => {
 };
 
 const handleRASValidation = () => {
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
 
     const validatedConfig = validateRASCallbacks(systemConfig?.api?.resourceAccessConfig);
 
@@ -290,7 +290,7 @@ const handleRASValidation = () => {
 };
 
 const handleAllowedUserRolesConfig = () => {
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
 
     if (systemConfig?.utilities?.userRoles) {
         if (!Array.isArray(systemConfig?.utilities?.userRoles?.allowedUserRoles)) {
@@ -317,7 +317,7 @@ const handleAllowedUserRolesConfig = () => {
 };
 
 const handleAllowedClientUrlsConfig = async () => {
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
 
     const clientUrlsFromConfig = systemConfig?.client?.urls;
 
@@ -343,7 +343,7 @@ const handleAllowedClientUrlsConfig = async () => {
     if (persistentUpdateAllowed) {
         const fileData = await readFromCaller(PERSISTANT_CLIENT_URLS_FILE_NAME);
 
-        if (fileData.errorCode === 'FILE-NOT-FOUND') {
+        if (fileData.errorCode === 'FILE-OPS::FILE-NOT-FOUND::A::p') {
             await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [...validateClientUrls(clientUrlsFromConfig)] });
         }
 
@@ -358,9 +358,7 @@ const handleAllowedClientUrlsConfig = async () => {
 
         globalAccessPoint.setValue(
             'allowedClientUrls',
-            fileData?.data?.clientUrls
-                ? [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])]
-                : validateClientUrls(clientUrlsFromConfig)
+            fileData?.data?.clientUrls ? [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])] : validateClientUrls(clientUrlsFromConfig)
         );
 
         return;
@@ -371,76 +369,16 @@ const handleAllowedClientUrlsConfig = async () => {
     return;
 };
 
-const decodeRedisEncryptionGroup = async groupData => {
-    if (!Array.isArray(groupData)) return groupData;
-
-    return Promise.all(
-        groupData.map(async config => {
-            if (config.alg !== 'ECC' || !config.privateKey) return config;
-
-            // ECC private key was stored as base64(pkcs8) by the orchestrator
-            const curve = `P-${config.size || 256}`;
-            const pkcs8Bytes = base64DecodeToUint8(config.privateKey);
-            const restoredKey = await importPrivateKeyECC(pkcs8Bytes, curve);
-
-            return { ...config, privateKey: restoredKey };
-        })
-    );
-};
-
-const refreshEphemeralRedisConfigs = async () => {
-    try {
-        const redisInstance = globalAccessPoint.redisInstance();
-
-        if (!redisInstance) {
-            logger.error('refreshEphemeralRedisConfigs: No Redis instance found on globalAccessPoint — skipping refresh');
-            return;
-        }
-
-        const configKeys = await redisInstance.keys();
-        const dipConfigKeys = configKeys.data.filter(val => val.startsWith('DIP_GROUP'));
-        const encryptionConfigKeys = configKeys.data.filter(val => val.startsWith('ENCRYPTION_GROUP'));
-
-        const freshDbManager = await EphemeralDatabaseManager.create('LOCAL_DB');
-        const freshDb = freshDbManager.db();
-
-        await Promise.all([
-            ...dipConfigKeys.map(async dipGroup => {
-                const data = await redisInstance.getData(dipGroup);
-                if (!data.error && data.data !== undefined) {
-                    await freshDb.addData(dipGroup, data.data);
-                }
-            }),
-            ...encryptionConfigKeys.map(async encryptionGroup => {
-                const data = await redisInstance.getData(encryptionGroup);
-                if (!data.error && data.data !== undefined) {
-                    const decoded = await decodeRedisEncryptionGroup(data.data);
-                    await freshDb.addData(encryptionGroup, decoded);
-                }
-            })
-        ]);
-
-        const oldDb = globalAccessPoint.ephemeralDB();
-        if (oldDb && typeof oldDb.clear === 'function') {
-            await oldDb.clear();
-        }
-
-        globalAccessPoint.setValue('ephemeralDB', freshDb);
-        globalAccessPoint.setValue('dipConfigsAvailable', dipConfigKeys);
-        globalAccessPoint.setValue('encryptionConfigsAvailable', encryptionConfigKeys);
-
-        logger.info(`✅ Ephemeral Redis config refresh complete — ${dipConfigKeys.length} DIP group(s), ${encryptionConfigKeys.length} encryption group(s)`);
-    } catch (err) {
-        logger.error('refreshEphemeralRedisConfigs: Refresh failed —', err.message);
-    }
-};
-
+// Cluster-mode determination.
+//
+// This function previously also stood up the ephemeral config store that fed the
+// DIP (Data Integrity Protocol) and hybrid transport-encryption subsystems. Both of
+// those were decommissioned in favour of TLS 1.3 (see Graveyard/). All that remains
+// here is establishing whether the node runs single or cluster mode — the secrets
+// managers (TokenSecretsManager / SignatureSecretsManager) still rely on the shared
+// Redis instance for cross-node signing-key fan-out.
 const handleEphemeralDatabaseSetup = async () => {
-    const dipActive = globalAccessPoint.dip();
-    const encryptionActive = true;
-
-    const configExp = getFutureUnixTime('24h');
-    const systemConfig = globalAccessPoint.systemConfig();
+    const systemConfig = systemConfigModule.getModule();
 
     const ephemeralDB = systemConfig?.utilities?.ephemeralDB || { provider: 'LOCAL_DB' };
 
@@ -448,67 +386,19 @@ const handleEphemeralDatabaseSetup = async () => {
         throw new Error("Configuration error: Ephemeral database object present but missing 'provider' or 'credentials'");
     }
 
-    let numberOfDipConfigs = 5;
-    let numberOfEncryptionConfigs = 5;
-
-    if (systemConfig?.utilities?.numberOfDipConfigs && !Number.isNaN(Number(systemConfig?.utilities?.numberOfDipConfigs))) {
-        const n = Math.ceil(Number(systemConfig.utilities.numberOfDipConfigs) / 5) * 5;
-        numberOfDipConfigs = Math.max(numberOfDipConfigs, n);
-    }
-
-    if (systemConfig?.utilities?.numberOfEncryptionConfigs && !Number.isNaN(Number(systemConfig?.utilities?.numberOfEncryptionConfigs))) {
-        const n = Math.ceil(Number(systemConfig.utilities.numberOfEncryptionConfigs) / 5) * 5;
-        numberOfEncryptionConfigs = Math.max(numberOfEncryptionConfigs, n);
-    }
-
-    const dbManager = await EphemeralDatabaseManager.create(ephemeralDB.provider, ephemeralDB.credentials);
-    const db = dbManager.db();
-
     if (ephemeralDB.provider === 'LOCAL_DB') {
-        globalAccessPoint.setValue('ephemeralDB', db);
-
-        globalAccessPoint.setValue('dipConfigsAvailable', generateNumberedStringsFromTemplate('DIP_GROUP[<i>]', numberOfDipConfigs / 5));
-        globalAccessPoint.setValue('encryptionConfigsAvailable', generateNumberedStringsFromTemplate('ENCRYPTION_GROUP[<i>]', numberOfEncryptionConfigs / 5));
-
-        const population = await populateEphemeralConfigs({ db, values: { dipActive, encryptionActive, numberOfDipConfigs, numberOfEncryptionConfigs, configExp } });
-
-        return population;
+        globalAccessPoint.setValue('clusterMode', false);
+        return;
     }
 
     if (ephemeralDB.provider === 'REDIS') {
-        // The redis instance is the regional instance shared by the nodes and is populated and rotated by the orchestrator.
-        // For the redis option, the system pulls configs from redis and creates a new local in-memory DB.
-        // The system will then periodically re-pull every 10 min and overwrite the old in-memory configs.
-        // Direct redis integration was not used for speed — batch updates every 10 min keep latency low.
-        // Both LOCAL_DB and REDIS paths ultimately use the same local ephemeral DB interface.
-
-        const dbManagerLocal = await EphemeralDatabaseManager.create('LOCAL_DB');
-
-        const configKeys = await db.keys();
-        const dipConfigKeys = configKeys.data.filter(val => val.startsWith('DIP_GROUP'));
-        const encryptionConfigKeys = configKeys.data.filter(val => val.startsWith('ENCRYPTION_GROUP'));
-
-        await Promise.all([
-            ...dipConfigKeys.map(async dipGroup => {
-                const data = await db.getData(dipGroup);
-                await dbManagerLocal.db().addData(dipGroup, data.data);
-            }),
-            ...encryptionConfigKeys.map(async encryptionGroup => {
-                const data = await db.getData(encryptionGroup);
-                const decoded = await decodeRedisEncryptionGroup(data.data);
-                await dbManagerLocal.db().addData(encryptionGroup, decoded);
-            })
-        ]);
+        // Cluster mode: the shared Redis instance is consumed by the secrets managers
+        // for cross-node signing-key fan-out.
+        const dbManager = await EphemeralDatabaseManager.create(ephemeralDB.provider, ephemeralDB.credentials);
+        const db = dbManager.db();
 
         globalAccessPoint.setValue('clusterMode', true);
         globalAccessPoint.setValue('redisInstance', db);
-        globalAccessPoint.setValue('ephemeralDB', dbManagerLocal.db());
-        globalAccessPoint.setValue('dipConfigsAvailable', dipConfigKeys);
-        globalAccessPoint.setValue('encryptionConfigsAvailable', encryptionConfigKeys);
-
-        // Schedule periodic re-sync from Redis every 10 minutes
-        cronScheduler.addEvent('ephemeralDB_redis_refresh', refreshEphemeralRedisConfigs, '10m', {});
-
         return;
     }
 
@@ -519,7 +409,7 @@ const handleTokenSecretsSetup = async () => {
 
     const defaultDomains = ["access", "refresh", "resource"];
 
-    const tokenSecurityTier = globalAccessPoint.systemConfig()?.tokens?.securityTier;
+    const tokenSecurityTier = systemConfigModule.getModule()?.tokens?.securityTier;
 
     globalAccessPoint.setValue("tokenSecurityTier", Number(tokenSecurityTier) || 4)
 
@@ -583,4 +473,4 @@ const handleOnStartConfiguration = async () => {
     await handleSignatureSecretsSetup();
 };
 
-export { handleOnStartConfiguration, refreshEphemeralRedisConfigs };
+export { handleOnStartConfiguration };
