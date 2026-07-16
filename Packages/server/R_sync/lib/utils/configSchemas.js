@@ -29,7 +29,14 @@ const WorkerConfigSchema = {
     orchestratorPort: { type: 'number', required: false, default: 55321 },
     port: { type: 'number', required: false, default: 55322 },
     encryptionAlg: { type: 'string', required: false, enum: VALID_ENCRYPTION_ALGS, default: 'ECC_256' },
-    heartbeatIntervalMs: { type: 'number', required: false, min: 1000, default: 30000 }
+    heartbeatIntervalMs: { type: 'number', required: false, min: 1000, default: 30000 },
+    /**
+     * When true (default), a worker that cannot register with its orchestrator
+     * crashes the process (standalone-worker semantics). When false, startWorker()
+     * throws instead — for hosts that EMBED a worker (e.g. an Orion-core node)
+     * and must keep serving even while the orchestrator is unreachable.
+     */
+    exitOnBootFailure: { type: 'boolean', required: false, default: true }
 };
 
 /**

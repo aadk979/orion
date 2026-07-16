@@ -44,7 +44,7 @@ async function generateRefreshToken(
     }
 
     const aud = compressURLs(globalAccessPoint.allowedClientUrls());
-    const iss = compressURLs(systemConfigModule.getModule().server.selfUrl);
+    const iss = compressURLs(systemConfigModule.getModule().server.urls);
 
     let tokenData = null;
     let accessTokenLinkCode = accessTokenLinkCodeExternal;

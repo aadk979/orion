@@ -7,6 +7,7 @@ const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditT
 const memoryMonitoringSystemModule = new SafeModuleHandler('MemoryMonitoringSystem', 'memoryMonitioringSystem', 'GracefulShutdownSystem.js');
 const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventLoopMonitor', 'GracefulShutdownSystem.js');
 const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'GracefulShutdownSystem.js');
+const clusterLinkSystemModule = new SafeModuleHandler('ClusterLinkSystem', 'clusterLinkSystem', 'GracefulShutdownSystem.js');
 
 
 const DRAIN_TIMEOUT_MS = 30_000;
@@ -58,7 +59,19 @@ class GracefulShutdownSystem {
             logger.warn(`GracefulShutdown: Drain wait failed — ${err.message}`);
         }
 
-        // 3. Flush audit trail buffer
+        // 3. Detach from the cluster — sends a best-effort goodbye so the
+        //    orchestrator marks this node offline immediately
+        try {
+            const cl = clusterLinkSystemModule.probeModule();
+            if (cl?.enabled) {
+                await cl.stop(`graceful-shutdown:${signal}`);
+                logger.info('GracefulShutdown: Cluster link detached');
+            }
+        } catch (err) {
+            logger.warn(`GracefulShutdown: Cluster link stop failed — ${err.message}`);
+        }
+
+        // 4. Flush audit trail buffer
         try {
             const at = auditTrailSystemModule.probeModule();
             if (at?.enabled && typeof at.flush === 'function') {
@@ -69,11 +82,11 @@ class GracefulShutdownSystem {
             logger.warn(`GracefulShutdown: Audit flush failed — ${err.message}`);
         }
 
-        // 4. Stop monitors
+        // 5. Stop monitors
         try { memoryMonitoringSystemModule.probeModule()?.stop(); } catch (_) {}
         try { eventLoopMonitorModule.probeModule()?.stop(); } catch (_) {}
 
-        // 5. Close DB
+        // 6. Close DB
         try {
             const db = dbModule.probeModule();
             if (db && typeof db.close === 'function') {

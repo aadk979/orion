@@ -1,0 +1,7 @@
+node_modules/
+logs/
+*.log
+*.db
+r_sync.internal.*
+r_sync.local_db.db
+orion_orch.internal.*

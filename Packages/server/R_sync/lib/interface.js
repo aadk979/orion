@@ -85,6 +85,7 @@ class R_Sync {
       this.encryptionAlg = validated.encryptionAlg;
       this.heartbeatIntervalMs = validated.heartbeatIntervalMs;
       this.cluster = validated.cluster;
+      this.exitOnBootFailure = validated.exitOnBootFailure !== false;
     }
 
     // Register the singleton only after the config has fully validated, so a
@@ -261,10 +262,17 @@ class R_Sync {
       logger.error(
         `Worker boot failed: could not reach orchestrator at ${ORCHESTRATOR_BASE_URL} — ${err.message}`,
       );
-      logger.error(
-        `A worker cannot operate without an orchestrator. Crashing process.`,
+      if (this.exitOnBootFailure) {
+        logger.error(
+          `A worker cannot operate without an orchestrator. Crashing process.`,
+        );
+        process.exit(1);
+      }
+      // Embedded-worker semantics: hand the failure back to the host so it can
+      // retry registration without losing its own process.
+      throw new Error(
+        `Worker registration failed: orchestrator unreachable at ${ORCHESTRATOR_BASE_URL} — ${err.message}`,
       );
-      process.exit(1);
     }
 
     if (!response.ok) {
@@ -272,10 +280,15 @@ class R_Sync {
       logger.error(
         `Worker boot failed: orchestrator rejected registration — ${errorData.message || response.statusText} (HTTP ${response.status})`,
       );
-      logger.error(
-        `A worker cannot operate without an orchestrator. Crashing process.`,
+      if (this.exitOnBootFailure) {
+        logger.error(
+          `A worker cannot operate without an orchestrator. Crashing process.`,
+        );
+        process.exit(1);
+      }
+      throw new Error(
+        `Worker registration rejected: ${errorData.message || response.statusText} (HTTP ${response.status})`,
       );
-      process.exit(1);
     }
 
     const data = await response.json();

@@ -21,6 +21,23 @@ export const systemConfig = {
 
     utilities: {
         logToFile: false
+
+        // Cluster link — join an Orion-Orchestrator control plane (see
+        // Packages/server/Orion-Orchestrator/README.md). Disabled by default.
+        // clusterLink: {
+        //     enabled: true,
+        //     cluster: 'orion-prod',            // must match the orchestrator's cluster name
+        //     orchestratorIp: '127.0.0.1',
+        //     orchestratorPort: 55321,
+        //     publicIp: '127.0.0.1',            // address the orchestrator can reach this node on
+        //     port: 55322,                      // local M2M port (NOT the public API port)
+        //     statusReportIntervalMs: 60000,    // full status snapshots
+        //     flagWatchIntervalMs: 2000,        // fast alert watcher (alert latency ceiling; 0 = off)
+        //     memoryPressureThresholdPercent: 80,
+        //     reRegisterAfterFailures: 3,       // tunnel desync self-healing (0 = off)
+        //     allowRemoteControl: true,         // execute orchestrator commands via OrionSystemsControl
+        //     requireOrchestrator: false        // true = fail boot if orchestrator is unreachable
+        // }
     },
 
     // Allowed browser origins (validated by Validator.validateClientUrls)

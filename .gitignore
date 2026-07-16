@@ -23,6 +23,6 @@ node_modules
 logs
 
 r_sync.internal.*
-r_sync.internal.*
+orion_orch.internal.*
 
 .env.*

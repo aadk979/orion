@@ -153,7 +153,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         }
 
         const accessToken = await generateAccessToken(
-            user.data.credentials.uid,
+            user.uid,
             sanitizedEmail,
             parameters.fingerprint,
             'PASSWORD',
@@ -183,7 +183,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         }
 
         const refreshToken = await generateRefreshToken(
-            user.data.credentials.uid,
+            user.uid,
             sanitizedEmail,
             parameters.fingerprint,
             'PASSWORD',
@@ -223,7 +223,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         ];
 
         auditTrail.record({
-            user: { email: parameters.email, uid: user.data.credentials.uid },
+            user: { email: parameters.email, uid: user.uid },
             device: {
                 fingerprint: parameters.fingerprint,
                 userAgent: parameters.userAgent

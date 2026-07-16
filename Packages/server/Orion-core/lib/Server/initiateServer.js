@@ -33,6 +33,7 @@ import { OrionSystemsControl } from '../Utils/SystemsControl.js';
 import { loadSheddingMiddleware } from './Middleware/loadSheddingMiddleware.js';
 import { abuseCheckMiddleware } from './Middleware/abuseCheckMiddleware.js';
 import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
+import { ClusterLinkSystem } from '../Utils/Systems/ClusterLinkSystem.js';
 import { DynamicGlobalRateLimiter } from '../Utils/Systems/DynamicGlobalRateLimiter.js';
 import { rateLimitPolicy, validateRateLimitPolicy } from '../General/index.js';
 
@@ -205,6 +206,16 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.setValue('server', { lockdown: false });
 
         await handleOnStartConfiguration();
+
+        // Init cluster link — joins the Orion-Orchestrator control plane when
+        // utilities.clusterLink.enabled is set. Runs after on-start configuration
+        // so clusterMode and the secrets managers are already established. An
+        // unreachable orchestrator only fails the boot when
+        // clusterLink.requireOrchestrator is true; otherwise registration retries
+        // in the background while the node serves normally.
+        const clusterLinkSystem = new ClusterLinkSystem(mergedConfig?.utilities?.clusterLink || {});
+        globalAccessPoint.setValue('clusterLinkSystem', clusterLinkSystem);
+        await clusterLinkSystem.start();
 
         // Init rate limiter — policy is validated before the limiter is mounted so a
         // malformed cost table fails the boot rather than silently mis-throttling.

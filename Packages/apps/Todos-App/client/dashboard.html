@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Todos — Dashboard</title>
+        <link rel="stylesheet" href="./styles.css" />
+        <style>
+            .loading-overlay {
+                position: fixed;
+                inset: 0;
+                background: var(--bg-primary);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 2000;
+                transition: opacity 0.3s;
+            }
+
+            .loading-overlay.hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="loading-overlay" class="loading-overlay">
+            <div style="text-align: center;">
+                <div class="logo" style="font-size: 2rem; margin-bottom: 1rem;">TODOS</div>
+                <div class="spinner" style="display: block; width: 2rem; height: 2rem; border-width: 3px; border-top-color: var(--accent); border-color: rgba(99, 102, 241, 0.2); margin: 0 auto;"></div>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <div class="nav-logo">TODOS</div>
+            <div class="nav-actions">
+                <span id="nav-email" class="nav-user"></span>
+                <button id="sign-out-btn" class="btn btn-sm btn-secondary">Sign Out</button>
+            </div>
+        </nav>
+
+        <div class="container" style="padding-top: 2rem; padding-bottom: 4rem; max-width: 600px;">
+            <h1 class="page-title" style="text-align: left; font-size: 1.5rem;">My Todos</h1>
+            <p class="page-subtitle" style="text-align: left; margin-bottom: 1.5rem;">Signed in via Orion — data is scoped to your account.</p>
+
+            <div id="alert-global" class="alert"></div>
+
+            <form id="todo-form" class="todo-form">
+                <input id="todo-input" type="text" class="form-input" placeholder="What needs doing?" maxlength="300" required />
+                <button type="submit" class="btn btn-primary">Add</button>
+            </form>
+
+            <div id="todo-list"></div>
+            <div id="empty-state" class="empty-state" style="display: none;">No todos yet — add one above.</div>
+        </div>
+
+        <script type="module" src="./app.js"></script>
+    </body>
+</html>

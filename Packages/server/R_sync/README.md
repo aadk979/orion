@@ -245,6 +245,7 @@ npm run start:worker
 | `orchestratorPort` | `number` | ❌ | `55321` | Orchestrator's port. |
 | `encryptionAlg` | `string` | ❌ | `"ECC_256"` | Must match orchestrator's encryption algorithm. |
 | `heartbeatIntervalMs` | `number` | ❌ | `30000` | Heartbeat interval in milliseconds. Minimum: `1000`. |
+| `exitOnBootFailure` | `boolean` | ❌ | `true` | When `true`, a worker that cannot register with its orchestrator crashes the process (standalone-worker semantics). Set to `false` when the worker is **embedded** in a host application (e.g. an Orion-core node) — `startWorker()` then throws instead of exiting, so the host can retry registration on its own schedule. |
 
 ### Encryption Algorithm Options
 

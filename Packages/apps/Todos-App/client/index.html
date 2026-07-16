@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Todos Demo</title>
+        <link rel="stylesheet" href="./styles.css" />
+    </head>
+    <body>
+        <div class="page-center">
+            <div style="text-align: center;">
+                <div class="logo" style="font-size: 2rem; margin-bottom: 1rem;">TODOS</div>
+                <div class="spinner" style="display: block; width: 2rem; height: 2rem; border-width: 3px; border-top-color: var(--accent); border-color: rgba(99, 102, 241, 0.2); margin: 0 auto;"></div>
+            </div>
+        </div>
+
+        <script type="module">
+            import { orion } from './orion-client.js';
+
+            orion.onAuthStateChanged((state) => {
+                if (state.status === 'AUTHENTICATED') {
+                    window.location.href = './dashboard.html';
+                } else if (state.status === 'UNAUTHENTICATED' || state.status === 'ERROR') {
+                    window.location.href = './auth.html';
+                }
+            });
+        </script>
+    </body>
+</html>

@@ -23,6 +23,26 @@ const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig',
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
+// Matches a registered endpoint path (which may contain Express-style `:param`
+// segments, e.g. `/todos/:id`) against an actual request path. Segment counts
+// must match exactly and only `:`-prefixed segments are wildcards — this keeps
+// the allowlist as strict as a literal match for every route that doesn't
+// declare params, while letting parameterized custom endpoints resolve.
+const pathMatchesPattern = (pattern, actualPath) => {
+    if (pattern === actualPath) {
+        return true;
+    }
+
+    const patternSegments = pattern.split('/');
+    const actualSegments = actualPath.split('/');
+
+    if (patternSegments.length !== actualSegments.length) {
+        return false;
+    }
+
+    return patternSegments.every((segment, index) => segment.startsWith(':') || segment === actualSegments[index]);
+};
+
 const TOKEN_TYPES = ['ACCESS_BEARER', 'NO_AUTH_BEARER', 'NO_BEARER'];
 
 const ROUTES_ACCESSIBLE_WITH_NO_AUTH_BEARER = [
@@ -73,8 +93,9 @@ const handleIsAuthStateCheck = parameters => {
 };
 
 const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
-    const endpoint = defaultServerRoutes.endpoints.find(item => item.path === slugParser(parameters.request.path));
-    const endpointBackUp = systemConfigModule.getModule().api.customEndpoints.find(item => item.path === slugParser(parameters.request.path));
+    const requestPath = slugParser(parameters.request.path);
+    const endpoint = defaultServerRoutes.endpoints.find(item => pathMatchesPattern(item.path, requestPath));
+    const endpointBackUp = systemConfigModule.getModule().api.customEndpoints.find(item => pathMatchesPattern(item.path, requestPath));
 
     if (!endpoint && !endpointBackUp && !reqIsAuthStateCheck) {
         return { error: true, errorCode: 'UNKOWN-API-ROUTE' };

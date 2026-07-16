@@ -268,6 +268,22 @@ class GlobalAccessPoint {
         return this.getValue('ELM_DEGRADED');
     }
 
+    /**
+     * @returns {import('./Systems/ClusterLinkSystem.js').ClusterLinkSystem | undefined}
+     */
+    clusterLinkSystem() {
+        return this.getValue('clusterLinkSystem');
+    }
+
+    /**
+     * Latest cluster health broadcast from the Orion-Orchestrator (or undefined
+     * when not clustered / no broadcast received yet).
+     * @returns {{state: string, previousState: string, summary: Object, changedAt: number} | undefined}
+     */
+    clusterState() {
+        return this.getValue('clusterState');
+    }
+
     nameSpace() {
         return 'alpine';
     }

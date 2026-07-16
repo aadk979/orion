@@ -21,6 +21,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// r-sync (imported by the Orion-Orchestrator modules) boots a LokiJS store at
+// import time; in test mode it stays in-memory with no autosave timers, which
+// keeps `node --test` child processes from hanging on open handles.
+process.env.R_SYNC_TEST_MODE = '1';
+
 const ARTIFACTS_DIR = path.resolve(import.meta.dirname, '..', 'gipsy.test-artifacts');
 
 // Each child process gets its own sub-directory so parallel test files never

@@ -22,7 +22,7 @@ const createAccount = async (email, password) => {
 
         const systemConfig = systemConfigModule.getModule();
 
-        if (!systemConfig.authMethods.passkey) {
+        if (!systemConfig.authMethods.emailPassword) {
             auditTrail.record({
                 user: { email: parameters.email },
                 device: {

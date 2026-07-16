@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Todos — Sign In</title>
+        <link rel="stylesheet" href="./styles.css" />
+    </head>
+    <body>
+        <div class="page-center">
+            <div class="card" style="width: 100%; max-width: 420px;">
+                <div class="card-header" style="text-align: center;">
+                    <div class="logo">TODOS</div>
+                    <h2 id="form-title" style="margin-top: 0.5rem;">Sign In</h2>
+                    <p id="form-subtitle">Welcome back! Enter your credentials.</p>
+                </div>
+
+                <div id="alert" class="alert"></div>
+
+                <form id="auth-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input id="email" type="email" class="form-input" placeholder="you@example.com" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" class="form-input" placeholder="••••••••" required />
+                    </div>
+
+                    <button id="submit-btn" type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+                        <span class="btn-text">Sign In</span>
+                        <div class="spinner"></div>
+                    </button>
+                </form>
+
+                <p style="margin-top: 1.25rem; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+                    <span id="toggle-text">Don't have an account?</span>
+                    <button id="toggle-btn" class="link" style="background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit;">Sign Up</button>
+                </p>
+            </div>
+        </div>
+
+        <script type="module">
+            import { orion } from './orion-client.js';
+
+            const form = document.getElementById('auth-form');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const submitBtn = document.getElementById('submit-btn');
+            const toggleBtn = document.getElementById('toggle-btn');
+            const formTitle = document.getElementById('form-title');
+            const formSubtitle = document.getElementById('form-subtitle');
+            const toggleText = document.getElementById('toggle-text');
+            const alertEl = document.getElementById('alert');
+
+            let isLogin = true;
+
+            orion.onAuthStateChanged((state) => {
+                if (state.status === 'AUTHENTICATED') {
+                    window.location.href = './dashboard.html';
+                }
+            });
+
+            function showAlert(msg, type = 'error') {
+                alertEl.textContent = msg;
+                alertEl.className = `alert alert-${type} show`;
+                setTimeout(() => alertEl.classList.remove('show'), 5000);
+            }
+
+            function setLoading(btn, loading) {
+                btn.classList.toggle('loading', loading);
+                btn.disabled = loading;
+            }
+
+            toggleBtn.addEventListener('click', () => {
+                isLogin = !isLogin;
+                formTitle.textContent = isLogin ? 'Sign In' : 'Sign Up';
+                formSubtitle.textContent = isLogin
+                    ? 'Welcome back! Enter your credentials.'
+                    : 'Create a new account to get started.';
+                submitBtn.querySelector('.btn-text').textContent = isLogin ? 'Sign In' : 'Create Account';
+                toggleText.textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+                toggleBtn.textContent = isLogin ? 'Sign Up' : 'Sign In';
+                alertEl.classList.remove('show');
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+
+                if (!email || !password) return showAlert('Please fill in all fields.');
+
+                setLoading(submitBtn, true);
+
+                try {
+                    const result = isLogin
+                        ? await orion.signInUser(email, password)
+                        : await orion.signUpUser(email, password);
+
+                    if (result.error) {
+                        showAlert(result.errorCode || 'Something went wrong.');
+                    } else {
+                        showAlert(isLogin ? 'Signed in!' : 'Account created!', 'success');
+                    }
+                } catch (err) {
+                    showAlert(err.message || 'Unexpected error.');
+                }
+
+                setLoading(submitBtn, false);
+            });
+        </script>
+    </body>
+</html>

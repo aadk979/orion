@@ -82,6 +82,7 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `LoadSheddingSystem.js` / `EventLoopMonitor.js` / `MemoryMonitoringSystem.js` | 🔌 | runtime load signals |
 | `GracefulShutdownSystem.js` | 🔌 | process signal lifecycle |
 | `AuditTrailSystem.js` / `Tracer.js` / `Snapshotter.js` | 🔌 | observability against a store |
+| `ClusterLinkSystem.js` | ✅ (commands, consensus ballots, alert edges, desync recovery, cluster-state tracking; live transport 🔌) | `server/orchestrator/ClusterLinkSystem.test.js` |
 
 ### Errors (`lib/Errors`)
 
@@ -137,7 +138,18 @@ unit test if the SMTP transport is injectable.
 
 ## Server — `Packages/server/Orion-Orchestrator`
 
-Empty at time of writing — no code to test yet.
+| Module | Status | Suite |
+| --- | --- | --- |
+| `lib/protocol.js` | ✅ (contract stability + envelope builders) | `server/orchestrator/protocol.test.js` |
+| `lib/CommandDispatcher.js` | ✅ (correlation, timeout, impersonation guard, clear) | `server/orchestrator/CommandDispatcher.test.js` |
+| `lib/NodeRegistry.js` | ✅ (lifecycle, alert cap, stale sweep, hydration) | `server/orchestrator/NodeRegistry.test.js` |
+| `lib/PolicyEngine.js` | ✅ (defaults coverage, cooldowns, all action types, scheduled remediation, validation) | `server/orchestrator/PolicyEngine.test.js` |
+| `lib/ConsensusEngine.js` | ✅ (quorum math, partitions, undecided semantics) | `server/orchestrator/ConsensusEngine.test.js` |
+| `lib/ClusterHealth.js` | ✅ (node health rules, state computation, transitions) | `server/orchestrator/ClusterHealth.test.js` |
+| `lib/EscalationHub.js` | ✅ (channels, isolation, history caps; webhook delivery 🔌) | `server/orchestrator/EscalationHub.test.js` |
+| `lib/RegistryStore.js` | ✅ (round trip, debounce, corruption recovery) | `server/orchestrator/RegistryStore.test.js` |
+| `lib/OrionOrchestrator.js` | 🔌 | binds an R_Sync ORCHESTRATOR HTTP server; full production loop verified live against a ClusterLinkSystem node |
+| `index.js` (package entry) | ⚙️ | re-exports evaluated via the suites above |
 
 ---
 
