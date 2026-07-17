@@ -1,7 +1,11 @@
 import { OrionOrchestrator } from '../../../server/Orion-Orchestrator/index.js';
+import { startDashboard } from './dashboard/server.js';
 
 const CLUSTER = 'todos-demo';
 const PORT = 55321;
+const DASHBOARD_PORT = Number(process.env.DASHBOARD_PORT) || 8090;
+const DASHBOARD_USER = process.env.DASHBOARD_USER || 'admin';
+const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || 'orion-admin';
 
 const orchestrator = new OrionOrchestrator({
     cluster: CLUSTER,
@@ -28,6 +32,12 @@ orchestrator
 await orchestrator.start();
 
 console.log(`Orion-Orchestrator up — cluster "${CLUSTER}" listening on port ${PORT}`);
+
+startDashboard(orchestrator, {
+    port: DASHBOARD_PORT,
+    username: DASHBOARD_USER,
+    password: DASHBOARD_PASSWORD
+});
 
 setInterval(async () => {
     const status = await orchestrator.getClusterStatus();

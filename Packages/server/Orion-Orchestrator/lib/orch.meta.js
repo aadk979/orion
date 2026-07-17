@@ -1,4 +1,4 @@
-const __Version__ = '1.0.0';
+const __Version__ = '1.1.0';
 const __Status__ = 'Stable';
 const __PackageType__ = 'ORION_ORCH';
 

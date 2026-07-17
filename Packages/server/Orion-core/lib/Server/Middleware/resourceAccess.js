@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'url';
-import { respondWithFile, respondWithBuffer } from '../../Utils/Core/ResourceAccessManagment/dirBasedResources/fileResponse.js';
+import { respondWithFile } from '../../Utils/Core/ResourceAccessManagment/dirBasedResources/fileResponse.js';
 import { fileExists, getSafePath } from '../../Utils/Core/ResourceAccessManagment/dirBasedResources/utils.js';
+import { deliverSecureResource } from '../../Utils/Core/ResourceAccessManagment/callbackBasedResources/secureDelivery.js';
 import { validateResourceToken } from '../../Utils/Core/TokenManagement/ResourceTokens.js';
-import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { getIp } from '../../Utils/Ip.js';
 import { tryCatch } from '../../Utils/TryCatch.js';
 import { respondWithError } from '../Response/response.js';
@@ -36,7 +36,9 @@ const resourceAccessMiddleware = async (request, response, next) => {
             return await respondWithFile(res, existCheck, safePath, viewMode);
         }
 
-        if (accessType.toLowerCase().trim() === 'secure-0') {
+        const normalizedAccessType = accessType.toLowerCase().trim();
+
+        if (normalizedAccessType === 'secure-0' || normalizedAccessType === 's3-0') {
             const filePath = queryPath || 'NONE';
             const token = req.query['token'] || 'NONE';
             const ip = getIp(req);
@@ -64,29 +66,13 @@ const resourceAccessMiddleware = async (request, response, next) => {
                     .json({ status: 'error', code: 'TOKEN-RESOURCE::INVALID::A::p', message: 'Access denied. The provided resource token is invalid.' });
             }
 
-            if (!tokenValidation.data.accessibleCallbacks.includes(filePath)) {
-                return res
-                    .status(403)
-                    .json({ status: 'error', code: 'TOKEN-RESOURCE::NOT-AUTHORIZED::A::p', message: 'Access denied. You are not authorized to view this resource.' });
-            }
-
-            const callbacks = globalAccessPoint.resourceAccessSystem_Config();
-
-            const callbackConfig = callbacks.find(val => val.callbackPath === filePath);
-
-            if (!callbackConfig) {
-                return await respondWithFile(res, false, null, true);
-            }
-
-            const callbackResult = await callbackConfig.callback(tokenValidation.data, tokenValidation.customData);
-
-            if (callbackResult?.error) {
-                res.status(500).send('SERVER ERROR: Unable to obtain resource!');
-                res.end();
-                return;
-            }
-
-            return await respondWithBuffer(res, callbackResult.base64File, callbackResult.mimeType, viewMode);
+            return await deliverSecureResource(res, {
+                filePath,
+                viewMode,
+                requestedAccessType: normalizedAccessType,
+                tokenData: tokenValidation.data,
+                customData: tokenValidation.customData
+            });
         }
 
         return nextFunc();

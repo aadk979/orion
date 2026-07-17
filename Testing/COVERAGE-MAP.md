@@ -1,4 +1,4 @@
-# Coverage Map
+has# Coverage Map
 
 Status of every source area under `Packages/`. Legend:
 
@@ -40,6 +40,18 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `CustomCaptchaSystem.js` | 🔌 | canvas rendering |
 | `SystemsControl.js` | 🔌 | orchestrates live systems |
 
+### Resource Access (`lib/Utils/Core/ResourceAccessManagment`)
+
+| Module | Status | Suite |
+| --- | --- | --- |
+| `dirBasedResources/convertors.js`, `dirBasedResources/fileResponse.js` | ✅ (type sniffing, nosniff, disposition) | `server/utils/fileResponse.test.js` |
+| `s3BasedResources/S3UrlBuilder.js` | ✅ (host/path styles, key templating, presign determinism; signs via AWS SDK v3) | `server/utils/s3UrlBuilder.test.js` |
+| `s3BasedResources/urlResponse.js` | ✅ (JSON envelope, no-store, url validation) | `server/utils/s3UrlResponse.test.js` |
+| `callbackBasedResources/callbackValidator.js` | ✅ (accepts SECURE-0/S3-0, rejects bad entries) | `server/utils/rasCallbackValidator.test.js` |
+| `callbackBasedResources/secureDelivery.js` | ✅ (S3 delivery, access-type binding, allowlist, SECURE-0 regression) | `server/utils/secureDelivery.test.js` |
+| `configs.js` | ✅ (via callbackValidator + secureDelivery) | — |
+| `callbackBasedResources/utils.js` (`resourceUriBuilder`), `dirBasedResources/utils.js` (`getSafePath`) | 🔌 | URL/path helpers exercised through the live middleware |
+
 ### Cryptography surface tested (security-critical)
 
 - Digests: SHA-256/512, BLAKE2b/2s (known-answer + shape).
@@ -63,9 +75,11 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `EphemeralDatabases/localMemoryDB.js` | ✅ (CRUD + TTL + clone isolation) | `server/databases/localMemoryDB.test.js` |
 | `EphemeralDatabases/redis.js` | 🔌 | needs a Redis instance |
 | `EphemeralDatabases/index.js` | 🔌 | selects a live backend |
-| `PersitantDatabases/postgres.js` | 🔌 | needs Postgres |
+| `PersitantDatabases/postgres.js` | 🔌 | migration runner + pool; needs Postgres |
 | `PersitantDatabases/index.js` | 🔌 | selects a live backend |
-| `models/*` | 🔌 | schema/queries against a live DB |
+| `migrations/*.sql` | 🔌 | versioned DDL applied by the runner against a live DB |
+| `models/*` | 🔌 | queries against a live DB |
+| `models/TOTPModel.js` sealing | ✅ (AES-256-GCM round-trip, tamper, legacy plaintext, keyless degradation) | `server/utils/totpSecretSealing.test.js` |
 
 ### Systems (`lib/Utils/Systems`)
 
@@ -81,6 +95,7 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `DynamicGlobalRateLimiter.js` | 🔌 | limiter over live traffic |
 | `LoadSheddingSystem.js` / `EventLoopMonitor.js` / `MemoryMonitoringSystem.js` | 🔌 | runtime load signals |
 | `GracefulShutdownSystem.js` | 🔌 | process signal lifecycle |
+| `DatabaseJanitor.js` | 🔌 | advisory-locked TTL sweeps against a live DB |
 | `AuditTrailSystem.js` / `Tracer.js` / `Snapshotter.js` | 🔌 | observability against a store |
 | `ClusterLinkSystem.js` | ✅ (commands, consensus ballots, alert edges, desync recovery, cluster-state tracking; live transport 🔌) | `server/orchestrator/ClusterLinkSystem.test.js` |
 
@@ -88,7 +103,7 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 
 | Area | Status | Suite |
 | --- | --- | --- |
-| All 21 registry modules | ✅ (schema integrity + global uniqueness) | `server/errors/errorRegistry.test.js` |
+| All 22 registry modules | ✅ (schema integrity + global uniqueness) | `server/errors/errorRegistry.test.js` |
 | `internal-errors.js` | ⚙️ | aggregation + `errors.json` write (side-effecting; tested via the individual modules) |
 
 ### General & Server
@@ -110,10 +125,11 @@ persistence + ephemeral layers, or perform browser ceremonies:
 PasswordReset, SetupTOTP, TOTP, UserControl, Passkeys/*, DeviceAuthorization),
 `SecurityManagment/*` (StepUpAuth, Remove2FAMethod, NoAuthToken, CookieReset,
 DeviceAuthorization), `TokenManagement/*` (Access/Refresh/Resource tokens,
-cleanup, field map), `OAuth/*`, `ResourceAccessManagment/*`.
+cleanup, field map), `OAuth/*`. The pure pieces of `ResourceAccessManagment/*`
+are unit-tested — see the Resource Access section above.
 
-> `TokenManagement/tokenFieldMap.js` and `ResourceAccessManagment/configs.js`
-> are static maps and are good candidates to promote to ✅ unit tests next.
+> `TokenManagement/tokenFieldMap.js` is a static map and is a good candidate to
+> promote to a ✅ unit test next.
 
 ### Communication (`lib/Utils/Mail`)
 
@@ -157,5 +173,4 @@ unit test if the SMTP transport is injectable.
 
 1. `client/lib/Utils/Date&Time.js`
 2. `Core/TokenManagement/tokenFieldMap.js` (static mapping)
-3. `Core/ResourceAccessManagment/configs.js` (static config)
-4. `Mail/mailConstructor.js` (if the transport is made injectable)
+3. `Mail/mailConstructor.js` (if the transport is made injectable)

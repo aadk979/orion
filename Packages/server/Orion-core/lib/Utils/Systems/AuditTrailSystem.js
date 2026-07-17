@@ -17,17 +17,37 @@ const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig',
 const DEFAULT_FLUSH_THRESHOLD = 50;
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
 
+const VALID_STATUSES = new Set(['PENDING', 'SUCCESS', 'FAILED']);
+
 class AuditTrailSystem {
+    static QUERYABLE_COLUMNS = new Set([
+        'recordId', 'requestId', 'sessionId', 'userUid', 'userEmail', 'ipAddress',
+        'fingerprint', 'source', 'functionName', 'environment', 'action', 'status',
+        'errorCode', 'schemaVersion'
+    ]);
+
     constructor(enabled) {
         if (enabled) {
             const systemConfig = systemConfigModule.getModule();
             this.enabled = true;
 
+            const atConfig = systemConfig?.utilities?.auditTrailSystem || {};
+
+            // Fail fast: an enabled audit trail silently falling back to
+            // root/localhost default credentials is worse than not booting.
+            if (!atConfig.host || !atConfig.user || !atConfig.password) {
+                throw new Error(
+                    'AuditTrailSystem is enabled but utilities.auditTrailSystem is missing host, user, or password — ' +
+                    'configure explicit credentials (defaults are not provided by design)'
+                );
+            }
+
             this.config = {
-                host: systemConfig?.utilities?.auditTrailSystem?.host || 'localhost',
-                user: systemConfig?.utilities?.auditTrailSystem?.user || 'root',
-                password: systemConfig?.utilities?.auditTrailSystem?.password || 'SecurePassword1234',
-                database: systemConfig?.utilities?.auditTrailSystem?.database || 'orion_audit',
+                host: atConfig.host,
+                port: atConfig.port || 3306,
+                user: atConfig.user,
+                password: atConfig.password,
+                database: atConfig.database || 'orion_audit',
                 waitForConnections: true,
                 connectionLimit: 10,
                 queueLimit: 0
@@ -35,6 +55,7 @@ class AuditTrailSystem {
 
             this.pool = mysql.createPool({
                 host: this.config.host,
+                port: this.config.port,
                 user: this.config.user,
                 password: this.config.password,
                 waitForConnections: true,
@@ -75,11 +96,13 @@ class AuditTrailSystem {
         try {
             const conn = await this.pool.getConnection();
 
-            const [databases] = await conn.query(`SHOW DATABASES LIKE '${this.config.database}'`);
+            // ? / ?? placeholders: mysql2 escapes the value and identifier —
+            // never interpolate the configured database name into SQL directly.
+            const [databases] = await conn.query('SHOW DATABASES LIKE ?', [this.config.database]);
 
             if (databases.length === 0) {
                 logger?.info?.(`📊 Creating audit database: ${this.config.database}`);
-                await conn.query(`CREATE DATABASE \`${this.config.database}\``);
+                await conn.query('CREATE DATABASE ??', [this.config.database]);
                 logger?.info?.(`✅ Audit database '${this.config.database}' created successfully`);
             } else {
                 logger?.info?.(`✅ Audit database '${this.config.database}' already exists`);
@@ -94,6 +117,97 @@ class AuditTrailSystem {
         }
     }
 
+    // ─── Schema ──────────────────────────────────────────────────────
+    // Reference copy: lib/Utils/Databases/audit-mysql.ddl.sql — keep in sync.
+
+    async _ensureSchema() {
+        const conn = await this.pool.getConnection();
+        try {
+            await conn.query(`
+                CREATE TABLE IF NOT EXISTS audit_trail (
+                    id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    recordId      VARCHAR(48) NOT NULL,
+                    timestamp     DATETIME(3) NOT NULL,
+                    requestId     VARCHAR(128),
+                    sessionId     VARCHAR(128),
+                    userUid       VARCHAR(128),
+                    userEmail     VARCHAR(255),
+                    ipAddress     VARCHAR(45),
+                    userAgent     TEXT,
+                    fingerprint   VARCHAR(255),
+                    source        VARCHAR(255),
+                    functionName  VARCHAR(255),
+                    environment   VARCHAR(64),
+                    action        VARCHAR(255) NOT NULL,
+                    status        ENUM('PENDING','SUCCESS','FAILED') NOT NULL,
+                    durationMs    INT,
+                    impact        TEXT,
+                    metadata      TEXT,
+                    errorCode     VARCHAR(255),
+                    hash          CHAR(64),
+                    prevHash      CHAR(64),
+                    schemaVersion VARCHAR(16) DEFAULT '${AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION}',
+                    UNIQUE KEY uq_audit_record       (recordId),
+                    KEY        idx_audit_timestamp   (timestamp),
+                    KEY        idx_audit_user_time   (userUid, timestamp),
+                    KEY        idx_audit_action_time (action, timestamp),
+                    KEY        idx_audit_request     (requestId)
+                ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4
+            `);
+
+            // Converge tables created by schema 2.0.0: CREATE TABLE IF NOT
+            // EXISTS cannot reshape an existing table, so add what's missing.
+            const [cols] = await conn.query(
+                `SELECT COLUMN_NAME, DATA_TYPE, DATETIME_PRECISION, COLUMN_DEFAULT
+                 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_trail'`
+            );
+            const have = new Set(cols.map(c => c.COLUMN_NAME));
+
+            if (!have.has('sessionId')) await conn.query('ALTER TABLE audit_trail ADD COLUMN sessionId VARCHAR(128) AFTER requestId');
+            if (!have.has('environment')) await conn.query('ALTER TABLE audit_trail ADD COLUMN environment VARCHAR(64) AFTER functionName');
+            if (!have.has('durationMs')) await conn.query('ALTER TABLE audit_trail ADD COLUMN durationMs INT AFTER status');
+
+            // JSON → TEXT: the JSON type normalizes documents, which breaks
+            // byte-exact hash-chain re-verification of metadata.
+            if (cols.some(c => c.COLUMN_NAME === 'metadata' && c.DATA_TYPE === 'json')) {
+                await conn.query('ALTER TABLE audit_trail MODIFY COLUMN metadata TEXT');
+            }
+
+            // DATETIME → DATETIME(3): second-precision truncation would make
+            // re-hashed entries diverge from the chain (entries are hashed with
+            // millisecond timestamps).
+            const ts = cols.find(c => c.COLUMN_NAME === 'timestamp');
+            if (ts && Number(ts.DATETIME_PRECISION) !== 3) {
+                await conn.query('ALTER TABLE audit_trail MODIFY COLUMN timestamp DATETIME(3) NOT NULL');
+            }
+
+            const sv = cols.find(c => c.COLUMN_NAME === 'schemaVersion');
+            if (sv && sv.COLUMN_DEFAULT !== AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION) {
+                await conn.query('ALTER TABLE audit_trail ALTER COLUMN schemaVersion SET DEFAULT ?', [AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION]);
+            }
+
+            const [idx] = await conn.query(
+                `SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_trail'`
+            );
+            const haveIdx = new Set(idx.map(i => i.INDEX_NAME));
+
+            if (!haveIdx.has('uq_audit_record')) {
+                // Legacy tables may hold duplicate recordIds from pre-2.1.0 WAL
+                // replays; keep the earliest copy so the unique key can land.
+                await conn.query('DELETE t1 FROM audit_trail t1 JOIN audit_trail t2 ON t1.recordId = t2.recordId AND t1.id > t2.id');
+                await conn.query('ALTER TABLE audit_trail ADD UNIQUE KEY uq_audit_record (recordId)');
+            }
+            if (!haveIdx.has('idx_audit_timestamp')) await conn.query('ALTER TABLE audit_trail ADD KEY idx_audit_timestamp (timestamp)');
+            if (!haveIdx.has('idx_audit_user_time')) await conn.query('ALTER TABLE audit_trail ADD KEY idx_audit_user_time (userUid, timestamp)');
+            if (!haveIdx.has('idx_audit_action_time')) await conn.query('ALTER TABLE audit_trail ADD KEY idx_audit_action_time (action, timestamp)');
+            if (!haveIdx.has('idx_audit_request')) await conn.query('ALTER TABLE audit_trail ADD KEY idx_audit_request (requestId)');
+        } finally {
+            conn.release();
+        }
+    }
+
     // ─── Initialize ──────────────────────────────────────────────────
 
     async initialize() {
@@ -103,34 +217,7 @@ class AuditTrailSystem {
             }
 
             await this.createDatabaseIfNotExists();
-
-            const query = `
-                CREATE TABLE IF NOT EXISTS audit_trail (
-                id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                recordId VARCHAR(48) NOT NULL,
-                timestamp DATETIME NOT NULL,
-                requestId VARCHAR(128),
-                userUid VARCHAR(128),
-                userEmail VARCHAR(255),
-                ipAddress VARCHAR(45),
-                userAgent TEXT,
-                fingerprint VARCHAR(255),
-                source VARCHAR(255),
-                functionName VARCHAR(255),
-                action VARCHAR(255) NOT NULL,
-                status ENUM('PENDING','SUCCESS','FAILED') NOT NULL,
-                impact TEXT,
-                metadata JSON,
-                errorCode VARCHAR(255),
-                hash CHAR(64),
-                prevHash CHAR(64),
-                schemaVersion VARCHAR(16) DEFAULT '${AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION}'
-                );
-            `;
-
-            const conn = await this.pool.getConnection();
-            await conn.query(query);
-            conn.release();
+            await this._ensureSchema();
 
             // Generate Ed25519 signing keypair for this boot session
             this._generateSigningKeyPair();
@@ -332,6 +419,12 @@ class AuditTrailSystem {
                 return { error: true, errorCode: 'SYSTEM::AUDIT-NOT-INITIALIZED::A::i' };
             }
 
+            // A value outside the ENUM would reject the whole bulk INSERT and
+            // take 49 innocent records down with it — coerce, don't crash.
+            if (!VALID_STATUSES.has(status)) {
+                status = 'PENDING';
+            }
+
             const seq = this._sequenceNumber++;
             const recordId = generateId('AUD', 32);
 
@@ -395,66 +488,88 @@ class AuditTrailSystem {
 
         this._flushing = true;
 
-        try {
-            // Snapshot and clear the current buffer atomically
-            const batch = this._buffer.splice(0);
+        // Snapshot and clear the current buffer atomically
+        const batch = this._buffer.splice(0);
+        let flushed = false;
 
+        try {
             // Sort by sequence number (safety — should already be ordered)
             batch.sort((a, b) => a._seq - b._seq);
 
-            // Fetch the last hash from the database
-            let prevHash = await this.getLastHash();
-
-            // Build the hash chain across the batch
-            const rows = [];
-
-            for (const entry of batch) {
-                // Strip the internal _seq before hashing and inserting
-                const { _seq, ...cleanEntry } = entry;
-
-                const hash = this.computeHash(cleanEntry, prevHash);
-
-                rows.push([
-                    cleanEntry.recordId,
-                    cleanEntry.timestamp,
-                    cleanEntry.requestId,
-                    cleanEntry.userUid,
-                    cleanEntry.userEmail,
-                    cleanEntry.ipAddress,
-                    cleanEntry.userAgent,
-                    cleanEntry.fingerprint,
-                    cleanEntry.source,
-                    cleanEntry.functionName,
-                    cleanEntry.action,
-                    cleanEntry.status,
-                    cleanEntry.impact,
-                    cleanEntry.metadata,
-                    cleanEntry.errorCode,
-                    hash,
-                    prevHash
-                ]);
-
-                prevHash = hash;
-            }
-
-            // Bulk INSERT inside a single transaction
             const conn = await this.pool.getConnection();
 
             try {
                 await conn.beginTransaction();
 
-                const insertSQL = `
-                    INSERT INTO audit_trail (
-                        recordId, timestamp, requestId, userUid, userEmail, ipAddress,
-                        userAgent, fingerprint, source, functionName, action, status,
-                        impact, metadata, errorCode, hash, prevHash
-                    ) VALUES ?
-                `;
+                // Drop entries already persisted: a crash between the previous
+                // flush's commit and its WAL truncation makes recovery replay
+                // them, and re-inserting would fork the hash chain.
+                const recordIds = batch.map(e => e.recordId);
+                const [existing] = await conn.query(
+                    'SELECT recordId FROM audit_trail WHERE recordId IN (?)',
+                    [recordIds]
+                );
+                const alreadyStored = new Set(existing.map(r => r.recordId));
+                const pending = batch.filter(e => !alreadyStored.has(e.recordId));
 
-                await conn.query(insertSQL, [rows]);
-                await conn.commit();
+                if (pending.length === 0) {
+                    await conn.commit();
+                } else {
+                    // Locking read INSIDE the transaction: serializes concurrent
+                    // flushers on the chain head so the hash chain cannot fork.
+                    const [last] = await conn.query('SELECT hash FROM audit_trail ORDER BY id DESC LIMIT 1 FOR UPDATE');
+                    let prevHash = last.length ? last[0].hash : null;
 
-                logger?.info?.(`[AUDIT] Flushed ${batch.length} records to database`);
+                    const rows = [];
+
+                    for (const entry of pending) {
+                        // Strip the internal _seq before hashing and inserting.
+                        // The hash covers the FULL entry — every stored column —
+                        // so the chain is re-verifiable from the table alone.
+                        const { _seq, ...cleanEntry } = entry;
+
+                        const hash = this.computeHash(cleanEntry, prevHash);
+
+                        rows.push([
+                            cleanEntry.recordId,
+                            cleanEntry.timestamp,
+                            cleanEntry.requestId,
+                            cleanEntry.sessionId,
+                            cleanEntry.userUid,
+                            cleanEntry.userEmail,
+                            cleanEntry.ipAddress,
+                            cleanEntry.userAgent,
+                            cleanEntry.fingerprint,
+                            cleanEntry.source,
+                            cleanEntry.functionName,
+                            cleanEntry.environment,
+                            cleanEntry.action,
+                            cleanEntry.status,
+                            cleanEntry.durationMs,
+                            cleanEntry.impact,
+                            cleanEntry.metadata,
+                            cleanEntry.errorCode,
+                            hash,
+                            prevHash
+                        ]);
+
+                        prevHash = hash;
+                    }
+
+                    const insertSQL = `
+                        INSERT INTO audit_trail (
+                            recordId, timestamp, requestId, sessionId, userUid, userEmail,
+                            ipAddress, userAgent, fingerprint, source, functionName,
+                            environment, action, status, durationMs, impact, metadata,
+                            errorCode, hash, prevHash
+                        ) VALUES ?
+                    `;
+
+                    await conn.query(insertSQL, [rows]);
+                    await conn.commit();
+
+                    logger?.info?.(`[AUDIT] Flushed ${rows.length} records to database`);
+                }
             } catch (txErr) {
                 await conn.rollback().catch(() => { });
                 throw txErr;
@@ -462,10 +577,16 @@ class AuditTrailSystem {
                 conn.release();
             }
 
+            flushed = true;
+
             // Clear the WAL — these records are now persisted in the DB
             this._clearWAL();
         } catch (err) {
-            logger?.error?.('Audit trail flush failed:', {
+            // Requeue at the FRONT of the buffer: the records stay in memory
+            // (and in the WAL) for the next timer tick instead of being lost.
+            this._buffer.unshift(...batch);
+
+            logger?.error?.('Audit trail flush failed — batch requeued:', {
                 message: err.message,
                 code: err.code,
                 bufferedCount: this._buffer.length
@@ -474,8 +595,10 @@ class AuditTrailSystem {
             this._flushing = false;
         }
 
-        // If the buffer grew during flush, recurse
-        if (this._buffer.length >= this._flushThreshold) {
+        // If the buffer grew during a SUCCESSFUL flush, recurse. Never recurse
+        // after a failure — that would spin against a down database; the timer
+        // retries instead.
+        if (flushed && this._buffer.length >= this._flushThreshold) {
             await this._flush();
         }
     }
@@ -557,11 +680,16 @@ class AuditTrailSystem {
         const params = [];
 
         for (const [key, value] of Object.entries(filters)) {
+            // Filter keys are interpolated into SQL — only known columns may pass.
+            if (!AuditTrailSystem.QUERYABLE_COLUMNS.has(key)) {
+                throw new Error(`AuditTrailSystem.query: '${key}' is not a filterable column`);
+            }
             sql += ` AND ${key} = ?`;
             params.push(value);
         }
 
-        sql += ' ORDER BY timestamp DESC LIMIT 1000';
+        // id, not timestamp: the insert order that the hash chain follows.
+        sql += ' ORDER BY id DESC LIMIT 1000';
         const [rows] = await this.pool.query(sql, params);
         return rows;
     }

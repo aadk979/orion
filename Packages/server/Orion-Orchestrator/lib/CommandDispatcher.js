@@ -27,7 +27,7 @@ class CommandDispatcher {
         return this._pending.size;
     }
 
-    execute(workerId, action, args = {}, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
+    execute(workerId, action, args = {}, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS, issuedBy = null) {
         const commandId = this._idFn();
 
         return new Promise((resolve, reject) => {
@@ -38,7 +38,7 @@ class CommandDispatcher {
 
             this._pending.set(commandId, { resolve, reject, timer, workerId, action });
 
-            this._sendFn(workerId, ClusterEvents.COMMAND, buildCommandEnvelope(commandId, action, args))
+            this._sendFn(workerId, ClusterEvents.COMMAND, buildCommandEnvelope(commandId, action, args, issuedBy))
                 .catch(err => {
                     // Transport failed before the node ever saw the command —
                     // fail fast instead of waiting out the timeout.

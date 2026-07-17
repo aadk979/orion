@@ -1,4 +1,4 @@
-import { Orion } from './orion.beta.sdk.js';
+import { Orion, getDeviceFingerprint } from './orion.beta.sdk.js';
 import { SERVER_URL } from './config.js';
 
 const orion = new Orion({
@@ -7,4 +7,4 @@ const orion = new Orion({
     slug: ''
 });
 
-export { orion, SERVER_URL };
+export { orion, getDeviceFingerprint, SERVER_URL };

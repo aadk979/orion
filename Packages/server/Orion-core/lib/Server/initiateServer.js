@@ -26,6 +26,7 @@ import { resourceAccessMiddleware } from './Middleware/resourceAccess.js';
 import { serverUtilitiesMiddleware } from './Middleware/serverUtilities.js';
 import { circuitBreakerSystem } from '../Utils/Systems/CircuitBreakerSystem.js';
 import { EventLoopMonitor } from '../Utils/Systems/EventLoopMonitor.js';
+import { DatabaseJanitor } from '../Utils/Systems/DatabaseJanitor.js';
 import { LoadSheddingSystem } from '../Utils/Systems/LoadSheddingSystem.js';
 import { abuseDetectionSystem } from '../Utils/Systems/AbuseDetectionSystem.js';
 import { GracefulShutdownSystem } from '../Utils/Systems/GracefulShutdownSystem.js';
@@ -36,6 +37,8 @@ import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
 import { ClusterLinkSystem } from '../Utils/Systems/ClusterLinkSystem.js';
 import { DynamicGlobalRateLimiter } from '../Utils/Systems/DynamicGlobalRateLimiter.js';
 import { rateLimitPolicy, validateRateLimitPolicy } from '../General/index.js';
+import { buildGlobalFloodGuard } from './Middleware/globalFloodGuard.js';
+import { buildStaticAssetServer } from './Middleware/staticAssets.js';
 
 const loggerModule = new SafeModuleHandler('Logger', 'logger', 'initiateServer.js');
 
@@ -50,7 +53,20 @@ const buildMiddlewarePipeline = (systemConfig, rateLimiter) => {
     const OriginVerifier = new originVerifier(systemConfig);
     const HeaderParser = new headerParser(systemConfig);
 
+    // Coarse flood breaker — mounted FIRST, ahead of body parsing, so egregious
+    // per-IP floods are rejected before `express.json` ever allocates. This is
+    // the pre-parse complement to the deeper policy-driven DynamicGlobalRateLimiter.
+    const floodGuard = buildGlobalFloodGuard(systemConfig?.utilities?.rateLimiter?.floodGuard || {});
+
+    // Plain static asset serving (opt-in). Sits after the flood guard but before
+    // body parsing and the auth/header stack, so browser asset fetches (which
+    // carry no orion-* headers) are served without traversing headerParser.
+    // Returns null when disabled or the directory is absent.
+    const staticServer = buildStaticAssetServer(systemConfig?.api?.static || {});
+
     return [
+        floodGuard,
+        ...(staticServer ? [staticServer] : []),
         express.json({ limit: systemConfig.api?.maxPayloadSize || '10mb' }),
         express.urlencoded({ extended: true }),
         cors({ origin: OriginVerifier.corsVerifier, credentials: true }),
@@ -192,6 +208,13 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         );
         eventLoopMonitorInstance.start();
         globalAccessPoint.setValue('eventLoopMonitor', eventLoopMonitorInstance);
+
+        // Init database janitor — global TTL sweep of expired tokens, devices,
+        // and abandoned auth-flow rows. Advisory-locked so only one cluster
+        // node sweeps per cycle.
+        const databaseJanitor = new DatabaseJanitor(systemConfig?.utilities?.databaseJanitor || {});
+        globalAccessPoint.setValue('databaseJanitor', databaseJanitor);
+        databaseJanitor.start();
 
         // Init systems control and register in GAP for graceful shutdown access
         const orionSystemsControl = new OrionSystemsControl(

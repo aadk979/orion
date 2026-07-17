@@ -1,6 +1,6 @@
 # Orion-Orchestrator (`orion-orch`) — Cluster Control Plane
 
-> **Version:** 1.0.0 (Stable)
+> **Version:** 1.1.0 (Stable)
 > **License:** MIT
 > **Author:** Kalivaradhan Aadharsh
 
@@ -8,6 +8,13 @@ The Orion cluster control plane. Runs one orchestrator process per cluster and
 supervises any number of **Orion-core** nodes over [R_Sync](../R_sync/README.md)
 encrypted M2M tunnels (ECDH key exchange, AES-256-GCM payloads, Ed25519
 signatures, replay protection — all inherited from the transport).
+
+Human access to the orchestrator is itself governed: the **system-admin
+plane** (see [§ System-admin plane](#system-admin-plane--pbac-governed-panel-api-and-cli))
+puts every operator behind PBAC policies, passwordless magic-link + mandatory
+TOTP auth, an immutable audit trail, an embedded web panel, and the `orionctl`
+CLI. Programmatic use of the `OrionOrchestrator` class by the hosting process
+is unchanged.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -199,6 +206,7 @@ orch.getCommandLog();         // audit ring of every issued command
 | `policies` | `object` | `{}` | `{ useDefaults: true, rules: [...] }` — see PolicyEngine |
 | `escalations` | `object` | `{}` | `{ webhook: { url, headers } }` — log channel is always on |
 | `persistence` | `object` | `{ enabled: true }` | `{ enabled, directory, fileName, debounceMs }` — registry file `orion_orch.internal.registry.json` |
+| `systemAdmin` | `object` | `{ enabled: false }` | The PBAC system-admin plane (panel + API + CLI) — see the dedicated section below |
 
 ## Configuration Reference — Orion-core `utilities.clusterLink`
 
@@ -300,6 +308,147 @@ Command results are additionally bound to the issuing node: a
 `orion:command:result` arriving from a different worker than the command was
 sent to is discarded (impersonation guard in `CommandDispatcher`).
 
+Every command envelope also carries `issuedBy` — `{ type: 'system' }` for
+orchestrator automation or `{ type: 'admin', id, email }` for a system admin
+acting through the panel/CLI. Each node writes the incoming command (and its
+outcome) into its own immutable AuditTrailSystem scoped to that principal, so
+remote actions are attributable end-to-end on BOTH sides of the wire.
+
+## System-admin plane — PBAC-governed panel, API, and CLI
+
+Without this plane the orchestrator's power is available to whoever can reach
+the hosting process. Enabling `systemAdmin` puts every human operator behind
+policy:
+
+```
+            magic link + TOTP                    PBAC evaluation
+  operator ───────────────────▶  session  ───────────────────────▶ orch action
+  (root: password + TOTP)        (2-stage)   deny-overrides,          │
+                                             default deny             ▼
+                                                          immutable audit row
+                                                          (orch)  + node-side
+                                                          audit row (worker)
+```
+
+### Roles and lifecycle
+
+- **Root admin** — created from `systemAdmin.rootAdmin { email, initialPassword }`
+  on the FIRST boot only. Holds total governance (bypasses PBAC) and is the
+  only account with a password. First login forces a password rotation and
+  TOTP enrollment before the account is deemed `active`. Root alone can
+  create/suspend/delete admins and manage policies, groups, and attachments.
+- **System admins** — passwordless. Sign-in is a single-use, short-lived magic
+  link (emailed) plus a REQUIRED TOTP layer; the account stays `pending` and
+  cannot act until enrollment completes. Each admin governs the cluster
+  strictly within the policies attached to them (directly or via groups) —
+  no more, no less.
+
+Sessions are two-stage: the first factor yields a short `pending_totp` session
+that can only reach the TOTP endpoints; the authenticator code upgrades it.
+Suspending an admin revokes every live session instantly.
+
+### PBAC policies
+
+Policy documents are IAM-flavored JSON, validated on write:
+
+```json
+{
+    "version": 1,
+    "statements": [
+        { "sid": "observe",  "effect": "allow", "actions": ["cluster:read:*", "audit:read"], "resources": ["*"] },
+        { "sid": "ops",      "effect": "allow", "actions": ["cluster:ops:lock", "cluster:ops:unlock"], "resources": ["*"] },
+        { "sid": "no-prod",  "effect": "deny",  "actions": ["cluster:command:*"], "resources": ["node:WKR-prod-1"] }
+    ]
+}
+```
+
+Semantics: **default deny**, **deny overrides**, effective policy = union of
+direct + group attachments. Patterns are `:`-segment globs (`*` = one segment,
+trailing `*` = the rest). The action vocabulary (`lib/SystemAdmin/adminActions.js`):
+
+| Action | Grants |
+|--------|--------|
+| `cluster:read:status` / `nodes` / `health` / `escalations` / `consensus` / `policy-rules` / `policy-outcomes` / `command-log` | The matching read surface |
+| `cluster:ops:lock` / `unlock` / `incident-declare` / `incident-resolve` / `consensus-propose` / `client-urls-add` | The matching cluster operation |
+| `cluster:command:<node action>` (e.g. `cluster:command:server:lock`) | Executing that specific allowlisted node command; resource `node:<workerId>` or `*` |
+| `audit:read` | Reading the orch audit trail |
+
+A managed built-in policy `default-read-only` (`POL_DEFAULT_READ_ONLY`) ships
+with the migration and is attached automatically when an admin is created with
+no explicit policy or group. Governance itself is **role**-enforced (root
+only), never policy-grantable.
+
+### Storage and the worker read-only rule
+
+The plane owns its Postgres tables (`orch_system_admins`, `orch_admin_policies`,
+`orch_admin_groups`, `orch_admin_group_members`, `orch_admin_policy_attachments`,
+`orch_admin_magic_links`, `orch_admin_sessions`, `orch_admin_audit`), created by
+its own versioned migrations (`lib/SystemAdmin/migrations`, recorded in
+`_orch_migrations`, serialized under advisory lock `761003002`). Point
+`systemAdmin.database` at the same Postgres the workers use, with the
+ORCHESTRATOR's credentials: **only the orch writes system-admin data; workers
+may at most SELECT** — enforce it at the DB with
+[`sql/worker-grants.example.sql`](sql/worker-grants.example.sql) (credential
+tables are excluded from worker grants entirely).
+
+Secrets never persist raw: magic-link and session tokens are stored as SHA-256
+hashes; the root password as salted scrypt.
+
+### Immutable audit — both sides
+
+- **Orchestrator:** every authenticated API request (PBAC denials included)
+  and every auth/governance event lands in `orch_admin_audit`, scoped to the
+  acting admin. Rows are hash-chained (`hash = sha256(row + prev_hash)`) and
+  the table rejects `UPDATE`/`DELETE` via trigger. `GET /api/audit/verify`
+  (root) re-walks the whole chain.
+- **Worker:** every `orion:command` a node receives is recorded in Orion-core's
+  AuditTrailSystem as `CLUSTER_COMMAND_RECEIVED`, scoped to the `issuedBy`
+  principal the envelope carries.
+
+### The orch panel (GUI)
+
+A statically-exported Next.js app (`gui/`, built with `output: 'export'`) that
+ships INSIDE this package — `gui/out` is committed, so consumers get a working
+panel with zero build tooling. `AdminServer` serves it same-origin next to
+`/api/*` on `systemAdmin.http.port` (default `55330`). Pages: dashboard/fleet,
+operations, observability, audit trail (with chain verification), governance
+(root only), account. Sessions ride an HttpOnly cookie.
+
+Rebuild after GUI changes: `npm run build:gui` (then commit `gui/out`).
+
+### The CLI (`orionctl`)
+
+Ships in the package `bin`. Talks to the exact same API under the exact same
+auth and PBAC rules — no side door. Session in `~/.orionctl.json` (0600).
+
+```bash
+orionctl login ops@example.com --url https://orch.example.com   # magic link + TOTP
+orionctl login root@example.com --root --url https://...        # root: password + TOTP
+orionctl status                     # cluster view (needs cluster:read:status)
+orionctl cmd WKR-1 node:ping        # needs cluster:command:node:ping on node:WKR-1
+orionctl lock                       # needs cluster:ops:lock
+orionctl audit --action governance: # needs audit:read
+orionctl admins create dev@example.com --policy POL_DEFAULT_READ_ONLY   # root only
+orionctl policies create --name ops --file ops-policy.json              # root only
+orionctl audit verify               # root only — hash-chain check
+orionctl help                       # full command surface
+```
+
+### Configuration Reference — `systemAdmin`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Master switch — everything below only applies when true |
+| `database` | `object` | — (required) | `{ host, port, database, user, password, poolMax?, statementTimeoutMs? }` — orch's READ-WRITE credentials on the shared Postgres |
+| `rootAdmin` | `object` | — (required on first boot) | `{ email, initialPassword }` (min 12 chars) — consumed only when no root exists yet |
+| `http` | `object` | `{}` | `{ host: '0.0.0.0', port: 55330, secureCookies: true, trustProxy: false, authRateLimit: { max: 10, windowMs: 300000 } }` |
+| `baseUrl` | `string` | `null` | Public URL of the panel — used to build magic-link URLs |
+| `mail` | `object` | `{}` | `{ service | host/port/secure, email, password, from, appName }` — omit for console-mode links (dev only) |
+| `magicLinkTtlMinutes` | `number` | `10` | Magic-link validity (single use regardless) |
+| `pendingSessionTtlMinutes` | `number` | `15` | Lifetime of the between-factors session |
+| `sessionTtlHours` | `number` | `12` | Lifetime of a fully-authenticated session |
+| `totpIssuer` | `string` | `'Orion Orchestrator'` | Issuer shown in authenticator apps |
+
 Failure-mode guarantees:
 
 - **Node loses the orchestrator** → keeps serving, retries registration with
@@ -322,6 +471,8 @@ Failure-mode guarantees:
 ```
 Orion-Orchestrator/
 ├── index.js                  # Package exports
+├── bin/
+│   └── orionctl.js           # System-admin CLI (zero-dependency)
 ├── lib/
 │   ├── OrionOrchestrator.js  # Control plane — wires every subsystem
 │   ├── PolicyEngine.js       # Alert → reaction rules (+ DEFAULT_POLICIES)
@@ -332,7 +483,22 @@ Orion-Orchestrator/
 │   ├── NodeRegistry.js       # Application-level cluster registry
 │   ├── RegistryStore.js      # Crash-safe registry persistence
 │   ├── protocol.js           # Shared wire contract (exported as orion-orch/protocol)
-│   └── orch.meta.js          # Version metadata
+│   ├── orch.meta.js          # Version metadata
+│   └── SystemAdmin/          # PBAC system-admin plane (orion-orch/system-admin)
+│       ├── AdminDatabase.js  # Orch-owned pg pool + versioned migrations
+│       ├── migrations/       # 0001_system_admin.sql (tables, trigger, default policy)
+│       ├── models.js         # Admins / policies / groups / magic links / sessions
+│       ├── PBACEngine.js     # Deny-overrides policy evaluation + validation
+│       ├── adminActions.js   # The PBAC action vocabulary
+│       ├── authCrypto.js     # scrypt passwords, hashed tokens (node:crypto only)
+│       ├── AdminMailer.js    # Magic-link delivery (nodemailer; console mode in dev)
+│       ├── AuditLog.js       # Hash-chained, append-only orch audit trail
+│       ├── SystemAdminService.js  # Bootstrap, auth flows, governance, authorization
+│       └── AdminServer.js    # Express /api + static panel serving
+├── gui/                      # Next.js panel source (output: 'export')
+│   └── out/                  # Committed static export served by AdminServer
+├── sql/
+│   └── worker-grants.example.sql  # DB-level read-only enforcement for workers
 └── examples/
     └── orchestrator.example.js
 ```
@@ -347,8 +513,12 @@ node --test "suites/server/orchestrator/*.test.js"
 ```
 
 `protocol`, `CommandDispatcher`, `NodeRegistry`, `RegistryStore`,
-`PolicyEngine`, `ConsensusEngine`, `ClusterHealth`, `EscalationHub`, and the
-node-side `ClusterLinkSystem` are unit-tested; the full orchestrator ↔ node
-production loop (registration, immediate alerts, policy reactions, consensus,
-health transitions, state broadcast, persistence) is verified with a live
-two-process harness.
+`PolicyEngine`, `ConsensusEngine`, `ClusterHealth`, `EscalationHub`, the
+node-side `ClusterLinkSystem`, and the system-admin plane's `PBACEngine`,
+`authCrypto`, and `AuditLog` (hash chain, tamper detection, serialization) are
+unit-tested; the full orchestrator ↔ node production loop (registration,
+immediate alerts, policy reactions, consensus, health transitions, state
+broadcast, persistence) is verified with a live two-process harness. The
+admin plane's full HTTP surface (bootstrap → root login → TOTP → rotation →
+admin invite → PBAC allow/deny → audit chain → DB-level immutability →
+suspension) is covered by an end-to-end smoke script against a real Postgres.

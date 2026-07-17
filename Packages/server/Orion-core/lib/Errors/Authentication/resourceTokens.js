@@ -124,6 +124,13 @@ const ResourceTokens = {
         errorCode: 'TOKEN-RESOURCE::VALIDATION-FAILED::B::p',
         fault: 'CLIENT',
         solutions: ['NONE']
+    },
+    'TOKEN-RESOURCE::ACCESS-TYPE-MISMATCH::A::p': {
+        status: 403,
+        context: 'The resource token access type does not match the requested access mode or the registered callback',
+        errorCode: 'TOKEN-RESOURCE::ACCESS-TYPE-MISMATCH::A::p',
+        fault: 'CLIENT',
+        solutions: ['Request the resource with the access type the token was minted for']
     }
 };
 

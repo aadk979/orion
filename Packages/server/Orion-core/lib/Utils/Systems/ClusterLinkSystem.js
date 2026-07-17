@@ -535,12 +535,55 @@ class ClusterLinkSystem {
             }
         }
 
+        this._auditIncomingCommand(envelope, result);
+
         try {
             await this.rsync.emitToOrchestrator(ClusterEvents.COMMAND_RESULT, result);
             this._trackEmitSuccess();
         } catch (err) {
             logger.error(`ClusterLink: command result for ${commandId} not delivered — ${err.message}`);
             this._trackEmitFailure();
+        }
+    }
+
+    /**
+     * Every command arriving from the orchestrator lands in this node's
+     * immutable audit trail, scoped to the principal the orchestrator executed
+     * it for (`envelope.issuedBy` — a system admin from the orch panel/CLI, or
+     * the orchestrator's own automation). Auditing is best-effort by design:
+     * a node without an audit system still executes commands.
+     */
+    _auditIncomingCommand(envelope, result) {
+        try {
+            const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
+            if (!auditTrail?.record) return;
+
+            const issuedBy = envelope.issuedBy && typeof envelope.issuedBy === 'object'
+                ? envelope.issuedBy
+                : { type: 'system', id: null, email: null };
+
+            auditTrail.record({
+                user: {
+                    uid: issuedBy.id || (issuedBy.type === 'admin' ? 'unknown-admin' : 'orchestrator'),
+                    email: issuedBy.email || null
+                },
+                action: 'CLUSTER_COMMAND_RECEIVED',
+                status: result?.ok === true ? 'SUCCESS' : 'FAILED',
+                source: 'ClusterLinkSystem.js',
+                functionName: '_handleCommand',
+                impact: 'cluster-remote-control',
+                metadata: {
+                    commandId: envelope.commandId,
+                    commandAction: envelope.action,
+                    args: envelope.args || {},
+                    issuedByType: issuedBy.type || 'system',
+                    cluster: this.config.cluster,
+                    workerId: this.rsync?.workerId || null,
+                    errorCode: result?.ok === true ? null : (result?.error?.code || null)
+                }
+            });
+        } catch (err) {
+            logger.warn(`ClusterLink: incoming-command audit failed — ${err.message}`);
         }
     }
 

@@ -5,3 +5,7 @@ logs/
 r_sync.internal.*
 r_sync.local_db.db
 orion_orch.internal.*
+
+# GUI build internals (the exported gui/out IS committed)
+gui/.next/
+gui/node_modules/

@@ -96,9 +96,7 @@ async function generateResourceToken(
         sub: uid
     };
 
-    // Store token ref and token row
-    await TokenModel.addTokenRef(uid, tokenData.tokenId, dbExpiry);
-
+    // Store token row
     const storage = await TokenModel.createToken({
         tokenId: tokenData.tokenId,
         uid: uid,
@@ -215,7 +213,6 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
 
         if (tokenData.retrieval_count >= tokenData.max_retrievals) {
             await TokenModel.deleteToken(validatedToken.tokenData.tokenId);
-            await TokenModel.removeTokenRef(validatedToken.uid, validatedToken.tokenData.tokenId);
             return { error: true, errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-HIT::A::p' };
         }
 

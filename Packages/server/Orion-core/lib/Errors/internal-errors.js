@@ -19,6 +19,7 @@ import { Mail } from './Communication/mail.js';
 import { Database } from './System/database.js';
 import { FileOperations } from './System/fileOperations.js';
 import { System } from './System/system.js';
+import { ResourceAccessS3 } from './System/resourceAccessS3.js';
 
 const internalErrors = {
     ...AccessTokens,
@@ -41,7 +42,8 @@ const internalErrors = {
     ...Mail,
     ...Database,
     ...FileOperations,
-    ...System
+    ...System,
+    ...ResourceAccessS3
 };
 
 export { internalErrors };

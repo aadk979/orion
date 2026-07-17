@@ -19,6 +19,7 @@ import { sanitizeString } from './lib/Utils/Sanitizer.js';
 import { getCookie, parseCookieData, setCookie } from './lib/Utils/CookieUtils.js';
 import { readFromCaller, writeToCaller } from './lib/Utils/FileHandler.js';
 import { generateResourceToken } from './lib/Utils/Core/TokenManagement/ResourceTokens.js';
+import { S3UrlBuilder, presignS3Url } from './lib/Utils/Core/ResourceAccessManagment/s3BasedResources/S3UrlBuilder.js';
 import { requestContext } from './lib/Server/Middleware/requestMetadata.js';
 import { logger } from './lib/Utils/logger.js';
 import { userControl } from './lib/Utils/Core/AccountManagment/UserControl.js';
@@ -34,6 +35,7 @@ const sanitizer = { sanitizeString };
 const cookies = { parseCookieData, setCookie, getCookie };
 const fileIO = { writeToCaller, readFromCaller };
 const tokens = { generateResourceToken };
+const oras = { S3UrlBuilder, presignS3Url };
 const valueGenerators = i;
 const orionCrypto = b;
 
@@ -52,6 +54,7 @@ export {
     cookies,
     fileIO,
     tokens,
+    oras,
     valueGenerators,
     orionCrypto,
     orionInfo,

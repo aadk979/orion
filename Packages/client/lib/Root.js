@@ -14,6 +14,7 @@ import { setupTOTP, verifyAndEnableTOTP } from './API-Handlers/Auth/SetupTOTP.js
 import { initiate2FAMethodRemoval, complete2FAMethodRemoval } from './API-Handlers/Auth/Remove2FAMethod.js';
 import { getUserProfile } from './API-Handlers/Auth/GetUserProfile.js';
 import { globalAccessPoint } from './Utils/GlobalAccessPoint.js';
+import { getDeviceFingerprint } from './Utils/DevicePrint.js';
 
 class Orion {
     #authState = { status: 'IDLE' };
@@ -344,5 +345,5 @@ class Orion {
     }
 }
 
-export { Orion };
+export { Orion, getDeviceFingerprint };
 

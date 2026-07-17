@@ -73,7 +73,18 @@ const defaultConfig = Object.freeze({
     consensus: {},                 // default { quorumRatio, minVoters, timeoutMs } for proposals
     policies: {},                  // PolicyEngine { useDefaults, rules }
     escalations: {},               // EscalationHub { webhook: { url, headers } }
-    persistence: { enabled: true } // RegistryStore { enabled, directory, fileName, debounceMs }
+    persistence: { enabled: true }, // RegistryStore { enabled, directory, fileName, debounceMs }
+    /**
+     * System-admin plane — PBAC-governed panel + API + CLI access. See
+     * lib/SystemAdmin/. When enabled requires at minimum:
+     *   { enabled: true,
+     *     database: { user, password, host, port, database },   // shared Postgres, orch credentials (read-write)
+     *     rootAdmin: { email, initialPassword },                // consumed on FIRST boot only
+     *     http: { port: 55330, host, secureCookies, trustProxy },
+     *     baseUrl: 'https://orch.example.com',                  // magic-link target
+     *     mail: { service|host, email, password, from } }       // omit for console-mode links (dev)
+     */
+    systemAdmin: { enabled: false }
 });
 
 class OrionOrchestrator {
@@ -94,6 +105,11 @@ class OrionOrchestrator {
         this._staleSweepTimer = null;
         this._healthTimer = null;
         this._commandLog = [];
+
+        // System-admin plane (created in start() when systemAdmin.enabled)
+        this._adminDb = null;
+        this._systemAdmin = null;
+        this._adminServer = null;
 
         // ── Subsystems ────────────────────────────────────────────────────────
         this._escalations = new EscalationHub(this.config.escalations);
@@ -172,11 +188,63 @@ class OrionOrchestrator {
             this._identifySweep().catch(err => logger.warn(`OrionOrchestrator: identify sweep failed — ${err.message}`));
         }
 
+        // System-admin plane (PBAC panel + API). Loaded lazily so deployments
+        // that never enable it don't pay for pg/express/nodemailer at boot.
+        if (this.config.systemAdmin?.enabled === true) {
+            await this._startSystemAdmin();
+        }
+
         logger.info(`OrionOrchestrator v${__Version__} ready — cluster "${this.cluster}" on ${this.config.publicIp}:${this.config.port} (protocol v${PROTOCOL_VERSION})`);
         return this;
     }
 
+    async _startSystemAdmin() {
+        const [{ AdminDatabase }, { SystemAdminService }, { AdminServer }] = await Promise.all([
+            import('./SystemAdmin/AdminDatabase.js'),
+            import('./SystemAdmin/SystemAdminService.js'),
+            import('./SystemAdmin/AdminServer.js')
+        ]);
+
+        const saConfig = this.config.systemAdmin;
+
+        this._adminDb = new AdminDatabase(saConfig.database || {});
+        await this._adminDb.ready();
+
+        this._systemAdmin = new SystemAdminService(this._adminDb, saConfig);
+        await this._systemAdmin.bootstrapRoot(saConfig.rootAdmin || {});
+        this._systemAdmin.start();
+
+        this._adminServer = new AdminServer(this, this._systemAdmin, saConfig.http || {});
+        await this._adminServer.start();
+    }
+
+    /** The SystemAdminService when the admin plane is enabled, else null. */
+    getSystemAdmin() {
+        return this._systemAdmin || null;
+    }
+
     async stop() {
+        if (this._adminServer) {
+            try {
+                await this._adminServer.stop();
+            } catch (err) {
+                logger.warn(`OrionOrchestrator: admin server stop failed — ${err.message}`);
+            }
+            this._adminServer = null;
+        }
+        if (this._systemAdmin) {
+            this._systemAdmin.stop();
+            this._systemAdmin = null;
+        }
+        if (this._adminDb) {
+            try {
+                await this._adminDb.close();
+            } catch (err) {
+                logger.warn(`OrionOrchestrator: admin DB close failed — ${err.message}`);
+            }
+            this._adminDb = null;
+        }
+
         if (this._staleSweepTimer) {
             clearInterval(this._staleSweepTimer);
             this._staleSweepTimer = null;
@@ -463,17 +531,20 @@ class OrionOrchestrator {
     /**
      * Executes a remote command on one node and awaits its result.
      * Every execution (success or failure) lands in the command audit log.
+     * `issuedBy` attributes the command to a principal ({ type: 'admin', id,
+     * email } for system admins; omitted = orchestrator automation) — it rides
+     * the command envelope so the node can audit it too.
      * @returns {Promise<{workerId, commandId, action, ok, result?, error?}>}
      */
-    async command(workerId, action, args = {}, timeoutMs = this.config.commandTimeoutMs) {
+    async command(workerId, action, args = {}, timeoutMs = this.config.commandTimeoutMs, issuedBy = null) {
         this._assertStarted();
 
         try {
-            const outcome = await this._dispatcher.execute(workerId, action, args, timeoutMs);
-            this._logCommand({ workerId, action, ok: outcome.ok === true, commandId: outcome.commandId || null });
+            const outcome = await this._dispatcher.execute(workerId, action, args, timeoutMs, issuedBy);
+            this._logCommand({ workerId, action, ok: outcome.ok === true, commandId: outcome.commandId || null, issuedBy: issuedBy?.email || issuedBy?.id || 'system' });
             return outcome;
         } catch (err) {
-            this._logCommand({ workerId, action, ok: false, error: err.message });
+            this._logCommand({ workerId, action, ok: false, error: err.message, issuedBy: issuedBy?.email || issuedBy?.id || 'system' });
             throw err;
         }
     }
@@ -490,12 +561,12 @@ class OrionOrchestrator {
      * Never rejects — per-node failures are reported in the result array.
      * @returns {Promise<Array<{workerId, ok, ...}>>}
      */
-    async commandAll(action, args = {}, timeoutMs = this.config.commandTimeoutMs) {
+    async commandAll(action, args = {}, timeoutMs = this.config.commandTimeoutMs, issuedBy = null) {
         this._assertStarted();
 
         const workers = (await getAllWorkers()).filter(isActiveWorker);
         const settled = await Promise.allSettled(
-            workers.map(w => this.command(w.id, action, args, timeoutMs))
+            workers.map(w => this.command(w.id, action, args, timeoutMs, issuedBy))
         );
 
         return settled.map((res, i) => res.status === 'fulfilled'
@@ -523,15 +594,15 @@ class OrionOrchestrator {
 
     // ── Convenience wrappers over common commands ─────────────────────────────
 
-    pingNode(workerId) { return this.command(workerId, ClusterCommands.PING); }
-    getNodeStatus(workerId) { return this.command(workerId, ClusterCommands.GET_STATUS); }
-    lockNode(workerId) { return this.command(workerId, ClusterCommands.LOCK_SERVER); }
-    unlockNode(workerId) { return this.command(workerId, ClusterCommands.UNLOCK_SERVER); }
-    lockCluster() { return this.commandAll(ClusterCommands.LOCK_SERVER); }
-    unlockCluster() { return this.commandAll(ClusterCommands.UNLOCK_SERVER); }
-    clearNodeEtsLockdown(workerId) { return this.command(workerId, ClusterCommands.CLEAR_ETS_LOCKDOWN); }
+    pingNode(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.PING, {}, this.config.commandTimeoutMs, issuedBy); }
+    getNodeStatus(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.GET_STATUS, {}, this.config.commandTimeoutMs, issuedBy); }
+    lockNode(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.LOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
+    unlockNode(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.UNLOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
+    lockCluster(issuedBy = null) { return this.commandAll(ClusterCommands.LOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
+    unlockCluster(issuedBy = null) { return this.commandAll(ClusterCommands.UNLOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
+    clearNodeEtsLockdown(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.CLEAR_ETS_LOCKDOWN, {}, this.config.commandTimeoutMs, issuedBy); }
     /** Push additional allowed client URLs to every node that permits runtime updates */
-    addClientUrls(clientUrls) { return this.commandAll(ClusterCommands.ADD_CLIENT_URLS, { clientUrls }); }
+    addClientUrls(clientUrls, issuedBy = null) { return this.commandAll(ClusterCommands.ADD_CLIENT_URLS, { clientUrls }, this.config.commandTimeoutMs, issuedBy); }
 
     // ── Observability ─────────────────────────────────────────────────────────
 

@@ -131,8 +131,6 @@ async function generateAccessToken(
     }
 
     // Store token in database for stateful tiers
-    await TokenModel.addTokenRef(uid, tokenData.tokenId, dbExpiry);
-
     const storage = await TokenModel.createToken(dbTokenFields);
 
     if (storage.error) {

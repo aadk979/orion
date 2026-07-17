@@ -222,9 +222,6 @@ const authorizeDeviceDirect = async (email, uid, userAgent) => {
             expiry: exp
         });
 
-        // Add lightweight ref
-        await DeviceModel.addDeviceRef(UID, deviceId, exp);
-
         // Clean up expired devices asynchronously
         cleanUpDevices(UID);
 

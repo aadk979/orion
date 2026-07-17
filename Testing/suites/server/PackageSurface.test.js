@@ -9,7 +9,7 @@ import * as orion from '../../../Packages/server/Orion-core/index.js';
 const EXPECTED_EXPORTS = [
     'initiateServer', 'globalAccessPoint', 'validators', 'ipUtils',
     'encodersAndDecoders', 'uaParser', 'dateAndTime', 'cron', 'sanitizer',
-    'cookies', 'fileIO', 'tokens', 'valueGenerators', 'orionCrypto',
+    'cookies', 'fileIO', 'tokens', 'oras', 'valueGenerators', 'orionCrypto',
     'orionInfo', 'requestContext', 'logger', 'userControl'
 ];
 
@@ -27,6 +27,8 @@ describe('Orion-core package entry point', () => {
         assert.equal(typeof orion.valueGenerators.generateId, 'function');
         assert.equal(typeof orion.sanitizer.sanitizeString, 'function');
         assert.equal(typeof orion.cookies.setCookie, 'function');
+        assert.equal(typeof orion.oras.S3UrlBuilder, 'function');
+        assert.equal(typeof orion.oras.presignS3Url, 'function');
     });
 
     test('orionInfo carries version + status metadata', () => {

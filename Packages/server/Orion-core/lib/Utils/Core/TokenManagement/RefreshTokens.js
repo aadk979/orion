@@ -142,9 +142,7 @@ async function generateRefreshToken(
         dbTokenFields.ipRange = ipRange;
     }
 
-    // Store token ref and token row
-    await TokenModel.addTokenRef(uid, tokenData.tokenId, dbExpiry);
-
+    // Store token row
     const storage = await TokenModel.createToken(dbTokenFields);
 
     if (storage.error) {

@@ -43,14 +43,27 @@ describe('Cluster protocol — contract stability', () => {
 });
 
 describe('Cluster protocol — envelope builders', () => {
-    test('command envelope carries protocol version, id, action, args', () => {
+    test('command envelope carries protocol version, id, action, args, issuedBy', () => {
         const env = buildCommandEnvelope('CMD-1', ClusterCommands.PING, { a: 1 });
         assert.deepEqual(env, {
             protocolVersion: PROTOCOL_VERSION,
             commandId: 'CMD-1',
             action: ClusterCommands.PING,
-            args: { a: 1 }
+            args: { a: 1 },
+            issuedBy: { type: 'system', id: null, email: null }
         });
+    });
+
+    test('command envelope attributes an admin principal when given', () => {
+        const env = buildCommandEnvelope('CMD-2', ClusterCommands.PING, {}, {
+            type: 'admin', id: 'SAD-1', email: 'ops@example.com'
+        });
+        assert.deepEqual(env.issuedBy, { type: 'admin', id: 'SAD-1', email: 'ops@example.com' });
+    });
+
+    test('command envelope coerces unknown principal types to system', () => {
+        const env = buildCommandEnvelope('CMD-3', ClusterCommands.PING, {}, { type: 'evil', id: 'x' });
+        assert.equal(env.issuedBy.type, 'system');
     });
 
     test('successful result nests payload under result', () => {

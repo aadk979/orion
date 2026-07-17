@@ -141,12 +141,28 @@ const ClusterStates = Object.freeze({
 
 // ── Envelope builders ─────────────────────────────────────────────────────────
 
-/** Orchestrator → node command envelope */
-const buildCommandEnvelope = (commandId, action, args = {}) => ({
+/**
+ * Orchestrator → node command envelope.
+ *
+ * `issuedBy` identifies the principal the orchestrator executed the command
+ * for: `{ type: 'system' }` for orchestrator-internal automation (policies,
+ * health, consensus) or `{ type: 'admin', id, email }` for a system admin
+ * acting through the orch panel/CLI. Nodes feed it into their local audit
+ * trail so every remote action is attributable end-to-end. Additive since
+ * protocol v2 — nodes that predate it simply ignore the field.
+ */
+const buildCommandEnvelope = (commandId, action, args = {}, issuedBy = null) => ({
     protocolVersion: PROTOCOL_VERSION,
     commandId,
     action,
-    args
+    args,
+    issuedBy: issuedBy && typeof issuedBy === 'object'
+        ? {
+            type: issuedBy.type === 'admin' ? 'admin' : 'system',
+            id: issuedBy.id || null,
+            email: issuedBy.email || null
+        }
+        : { type: 'system', id: null, email: null }
 });
 
 /** Node → orchestrator command result envelope */

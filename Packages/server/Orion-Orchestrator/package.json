@@ -1,7 +1,7 @@
 {
     "name": "orion-orch",
-    "version": "1.0.0",
-    "description": "Cluster control plane for the Orion (Alpine) authentication framework — supervises Orion-core nodes over R_Sync encrypted M2M tunnels.",
+    "version": "1.1.0",
+    "description": "Cluster control plane for the Orion (Alpine) authentication framework — supervises Orion-core nodes over R_Sync encrypted M2M tunnels, governed by a PBAC system-admin plane (panel, API, CLI).",
     "main": "index.js",
     "type": "module",
     "directories": {
@@ -9,10 +9,15 @@
     },
     "exports": {
         ".": "./index.js",
-        "./protocol": "./lib/protocol.js"
+        "./protocol": "./lib/protocol.js",
+        "./system-admin": "./lib/SystemAdmin/index.js"
+    },
+    "bin": {
+        "orionctl": "bin/orionctl.js"
     },
     "scripts": {
-        "start:example": "cd examples && node orchestrator.example.js"
+        "start:example": "cd examples && node orchestrator.example.js",
+        "build:gui": "cd gui && npm install && npm run build"
     },
     "engines": {
         "node": ">=18.18.0"
@@ -23,11 +28,17 @@
         "cluster",
         "control-plane",
         "m2m",
-        "auth"
+        "auth",
+        "pbac"
     ],
     "author": "Kalivaradhan Aadharsh",
     "license": "MIT",
     "dependencies": {
+        "express": "^5.1.0",
+        "nodemailer": "^7.0.6",
+        "otplib": "^13.3.0",
+        "pg": "^8.16.3",
+        "qrcode": "^1.5.4",
         "r-sync": "file:../R_sync"
     }
 }

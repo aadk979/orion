@@ -8,6 +8,7 @@ const memoryMonitoringSystemModule = new SafeModuleHandler('MemoryMonitoringSyst
 const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventLoopMonitor', 'GracefulShutdownSystem.js');
 const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'GracefulShutdownSystem.js');
 const clusterLinkSystemModule = new SafeModuleHandler('ClusterLinkSystem', 'clusterLinkSystem', 'GracefulShutdownSystem.js');
+const databaseJanitorModule = new SafeModuleHandler('DatabaseJanitor', 'databaseJanitor', 'GracefulShutdownSystem.js');
 
 
 const DRAIN_TIMEOUT_MS = 30_000;
@@ -71,20 +72,21 @@ class GracefulShutdownSystem {
             logger.warn(`GracefulShutdown: Cluster link stop failed — ${err.message}`);
         }
 
-        // 4. Flush audit trail buffer
+        // 4. Flush audit trail buffer (shutdown = stop flush timer + forceFlush)
         try {
             const at = auditTrailSystemModule.probeModule();
-            if (at?.enabled && typeof at.flush === 'function') {
-                await at.flush();
+            if (at?.enabled && typeof at.shutdown === 'function') {
+                await at.shutdown();
                 logger.info('GracefulShutdown: Audit trail flushed');
             }
         } catch (err) {
             logger.warn(`GracefulShutdown: Audit flush failed — ${err.message}`);
         }
 
-        // 5. Stop monitors
+        // 5. Stop monitors and background sweepers
         try { memoryMonitoringSystemModule.probeModule()?.stop(); } catch (_) {}
         try { eventLoopMonitorModule.probeModule()?.stop(); } catch (_) {}
+        try { databaseJanitorModule.probeModule()?.stop(); } catch (_) {}
 
         // 6. Close DB
         try {

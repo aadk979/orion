@@ -96,17 +96,25 @@ export const RequestModel = {
 
     // ─── Password Reset Requests ────────────────────────────────────────────
 
+    /**
+     * @param {{ expiry: number }} — expiry in unix seconds
+     */
     async createPasswordResetRequest(reqId, { email, uid, codeHash, ipRange, userAgentHash, expiry }) {
         await query(
             `INSERT INTO password_reset_requests (request_id, email, user_uid, code_hash, ip_range, user_agent_hash, expiry)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+             VALUES ($1, $2, $3, $4, $5, $6, to_timestamp($7))`,
             [reqId, email, uid, codeHash, ipRange, userAgentHash, expiry]
         );
     },
 
+    /**
+     * expiry is returned in unix seconds.
+     */
     async getPasswordResetRequest(reqId) {
         const result = await query(
-            'SELECT * FROM password_reset_requests WHERE request_id = $1',
+            `SELECT request_id, email, user_uid, code_hash, ip_range, user_agent_hash,
+                    floor(EXTRACT(EPOCH FROM expiry))::FLOAT8 AS expiry, created_at
+             FROM password_reset_requests WHERE request_id = $1`,
             [reqId]
         );
         return result.rows[0] || null;

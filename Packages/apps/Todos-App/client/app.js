@@ -1,4 +1,4 @@
-import { orion, SERVER_URL } from './orion-client.js';
+import { orion, getDeviceFingerprint, SERVER_URL } from './orion-client.js';
 
 const listEl = document.getElementById('todo-list');
 const emptyState = document.getElementById('empty-state');
@@ -8,23 +8,10 @@ const alertEl = document.getElementById('alert-global');
 const navEmail = document.getElementById('nav-email');
 const loadingOverlay = document.getElementById('loading-overlay');
 
-// Not a real device-integrity signal — just a stable per-browser value so the
-// server's mandatory `orion-fingerprint` header is present on every request.
-// The server requires a 64-character hex string, so a raw UUID won't pass —
-// hash it first.
-async function sha256Hex(input) {
-    const data = new TextEncoder().encode(input);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hashBuffer))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-}
-
-let deviceFingerprint = localStorage.getItem('todos-demo-fingerprint');
-if (!deviceFingerprint) {
-    deviceFingerprint = await sha256Hex(crypto.randomUUID());
-    localStorage.setItem('todos-demo-fingerprint', deviceFingerprint);
-}
+// Use the SDK's own device fingerprint so the todos requests carry the EXACT
+// same fingerprint the SDK used at sign-in — otherwise (tier-4 security) a
+// mismatch adds risk and can force step-up. Computed once, reused per request.
+const deviceFingerprint = await getDeviceFingerprint();
 
 function showAlert(msg, type = 'error') {
     alertEl.textContent = msg;

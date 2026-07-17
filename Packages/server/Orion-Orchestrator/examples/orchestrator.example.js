@@ -31,6 +31,31 @@ const orchestrator = new OrionOrchestrator({
             }]
         }]
     }
+
+    // Optional: the PBAC system-admin plane — orch panel (GUI), /api, and the
+    // `orionctl` CLI. Uncomment and fill in to enable. See README §System-admin plane.
+    // systemAdmin: {
+    //     enabled: true,
+    //     database: {                       // shared Postgres, ORCH credentials (read-write)
+    //         host: '127.0.0.1',
+    //         port: 5432,
+    //         database: 'orion',
+    //         user: 'orion_orch',
+    //         password: '...'
+    //     },
+    //     rootAdmin: {                      // consumed on FIRST boot only
+    //         email: 'root@example.com',
+    //         initialPassword: 'change-me-immediately'  // rotation forced on first login
+    //     },
+    //     http: { host: '0.0.0.0', port: 55330, secureCookies: true },
+    //     baseUrl: 'https://orch.example.com',           // magic-link target (this panel's own URL)
+    //     mail: {                           // omit entirely for console-mode links (dev)
+    //         service: 'gmail',
+    //         email: 'ops@example.com',
+    //         password: 'app-password',
+    //         appName: 'Orion Orchestrator'
+    //     }
+    // }
 });
 
 orchestrator

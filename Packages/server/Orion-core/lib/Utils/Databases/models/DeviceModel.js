@@ -1,4 +1,3 @@
-import { getCurrentUnixTime } from '../../Date&Time.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'DeviceModel.js');
@@ -6,25 +5,34 @@ const dbModule = new SafeModuleHandler('Database', 'db', 'DeviceModel.js');
 
 const query = (text, params) => dbModule.getModule().query(text, params);
 
+// expiry is stored as TIMESTAMPTZ but exposed to callers as unix seconds
+// (float8 so pg parses it as a JS number, not an int8 string).
+const DEVICE_COLUMNS = `
+    device_id, user_uid, device_code_hash, user_agent_hash,
+    floor(EXTRACT(EPOCH FROM expiry))::FLOAT8 AS expiry,
+    created_at
+`;
+
 export const DeviceModel = {
     /**
      * Store a recognized device.
+     * @param {{ expiry: number }} — expiry in unix seconds
      */
     async createDevice({ deviceId, uid, deviceCodeHash, userAgentHash, expiry }) {
         await query(
             `INSERT INTO recognized_devices (device_id, user_uid, device_code_hash, user_agent_hash, expiry)
-             VALUES ($1, $2, $3, $4, $5)`,
+             VALUES ($1, $2, $3, $4, to_timestamp($5))`,
             [deviceId, uid, deviceCodeHash, userAgentHash, expiry]
         );
     },
 
     /**
-     * Get device by ID.
+     * Get device by ID. expiry is returned in unix seconds.
      * @returns {{ device_id, user_uid, device_code_hash, user_agent_hash, expiry } | null}
      */
     async getDevice(deviceId) {
         const result = await query(
-            'SELECT * FROM recognized_devices WHERE device_id = $1',
+            `SELECT ${DEVICE_COLUMNS} FROM recognized_devices WHERE device_id = $1`,
             [deviceId]
         );
         return result.rows[0] || null;
@@ -38,92 +46,42 @@ export const DeviceModel = {
         await query('DELETE FROM recognized_devices WHERE user_uid = $1', [uid]);
     },
 
-    // ─── Device References on User ───────────────────────────────────────────
-
-    async addDeviceRef(uid, deviceId, expiry) {
-        await query(
-            'INSERT INTO user_recognized_device_refs (user_uid, device_id, expiry) VALUES ($1, $2, $3)',
-            [uid, deviceId, expiry]
-        );
-    },
-
     /**
-     * Get all device refs (including expired).
+     * Active (non-expired) device references for a user.
+     * @returns {{ device_id: string, expiry: number }[]} expiry in unix seconds
      */
-    async getAllDeviceRefs(uid) {
+    async getActiveDeviceRefs(uid) {
         const result = await query(
-            'SELECT device_id, expiry FROM user_recognized_device_refs WHERE user_uid = $1',
+            `SELECT device_id, floor(EXTRACT(EPOCH FROM expiry))::FLOAT8 AS expiry
+             FROM recognized_devices WHERE user_uid = $1 AND expiry > now()`,
             [uid]
         );
         return result.rows;
     },
 
     /**
-     * Get only non-expired device refs.
-     */
-    async getActiveDeviceRefs(uid) {
-        const now = getCurrentUnixTime();
-        const result = await query(
-            'SELECT device_id, expiry FROM user_recognized_device_refs WHERE user_uid = $1 AND expiry > $2',
-            [uid, now]
-        );
-        return result.rows;
-    },
-
-    /**
-     * Remove expired device refs AND delete the corresponding device rows.
+     * Delete this user's expired device rows. The DatabaseJanitor system does
+     * the same globally; this keeps hot users tidy between sweeps.
      */
     async removeExpiredDevices(uid) {
-        const now = getCurrentUnixTime();
-        const client = await dbModule.getModule().getPool().connect();
-
-        try {
-            await client.query('BEGIN');
-            
-            const expired = await client.query(
-                'SELECT device_id FROM user_recognized_device_refs WHERE user_uid = $1 AND expiry <= $2',
-                [uid, now]
-            );
-
-            for (const row of expired.rows) {
-                // Ignore delete errors for individual devices, but process them inside the transaction
-                await client.query('DELETE FROM recognized_devices WHERE device_id = $1', [row.device_id]).catch(() => {});
-            }
-
-            await client.query(
-                'DELETE FROM user_recognized_device_refs WHERE user_uid = $1 AND expiry <= $2',
-                [uid, now]
-            );
-            
-            await client.query('COMMIT');
-        } catch (e) {
-            await client.query('ROLLBACK');
-            throw e;
-        } finally {
-            client.release();
-        }
-    },
-
-    async removeDeviceRef(uid, deviceId) {
-        await query(
-            'DELETE FROM user_recognized_device_refs WHERE user_uid = $1 AND device_id = $2',
-            [uid, deviceId]
-        );
+        await query('DELETE FROM recognized_devices WHERE user_uid = $1 AND expiry <= now()', [uid]);
     },
 
     /**
-     * Get count of active (non-expired) device refs.
+     * Delete a single device, scoped to its owner.
      */
-    async getActiveDeviceCount(uid) {
-        const now = getCurrentUnixTime();
-        const result = await query(
-            'SELECT COUNT(*)::int AS count FROM user_recognized_device_refs WHERE user_uid = $1 AND expiry > $2',
-            [uid, now]
-        );
-        return result.rows[0]?.count || 0;
+    async removeDeviceRef(uid, deviceId) {
+        await query('DELETE FROM recognized_devices WHERE user_uid = $1 AND device_id = $2', [uid, deviceId]);
     },
 
-    async clearAllDeviceRefs(uid) {
-        await query('DELETE FROM user_recognized_device_refs WHERE user_uid = $1', [uid]);
+    /**
+     * Get count of active (non-expired) devices.
+     */
+    async getActiveDeviceCount(uid) {
+        const result = await query(
+            'SELECT COUNT(*)::int AS count FROM recognized_devices WHERE user_uid = $1 AND expiry > now()',
+            [uid]
+        );
+        return result.rows[0]?.count || 0;
     }
 };

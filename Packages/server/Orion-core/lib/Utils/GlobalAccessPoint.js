@@ -59,7 +59,7 @@ class GlobalAccessPoint {
 
     // Convenience getters
     /**
-     * @returns {import('./Databases/PersitantDatabases/mongoDB.js').MongoService | import('./Databases/PersitantDatabases/postgres.js').PostgresService | import('./Databases/PersitantDatabases/firestore.js').FirestoreService | undefined}
+     * @returns {import('./Databases/PersitantDatabases/postgres.js').PostgresService | undefined}
      */
     db() {
         return this.getValue('db');
@@ -273,6 +273,13 @@ class GlobalAccessPoint {
      */
     clusterLinkSystem() {
         return this.getValue('clusterLinkSystem');
+    }
+
+    /**
+     * @returns {import('./Systems/DatabaseJanitor.js').DatabaseJanitor | undefined}
+     */
+    databaseJanitor() {
+        return this.getValue('databaseJanitor');
     }
 
     /**

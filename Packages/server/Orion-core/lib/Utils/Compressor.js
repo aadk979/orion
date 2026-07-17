@@ -21,7 +21,7 @@ async function decompressString(base64) {
 function compressURLs(urls) {
   return urls.map(url => {
     const prefix = url.startsWith('https://') ? 's' : 'o';
-    const stripped = url.replace(/^https?:\/\//, '').replace(/\.com(\/|$)/, '$1');
+    const stripped = url.replace(/^https?:\/\//, '');
     return `${prefix}:${stripped}`;
   });
 }
@@ -29,9 +29,8 @@ function compressURLs(urls) {
 function decompressURLs(compressed) {
   return compressed.map(entry => {
     const protocol = entry[0] === 's' ? 'https' : 'http';
-    const [domain, ...path] = entry.slice(2).split('/');
-    const restoredDomain = domain.includes('.') || domain.includes(':') || domain === 'localhost' ? domain : domain + '.com';
-    return `${protocol}://${[restoredDomain, ...path].join('/')}`;
+    const rest = entry.slice(2);
+    return `${protocol}://${rest}`;
   });
 }
 

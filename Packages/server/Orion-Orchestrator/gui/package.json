@@ -1,0 +1,16 @@
+{
+    "name": "orion-orch-gui",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Orch panel — statically exported Next.js GUI for the Orion-Orchestrator system-admin plane. Built output (../gui/out) is served by AdminServer.",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "next": "^15.4.5",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0"
+    }
+}

@@ -25,12 +25,14 @@ import { Mail } from '../../../../Packages/server/Orion-core/lib/Errors/Communic
 import { Database } from '../../../../Packages/server/Orion-core/lib/Errors/System/database.js';
 import { FileOperations } from '../../../../Packages/server/Orion-core/lib/Errors/System/fileOperations.js';
 import { System } from '../../../../Packages/server/Orion-core/lib/Errors/System/system.js';
+import { ResourceAccessS3 } from '../../../../Packages/server/Orion-core/lib/Errors/System/resourceAccessS3.js';
 
 const modules = {
     AccessTokens, AuthenticationMiddleware, RefreshTokens, ResourceTokens,
     AccountRegistration, AccountSignIn, Passkeys, TOTP, UserControl, OAuth,
     StepUpAuth, DeviceAuthorization, TwoFARemoval, Captcha, NoAuthToken,
-    DataValidation, General, Mail, Database, FileOperations, System
+    DataValidation, General, Mail, Database, FileOperations, System,
+    ResourceAccessS3
 };
 
 describe('Error registry — per-module structural integrity', () => {

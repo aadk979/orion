@@ -1,4 +1,3 @@
-import { getCurrentUnixTime } from '../../Date&Time.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'TokenModel.js');
@@ -6,15 +5,37 @@ const dbModule = new SafeModuleHandler('Database', 'db', 'TokenModel.js');
 
 const query = (text, params) => dbModule.getModule().query(text, params);
 
+// expiry is stored as TIMESTAMPTZ but exposed to callers as unix seconds
+// (float8 so pg parses it as a JS number, not an int8 string).
+const TOKEN_COLUMNS = `
+    token_id, user_uid, type,
+    floor(EXTRACT(EPOCH FROM expiry))::FLOAT8 AS expiry,
+    user_agent, link_code, security_tier, ip_range, hashed_fingerprint,
+    view_type, max_retrievals, retrieval_count, created_at
+`;
+
+// updateToken interpolates column names into SQL — only these may ever appear.
+const UPDATABLE_COLUMNS = new Set([
+    'retrieval_count',
+    'link_code',
+    'user_agent',
+    'ip_range',
+    'hashed_fingerprint',
+    'security_tier',
+    'view_type',
+    'max_retrievals'
+]);
+
 export const TokenModel = {
     /**
      * Insert a token row.
+     * @param {{ expiry: number }} — expiry in unix seconds
      */
     async createToken({ tokenId, uid, type, expiry, userAgent, linkCode, securityTier, ipRange, hashedFingerprint, viewType, maxRetrievals }) {
         try {
             await query(
                 `INSERT INTO tokens (token_id, user_uid, type, expiry, user_agent, link_code, security_tier, ip_range, hashed_fingerprint, view_type, max_retrievals)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                 VALUES ($1, $2, $3, to_timestamp($4), $5, $6, $7, $8, $9, $10, $11)`,
                 [tokenId, uid, type, expiry, userAgent || null, linkCode || null, securityTier || null, ipRange || null, hashedFingerprint || null, viewType || null, maxRetrievals || null]
             );
             return { error: false };
@@ -24,19 +45,25 @@ export const TokenModel = {
     },
 
     /**
-     * Get a token by ID.
+     * Get a token by ID. expiry is returned in unix seconds.
      */
     async getToken(tokenId) {
-        const result = await query('SELECT * FROM tokens WHERE token_id = $1', [tokenId]);
+        const result = await query(`SELECT ${TOKEN_COLUMNS} FROM tokens WHERE token_id = $1`, [tokenId]);
         return result.rows[0] || null;
     },
 
     /**
-     * Update specific fields on a token.
+     * Update whitelisted fields on a token.
      */
     async updateToken(tokenId, fields) {
         const entries = Object.entries(fields);
         if (entries.length === 0) return;
+
+        for (const [key] of entries) {
+            if (!UPDATABLE_COLUMNS.has(key)) {
+                throw new Error(`TokenModel.updateToken: column '${key}' is not updatable`);
+            }
+        }
 
         const setClauses = entries.map(([key, _], i) => `${key} = $${i + 2}`);
         const values = entries.map(([_, val]) => val);
@@ -58,79 +85,31 @@ export const TokenModel = {
         await query('DELETE FROM tokens WHERE user_uid = $1', [uid]);
     },
 
-    // ─── Token References on User ────────────────────────────────────────────
-
-    async addTokenRef(uid, tokenId, expiry) {
-        await query(
-            'INSERT INTO user_active_token_refs (user_uid, token_id, expiry) VALUES ($1, $2, $3)',
-            [uid, tokenId, expiry]
-        );
-    },
-
     /**
-     * @returns {{ token_id, expiry }[]}
+     * Active (non-expired) token references for a user.
+     * @returns {{ token_id: string, expiry: number }[]} expiry in unix seconds
      */
     async getActiveTokenRefs(uid) {
-        const now = getCurrentUnixTime();
         const result = await query(
-            'SELECT token_id, expiry FROM user_active_token_refs WHERE user_uid = $1 AND expiry > $2',
-            [uid, now]
-        );
-        return result.rows;
-    },
-
-    async getAllTokenRefs(uid) {
-        const result = await query(
-            'SELECT token_id, expiry FROM user_active_token_refs WHERE user_uid = $1',
+            `SELECT token_id, floor(EXTRACT(EPOCH FROM expiry))::FLOAT8 AS expiry
+             FROM tokens WHERE user_uid = $1 AND expiry > now()`,
             [uid]
         );
         return result.rows;
     },
 
     /**
-     * Remove expired token refs AND delete the corresponding token rows.
+     * Delete this user's expired token rows. The DatabaseJanitor system does
+     * the same globally; this keeps hot users tidy between sweeps.
      */
     async removeExpiredTokens(uid) {
-        const now = getCurrentUnixTime();
-        const client = await dbModule.getModule().getPool().connect();
-
-        try {
-            await client.query('BEGIN');
-            
-            // Get expired token IDs
-            const expired = await client.query(
-                'SELECT token_id FROM user_active_token_refs WHERE user_uid = $1 AND expiry <= $2',
-                [uid, now]
-            );
-
-            // Delete the actual token rows
-            for (const row of expired.rows) {
-                await client.query('DELETE FROM tokens WHERE token_id = $1', [row.token_id]).catch(() => {});
-            }
-
-            // Delete the expired refs
-            await client.query(
-                'DELETE FROM user_active_token_refs WHERE user_uid = $1 AND expiry <= $2',
-                [uid, now]
-            );
-            
-            await client.query('COMMIT');
-        } catch (e) {
-            await client.query('ROLLBACK');
-            throw e;
-        } finally {
-            client.release();
-        }
+        await query('DELETE FROM tokens WHERE user_uid = $1 AND expiry <= now()', [uid]);
     },
 
+    /**
+     * Delete a single token, scoped to its owner.
+     */
     async removeTokenRef(uid, tokenId) {
-        await query(
-            'DELETE FROM user_active_token_refs WHERE user_uid = $1 AND token_id = $2',
-            [uid, tokenId]
-        );
-    },
-
-    async clearAllTokenRefs(uid) {
-        await query('DELETE FROM user_active_token_refs WHERE user_uid = $1', [uid]);
+        await query('DELETE FROM tokens WHERE user_uid = $1 AND token_id = $2', [uid, tokenId]);
     }
 };

@@ -44,26 +44,27 @@ export const UserModel = {
     },
 
     /**
-     * Get core user fields by email.
+     * Get core user fields by email (case-insensitive; served by the
+     * users_email_lower_key functional index).
      */
     async getUserByEmail(email) {
-        const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+        const result = await query('SELECT * FROM users WHERE lower(email) = lower($1)', [email]);
         return result.rows[0] || undefined;
     },
 
     /**
-     * Lightweight UID lookup by email. Returns uid string or null.
+     * Lightweight UID lookup by email (case-insensitive). Returns uid string or null.
      */
     async getUidByEmail(email) {
-        const result = await query('SELECT uid FROM users WHERE email = $1', [email]);
+        const result = await query('SELECT uid FROM users WHERE lower(email) = lower($1)', [email]);
         return result.rows[0]?.uid || null;
     },
 
     /**
-     * Check if email is already registered.
+     * Check if email is already registered (case-insensitive).
      */
     async emailExists(email) {
-        const result = await query('SELECT 1 FROM users WHERE email = $1', [email]);
+        const result = await query('SELECT 1 FROM users WHERE lower(email) = lower($1)', [email]);
         return result.rows.length > 0;
     },
 

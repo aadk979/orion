@@ -1,27 +1,34 @@
 import { globalAccessPoint } from '../../../../server/Orion-core/index.js';
 
+// Hard cap on rows returned per list call — the query must never be unbounded.
+const LIST_LIMIT = 500;
+
 const migrate = async () => {
     const pool = globalAccessPoint.db().getPool();
 
     await pool.query(`
         CREATE TABLE IF NOT EXISTS todos (
-            id SERIAL PRIMARY KEY,
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             user_uid TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
-            title TEXT NOT NULL,
+            title TEXT NOT NULL CHECK (char_length(title) <= 1000),
             done BOOLEAN NOT NULL DEFAULT FALSE,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
     `);
 
-    await pool.query('CREATE INDEX IF NOT EXISTS todos_user_uid_idx ON todos(user_uid)');
+    // Composite index matches the list query's WHERE + ORDER BY exactly;
+    // replaces the old single-column todos_user_uid_idx.
+    await pool.query('CREATE INDEX IF NOT EXISTS todos_user_created_idx ON todos(user_uid, created_at DESC, id DESC)');
+    await pool.query('DROP INDEX IF EXISTS todos_user_uid_idx');
 };
 
 const listTodos = async (userUid) => {
     const pool = globalAccessPoint.db().getPool();
     const { rows } = await pool.query(
-        'SELECT id, title, done, created_at, updated_at FROM todos WHERE user_uid = $1 ORDER BY created_at DESC',
-        [userUid]
+        `SELECT id, title, done, created_at, updated_at FROM todos
+         WHERE user_uid = $1 ORDER BY created_at DESC, id DESC LIMIT $2`,
+        [userUid, LIST_LIMIT]
     );
     return rows;
 };

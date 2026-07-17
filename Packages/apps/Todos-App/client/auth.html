@@ -34,6 +34,13 @@
                     </button>
                 </form>
 
+                <div class="divider">or</div>
+
+                <button id="passkey-btn" class="btn btn-outline btn-full btn-sm">
+                    <span class="btn-text">Sign in with Passkey</span>
+                    <div class="spinner"></div>
+                </button>
+
                 <p style="margin-top: 1.25rem; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
                     <span id="toggle-text">Don't have an account?</span>
                     <button id="toggle-btn" class="link" style="background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit;">Sign Up</button>
@@ -109,6 +116,25 @@
                 }
 
                 setLoading(submitBtn, false);
+            });
+
+            // ── Passkey sign-in ──
+            const passkeyBtn = document.getElementById('passkey-btn');
+            passkeyBtn.addEventListener('click', async () => {
+                const email = emailInput.value.trim();
+                if (!email) return showAlert('Enter your email first for passkey sign-in.');
+                setLoading(passkeyBtn, true);
+                try {
+                    const result = await orion.signInWithPasskey(email);
+                    if (result.error) {
+                        showAlert(result.errorCode || 'Passkey sign-in failed.');
+                    } else {
+                        showAlert('Signed in with passkey!', 'success');
+                    }
+                } catch (err) {
+                    showAlert(err.message || 'Passkey error.');
+                }
+                setLoading(passkeyBtn, false);
             });
         </script>
     </body>
