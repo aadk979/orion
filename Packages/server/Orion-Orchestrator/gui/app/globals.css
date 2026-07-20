@@ -1,17 +1,210 @@
-:root {
-    --bg: #0b0e14;
-    --bg-raised: #11151f;
-    --bg-panel: #151a26;
-    --border: #232a3a;
-    --text: #d7dce6;
-    --text-dim: #8b93a7;
-    --accent: #5b8cff;
-    --accent-soft: rgba(91, 140, 255, 0.12);
-    --ok: #3ecf8e;
-    --warn: #f5b83d;
-    --crit: #f0564a;
-    --mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+/**
+ * Orion Orch Panel — two-theme stylesheet.
+ *
+ *   [data-theme="modern"]   Apple-style: white/parchment canvases, Action Blue,
+ *                           pill buttons, generous rhythm, one signature shadow.
+ *                           Spec: gipsy.modern_design.md
+ *   [data-theme="classic"]  MySQL Workbench-style: gray native chrome, sharp
+ *                           rectangles, 11px Segoe/Consolas, zebra grids,
+ *                           status bar. Spec: gipsy.old_school_design.md
+ *
+ * The attribute is stamped onto <html> by AdminServer from ORION_GUI_THEME (or
+ * systemAdmin.http.theme) at request time, so operators switch themes with a
+ * restart — no GUI rebuild. Everything below reads from the token block, so a
+ * theme is a token swap plus a short shape/density override section.
+ */
+
+/* ══ Theme tokens ═══════════════════════════════════════════════════════════ */
+
+/* Modern (Apple) — also the default when no data-theme is present. */
+:root,
+[data-theme='modern'] {
+    /* surfaces */
+    --bg: #ffffff;
+    --bg-raised: #f5f5f7;
+    --bg-panel: #ffffff;
+    --bg-input: #ffffff;
+    --bg-code: #f5f5f7;
+
+    /* lines */
+    --border: #e0e0e0;
+    --border-strong: #d2d2d7;
+
+    /* text */
+    --text: #1d1d1f;
+    --text-dim: #7a7a7a;
+    --text-strong: #1d1d1f;
+
+    /* accent */
+    --accent: #0066cc;
+    --accent-hover: #0071e3;
+    --accent-soft: rgba(0, 102, 204, 0.08);
+    --on-accent: #ffffff;
+
+    /* status — the Apple spec carries no status palette; these are system-style
+       equivalents tuned to hold AA contrast on a white canvas. */
+    --ok: #1d8a4e;
+    --ok-soft: rgba(29, 138, 78, 0.1);
+    --warn: #b25000;
+    --warn-soft: rgba(178, 80, 0, 0.1);
+    --crit: #d70015;
+    --crit-soft: rgba(215, 0, 21, 0.1);
+    --dim-soft: rgba(122, 122, 122, 0.12);
+
+    /* type */
+    --font-ui: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', sans-serif;
+    --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+    --fs-base: 15px;
+    --fs-sm: 14px;
+    --fs-xs: 12px;
+    --lh-base: 1.47;
+    --tracking-body: -0.374px;
+
+    --h1-size: 34px;
+    --h1-weight: 600;
+    --h1-tracking: -0.374px;
+    --h2-size: 21px;
+    --h2-weight: 600;
+    --h2-tracking: 0.231px;
+
+    /* shape */
+    --radius-panel: 18px;
+    --radius-ctl: 11px;
+    --radius-btn: 9999px;
+    --radius-badge: 9999px;
+
+    /* rhythm */
+    --sidebar-w: 260px;
+    --pad-main: 48px 56px;
+    --pad-panel: 24px;
+    --gap-cards: 16px;
+    --cards-min: 200px;
+    --cell-py: 14px;
+    --cell-px: 16px;
+    --nav-gap: 2px;
+    --nav-pad: 10px 14px;
+
+    /* controls */
+    --btn-pad: 11px 22px;
+    --btn-weight: 400;
+    --btn-fs: 15px;
+    --input-pad: 12px 16px;
+    --input-fs: 15px;
+
+    /* chrome details */
+    --th-transform: none;
+    --th-tracking: -0.224px;
+    --th-weight: 600;
+    --th-fs: 14px;
+    --th-bg: transparent;
+    --zebra: transparent;
+    --shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.06);
+    --brand-transform: none;
+    --brand-tracking: -0.374px;
+    --brand-fs: 21px;
+    --label-transform: none;
+    --label-tracking: -0.224px;
+    --label-fs: 14px;
+    --value-fs: 34px;
+    --value-font: var(--font-display);
+    --statusbar-display: none;
 }
+
+/* Classic (MySQL Workbench) */
+[data-theme='classic'] {
+    /* surfaces */
+    --bg: #ffffff;
+    --bg-raised: #f0f0f0;
+    --bg-panel: #ffffff;
+    --bg-input: #ffffff;
+    --bg-code: #ffffff;
+
+    /* lines */
+    --border: #d4d4d4;
+    --border-strong: #c0c0c0;
+
+    /* text */
+    --text: #222222;
+    --text-dim: #666666;
+    --text-strong: #1a1a1a;
+
+    /* accent */
+    --accent: #4479a1;
+    --accent-hover: #5590b5;
+    --accent-soft: #cde6f7;
+    --on-accent: #ffffff;
+
+    /* status */
+    --ok: #2e8b57;
+    --ok-soft: rgba(46, 139, 87, 0.14);
+    --warn: #e0a000;
+    --warn-soft: rgba(224, 160, 0, 0.16);
+    --crit: #cc0000;
+    --crit-soft: rgba(204, 0, 0, 0.12);
+    --dim-soft: rgba(128, 128, 128, 0.16);
+
+    /* type */
+    --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-display: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --mono: Consolas, Menlo, 'DejaVu Sans Mono', monospace;
+    --fs-base: 11px;
+    --fs-sm: 11px;
+    --fs-xs: 10px;
+    --lh-base: 1.6;
+    --tracking-body: 0;
+
+    --h1-size: 13px;
+    --h1-weight: 600;
+    --h1-tracking: 0;
+    --h2-size: 11px;
+    --h2-weight: 700;
+    --h2-tracking: 0.4px;
+
+    /* shape — sharp rectangles dominate; rounding only on small controls */
+    --radius-panel: 0px;
+    --radius-ctl: 2px;
+    --radius-btn: 3px;
+    --radius-badge: 2px;
+
+    /* rhythm — 4px base, density is the feature */
+    --sidebar-w: 200px;
+    --pad-main: 8px 12px 28px;
+    --pad-panel: 8px;
+    --gap-cards: 4px;
+    --cards-min: 132px;
+    --cell-py: 3px;
+    --cell-px: 8px;
+    --nav-gap: 0px;
+    --nav-pad: 3px 8px;
+
+    /* controls */
+    --btn-pad: 4px 14px;
+    --btn-weight: 400;
+    --btn-fs: 11px;
+    --input-pad: 3px 6px;
+    --input-fs: 11px;
+
+    /* chrome details */
+    --th-transform: none;
+    --th-tracking: 0;
+    --th-weight: 600;
+    --th-fs: 11px;
+    --th-bg: #e8e8e8;
+    --zebra: #f5f7fa;
+    --shadow-panel: none;
+    --brand-transform: uppercase;
+    --brand-tracking: 0.4px;
+    --brand-fs: 11px;
+    --label-transform: none;
+    --label-tracking: 0;
+    --label-fs: 11px;
+    --value-fs: 16px;
+    --value-font: var(--mono);
+    --statusbar-display: flex;
+}
+
+/* ══ Base ═══════════════════════════════════════════════════════════════════ */
 
 * {
     box-sizing: border-box;
@@ -23,9 +216,12 @@ html,
 body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
-    font-size: 14px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-base);
+    line-height: var(--lh-base);
+    letter-spacing: var(--tracking-body);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -33,32 +229,38 @@ a {
     text-decoration: none;
 }
 
-/* ── Shell ── */
+a:hover {
+    color: var(--accent-hover);
+}
+
+/* ══ Shell ══════════════════════════════════════════════════════════════════ */
+
 .shell {
     display: flex;
     min-height: 100vh;
 }
 
 .sidebar {
-    width: 220px;
+    width: var(--sidebar-w);
     flex-shrink: 0;
     background: var(--bg-raised);
     border-right: 1px solid var(--border);
     padding: 20px 12px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--nav-gap);
     position: sticky;
     top: 0;
     height: 100vh;
 }
 
 .sidebar .brand {
+    font-family: var(--font-display);
     font-weight: 700;
-    letter-spacing: 0.08em;
-    font-size: 13px;
-    text-transform: uppercase;
-    color: var(--text);
+    font-size: var(--brand-fs);
+    letter-spacing: var(--brand-tracking);
+    text-transform: var(--brand-transform);
+    color: var(--text-strong);
     padding: 0 10px 14px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
@@ -70,20 +272,21 @@ a {
 
 .sidebar a {
     display: block;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: var(--nav-pad);
+    border-radius: var(--radius-ctl);
     color: var(--text-dim);
-    font-weight: 500;
+    font-weight: 400;
 }
 
 .sidebar a:hover {
     background: var(--accent-soft);
-    color: var(--text);
+    color: var(--text-strong);
 }
 
 .sidebar a.active {
     background: var(--accent-soft);
     color: var(--accent);
+    font-weight: 600;
 }
 
 .sidebar .spacer {
@@ -91,7 +294,7 @@ a {
 }
 
 .sidebar .whoami {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--text-dim);
     padding: 10px;
     border-top: 1px solid var(--border);
@@ -100,19 +303,27 @@ a {
 
 .main {
     flex: 1;
-    padding: 28px 32px;
-    max-width: 1200px;
+    padding: var(--pad-main);
+    max-width: 1280px;
 }
 
 h1 {
-    font-size: 20px;
-    margin-bottom: 4px;
+    font-family: var(--font-display);
+    font-size: var(--h1-size);
+    font-weight: var(--h1-weight);
+    letter-spacing: var(--h1-tracking);
+    line-height: 1.1;
+    color: var(--text-strong);
+    margin-bottom: 6px;
 }
 
 h2 {
-    font-size: 15px;
-    margin: 22px 0 10px;
-    color: var(--text);
+    font-family: var(--font-display);
+    font-size: var(--h2-size);
+    font-weight: var(--h2-weight);
+    letter-spacing: var(--h2-tracking);
+    color: var(--text-strong);
+    margin: 28px 0 12px;
 }
 
 .sub {
@@ -120,44 +331,56 @@ h2 {
     margin-bottom: 20px;
 }
 
-/* ── Cards / grid ── */
+/* ══ Cards / panels ═════════════════════════════════════════════════════════ */
+
 .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-    margin: 16px 0;
+    grid-template-columns: repeat(auto-fill, minmax(var(--cards-min), 1fr));
+    gap: var(--gap-cards);
+    margin: 20px 0;
 }
 
 .card {
     background: var(--bg-panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+    padding: var(--pad-panel);
 }
 
 .card .label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: var(--label-fs);
+    text-transform: var(--label-transform);
+    letter-spacing: var(--label-tracking);
     color: var(--text-dim);
 }
 
 .card .value {
-    font-size: 22px;
-    font-weight: 700;
-    margin-top: 6px;
-    font-family: var(--mono);
+    font-family: var(--value-font);
+    font-size: var(--value-fs);
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--text-strong);
+    margin-top: 8px;
 }
 
 .panel {
     background: var(--bg-panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 18px;
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+    padding: var(--pad-panel);
     margin-bottom: 16px;
 }
 
-/* ── Tables ── */
+/* A panel that only wraps a table shouldn't double-pad it. */
+.panel.table-wrap {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* ══ Tables ═════════════════════════════════════════════════════════════════ */
+
 .table-wrap {
     overflow-x: auto;
 }
@@ -165,25 +388,30 @@ h2 {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: var(--fs-sm);
 }
 
 th {
     text-align: left;
+    background: var(--th-bg);
     color: var(--text-dim);
-    font-weight: 600;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 8px 10px;
+    font-weight: var(--th-weight);
+    font-size: var(--th-fs);
+    text-transform: var(--th-transform);
+    letter-spacing: var(--th-tracking);
+    padding: var(--cell-py) var(--cell-px);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
 }
 
 td {
-    padding: 9px 10px;
+    padding: var(--cell-py) var(--cell-px);
     border-bottom: 1px solid var(--border);
     vertical-align: top;
+}
+
+tbody tr:nth-child(even) {
+    background: var(--zebra);
 }
 
 tr:last-child td {
@@ -193,48 +421,67 @@ tr:last-child td {
 td.mono,
 .mono {
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--fs-xs);
 }
 
-/* ── Badges ── */
+/* ══ Badges ═════════════════════════════════════════════════════════════════ */
+
 .badge {
     display: inline-block;
     padding: 2px 9px;
-    border-radius: 99px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
+    border-radius: var(--radius-badge);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.5;
+    white-space: nowrap;
 }
 
-.badge.ok { background: rgba(62, 207, 142, 0.14); color: var(--ok); }
-.badge.warn { background: rgba(245, 184, 61, 0.14); color: var(--warn); }
-.badge.crit { background: rgba(240, 86, 74, 0.14); color: var(--crit); }
-.badge.dim { background: rgba(139, 147, 167, 0.14); color: var(--text-dim); }
-.badge.info { background: var(--accent-soft); color: var(--accent); }
+.badge.ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+.badge.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+}
+.badge.crit {
+    background: var(--crit-soft);
+    color: var(--crit);
+}
+.badge.dim {
+    background: var(--dim-soft);
+    color: var(--text-dim);
+}
+.badge.info {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
 
-/* ── Forms ── */
+/* ══ Forms ══════════════════════════════════════════════════════════════════ */
+
 label.field {
     display: block;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 label.field span {
     display: block;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--text-dim);
-    margin-bottom: 5px;
+    margin-bottom: 6px;
 }
 
 input,
 select,
 textarea {
     width: 100%;
-    background: var(--bg);
+    background: var(--bg-input);
     color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 9px 11px;
-    font-size: 13px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-ctl);
+    padding: var(--input-pad);
+    font-size: var(--input-fs);
     font-family: inherit;
 }
 
@@ -248,21 +495,24 @@ select:focus,
 textarea:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 button {
     background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 9px 16px;
-    font-size: 13px;
-    font-weight: 600;
+    color: var(--on-accent);
+    border: 1px solid transparent;
+    border-radius: var(--radius-btn);
+    padding: var(--btn-pad);
+    font-size: var(--btn-fs);
+    font-family: inherit;
+    font-weight: var(--btn-weight);
+    line-height: 1.2;
     cursor: pointer;
 }
 
 button:hover {
-    filter: brightness(1.1);
+    background: var(--accent-hover);
 }
 
 button:disabled {
@@ -272,17 +522,29 @@ button:disabled {
 
 button.ghost {
     background: transparent;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     color: var(--text);
+}
+
+button.ghost:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 button.danger {
     background: var(--crit);
+    color: #fff;
+}
+
+button.danger:hover {
+    background: var(--crit);
+    filter: brightness(1.1);
 }
 
 button.small {
-    padding: 5px 10px;
-    font-size: 12px;
+    padding: 5px 12px;
+    font-size: var(--fs-xs);
 }
 
 .row {
@@ -293,52 +555,62 @@ button.small {
 }
 
 .msg {
-    padding: 10px 14px;
-    border-radius: 6px;
-    margin: 12px 0;
-    font-size: 13px;
+    padding: 12px 16px;
+    border-radius: var(--radius-ctl);
+    margin: 14px 0;
+    font-size: var(--fs-sm);
 }
 
-.msg.error { background: rgba(240, 86, 74, 0.12); color: var(--crit); }
-.msg.ok { background: rgba(62, 207, 142, 0.12); color: var(--ok); }
+.msg.error {
+    background: var(--crit-soft);
+    color: var(--crit);
+}
+.msg.ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
 
 pre.json {
-    background: var(--bg);
+    background: var(--bg-code);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
+    border-radius: var(--radius-ctl);
+    padding: 14px;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--fs-xs);
+    line-height: 1.5;
     overflow-x: auto;
     max-height: 420px;
 }
 
-/* ── Login ── */
+/* ══ Login ══════════════════════════════════════════════════════════════════ */
+
 .login-wrap {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
+    background: var(--bg-raised);
 }
 
 .login-box {
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
     background: var(--bg-panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
     padding: 32px;
 }
 
 .login-box h1 {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .login-box .qr {
     display: block;
-    margin: 14px auto;
-    border-radius: 8px;
+    margin: 16px auto;
+    border-radius: var(--radius-ctl);
     background: #fff;
     padding: 8px;
     max-width: 200px;
@@ -348,7 +620,7 @@ pre.json {
 .tabs {
     display: flex;
     gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
     border-bottom: 1px solid var(--border);
 }
 
@@ -361,7 +633,158 @@ pre.json {
     padding: 8px 12px;
 }
 
+.tabs button:hover {
+    background: transparent;
+    color: var(--text-strong);
+}
+
 .tabs button.active {
     color: var(--accent);
     border-bottom-color: var(--accent);
+}
+
+/* ══ Status bar — classic only ══════════════════════════════════════════════ */
+
+.statusbar {
+    display: var(--statusbar-display);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 20px;
+    align-items: center;
+    gap: 16px;
+    padding: 0 10px;
+    background: #dcdcdc;
+    border-top: 1px solid var(--border-strong);
+    color: var(--text-dim);
+    font-size: 10px;
+    line-height: 1.2;
+    z-index: 20;
+}
+
+.statusbar .sep {
+    color: var(--border-strong);
+}
+
+.statusbar .spacer {
+    flex: 1;
+}
+
+/* ══ Theme-specific refinements ═════════════════════════════════════════════ */
+
+/* Modern: the sidebar is chrome that recedes; nav sits on parchment with no
+   hard divider beyond the hairline, and the brand carries display type. */
+[data-theme='modern'] .sidebar {
+    padding: 28px 16px;
+}
+
+[data-theme='modern'] .card .value .badge {
+    font-size: 14px;
+    padding: 4px 14px;
+}
+
+/* Modern: tables breathe — first/last cells align to the panel edge. */
+[data-theme='modern'] th:first-child,
+[data-theme='modern'] td:first-child {
+    padding-left: 24px;
+}
+
+[data-theme='modern'] th:last-child,
+[data-theme='modern'] td:last-child {
+    padding-right: 24px;
+}
+
+/* Classic: dense grid rows, hairline cell separation, and the toolbar-gray
+   header strip that defines the Workbench results grid. */
+[data-theme='classic'] table {
+    border: 1px solid var(--border);
+}
+
+[data-theme='classic'] th {
+    border-right: 1px solid var(--border);
+}
+
+[data-theme='classic'] td {
+    border-right: 1px solid var(--border);
+}
+
+[data-theme='classic'] th:last-child,
+[data-theme='classic'] td:last-child {
+    border-right: none;
+}
+
+[data-theme='classic'] tbody tr:hover {
+    background: #e1eef7;
+}
+
+[data-theme='classic'] tr:last-child td {
+    border-bottom: 1px solid var(--border);
+}
+
+/* Classic: sidebar reads as a schema tree — flat rows, selection fill. Its
+   height stops short of the fixed status bar so the sign-out control clears it. */
+[data-theme='classic'] .sidebar {
+    padding: 6px 4px;
+    height: calc(100vh - 20px);
+}
+
+[data-theme='classic'] .sidebar a {
+    border-radius: 0;
+}
+
+[data-theme='classic'] .sidebar a.active {
+    background: var(--accent-soft);
+    color: var(--text-strong);
+    font-weight: 700;
+}
+
+[data-theme='classic'] .sidebar a:hover {
+    background: #e1eef7;
+    color: var(--text-strong);
+}
+
+[data-theme='classic'] .sidebar .brand {
+    padding: 6px 8px 8px;
+    margin-bottom: 6px;
+}
+
+/* Classic: no glow on focus — a hard 1px accent border is the native cue. */
+[data-theme='classic'] input:focus,
+[data-theme='classic'] select:focus,
+[data-theme='classic'] textarea:focus {
+    box-shadow: none;
+    border-color: var(--accent);
+}
+
+/* Classic: 22px native-widget height, with padding tuned so 11px text and the
+   select's arrow both sit on the baseline instead of clipping. */
+[data-theme='classic'] input,
+[data-theme='classic'] select {
+    height: 22px;
+    padding: 1px 4px;
+    line-height: 18px;
+}
+
+/* Classic: secondary buttons read as OS-default gray, not ghosted. */
+[data-theme='classic'] button.ghost {
+    background: #f0f0f0;
+    border-color: var(--border-strong);
+    color: var(--text);
+}
+
+[data-theme='classic'] button.ghost:hover {
+    background: #e8e8e8;
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+[data-theme='classic'] .login-box {
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+}
+
+/* Classic: h2 acts as a panel section header. */
+[data-theme='classic'] h2 {
+    margin: 14px 0 6px;
 }

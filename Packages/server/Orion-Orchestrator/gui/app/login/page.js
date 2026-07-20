@@ -41,7 +41,7 @@ function LoginFlow() {
     const [newPw, setNewPw] = useState('');
     const [newPw2, setNewPw2] = useState('');
 
-    const run = async (fn) => {
+    const run = async fn => {
         setBusy(true);
         setError(null);
         try {
@@ -53,7 +53,7 @@ function LoginFlow() {
         }
     };
 
-    const afterFirstFactor = async (result) => {
+    const afterFirstFactor = async result => {
         setNeedsRotation(result.passwordChangeRequired === true);
         if (result.totpEnrolled) {
             setStep(STEP.TOTP_VERIFY);
@@ -64,41 +64,47 @@ function LoginFlow() {
         }
     };
 
-    const submitFirstFactor = () => run(async () => {
-        if (mode === 'root') {
-            const result = await post('/api/auth/root/login', { email, password });
+    const submitFirstFactor = () =>
+        run(async () => {
+            if (mode === 'root') {
+                const result = await post('/api/auth/root/login', { email, password });
+                await afterFirstFactor(result);
+            } else {
+                await post('/api/auth/magic-link', { email });
+                setNotice(`If ${email} is a system admin, a sign-in link is on its way. Paste the code from the email (or open the link).`);
+                setStep(STEP.MAGIC_CODE);
+            }
+        });
+
+    const submitMagicCode = () =>
+        run(async () => {
+            const result = await post('/api/auth/magic-link/verify', { code });
             await afterFirstFactor(result);
-        } else {
-            await post('/api/auth/magic-link', { email });
-            setNotice(`If ${email} is a system admin, a sign-in link is on its way. Paste the code from the email (or open the link).`);
-            setStep(STEP.MAGIC_CODE);
-        }
-    });
+        });
 
-    const submitMagicCode = () => run(async () => {
-        const result = await post('/api/auth/magic-link/verify', { code });
-        await afterFirstFactor(result);
-    });
+    const finishTotp = endpoint =>
+        run(async () => {
+            const result = await post(endpoint, { token: totp });
+            if (needsRotation || result.admin?.passwordChangeRequired) {
+                setStep(STEP.ROTATE_PASSWORD);
+                return;
+            }
+            router.replace('/');
+        });
 
-    const finishTotp = (endpoint) => run(async () => {
-        const result = await post(endpoint, { token: totp });
-        if (needsRotation || result.admin?.passwordChangeRequired) {
-            setStep(STEP.ROTATE_PASSWORD);
-            return;
-        }
-        router.replace('/');
-    });
-
-    const submitRotation = () => run(async () => {
-        if (newPw !== newPw2) throw new Error('New passwords do not match');
-        await post('/api/auth/root/change-password', { currentPassword: currentPw, newPassword: newPw });
-        router.replace('/');
-    });
+    const submitRotation = () =>
+        run(async () => {
+            if (newPw !== newPw2) throw new Error('New passwords do not match');
+            await post('/api/auth/root/change-password', { currentPassword: currentPw, newPassword: newPw });
+            router.replace('/');
+        });
 
     return (
         <div className="login-wrap">
             <div className="login-box">
-                <h1>Orion <span style={{ color: 'var(--accent)' }}>Orch</span> Panel</h1>
+                <h1>
+                    Orion <span style={{ color: 'var(--accent)' }}>Orch</span> Panel
+                </h1>
                 <p className="sub">Policy-governed cluster control plane</p>
 
                 {error && <div className="msg error">{error}</div>}
@@ -107,8 +113,12 @@ function LoginFlow() {
                 {step === STEP.FIRST_FACTOR && (
                     <>
                         <div className="tabs">
-                            <button className={mode === 'admin' ? 'active' : ''} onClick={() => setMode('admin')}>System admin</button>
-                            <button className={mode === 'root' ? 'active' : ''} onClick={() => setMode('root')}>Root</button>
+                            <button className={mode === 'admin' ? 'active' : ''} onClick={() => setMode('admin')}>
+                                System admin
+                            </button>
+                            <button className={mode === 'root' ? 'active' : ''} onClick={() => setMode('root')}>
+                                Root
+                            </button>
                         </div>
                         <label className="field">
                             <span>Email</span>
@@ -125,7 +135,16 @@ function LoginFlow() {
                         </button>
                         {mode === 'admin' && (
                             <p className="sub" style={{ marginTop: 14, fontSize: 12 }}>
-                                Already have a code? <a href="#" onClick={e => { e.preventDefault(); setStep(STEP.MAGIC_CODE); }}>Enter it directly</a>
+                                Already have a code?{' '}
+                                <a
+                                    href="#"
+                                    onClick={e => {
+                                        e.preventDefault();
+                                        setStep(STEP.MAGIC_CODE);
+                                    }}
+                                >
+                                    Enter it directly
+                                </a>
                             </p>
                         )}
                     </>
@@ -137,7 +156,9 @@ function LoginFlow() {
                             <span>Sign-in code from the email</span>
                             <input value={code} onChange={e => setCode(e.target.value)} className="mono" autoFocus />
                         </label>
-                        <button disabled={busy || !code} onClick={submitMagicCode}>Continue</button>
+                        <button disabled={busy || !code} onClick={submitMagicCode}>
+                            Continue
+                        </button>
                     </>
                 )}
 
@@ -148,7 +169,9 @@ function LoginFlow() {
                             <span>Authenticator code</span>
                             <input value={totp} onChange={e => setTotp(e.target.value)} inputMode="numeric" maxLength={6} className="mono" autoFocus />
                         </label>
-                        <button disabled={busy || totp.length !== 6} onClick={() => finishTotp('/api/auth/totp/verify')}>Verify</button>
+                        <button disabled={busy || totp.length !== 6} onClick={() => finishTotp('/api/auth/totp/verify')}>
+                            Verify
+                        </button>
                     </>
                 )}
 
@@ -156,12 +179,16 @@ function LoginFlow() {
                     <>
                         <p className="sub">MFA enrollment is mandatory — scan this with your authenticator app, then confirm with a code.</p>
                         {enroll.qrDataUrl && <img className="qr" src={enroll.qrDataUrl} alt="TOTP enrollment QR code" />}
-                        <p className="sub" style={{ fontSize: 12 }}>Manual secret: <span className="mono">{enroll.secret}</span></p>
+                        <p className="sub" style={{ fontSize: 12 }}>
+                            Manual secret: <span className="mono">{enroll.secret}</span>
+                        </p>
                         <label className="field">
                             <span>Authenticator code</span>
                             <input value={totp} onChange={e => setTotp(e.target.value)} inputMode="numeric" maxLength={6} className="mono" />
                         </label>
-                        <button disabled={busy || totp.length !== 6} onClick={() => finishTotp('/api/auth/totp/activate')}>Activate</button>
+                        <button disabled={busy || totp.length !== 6} onClick={() => finishTotp('/api/auth/totp/activate')}>
+                            Activate
+                        </button>
                     </>
                 )}
 
@@ -192,7 +219,13 @@ function LoginFlow() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div className="login-wrap"><p className="sub">Loading…</p></div>}>
+        <Suspense
+            fallback={
+                <div className="login-wrap">
+                    <p className="sub">Loading…</p>
+                </div>
+            }
+        >
             <LoginFlow />
         </Suspense>
     );

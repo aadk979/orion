@@ -8,7 +8,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'Account.js');
 
-
 /**
  * Check if an account exists for the given email.
  */

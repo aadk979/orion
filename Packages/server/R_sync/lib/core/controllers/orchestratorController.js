@@ -1,13 +1,6 @@
 import { auditLogger } from '../../utils/AuditLogSystem.js';
 import { getTunnelManager } from '../TunnelManager.js';
-import {
-    addWorker,
-    getWorkerById,
-    getAllWorkers,
-    updateWorker,
-    logEvent,
-    clearAllData
-} from '../../utils/lokidb.js';
+import { addWorker, getWorkerById, getAllWorkers, updateWorker, logEvent, clearAllData } from '../../utils/lokidb.js';
 import { deleteFromCaller } from '../../utils/fileHandler.js';
 import { PERSISTANT_ORCHESTRATOR_CONFIG_FILE, R_SYNC_LOCAL_DB_NAME } from '../../r_sync.meta.js';
 import { generateId } from '../../utils/valueGenerators.js';
@@ -36,8 +29,7 @@ function identityKeysMatch(a, b) {
  * Prefer TCP peer address unless orchestrator config enables trusting x-r_sync-ip (NAT / multi-homed).
  */
 function resolveWorkerIp(req) {
-    const trust =
-        globalAccessPoint.getValue('trustAdvertisedWorkerIp') === true;
+    const trust = globalAccessPoint.getValue('trustAdvertisedWorkerIp') === true;
     const advertised = (req.headers['x-r_sync-ip'] || '').trim();
     const peerRaw = req.socket?.remoteAddress || req.ip || '';
     const peer = normalizeIp(String(peerRaw)) || '127.0.0.1';
@@ -181,7 +173,7 @@ const registerWorker = async (req, res) => {
             workerId,
             encryptionPublicKey,
             signaturePublicKey,
-            isReconnect  // Pass flag to indicate key rotation
+            isReconnect // Pass flag to indicate key rotation
         );
 
         if (!tunnelEstablished) {
@@ -215,7 +207,6 @@ const registerWorker = async (req, res) => {
             message: isReconnect ? 'Worker reconnected with new keys' : 'Worker registered successfully',
             reconnected: isReconnect
         });
-
     } catch (err) {
         logger.error(`Worker registration failed: ${err.message}`);
         return res.status(500).json({
@@ -320,7 +311,6 @@ const broadcastEvent = async (req, res) => {
             failedCount: failedCount,
             results: results
         });
-
     } catch (err) {
         logger.error(`Broadcast failed: ${err.message}`);
         return res.status(500).json({
@@ -377,7 +367,6 @@ const heartbeat = async (req, res) => {
             acknowledged: true,
             timestamp: getCurrentUnixTime()
         });
-
     } catch (err) {
         logger.error(`Heartbeat failed: ${err.message}`);
         return res.status(500).json({
@@ -480,7 +469,6 @@ const flushSystem = async (req, res) => {
             logger.info('FLUSH: Process exit');
             process.exit(0);
         }, 1000);
-
     } catch (err) {
         logger.error(`FLUSH: Flush failed: ${err.message}`);
         return res.status(500).json({
@@ -531,12 +519,7 @@ const handleWorkerEvent = async (req, res) => {
         // Decrypt and verify the event using TunnelManager
         let event;
         try {
-            event = tunnelManager.decryptMessage(
-                payload,
-                signature,
-                connection.sharedKey,
-                connection.signaturePublicKey
-            );
+            event = tunnelManager.decryptMessage(payload, signature, connection.sharedKey, connection.signaturePublicKey);
         } catch (err) {
             logger.error(`Failed to decrypt worker event from ${workerId}: ${err.message}`);
             return res.status(401).json({
@@ -576,7 +559,6 @@ const handleWorkerEvent = async (req, res) => {
             eventId: event.id,
             timestamp: getCurrentUnixTime()
         });
-
     } catch (err) {
         logger.error(`Worker event handling failed: ${err.message}`);
         return res.status(500).json({
@@ -650,7 +632,6 @@ const sendToWorkerById = async (req, res) => {
             workerId: workerId,
             success: true
         });
-
     } catch (err) {
         logger.error(`Send to worker failed: ${err.message}`);
         return res.status(500).json({
@@ -664,20 +645,10 @@ const sendToWorkerById = async (req, res) => {
 /**
  * Register an event handler for worker → orchestrator events
  */
-const registerOrchestratorEventHandler = (handler) => {
+const registerOrchestratorEventHandler = handler => {
     if (typeof handler === 'function') {
         orchestratorEventHandlers.push(handler);
     }
 };
 
-export {
-    registerWorker,
-    getWorkers,
-    broadcastEvent,
-    heartbeat,
-    getStatus,
-    flushSystem,
-    handleWorkerEvent,
-    sendToWorkerById,
-    registerOrchestratorEventHandler
-};
+export { registerWorker, getWorkers, broadcastEvent, heartbeat, getStatus, flushSystem, handleWorkerEvent, sendToWorkerById, registerOrchestratorEventHandler };

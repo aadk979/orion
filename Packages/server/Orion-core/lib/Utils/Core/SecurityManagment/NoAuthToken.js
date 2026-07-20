@@ -9,11 +9,10 @@ import { fileURLToPath } from 'url';
 import { generateRequestId } from '../../valueGenerator.js';
 import { cronScheduler } from '../../Cron.js';
 import { verifyCaptcha, generateCaptchaImage } from '../../CustomCaptchaSystem.js';
-import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
+import { parseCookieData, setManagedCookie } from '../../CookieUtils.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const signatureSecretsManagerModule = new SafeModuleHandler('SignatureSecretsManager(internal)', 'SIGNATURE_SECRETS_MANAGER_internal', 'NoAuthToken.js');
-
 
 const captchaSystemVersion = '[orion:v1]-[1.0.0]-[BETA]';
 
@@ -217,14 +216,8 @@ export const routeHandlerGenerateNoAuthToken = async (request, response) => {
     }
 
     if (callback.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                maxAge: cookie.maxAge
-            });
+        for (const cookie of callback.cookies) {
+            setManagedCookie(response, cookie.key, cookie.data);
         }
     }
 

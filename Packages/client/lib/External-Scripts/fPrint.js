@@ -77,7 +77,7 @@ function t(n, e) {
         return function (u) {
             return (function (c) {
                 if (t) throw new TypeError('Generator is already executing.');
-                for (; i && ((i = 0), c[0] && (a = 0)), a; )
+                for (; i && ((i = 0), c[0] && (a = 0)), a;)
                     try {
                         if (
                             ((t = 1),
@@ -1058,7 +1058,7 @@ var vn = {
     system: [{ fontFamily: 'system-ui' }]
 };
 var hn = function () {
-    for (var n = window; ; ) {
+    for (var n = window; ;) {
         var e = n.parent;
         if (!e || e === n) return !1;
         try {

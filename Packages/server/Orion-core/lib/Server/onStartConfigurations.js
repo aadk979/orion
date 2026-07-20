@@ -20,13 +20,12 @@ import { generateRandomNumber } from '../Utils/valueGenerator.js';
 import { PERSISTANT_CLIENT_URLS_FILE_NAME } from '../orion.meta.js';
 import { EphemeralDatabaseManager } from '../Utils/Databases/EphemeralDatabases/index.js';
 import { HealthCheckModel } from '../Utils/Databases/models/index.js';
-import { TokenSecretsManager } from "../Utils/Systems/TokenSecretsManager.js";
-import { SignatureSecretsManager } from "../Utils/Systems/SignatureSecretsManager.js";
+import { TokenSecretsManager } from '../Utils/Systems/TokenSecretsManager.js';
+import { SignatureSecretsManager } from '../Utils/Systems/SignatureSecretsManager.js';
 import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'onStartConfigurations.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'onStartConfigurations.js');
-
 
 const utilDatabaseLiveCheck = async (maxRetries = 3, retryDelay = 1000) => {
     let attempts = 0;
@@ -50,7 +49,7 @@ const utilDatabaseLiveCheck = async (maxRetries = 3, retryDelay = 1000) => {
         const readCheck = await HealthCheckModel.read(randomKey);
 
         if (readCheck.error) {
-            await HealthCheckModel.remove(randomKey).catch(() => { });
+            await HealthCheckModel.remove(randomKey).catch(() => {});
             if (attempts < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
@@ -81,7 +80,7 @@ const handleDatabaseLiveCheck = async () => {
     const PASS_PERCENTAGE = 100;
 
     // Schema migration is already awaited in initiateServer.js, but allow brief settling time
-    return await new Promise((resolve) => {
+    return await new Promise(resolve => {
         setTimeout(async () => {
             for (let i = 0; i < NUMBER_OF_TESTS; i++) {
                 const test = await utilDatabaseLiveCheck();
@@ -94,13 +93,13 @@ const handleDatabaseLiveCheck = async () => {
             if (passedPercentage < PASS_PERCENTAGE) {
                 throw new Error(
                     'Unable to certify database as operational, pass rate for db check test: ' +
-                    passedPercentage +
-                    '%. Database must be fully operational before server start.'
+                        passedPercentage +
+                        '%. Database must be fully operational before server start.'
                 );
             }
 
             resolve();
-        }, 3000)
+        }, 3000);
     });
 };
 
@@ -111,7 +110,7 @@ const utilAuditTrailSystemLiveCheck = async (auditSystem, maxRetries = 3, retryD
         attempts++;
 
         try {
-            await auditSystem.getLastHash().catch(() => { });
+            await auditSystem.getLastHash().catch(() => {});
 
             const record = auditSystem.record({
                 user: { uid: 'TEST_UID', email: 'test@orion.local' },
@@ -262,20 +261,26 @@ const handleMailCredentialConflicts = () => {
     const systemConfig = systemConfigModule.getModule();
 
     if (globalAccessPoint.deviceAuthorization()) {
-        throw new Error('Configuration conflict: Device authorization is enabled but no mail credentials are configured (systemConfig.mail). Device authorization requires sending a one-time code via email. Either provide mail credentials or disable device authorization (utilities.systemSecurity.deviceAuthorization: "DISABLED").');
+        throw new Error(
+            'Configuration conflict: Device authorization is enabled but no mail credentials are configured (systemConfig.mail). Device authorization requires sending a one-time code via email. Either provide mail credentials or disable device authorization (utilities.systemSecurity.deviceAuthorization: "DISABLED").'
+        );
     }
 
     if (systemConfig?.authMethods?.totp !== false) {
         if (!systemConfig.authMethods) systemConfig.authMethods = {};
         systemConfig.authMethods.totp = false;
         globalAccessPoint.setValue('totpSystemDisabled', true);
-        logger.warn('TOTP has been force-disabled: no mail credentials are configured. TOTP deletion requires an email OTP; allowing registration without deletion would leave accounts in a half-functioning state. Provide mail credentials to re-enable TOTP.');
+        logger.warn(
+            'TOTP has been force-disabled: no mail credentials are configured. TOTP deletion requires an email OTP; allowing registration without deletion would leave accounts in a half-functioning state. Provide mail credentials to re-enable TOTP.'
+        );
     }
 
     if (systemConfig?.authMethods?.passkey !== false) {
         if (!systemConfig.authMethods) systemConfig.authMethods = {};
         systemConfig.authMethods.passkey = false;
-        logger.warn('Passkeys have been force-disabled: no mail credentials are configured. Passkey deletion requires an email OTP; allowing registration without deletion would leave accounts in a half-functioning state. Provide mail credentials to re-enable passkeys.');
+        logger.warn(
+            'Passkeys have been force-disabled: no mail credentials are configured. Passkey deletion requires an email OTP; allowing registration without deletion would leave accounts in a half-functioning state. Provide mail credentials to re-enable passkeys.'
+        );
     }
 };
 
@@ -353,12 +358,16 @@ const handleAllowedClientUrlsConfig = async () => {
         }
 
         if (fileData?.data) {
-            await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, { clientUrls: [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])] });
+            await writeToCaller(PERSISTANT_CLIENT_URLS_FILE_NAME, {
+                clientUrls: [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])]
+            });
         }
 
         globalAccessPoint.setValue(
             'allowedClientUrls',
-            fileData?.data?.clientUrls ? [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])] : validateClientUrls(clientUrlsFromConfig)
+            fileData?.data?.clientUrls
+                ? [...validateClientUrls([...fileData.data.clientUrls, ...clientUrlsFromConfig])]
+                : validateClientUrls(clientUrlsFromConfig)
         );
 
         return;
@@ -405,55 +414,68 @@ const handleEphemeralDatabaseSetup = async () => {
     return;
 };
 
-const handleTokenSecretsSetup = async () => {
+// Flat registry of every live secrets manager so cluster-plane consumers
+// (ClusterLinkSystem's secrets:* commands) can enumerate them without knowing
+// the per-domain GAP key naming scheme.
+const registerSecretsManager = (kind, domain, manager) => {
+    const registry = globalAccessPoint.getValue('secretsManagersRegistry') || [];
+    registry.push({ kind, domain, manager });
+    globalAccessPoint.setValue('secretsManagersRegistry', registry);
+};
 
-    const defaultDomains = ["access", "refresh", "resource"];
+const handleTokenSecretsSetup = async () => {
+    const defaultDomains = ['access', 'refresh', 'resource'];
 
     const tokenSecurityTier = systemConfigModule.getModule()?.tokens?.securityTier;
 
-    globalAccessPoint.setValue("tokenSecurityTier", Number(tokenSecurityTier) || 4)
+    globalAccessPoint.setValue('tokenSecurityTier', Number(tokenSecurityTier) || 4);
 
     let arr = [];
 
     for (let i = 0; i < defaultDomains.length; i++) {
         const domain = defaultDomains[i];
 
-        const token_secrets_manager = new TokenSecretsManager(domain, "ES256", 2);
+        const token_secrets_manager = new TokenSecretsManager(domain, 'ES256', 2);
 
         arr.push({ domain, token_secrets_manager });
     }
 
-    const initialization = await Promise.all(arr.map(async val => {
-        await val.token_secrets_manager.initialize();
-    }));
+    const initialization = await Promise.all(
+        arr.map(async val => {
+            await val.token_secrets_manager.initialize();
+        })
+    );
 
     arr.forEach(val => {
         globalAccessPoint.setValue(`TOKEN_SECRETS_MANAGER_${val.domain}`, val.token_secrets_manager);
+        registerSecretsManager('token', val.domain, val.token_secrets_manager);
     });
 
     return initialization;
-
-}
+};
 
 const handleSignatureSecretsSetup = async () => {
-    const defaultDomains = ["internal"];
+    const defaultDomains = ['internal'];
 
     let arr = [];
 
     for (let i = 0; i < defaultDomains.length; i++) {
         const domain = defaultDomains[i];
 
-        const signatureSecretsManager = new SignatureSecretsManager(domain, "ES256", 2);
+        const signatureSecretsManager = new SignatureSecretsManager(domain, 'ES256', 2);
 
         arr.push({ domain, signatureSecretsManager });
     }
 
-    const initialization = await Promise.all(arr.map(async val => {
-        await val.signatureSecretsManager.initialize();
-    }));
+    const initialization = await Promise.all(
+        arr.map(async val => {
+            await val.signatureSecretsManager.initialize();
+        })
+    );
 
     arr.forEach(val => {
         globalAccessPoint.setValue(`SIGNATURE_SECRETS_MANAGER_${val.domain}`, val.signatureSecretsManager);
+        registerSecretsManager('signature', val.domain, val.signatureSecretsManager);
     });
 
     return initialization;

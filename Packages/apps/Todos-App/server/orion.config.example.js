@@ -9,12 +9,7 @@
 // so working SMTP credentials are REQUIRED — Orion-core force-disables those
 // methods at boot if `mail` is absent.
 
-import {
-    listTodosHandler,
-    createTodoHandler,
-    updateTodoHandler,
-    deleteTodoHandler
-} from './todos/TodosHandlers.js';
+import { listTodosHandler, createTodoHandler, updateTodoHandler, deleteTodoHandler } from './todos/TodosHandlers.js';
 
 const configuration = {
     app: {
@@ -32,7 +27,7 @@ const configuration = {
             floodGuard: {
                 enabled: true,
                 windowMs: 60_000, // rolling window (ms)
-                max: 1000         // max requests per IP per window
+                max: 1000 // max requests per IP per window
             }
         },
         auditTrailSystem: {
@@ -53,8 +48,8 @@ const configuration = {
             // Advisory-locked: exactly one cluster node sweeps per cycle.
             // All keys optional — these are the defaults.
             enabled: true,
-            intervalMs: 900_000,  // 15 minutes
-            batchSize: 5000       // rows deleted per statement (bounds lock time)
+            intervalMs: 900_000, // 15 minutes
+            batchSize: 5000 // rows deleted per statement (bounds lock time)
         },
         dataEncryption: {
             // Encryption-at-rest key for TOTP 2FA secrets (AES-256-GCM,
@@ -123,7 +118,7 @@ const configuration = {
             directory: 'public', // relative to cwd (or an absolute path)
             options: {
                 dotfiles: 'ignore', // never serve .env/.git/etc.
-                index: false,       // no implicit directory index
+                index: false, // no implicit directory index
                 maxAge: '1h'
             }
         }

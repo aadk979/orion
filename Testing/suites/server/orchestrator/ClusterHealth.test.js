@@ -58,10 +58,7 @@ describe('ClusterHealth — state computation', () => {
 
     test('half the fleet down (>=2 nodes) is an INCIDENT', () => {
         const h = new ClusterHealth();
-        const result = h.evaluate([
-            node('W1', { online: false }), node('W2', { etsLockdown: true }),
-            node('W3'), node('W4')
-        ], NOW);
+        const result = h.evaluate([node('W1', { online: false }), node('W2', { etsLockdown: true }), node('W3'), node('W4')], NOW);
         assert.equal(result.targetState, ClusterStates.INCIDENT);
         assert.equal(result.ratio, 0.5);
     });

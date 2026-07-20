@@ -46,43 +46,43 @@ is unchanged.
 
 ## How the pieces fit
 
-| Layer | Package | Role |
-|-------|---------|------|
-| Transport | `r-sync` | Encrypted, authenticated, replay-protected event delivery between one ORCHESTRATOR and N WORKERs |
-| Protocol | `orion-orch/protocol` | The application contract: event names, command allowlist, consensus topics, cluster states, envelope shapes. Imported by BOTH sides so they can never drift apart |
-| Control plane | `orion-orch` | `OrionOrchestrator` — registry, command dispatch, policies, consensus, health, escalations |
-| Node agent | Orion-core `ClusterLinkSystem` | Embeds an R_Sync WORKER inside each Orion-core service; reports status, raises alerts the moment flags flip, executes allowlisted commands, casts consensus ballots, self-heals desynced tunnels |
+| Layer         | Package                        | Role                                                                                                                                                                                             |
+| ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Transport     | `r-sync`                       | Encrypted, authenticated, replay-protected event delivery between one ORCHESTRATOR and N WORKERs                                                                                                 |
+| Protocol      | `orion-orch/protocol`          | The application contract: event names, command allowlist, consensus topics, cluster states, envelope shapes. Imported by BOTH sides so they can never drift apart                                |
+| Control plane | `orion-orch`                   | `OrionOrchestrator` — registry, command dispatch, policies, consensus, health, escalations                                                                                                       |
+| Node agent    | Orion-core `ClusterLinkSystem` | Embeds an R_Sync WORKER inside each Orion-core service; reports status, raises alerts the moment flags flip, executes allowlisted commands, casts consensus ballots, self-heals desynced tunnels |
 
 Redis-backed **cluster mode** in Orion-core (shared signing-key fan-out via the
-secrets managers) is complementary and independent: cluster mode shares *data*,
-the orchestrator link shares *control and observability*. A production cluster
+secrets managers) is complementary and independent: cluster mode shares _data_,
+the orchestrator link shares _control and observability_. A production cluster
 typically runs both.
 
 ## What flows over the wire
 
 ### Node → Orchestrator
 
-| Event | When | Orchestrator reaction |
-|-------|------|----------------------|
-| `orion:node:hello` | on join, re-registration, and identify requests | registry records identity; NODE_RECOVERED raised if the node was offline |
-| `orion:node:status` | every `statusReportIntervalMs` (default 60s) — full `getSystemStatus()` + process telemetry | registry updated; feeds ClusterHealth |
-| `orion:node:alert` | the MOMENT an operational flag flips (fast watcher, default 2s cadence): ETS lockdown, event-loop degradation, server lock, memory pressure, tunnel resync | PolicyEngine runs the matching rules (verify → escalate → optional remediation) |
-| `orion:node:goodbye` | graceful shutdown | node marked offline instantly |
-| `orion:command:result` | reply to any command | resolves the awaiting `command()` promise |
+| Event                  | When                                                                                                                                                       | Orchestrator reaction                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `orion:node:hello`     | on join, re-registration, and identify requests                                                                                                            | registry records identity; NODE_RECOVERED raised if the node was offline        |
+| `orion:node:status`    | every `statusReportIntervalMs` (default 60s) — full `getSystemStatus()` + process telemetry                                                                | registry updated; feeds ClusterHealth                                           |
+| `orion:node:alert`     | the MOMENT an operational flag flips (fast watcher, default 2s cadence): ETS lockdown, event-loop degradation, server lock, memory pressure, tunnel resync | PolicyEngine runs the matching rules (verify → escalate → optional remediation) |
+| `orion:node:goodbye`   | graceful shutdown                                                                                                                                          | node marked offline instantly                                                   |
+| `orion:command:result` | reply to any command                                                                                                                                       | resolves the awaiting `command()` promise                                       |
 
 ### Orchestrator → Node
 
-| Event | Purpose |
-|-------|---------|
-| `orion:command` | allowlisted remote command (see table below) |
+| Event                 | Purpose                                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orion:command`       | allowlisted remote command (see table below)                                                                                                          |
 | `orion:cluster:state` | broadcast on every health transition — each node stores it in its GAP (`globalAccessPoint.clusterState()`), so the whole fleet shares one health view |
 
 ### Orchestrator-internal signals
 
-| Signal | Source |
-|--------|--------|
-| `node:stale` alert | stale sweep — node silent past `nodeStaleAfterSeconds` |
-| `node:recovered` alert | any authenticated traffic from an offline node |
+| Signal                             | Source                                                         |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `node:stale` alert                 | stale sweep — node silent past `nodeStaleAfterSeconds`         |
+| `node:recovered` alert             | any authenticated traffic from an offline node                 |
 | `cluster:state-changed` escalation | ClusterHealth transitions (INCIDENT entry consensus-confirmed) |
 
 ## Quick start
@@ -93,7 +93,7 @@ typically runs both.
 import { OrionOrchestrator, ClusterCommands, ConsensusTopics } from 'orion-orch';
 
 const orch = new OrionOrchestrator({
-    cluster: 'orion-prod',           // required — nodes must present the same name
+    cluster: 'orion-prod', // required — nodes must present the same name
     publicIp: '10.0.0.5',
     port: 55321,
 
@@ -104,25 +104,31 @@ const orch = new OrionOrchestrator({
     escalations: {
         webhook: { url: 'https://ops.example.com/hooks/orion', headers: { 'x-api-key': '...' } }
     },
-    persistence: { enabled: true },  // registry survives orchestrator restarts
+    persistence: { enabled: true }, // registry survives orchestrator restarts
 
     policies: {
         // Defaults cover every alert type; add your own on top:
-        rules: [{
-            id: 'auto-clear-lockdown-after-10m',
-            on: ['ets:lockdown-engaged'],
-            cooldownSec: 900,
-            actions: [{
-                type: 'schedule-command',
-                delaySec: 600,
-                action: ClusterCommands.CLEAR_ETS_LOCKDOWN,
-                onlyIfStatusFlag: 'etsLockdown'   // re-checks before firing
-            }]
-        }]
+        rules: [
+            {
+                id: 'auto-clear-lockdown-after-10m',
+                on: ['ets:lockdown-engaged'],
+                cooldownSec: 900,
+                actions: [
+                    {
+                        type: 'schedule-command',
+                        delaySec: 600,
+                        action: ClusterCommands.CLEAR_ETS_LOCKDOWN,
+                        onlyIfStatusFlag: 'etsLockdown' // re-checks before firing
+                    }
+                ]
+            }
+        ]
     }
 });
 
-orch.addEscalationChannel('pagerduty', async (e) => { /* your notifier */ });
+orch.addEscalationChannel('pagerduty', async e => {
+    /* your notifier */
+});
 orch.onClusterStateChange((state, prev, evaluation) => console.log(`${prev} → ${state}`, evaluation));
 
 await orch.start();
@@ -167,9 +173,9 @@ await orch.command(workerId, ClusterCommands.GET_STATUS);
 await orch.command(workerId, ClusterCommands.SET_MAX_IN_FLIGHT, { limit: 500 });
 
 // Cluster-wide (never rejects; per-node failures are in the result array)
-await orch.lockCluster();                 // emergency: reject all API traffic fleet-wide
+await orch.lockCluster(); // emergency: reject all API traffic fleet-wide
 await orch.unlockCluster();
-await orch.addClientUrls(['https://new-frontend.example']);   // runtime config propagation
+await orch.addClientUrls(['https://new-frontend.example']); // runtime config propagation
 
 // Fleet consensus — decisions backed by every node's LOCAL view
 const vote = await orch.proposeConsensus(ConsensusTopics.NODE_HEALTHY);
@@ -180,72 +186,72 @@ await orch.declareIncident('DB region failover in progress');
 await orch.resolveIncident('failover complete');
 
 // Observability surfaces
-orch.getClusterHealth();      // state machine snapshot
-orch.getEscalations();        // notification history
-orch.getConsensusHistory();   // past proposals + ballots
-orch.getPolicyOutcomes();     // which rules ran, what they did
-orch.getCommandLog();         // audit ring of every issued command
+orch.getClusterHealth(); // state machine snapshot
+orch.getEscalations(); // notification history
+orch.getConsensusHistory(); // past proposals + ballots
+orch.getPolicyOutcomes(); // which rules ran, what they did
+orch.getCommandLog(); // audit ring of every issued command
 ```
 
 ## Configuration Reference — `OrionOrchestrator`
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `cluster` | `string` | — (required) | Cluster name; nodes must match it to register |
-| `publicIp` / `port` | `string`/`number` | `127.0.0.1` / `55321` | Orchestrator M2M address |
-| `encryptionAlg` | `string` | `ECC_256` | `ECC_256` / `ECC_384` / `ECC_521` (must match nodes) |
-| `trustAdvertisedWorkerIp` | `boolean` | `false` | See R_Sync docs — leave false unless nodes are behind NAT |
-| `nodeStaleAfterSeconds` | `number` | `120` | Node flagged offline (`node:stale`) after this silence |
-| `staleSweepIntervalMs` | `number` | `30000` | Stale-check frequency |
-| `commandTimeoutMs` | `number` | `10000` | Default await window for commands |
-| `healthEvaluationIntervalMs` | `number` | `15000` | ClusterHealth evaluation cadence |
-| `confirmIncidentViaConsensus` | `boolean` | `true` | INCIDENT entry requires a failed NODE_HEALTHY fleet vote (an unreachable fleet still counts as an incident) |
-| `identifyOnStart` | `boolean` | `true` | Ask nodes with live tunnels to re-send identity after an orchestrator restart |
-| `health` | `object` | `{}` | `{ incidentRatio: 0.5, minUnhealthyForIncident: 2, statusMaxAgeSeconds: 300 }` |
-| `consensus` | `object` | `{}` | Default `{ quorumRatio: 0.5, minVoters: 1, timeoutMs: 8000 }` for proposals |
-| `policies` | `object` | `{}` | `{ useDefaults: true, rules: [...] }` — see PolicyEngine |
-| `escalations` | `object` | `{}` | `{ webhook: { url, headers } }` — log channel is always on |
-| `persistence` | `object` | `{ enabled: true }` | `{ enabled, directory, fileName, debounceMs }` — registry file `orion_orch.internal.registry.json` |
-| `systemAdmin` | `object` | `{ enabled: false }` | The PBAC system-admin plane (panel + API + CLI) — see the dedicated section below |
+| Property                      | Type              | Default               | Description                                                                                                 |
+| ----------------------------- | ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `cluster`                     | `string`          | — (required)          | Cluster name; nodes must match it to register                                                               |
+| `publicIp` / `port`           | `string`/`number` | `127.0.0.1` / `55321` | Orchestrator M2M address                                                                                    |
+| `encryptionAlg`               | `string`          | `ECC_256`             | `ECC_256` / `ECC_384` / `ECC_521` (must match nodes)                                                        |
+| `trustAdvertisedWorkerIp`     | `boolean`         | `false`               | See R_Sync docs — leave false unless nodes are behind NAT                                                   |
+| `nodeStaleAfterSeconds`       | `number`          | `120`                 | Node flagged offline (`node:stale`) after this silence                                                      |
+| `staleSweepIntervalMs`        | `number`          | `30000`               | Stale-check frequency                                                                                       |
+| `commandTimeoutMs`            | `number`          | `10000`               | Default await window for commands                                                                           |
+| `healthEvaluationIntervalMs`  | `number`          | `15000`               | ClusterHealth evaluation cadence                                                                            |
+| `confirmIncidentViaConsensus` | `boolean`         | `true`                | INCIDENT entry requires a failed NODE_HEALTHY fleet vote (an unreachable fleet still counts as an incident) |
+| `identifyOnStart`             | `boolean`         | `true`                | Ask nodes with live tunnels to re-send identity after an orchestrator restart                               |
+| `health`                      | `object`          | `{}`                  | `{ incidentRatio: 0.5, minUnhealthyForIncident: 2, statusMaxAgeSeconds: 300 }`                              |
+| `consensus`                   | `object`          | `{}`                  | Default `{ quorumRatio: 0.5, minVoters: 1, timeoutMs: 8000 }` for proposals                                 |
+| `policies`                    | `object`          | `{}`                  | `{ useDefaults: true, rules: [...] }` — see PolicyEngine                                                    |
+| `escalations`                 | `object`          | `{}`                  | `{ webhook: { url, headers } }` — log channel is always on                                                  |
+| `persistence`                 | `object`          | `{ enabled: true }`   | `{ enabled, directory, fileName, debounceMs }` — registry file `orion_orch.internal.registry.json`          |
+| `systemAdmin`                 | `object`          | `{ enabled: false }`  | The PBAC system-admin plane (panel + API + CLI) — see the dedicated section below                           |
 
 ## Configuration Reference — Orion-core `utilities.clusterLink`
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `enabled` | `boolean` | `false` | Master switch |
-| `cluster` | `string` | — | Required when enabled |
-| `orchestratorIp` / `orchestratorPort` | `string`/`number` | `127.0.0.1` / `55321` | Where the orchestrator lives |
-| `publicIp` / `port` | `string`/`number` | `127.0.0.1` / `55322` | This node's M2M callback address |
-| `encryptionAlg` | `string` | `ECC_256` | Must match the orchestrator |
-| `heartbeatIntervalMs` | `number` | `30000` | Transport-level liveness |
-| `statusReportIntervalMs` | `number` | `60000` | Application-level status snapshots |
-| `flagWatchIntervalMs` | `number` | `2000` | Fast operational-flag watcher (alert latency ceiling); `0` disables |
-| `memoryPressureThresholdPercent` | `number` | `80` | System memory % at which the node reports pressure |
-| `reRegisterAfterFailures` | `number` | `3` | Consecutive delivery failures before full tunnel re-registration; `0` disables |
-| `allowRemoteControl` | `boolean` | `true` | Master gate for executing orchestrator commands |
-| `requireOrchestrator` | `boolean` | `false` | Fail the Orion boot if registration fails |
+| Property                              | Type              | Default               | Description                                                                    |
+| ------------------------------------- | ----------------- | --------------------- | ------------------------------------------------------------------------------ |
+| `enabled`                             | `boolean`         | `false`               | Master switch                                                                  |
+| `cluster`                             | `string`          | —                     | Required when enabled                                                          |
+| `orchestratorIp` / `orchestratorPort` | `string`/`number` | `127.0.0.1` / `55321` | Where the orchestrator lives                                                   |
+| `publicIp` / `port`                   | `string`/`number` | `127.0.0.1` / `55322` | This node's M2M callback address                                               |
+| `encryptionAlg`                       | `string`          | `ECC_256`             | Must match the orchestrator                                                    |
+| `heartbeatIntervalMs`                 | `number`          | `30000`               | Transport-level liveness                                                       |
+| `statusReportIntervalMs`              | `number`          | `60000`               | Application-level status snapshots                                             |
+| `flagWatchIntervalMs`                 | `number`          | `2000`                | Fast operational-flag watcher (alert latency ceiling); `0` disables            |
+| `memoryPressureThresholdPercent`      | `number`          | `80`                  | System memory % at which the node reports pressure                             |
+| `reRegisterAfterFailures`             | `number`          | `3`                   | Consecutive delivery failures before full tunnel re-registration; `0` disables |
+| `allowRemoteControl`                  | `boolean`         | `true`                | Master gate for executing orchestrator commands                                |
+| `requireOrchestrator`                 | `boolean`         | `false`               | Fail the Orion boot if registration fails                                      |
 
 ## Command allowlist
 
 Every action maps 1:1 onto a node capability:
 
-| Action | Args | Safe-mode gated |
-|--------|------|-----------------|
-| `node:ping` | — | no |
-| `node:identify` | — | no |
-| `status:get` | — | no |
-| `consensus:vote` | `{ topic, params? }` | no (read-only evaluation) |
-| `server:lock` / `server:unlock` | — | no |
-| `ets:clear-lockdown` | — | **yes** |
-| `security:deactivate` / `security:reactivate` | `{ system }` | **yes** |
-| `audit:pause` / `audit:resume` | — | **yes** |
-| `circuit:open` | `{ dependency }` | no |
-| `circuit:reset` | `{ dependency }` | **yes** |
-| `load:set-max-in-flight` | `{ limit }` | **yes** |
-| `abuse:unblock-actor` | `{ actorId }` | **yes** |
-| `config:client-urls:add` | `{ clientUrls }` | gated by the node's `clientUrls.runTimeUpdateAllowed` boot flag |
-| `memory-monitor:start/stop` | — | no |
-| `event-loop-monitor:start/stop` | — | no |
+| Action                                        | Args                 | Safe-mode gated                                                 |
+| --------------------------------------------- | -------------------- | --------------------------------------------------------------- |
+| `node:ping`                                   | —                    | no                                                              |
+| `node:identify`                               | —                    | no                                                              |
+| `status:get`                                  | —                    | no                                                              |
+| `consensus:vote`                              | `{ topic, params? }` | no (read-only evaluation)                                       |
+| `server:lock` / `server:unlock`               | —                    | no                                                              |
+| `ets:clear-lockdown`                          | —                    | **yes**                                                         |
+| `security:deactivate` / `security:reactivate` | `{ system }`         | **yes**                                                         |
+| `audit:pause` / `audit:resume`                | —                    | **yes**                                                         |
+| `circuit:open`                                | `{ dependency }`     | no                                                              |
+| `circuit:reset`                               | `{ dependency }`     | **yes**                                                         |
+| `load:set-max-in-flight`                      | `{ limit }`          | **yes**                                                         |
+| `abuse:unblock-actor`                         | `{ actorId }`        | **yes**                                                         |
+| `config:client-urls:add`                      | `{ clientUrls }`     | gated by the node's `clientUrls.runTimeUpdateAllowed` boot flag |
+| `memory-monitor:start/stop`                   | —                    | no                                                              |
+| `event-loop-monitor:start/stop`               | —                    | no                                                              |
 
 ## Consensus topics
 
@@ -254,13 +260,13 @@ engine tallies ballots against a quorum measured over **eligible** voters, so
 silent nodes make acceptance harder, never easier. A mostly-unreachable fleet
 yields `decided: false` — never a fake rejection.
 
-| Topic | A node votes true when… |
-|-------|------------------------|
-| `node-healthy` | no lockdown, no ELM degradation, no memory pressure, not locked |
-| `ets-lockdown` | it is in ETS lockdown |
-| `elm-degraded` | its event loop is degraded |
-| `memory-pressure` | memory usage ≥ threshold (`params.thresholdPercent`) |
-| `abuse-high` | ≥ `params.minBlocked` actors currently blocked |
+| Topic             | A node votes true when…                                         |
+| ----------------- | --------------------------------------------------------------- |
+| `node-healthy`    | no lockdown, no ELM degradation, no memory pressure, not locked |
+| `ets-lockdown`    | it is in ETS lockdown                                           |
+| `elm-degraded`    | its event loop is degraded                                      |
+| `memory-pressure` | memory usage ≥ threshold (`params.thresholdPercent`)            |
+| `abuse-high`      | ≥ `params.minBlocked` actors currently blocked                  |
 
 ## Policy engine
 
@@ -355,9 +361,9 @@ Policy documents are IAM-flavored JSON, validated on write:
 {
     "version": 1,
     "statements": [
-        { "sid": "observe",  "effect": "allow", "actions": ["cluster:read:*", "audit:read"], "resources": ["*"] },
-        { "sid": "ops",      "effect": "allow", "actions": ["cluster:ops:lock", "cluster:ops:unlock"], "resources": ["*"] },
-        { "sid": "no-prod",  "effect": "deny",  "actions": ["cluster:command:*"], "resources": ["node:WKR-prod-1"] }
+        { "sid": "observe", "effect": "allow", "actions": ["cluster:read:*", "audit:read"], "resources": ["*"] },
+        { "sid": "ops", "effect": "allow", "actions": ["cluster:ops:lock", "cluster:ops:unlock"], "resources": ["*"] },
+        { "sid": "no-prod", "effect": "deny", "actions": ["cluster:command:*"], "resources": ["node:WKR-prod-1"] }
     ]
 }
 ```
@@ -366,12 +372,12 @@ Semantics: **default deny**, **deny overrides**, effective policy = union of
 direct + group attachments. Patterns are `:`-segment globs (`*` = one segment,
 trailing `*` = the rest). The action vocabulary (`lib/SystemAdmin/adminActions.js`):
 
-| Action | Grants |
-|--------|--------|
-| `cluster:read:status` / `nodes` / `health` / `escalations` / `consensus` / `policy-rules` / `policy-outcomes` / `command-log` | The matching read surface |
-| `cluster:ops:lock` / `unlock` / `incident-declare` / `incident-resolve` / `consensus-propose` / `client-urls-add` | The matching cluster operation |
-| `cluster:command:<node action>` (e.g. `cluster:command:server:lock`) | Executing that specific allowlisted node command; resource `node:<workerId>` or `*` |
-| `audit:read` | Reading the orch audit trail |
+| Action                                                                                                                        | Grants                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `cluster:read:status` / `nodes` / `health` / `escalations` / `consensus` / `policy-rules` / `policy-outcomes` / `command-log` | The matching read surface                                                           |
+| `cluster:ops:lock` / `unlock` / `incident-declare` / `incident-resolve` / `consensus-propose` / `client-urls-add`             | The matching cluster operation                                                      |
+| `cluster:command:<node action>` (e.g. `cluster:command:server:lock`)                                                          | Executing that specific allowlisted node command; resource `node:<workerId>` or `*` |
+| `audit:read`                                                                                                                  | Reading the orch audit trail                                                        |
 
 A managed built-in policy `default-read-only` (`POL_DEFAULT_READ_ONLY`) ships
 with the migration and is attached automatically when an admin is created with
@@ -416,6 +422,31 @@ operations, observability, audit trail (with chain verification), governance
 
 Rebuild after GUI changes: `npm run build:gui` (then commit `gui/out`).
 
+#### Panel themes
+
+The panel ships two complete visual themes, both compiled into the same CSS
+bundle:
+
+| Theme     | Look                                                                                                                | Spec                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `modern`  | Default. Light Apple-style: white/parchment surfaces, Action Blue `#0066cc`, pill buttons, roomy spacing, soft shadow | `gipsy.modern_design.md`    |
+| `classic` | Dense MySQL Workbench-style: gray native chrome, sharp rectangles, 11px Segoe/Consolas, zebra grids, status bar       | `gipsy.old_school_design.md` |
+
+Select one with either (config wins over env):
+
+```bash
+ORION_GUI_THEME=classic          # env
+```
+
+```js
+systemAdmin: { http: { theme: 'classic' } }   // config
+```
+
+`AdminServer` stamps `data-theme` onto `<html>` as each document is served, so
+switching themes is a **process restart — never a GUI rebuild**. An unrecognised
+name logs a warning and falls back to `modern`. The active theme is reported at
+startup and on `GET /api/meta` (`guiTheme`).
+
 ### The CLI (`orionctl`)
 
 Ships in the package `bin`. Talks to the exact same API under the exact same
@@ -436,18 +467,18 @@ orionctl help                       # full command surface
 
 ### Configuration Reference — `systemAdmin`
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `enabled` | `boolean` | `false` | Master switch — everything below only applies when true |
-| `database` | `object` | — (required) | `{ host, port, database, user, password, poolMax?, statementTimeoutMs? }` — orch's READ-WRITE credentials on the shared Postgres |
-| `rootAdmin` | `object` | — (required on first boot) | `{ email, initialPassword }` (min 12 chars) — consumed only when no root exists yet |
-| `http` | `object` | `{}` | `{ host: '0.0.0.0', port: 55330, secureCookies: true, trustProxy: false, authRateLimit: { max: 10, windowMs: 300000 } }` |
-| `baseUrl` | `string` | `null` | Public URL of the panel — used to build magic-link URLs |
-| `mail` | `object` | `{}` | `{ service | host/port/secure, email, password, from, appName }` — omit for console-mode links (dev only) |
-| `magicLinkTtlMinutes` | `number` | `10` | Magic-link validity (single use regardless) |
-| `pendingSessionTtlMinutes` | `number` | `15` | Lifetime of the between-factors session |
-| `sessionTtlHours` | `number` | `12` | Lifetime of a fully-authenticated session |
-| `totpIssuer` | `string` | `'Orion Orchestrator'` | Issuer shown in authenticator apps |
+| Property                   | Type      | Default                    | Description                                                                                                                      |
+| -------------------------- | --------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`                  | `boolean` | `false`                    | Master switch — everything below only applies when true                                                                          |
+| `database`                 | `object`  | — (required)               | `{ host, port, database, user, password, poolMax?, statementTimeoutMs? }` — orch's READ-WRITE credentials on the shared Postgres |
+| `rootAdmin`                | `object`  | — (required on first boot) | `{ email, initialPassword }` (min 12 chars) — consumed only when no root exists yet                                              |
+| `http`                     | `object`  | `{}`                       | `{ host: '0.0.0.0', port: 55330, secureCookies: true, trustProxy: false, authRateLimit: { max: 10, windowMs: 300000 }, theme: 'modern' }` — `theme` is `'modern' \| 'classic'`, overrides `ORION_GUI_THEME` |
+| `baseUrl`                  | `string`  | `null`                     | Public URL of the panel — used to build magic-link URLs                                                                          |
+| `mail`                     | `object`  | `{}`                       | `{ service                                                                                                                       | host/port/secure, email, password, from, appName }` — omit for console-mode links (dev only) |
+| `magicLinkTtlMinutes`      | `number`  | `10`                       | Magic-link validity (single use regardless)                                                                                      |
+| `pendingSessionTtlMinutes` | `number`  | `15`                       | Lifetime of the between-factors session                                                                                          |
+| `sessionTtlHours`          | `number`  | `12`                       | Lifetime of a fully-authenticated session                                                                                        |
+| `totpIssuer`               | `string`  | `'Orion Orchestrator'`     | Issuer shown in authenticator apps                                                                                               |
 
 Failure-mode guarantees:
 
@@ -457,7 +488,7 @@ Failure-mode guarantees:
 - **Orchestrator restarts** → registry rehydrated from disk (nodes marked
   offline until they prove liveness), then an identify sweep over still-live
   tunnels rebuilds current state within seconds.
-- **Fleet partition** → consensus returns *undecided* rather than guessing;
+- **Fleet partition** → consensus returns _undecided_ rather than guessing;
   undecided incident-confirmation counts FOR the incident, because a silent
   fleet is exactly what an incident looks like.
 

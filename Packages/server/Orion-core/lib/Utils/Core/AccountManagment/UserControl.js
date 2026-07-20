@@ -5,7 +5,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'UserControl.js');
 
-
 class OrionUserControl {
     constructor() {
         if (OrionUserControl.instance) {

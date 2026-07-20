@@ -10,14 +10,13 @@ import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../Validator.js';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
-import { stringifyCookieData } from '../../CookieUtils.js';
+import { setManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { userControl } from './UserControl.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'SignIn.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignIn.js');
-
 
 const signInWithPassword = async (email, password, fingerprint, ip, userAgent) => {
     const Function = async parameters => {
@@ -76,7 +75,7 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
-                return { error: true, errorCode: "ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p" };
+                return { error: true, errorCode: 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p' };
             }
         }
 
@@ -276,9 +275,8 @@ const routeHandlerSignInWithPassword = async (request, response) => {
     }
 
     if (callback?.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), { httpOnly: true, secure: true, sameSite: 'None', maxAge: cookie.maxAge });
+        for (const cookie of callback.cookies) {
+            setManagedCookie(response, cookie.key, cookie.data);
         }
     }
 

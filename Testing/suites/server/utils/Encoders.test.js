@@ -63,11 +63,24 @@ describe('Encoders — Uint8Array <-> base64', () => {
 describe('Encoders — packageExports surface', () => {
     test('exposes every codec on packageExports', () => {
         const expected = [
-            'base64Encode', 'base64Decode', 'base64EncodeUint8', 'base64DecodeToUint8',
-            'hexEncode', 'hexDecode', 'binaryEncode', 'binaryDecode',
-            'asciiEncode', 'asciiDecode', 'utf8Encode', 'utf8Decode',
-            'utf16Encode', 'utf16Decode', 'latin1Encode', 'latin1Decode',
-            'urlEncode', 'urlDecode'
+            'base64Encode',
+            'base64Decode',
+            'base64EncodeUint8',
+            'base64DecodeToUint8',
+            'hexEncode',
+            'hexDecode',
+            'binaryEncode',
+            'binaryDecode',
+            'asciiEncode',
+            'asciiDecode',
+            'utf8Encode',
+            'utf8Decode',
+            'utf16Encode',
+            'utf16Decode',
+            'latin1Encode',
+            'latin1Decode',
+            'urlEncode',
+            'urlDecode'
         ];
         for (const key of expected) {
             assert.equal(typeof E.packageExports[key], 'function', `missing ${key}`);

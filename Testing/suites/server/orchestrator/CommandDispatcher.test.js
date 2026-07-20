@@ -11,7 +11,9 @@ const makeIdFn = () => () => `CMD-${++idCounter}`;
 describe('CommandDispatcher — resolution', () => {
     test('resolves when the matching result arrives from the right worker', async () => {
         const sent = [];
-        const d = new CommandDispatcher(async (...args) => { sent.push(args); }, makeIdFn());
+        const d = new CommandDispatcher(async (...args) => {
+            sent.push(args);
+        }, makeIdFn());
 
         const promise = d.execute('W1', 'node:ping', { x: 1 }, 5000);
         assert.equal(d.pendingCount, 1);
@@ -57,7 +59,9 @@ describe('CommandDispatcher — failure paths', () => {
     });
 
     test('fails fast when the transport send rejects', async () => {
-        const d = new CommandDispatcher(async () => { throw new Error('tunnel down'); }, makeIdFn());
+        const d = new CommandDispatcher(async () => {
+            throw new Error('tunnel down');
+        }, makeIdFn());
         const start = Date.now();
         await assert.rejects(d.execute('W1', 'node:ping', {}, 10_000), /tunnel down/);
         assert.ok(Date.now() - start < 5000, 'should not have waited for the timeout');

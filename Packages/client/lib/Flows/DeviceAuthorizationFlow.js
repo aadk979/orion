@@ -46,7 +46,10 @@ const withTimeout = (promiseFn, timeoutMs = API_TIMEOUT_MS) => {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     return promiseFn(controller.signal)
-        .then(result => { clearTimeout(timer); return result; })
+        .then(result => {
+            clearTimeout(timer);
+            return result;
+        })
         .catch(err => {
             clearTimeout(timer);
             if (err.name === 'AbortError') {
@@ -60,7 +63,7 @@ const withTimeout = (promiseFn, timeoutMs = API_TIMEOUT_MS) => {
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 
-const buildStyles = (mergedStyles) => {
+const buildStyles = mergedStyles => {
     const styleMappings = {
         overlayBg: '--orion-overlay-bg',
         overlayBlur: '--orion-overlay-blur',
@@ -206,7 +209,6 @@ const createApiLayer = (serverURL, nameSpace, slug) => {
 
 const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = {}) => {
     return new Promise(async (resolve, reject) => {
-
         // ── Track state & listeners for cleanup ─────────────────────────────
         let currentState = STATE.LOADING;
         const trackedListeners = [];
@@ -276,7 +278,11 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
         const cleanup = () => {
             // Remove all tracked event listeners
             for (const { el, event, handler } of trackedListeners) {
-                try { el.removeEventListener(event, handler); } catch (_) { /* noop */ }
+                try {
+                    el.removeEventListener(event, handler);
+                } catch (_) {
+                    /* noop */
+                }
             }
             trackedListeners.length = 0;
 
@@ -286,7 +292,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
         };
 
         // ── Keyboard handler (Escape to close) ─────────────────────────────
-        const onKeyDown = (e) => {
+        const onKeyDown = e => {
             if (e.key === 'Escape') {
                 cleanup();
                 reject(new Error('User cancelled device authorization.'));
@@ -295,7 +301,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
         addTrackedListener(document, 'keydown', onKeyDown);
 
         // ── Focus trap ──────────────────────────────────────────────────────
-        const trapFocus = (e) => {
+        const trapFocus = e => {
             if (!container.contains(e.target)) {
                 const focusable = modal.querySelector('button, input, [tabindex]');
                 if (focusable) focusable.focus();
@@ -304,7 +310,7 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
         addTrackedListener(document, 'focusin', trapFocus);
 
         // ── View Renderers ──────────────────────────────────────────────────
-        const renderLoading = (text) => {
+        const renderLoading = text => {
             currentState = STATE.LOADING;
             modal.innerHTML = '';
             const wrapper = document.createElement('div');
@@ -312,7 +318,8 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
 
             const spinner = document.createElement('div');
             spinner.className = 'orion-spinner';
-            spinner.style.cssText = 'border-width: 3px; border-color: rgba(17, 24, 39, 0.1); border-top-color: var(--orion-heading-color); width: 28px; height: 28px;';
+            spinner.style.cssText =
+                'border-width: 3px; border-color: rgba(17, 24, 39, 0.1); border-top-color: var(--orion-heading-color); width: 28px; height: 28px;';
             spinner.setAttribute('role', 'status');
             spinner.setAttribute('aria-label', 'Loading');
 
@@ -328,11 +335,14 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
             modal.innerHTML = '';
 
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; animation: orionFadeIn 0.3s ease-out;';
+            wrapper.style.cssText =
+                'display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; animation: orionFadeIn 0.3s ease-out;';
 
             const circle = document.createElement('div');
-            circle.style.cssText = 'width: 64px; height: 64px; border-radius: 50%; background-color: var(--orion-success-color); display: flex; align-items: center; justify-content: center; animation: orionPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);';
-            circle.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            circle.style.cssText =
+                'width: 64px; height: 64px; border-radius: 50%; background-color: var(--orion-success-color); display: flex; align-items: center; justify-content: center; animation: orionPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);';
+            circle.innerHTML =
+                '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 
             const heading = createTextElement('h3', 'orion-heading', 'Device Authorized');
             heading.style.color = 'var(--orion-success-color)';
@@ -464,14 +474,16 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
 
             submitBtn.onclick = onSubmit;
             backBtn.onclick = backHandler;
-            addTrackedListener(input, 'keypress', (e) => { if (e.key === 'Enter') onSubmit(); });
+            addTrackedListener(input, 'keypress', e => {
+                if (e.key === 'Enter') onSubmit();
+            });
         };
 
-        const renderMethodSelection = (methods) => {
+        const renderMethodSelection = methods => {
             currentState = STATE.METHOD_SELECTION;
             modal.innerHTML = '';
 
-            const heading = createTextElement('h2', 'orion-heading', 'Verify it\'s you');
+            const heading = createTextElement('h2', 'orion-heading', "Verify it's you");
             heading.id = 'orion-modal-heading';
 
             const subhead = createTextElement('p', 'orion-subhead', 'Select a security method to authorize this active device.');
@@ -516,11 +528,16 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
                 btnContainer.appendChild(btn);
 
                 btn.onclick = () => {
-                    renderCodeInput('Authenticator App', 'Enter the 6-digit code from your authenticator application.', async (code) => {
-                        const res = await withTimeout(() => apiCall(ENDPOINTS.AUTH_TOTP, { totpCode: code }, ['totpCode']));
-                        if (res.error) renderError(res.errorData?.context?.[0] || 'Invalid authenticator code.');
-                        else renderSuccess();
-                    }, () => renderMethodSelection(methods));
+                    renderCodeInput(
+                        'Authenticator App',
+                        'Enter the 6-digit code from your authenticator application.',
+                        async code => {
+                            const res = await withTimeout(() => apiCall(ENDPOINTS.AUTH_TOTP, { totpCode: code }, ['totpCode']));
+                            if (res.error) renderError(res.errorData?.context?.[0] || 'Invalid authenticator code.');
+                            else renderSuccess();
+                        },
+                        () => renderMethodSelection(methods)
+                    );
                 };
             }
 
@@ -542,13 +559,16 @@ const renderDeviceAuthorizationUI = (serverURL, nameSpace, slug, customStyles = 
                             renderError(res.errorData?.context?.[0] || 'Failed to dispatch email.', () => renderMethodSelection(methods));
                             return;
                         }
-                        renderCodeInput('Email OTP', 'Enter the security code sent to your registered email.', async (code) => {
-                            const verifyRes = await withTimeout(() =>
-                                apiCall(ENDPOINTS.AUTH_EMAIL, { authorizationCode: code }, ['authorizationCode'])
-                            );
-                            if (verifyRes.error) renderError(verifyRes.errorData?.context?.[0] || 'Invalid email verification code.');
-                            else renderSuccess();
-                        }, () => renderMethodSelection(methods));
+                        renderCodeInput(
+                            'Email OTP',
+                            'Enter the security code sent to your registered email.',
+                            async code => {
+                                const verifyRes = await withTimeout(() => apiCall(ENDPOINTS.AUTH_EMAIL, { authorizationCode: code }, ['authorizationCode']));
+                                if (verifyRes.error) renderError(verifyRes.errorData?.context?.[0] || 'Invalid email verification code.');
+                                else renderSuccess();
+                            },
+                            () => renderMethodSelection(methods)
+                        );
                     } catch (e) {
                         renderError(e.message, () => renderMethodSelection(methods));
                     }

@@ -318,7 +318,10 @@ function deriveTunnelSalt(workerPubBytes, orchestratorPubBytes) {
     const a = Buffer.from(workerPubBytes);
     const b = Buffer.from(orchestratorPubBytes);
     return new Uint8Array(
-        crypto.createHash('sha256').update(Buffer.concat([a, b])).digest()
+        crypto
+            .createHash('sha256')
+            .update(Buffer.concat([a, b]))
+            .digest()
     );
 }
 

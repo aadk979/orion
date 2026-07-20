@@ -14,7 +14,6 @@ const { generateId } = valueGeneratorExports;
 // ── System admins ────────────────────────────────────────────────────────────
 
 class SystemAdminModel {
-
     constructor(db) {
         this.db = db;
     }
@@ -32,10 +31,7 @@ class SystemAdminModel {
     }
 
     async findByEmail(email) {
-        const { rows } = await this.db.query(
-            'SELECT * FROM orch_system_admins WHERE email = lower($1)',
-            [email]
-        );
+        const { rows } = await this.db.query('SELECT * FROM orch_system_admins WHERE email = lower($1)', [email]);
         return rows[0] || null;
     }
 
@@ -59,26 +55,17 @@ class SystemAdminModel {
     }
 
     async setStatus(id, status) {
-        const { rows } = await this.db.query(
-            'UPDATE orch_system_admins SET status = $2, updated_at = now() WHERE id = $1 RETURNING *',
-            [id, status]
-        );
+        const { rows } = await this.db.query('UPDATE orch_system_admins SET status = $2, updated_at = now() WHERE id = $1 RETURNING *', [id, status]);
         return rows[0] || null;
     }
 
     async delete(id) {
-        const { rowCount } = await this.db.query(
-            "DELETE FROM orch_system_admins WHERE id = $1 AND role <> 'root'",
-            [id]
-        );
+        const { rowCount } = await this.db.query("DELETE FROM orch_system_admins WHERE id = $1 AND role <> 'root'", [id]);
         return rowCount > 0;
     }
 
     async savePendingTotpSecret(id, secret) {
-        await this.db.query(
-            'UPDATE orch_system_admins SET totp_pending_secret = $2, updated_at = now() WHERE id = $1',
-            [id, secret]
-        );
+        await this.db.query('UPDATE orch_system_admins SET totp_pending_secret = $2, updated_at = now() WHERE id = $1', [id, secret]);
     }
 
     /** Promotes the pending TOTP secret to active; enrollment is complete. */
@@ -124,17 +111,13 @@ class SystemAdminModel {
     }
 
     async markLogin(id) {
-        await this.db.query(
-            'UPDATE orch_system_admins SET last_login_at = now(), updated_at = now() WHERE id = $1',
-            [id]
-        );
+        await this.db.query('UPDATE orch_system_admins SET last_login_at = now(), updated_at = now() WHERE id = $1', [id]);
     }
 }
 
 // ── Policies + attachments ───────────────────────────────────────────────────
 
 class PolicyModel {
-
     constructor(db) {
         this.db = db;
     }
@@ -166,10 +149,7 @@ class PolicyModel {
 
     /** Managed (built-in) policies are undeletable. */
     async delete(id) {
-        const { rowCount } = await this.db.query(
-            'DELETE FROM orch_admin_policies WHERE id = $1 AND managed = FALSE',
-            [id]
-        );
+        const { rowCount } = await this.db.query('DELETE FROM orch_admin_policies WHERE id = $1 AND managed = FALSE', [id]);
         return rowCount > 0;
     }
 
@@ -207,10 +187,7 @@ class PolicyModel {
     }
 
     async listAttachments(policyId) {
-        const { rows } = await this.db.query(
-            'SELECT * FROM orch_admin_policy_attachments WHERE policy_id = $1',
-            [policyId]
-        );
+        const { rows } = await this.db.query('SELECT * FROM orch_admin_policy_attachments WHERE policy_id = $1', [policyId]);
         return rows;
     }
 
@@ -235,7 +212,6 @@ class PolicyModel {
 // ── Groups ───────────────────────────────────────────────────────────────────
 
 class GroupModel {
-
     constructor(db) {
         this.db = db;
     }
@@ -278,10 +254,7 @@ class GroupModel {
     }
 
     async removeMember(groupId, adminId) {
-        const { rowCount } = await this.db.query(
-            'DELETE FROM orch_admin_group_members WHERE group_id = $1 AND admin_id = $2',
-            [groupId, adminId]
-        );
+        const { rowCount } = await this.db.query('DELETE FROM orch_admin_group_members WHERE group_id = $1 AND admin_id = $2', [groupId, adminId]);
         return rowCount > 0;
     }
 
@@ -300,7 +273,6 @@ class GroupModel {
 // ── Magic links ──────────────────────────────────────────────────────────────
 
 class MagicLinkModel {
-
     constructor(db) {
         this.db = db;
     }
@@ -338,16 +310,13 @@ class MagicLinkModel {
     }
 
     async purgeExpired() {
-        await this.db.query(
-            "DELETE FROM orch_admin_magic_links WHERE expires_at < now() - interval '1 day'"
-        );
+        await this.db.query("DELETE FROM orch_admin_magic_links WHERE expires_at < now() - interval '1 day'");
     }
 }
 
 // ── Sessions ─────────────────────────────────────────────────────────────────
 
 class SessionModel {
-
     constructor(db) {
         this.db = db;
     }
@@ -389,24 +358,16 @@ class SessionModel {
     }
 
     async revoke(sessionId) {
-        await this.db.query(
-            'UPDATE orch_admin_sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL',
-            [sessionId]
-        );
+        await this.db.query('UPDATE orch_admin_sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL', [sessionId]);
     }
 
     /** Suspension/deletion must cut every live session instantly. */
     async revokeAllForAdmin(adminId) {
-        await this.db.query(
-            'UPDATE orch_admin_sessions SET revoked_at = now() WHERE admin_id = $1 AND revoked_at IS NULL',
-            [adminId]
-        );
+        await this.db.query('UPDATE orch_admin_sessions SET revoked_at = now() WHERE admin_id = $1 AND revoked_at IS NULL', [adminId]);
     }
 
     async purgeExpired() {
-        await this.db.query(
-            "DELETE FROM orch_admin_sessions WHERE expires_at < now() - interval '7 days'"
-        );
+        await this.db.query("DELETE FROM orch_admin_sessions WHERE expires_at < now() - interval '7 days'");
     }
 }
 

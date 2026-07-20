@@ -13,10 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // if server.cert/server.key are present in this folder, serve HTTPS.
 const loadTlsCredentials = async () => {
     try {
-        const [cert, key] = await Promise.all([
-            fs.readFile(path.join(__dirname, 'server.cert')),
-            fs.readFile(path.join(__dirname, 'server.key'))
-        ]);
+        const [cert, key] = await Promise.all([fs.readFile(path.join(__dirname, 'server.cert')), fs.readFile(path.join(__dirname, 'server.key'))]);
         return { cert, key };
     } catch {
         return null;
@@ -57,7 +54,7 @@ const main = async () => {
     }
 };
 
-main().catch((err) => {
+main().catch(err => {
     console.error('Failed to start Todos server:', err);
     process.exit(1);
 });

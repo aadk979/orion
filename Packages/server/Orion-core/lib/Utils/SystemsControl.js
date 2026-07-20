@@ -10,7 +10,6 @@ const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'lo
 const circuitBreakerSystemModule = new SafeModuleHandler('CircuitBreakerSystem', 'circuitBreakerSystem', 'SystemsControl.js');
 const abuseDetectionSystemModule = new SafeModuleHandler('AbuseDetectionSystem', 'abuseDetectionSystem', 'SystemsControl.js');
 
-
 const SAFE_MODE_OVERRIDE_INFO = '(Only system config can perform this change and requires a restart of the application)';
 
 const SECURITY_SYSTEMS = new Set(['captcha', 'deviceAuthorization', 'dip']);

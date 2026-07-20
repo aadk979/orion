@@ -7,10 +7,25 @@ import * as orion from '../../../Packages/server/Orion-core/index.js';
 // Guards the public API surface of the package entry point. If an export is
 // renamed or dropped, this fails loudly.
 const EXPECTED_EXPORTS = [
-    'initiateServer', 'globalAccessPoint', 'validators', 'ipUtils',
-    'encodersAndDecoders', 'uaParser', 'dateAndTime', 'cron', 'sanitizer',
-    'cookies', 'fileIO', 'tokens', 'oras', 'valueGenerators', 'orionCrypto',
-    'orionInfo', 'requestContext', 'logger', 'userControl'
+    'initiateServer',
+    'globalAccessPoint',
+    'validators',
+    'ipUtils',
+    'encodersAndDecoders',
+    'uaParser',
+    'dateAndTime',
+    'cron',
+    'sanitizer',
+    'cookies',
+    'fileIO',
+    'tokens',
+    'oras',
+    'valueGenerators',
+    'orionCrypto',
+    'orionInfo',
+    'requestContext',
+    'logger',
+    'userControl'
 ];
 
 describe('Orion-core package entry point', () => {

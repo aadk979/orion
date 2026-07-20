@@ -4,15 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from '../logger.js';
 import { generateId } from '../valueGenerator.js';
-import {
-    AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION,
-    AUDIT_WAL_FILE_NAME,
-    AUDIT_WAL_PUBLIC_KEY_FILE_NAME
-} from '../../orion.meta.js';
+import { AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION, AUDIT_WAL_FILE_NAME, AUDIT_WAL_PUBLIC_KEY_FILE_NAME } from '../../orion.meta.js';
 import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'AuditTrailSystem.js');
-
 
 const DEFAULT_FLUSH_THRESHOLD = 50;
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
@@ -21,9 +16,20 @@ const VALID_STATUSES = new Set(['PENDING', 'SUCCESS', 'FAILED']);
 
 class AuditTrailSystem {
     static QUERYABLE_COLUMNS = new Set([
-        'recordId', 'requestId', 'sessionId', 'userUid', 'userEmail', 'ipAddress',
-        'fingerprint', 'source', 'functionName', 'environment', 'action', 'status',
-        'errorCode', 'schemaVersion'
+        'recordId',
+        'requestId',
+        'sessionId',
+        'userUid',
+        'userEmail',
+        'ipAddress',
+        'fingerprint',
+        'source',
+        'functionName',
+        'environment',
+        'action',
+        'status',
+        'errorCode',
+        'schemaVersion'
     ]);
 
     constructor(enabled) {
@@ -38,7 +44,7 @@ class AuditTrailSystem {
             if (!atConfig.host || !atConfig.user || !atConfig.password) {
                 throw new Error(
                     'AuditTrailSystem is enabled but utilities.auditTrailSystem is missing host, user, or password — ' +
-                    'configure explicit credentials (defaults are not provided by design)'
+                        'configure explicit credentials (defaults are not provided by design)'
                 );
             }
 
@@ -267,12 +273,7 @@ class AuditTrailSystem {
 
     _verifyEntrySignature(entryJson, signatureBase64, publicKeyPem) {
         try {
-            return crypto.verify(
-                null,
-                Buffer.from(entryJson, 'utf8'),
-                publicKeyPem,
-                Buffer.from(signatureBase64, 'base64')
-            );
+            return crypto.verify(null, Buffer.from(entryJson, 'utf8'), publicKeyPem, Buffer.from(signatureBase64, 'base64'));
         } catch {
             return false;
         }
@@ -505,10 +506,7 @@ class AuditTrailSystem {
                 // flush's commit and its WAL truncation makes recovery replay
                 // them, and re-inserting would fork the hash chain.
                 const recordIds = batch.map(e => e.recordId);
-                const [existing] = await conn.query(
-                    'SELECT recordId FROM audit_trail WHERE recordId IN (?)',
-                    [recordIds]
-                );
+                const [existing] = await conn.query('SELECT recordId FROM audit_trail WHERE recordId IN (?)', [recordIds]);
                 const alreadyStored = new Set(existing.map(r => r.recordId));
                 const pending = batch.filter(e => !alreadyStored.has(e.recordId));
 
@@ -571,7 +569,7 @@ class AuditTrailSystem {
                     logger?.info?.(`[AUDIT] Flushed ${rows.length} records to database`);
                 }
             } catch (txErr) {
-                await conn.rollback().catch(() => { });
+                await conn.rollback().catch(() => {});
                 throw txErr;
             } finally {
                 conn.release();

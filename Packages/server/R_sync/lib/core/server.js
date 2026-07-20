@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -25,18 +25,23 @@ const createServer = () => {
     app.use(express.urlencoded({ extended: true, limit: defaultStartConfig.sizeLimit }));
 
     // Security middleware
-    app.use(rateLimit({
-        windowMs: defaultStartConfig.rateLimitWindowMs,
-        max: defaultStartConfig.maxRequests,
-        message: 'Rate limit exceeded. Try again later.',
-        legacyHeaders: false,
-        standardHeaders: true
-    }));
+    app.use(
+        rateLimit({
+            windowMs: defaultStartConfig.rateLimitWindowMs,
+            max: defaultStartConfig.maxRequests,
+            message: 'Rate limit exceeded. Try again later.',
+            legacyHeaders: false,
+            standardHeaders: true
+        })
+    );
     app.use(hpp());
     app.use(helmet());
     const corsOrigins = process.env.R_SYNC_CORS_ORIGIN;
     if (corsOrigins && corsOrigins.trim() !== '') {
-        const list = corsOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+        const list = corsOrigins
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
         app.use(cors({ origin: list.length === 1 ? list[0] : list }));
     }
     // No CORS middleware when unset — appropriate for default M2M (non-browser) clients
@@ -60,7 +65,7 @@ const startServer = (app, port, role) => {
             resolve(server);
         });
 
-        server.on('error', (err) => {
+        server.on('error', err => {
             logger.error(`Failed to start server: ${err.message}`);
             reject(err);
         });

@@ -6,7 +6,6 @@ import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'mailer.js');
 
-
 const sendMail = async (to, subject, text) => {
     const Function = async parameters => {
         const systemConfig = systemConfigModule.getModule();

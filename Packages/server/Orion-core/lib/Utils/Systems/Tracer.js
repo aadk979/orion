@@ -1,13 +1,13 @@
 // tracer.js
 // Development and debugging use only
 
-import { AsyncLocalStorage } from "async_hooks";
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from "fs";
-import { join } from "path";
-import { generateId } from "../valueGenerator";
+import { AsyncLocalStorage } from 'async_hooks';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { generateId } from '../valueGenerator';
 
 const asyncLocalStorage = new AsyncLocalStorage();
-const TRACES_DIR = join(process.cwd(), "traces");
+const TRACES_DIR = join(process.cwd(), 'traces');
 
 class Tracer {
     constructor(active) {
@@ -19,7 +19,7 @@ class Tracer {
     }
 
     generateTraceId() {
-        return generateId("TRACE", 32);
+        return generateId('TRACE', 32);
     }
 
     // ─── File I/O ────────────────────────────────────────────────────────────────
@@ -31,11 +31,11 @@ class Tracer {
     _readTrace(traceId) {
         const path = this._tracePath(traceId);
         if (!existsSync(path)) return null;
-        return JSON.parse(readFileSync(path, "utf-8"));
+        return JSON.parse(readFileSync(path, 'utf-8'));
     }
 
     _writeTrace(traceId, data) {
-        writeFileSync(this._tracePath(traceId), JSON.stringify(data, null, 2), "utf-8");
+        writeFileSync(this._tracePath(traceId), JSON.stringify(data, null, 2), 'utf-8');
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ class Tracer {
             traceId,
             startTime: new Date().toISOString(),
             startMs: Date.now(),
-            calls: [],
+            calls: []
         });
 
         return asyncLocalStorage.run({ traceId }, fn);
@@ -91,7 +91,7 @@ class Tracer {
             fnName,
             timestamp: new Date().toISOString(),
             elapsedMs: Date.now() - data.startMs,
-            metadata,
+            metadata
         });
 
         this._writeTrace(traceId, data);
@@ -127,14 +127,11 @@ class Tracer {
         console.log(`Calls (${data.calls.length}):`);
 
         data.calls.forEach((call, i) => {
-            console.log(
-                `  ${i + 1}. [+${call.elapsedMs}ms] ${call.fnName}`,
-                Object.keys(call.metadata).length ? call.metadata : ""
-            );
+            console.log(`  ${i + 1}. [+${call.elapsedMs}ms] ${call.fnName}`, Object.keys(call.metadata).length ? call.metadata : '');
         });
 
         console.groupEnd();
     }
 }
 
-export const tracer = new Tracer(process.env.NODE_ENV !== "production");
+export const tracer = new Tracer(process.env.NODE_ENV !== 'production');

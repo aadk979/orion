@@ -19,11 +19,16 @@ export default function AuditPage() {
         const qs = new URLSearchParams({ limit: '200' });
         if (actionFilter) qs.set('action', actionFilter);
         get(`/api/audit?${qs}`)
-            .then(r => { setRows(r.audit); setError(null); })
+            .then(r => {
+                setRows(r.audit);
+                setError(null);
+            })
             .catch(err => setError(err instanceof ApiError ? `${err.code}: ${err.message}` : err.message));
     }, [actionFilter]);
 
-    useEffect(() => { refresh(); }, [refresh]);
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
 
     const runVerify = async () => {
         try {
@@ -33,7 +38,7 @@ export default function AuditPage() {
         }
     };
 
-    const decisionBadge = (d) => <span className={`badge ${d === 'allow' ? 'ok' : d === 'deny' ? 'crit' : 'warn'}`}>{d}</span>;
+    const decisionBadge = d => <span className={`badge ${d === 'allow' ? 'ok' : d === 'deny' ? 'crit' : 'warn'}`}>{d}</span>;
 
     return (
         <Shell>
@@ -49,25 +54,50 @@ export default function AuditPage() {
                     value={actionFilter}
                     onChange={e => setActionFilter(e.target.value)}
                 />
-                <button className="ghost small" onClick={refresh}>Refresh</button>
-                <button className="ghost small" onClick={runVerify}>Verify hash chain (root)</button>
-                {verify && (
-                    verify.valid === true
-                        ? <span className="badge ok">chain intact · {verify.checked} rows</span>
-                        : verify.valid === false
-                            ? <span className="badge crit">BROKEN at row {verify.brokenAtId}</span>
-                            : <span className="badge dim">{verify.message}</span>
-                )}
+                <button className="ghost small" onClick={refresh}>
+                    Refresh
+                </button>
+                <button className="ghost small" onClick={runVerify}>
+                    Verify hash chain (root)
+                </button>
+                {verify &&
+                    (verify.valid === true ? (
+                        <span className="badge ok">chain intact · {verify.checked} rows</span>
+                    ) : verify.valid === false ? (
+                        <span className="badge crit">BROKEN at row {verify.brokenAtId}</span>
+                    ) : (
+                        <span className="badge dim">{verify.message}</span>
+                    ))}
             </div>
 
             <div className="panel table-wrap">
                 <table>
                     <thead>
-                        <tr><th>At</th><th>Admin</th><th>Action</th><th>Resource</th><th>Decision</th><th>Status</th><th>IP</th></tr>
+                        <tr>
+                            <th>At</th>
+                            <th>Admin</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>Decision</th>
+                            <th>Status</th>
+                            <th>IP</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        {rows === null && <tr><td colSpan={7} className="sub">Loading…</td></tr>}
-                        {rows?.length === 0 && <tr><td colSpan={7} className="sub">No audit rows match.</td></tr>}
+                        {rows === null && (
+                            <tr>
+                                <td colSpan={7} className="sub">
+                                    Loading…
+                                </td>
+                            </tr>
+                        )}
+                        {rows?.length === 0 && (
+                            <tr>
+                                <td colSpan={7} className="sub">
+                                    No audit rows match.
+                                </td>
+                            </tr>
+                        )}
                         {rows?.map(row => (
                             <tr key={row.id}>
                                 <td className="mono">{fmtTime(row.at)}</td>

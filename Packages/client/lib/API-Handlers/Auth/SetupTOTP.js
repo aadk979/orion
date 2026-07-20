@@ -1,12 +1,7 @@
 async function setupTOTP({ Api, getAuthHeader, This }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
-    const res = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/generate-totp-secret`,
-        'POST',
-        authHeader.authHead,
-        {}
-    );
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/generate-totp-secret`, 'POST', authHeader.authHead, {});
 
     const data = await res.json();
 
@@ -22,12 +17,7 @@ async function verifyAndEnableTOTP({ Api, getAuthHeader, This, totpCode }) {
         packet: { totpCode }
     };
 
-    const res = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/verify-and-enable-totp`,
-        'POST',
-        authHeader.authHead,
-        payload
-    );
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/verify-and-enable-totp`, 'POST', authHeader.authHead, payload);
 
     const data = await res.json();
 

@@ -113,7 +113,9 @@ class DatabaseJanitor {
         } finally {
             try {
                 await client.query('SELECT pg_advisory_unlock($1)', [JANITOR_ADVISORY_LOCK_KEY]);
-            } catch (_) { /* connection teardown releases the lock anyway */ }
+            } catch (_) {
+                /* connection teardown releases the lock anyway */
+            }
             client.release();
         }
     }

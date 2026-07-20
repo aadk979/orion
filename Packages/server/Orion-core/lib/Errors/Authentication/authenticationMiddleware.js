@@ -27,7 +27,8 @@ const AuthenticationMiddleware = {
         context: 'No authentication token was found',
         errorCode: 'AUTH::MISSING-TOKEN::A::p',
         fault: 'CLIENT',
-        solutions: ['NONE']
+        solutions: ['NONE'],
+        logout: true
     },
     'AUTH::REFRESH-LIMIT-HIT::A::p': {
         status: 401,

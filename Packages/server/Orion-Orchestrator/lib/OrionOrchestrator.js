@@ -29,16 +29,7 @@ import { ConsensusEngine } from './ConsensusEngine.js';
 import { ClusterHealth } from './ClusterHealth.js';
 import { EscalationHub } from './EscalationHub.js';
 import { RegistryStore } from './RegistryStore.js';
-import {
-    PROTOCOL_VERSION,
-    ClusterEvents,
-    ClusterCommands,
-    ClusterAlerts,
-    ClusterStates,
-    ConsensusTopics,
-    buildAlert,
-    buildClusterState
-} from './protocol.js';
+import { PROTOCOL_VERSION, ClusterEvents, ClusterCommands, ClusterAlerts, ClusterStates, ConsensusTopics, buildAlert, buildClusterState } from './protocol.js';
 import { __Version__ } from './orch.meta.js';
 
 const { generateId } = valueGeneratorExports;
@@ -47,7 +38,7 @@ const getCurrentUnixTime = () => Math.floor(Date.now() / 1000);
 
 // R_Sync stores worker status lowercase ('active'); compare case-insensitively
 // so a transport-side casing change can never silently empty the fleet.
-const isActiveWorker = (w) => String(w?.status).toUpperCase() === 'ACTIVE';
+const isActiveWorker = w => String(w?.status).toUpperCase() === 'ACTIVE';
 
 const COMMAND_LOG_LIMIT = 200;
 
@@ -69,10 +60,10 @@ const defaultConfig = Object.freeze({
     identifyOnStart: true,
     identifyTimeoutMs: 5_000,
     /** Sub-system configs — see each module */
-    health: {},                    // ClusterHealth
-    consensus: {},                 // default { quorumRatio, minVoters, timeoutMs } for proposals
-    policies: {},                  // PolicyEngine { useDefaults, rules }
-    escalations: {},               // EscalationHub { webhook: { url, headers } }
+    health: {}, // ClusterHealth
+    consensus: {}, // default { quorumRatio, minVoters, timeoutMs } for proposals
+    policies: {}, // PolicyEngine { useDefaults, rules }
+    escalations: {}, // EscalationHub { webhook: { url, headers } }
     persistence: { enabled: true }, // RegistryStore { enabled, directory, fileName, debounceMs }
     /**
      * System-admin plane — PBAC-governed panel + API + CLI access. See
@@ -88,7 +79,6 @@ const defaultConfig = Object.freeze({
 });
 
 class OrionOrchestrator {
-
     constructor(config = {}) {
         if (!config.cluster) {
             throw new Error('Configuration error: OrionOrchestrator requires a cluster name');
@@ -114,9 +104,7 @@ class OrionOrchestrator {
         // ── Subsystems ────────────────────────────────────────────────────────
         this._escalations = new EscalationHub(this.config.escalations);
         this._health = new ClusterHealth(this.config.health);
-        this._store = (this.config.persistence?.enabled ?? true)
-            ? new RegistryStore(this.config.persistence)
-            : null;
+        this._store = (this.config.persistence?.enabled ?? true) ? new RegistryStore(this.config.persistence) : null;
 
         this._consensus = new ConsensusEngine(
             (workerId, action, args, timeoutMs) => this.command(workerId, action, args, timeoutMs),
@@ -125,7 +113,7 @@ class OrionOrchestrator {
 
         this._policies = new PolicyEngine(
             {
-                escalate: (escalation) => this._escalations.raise(escalation),
+                escalate: escalation => this._escalations.raise(escalation),
                 command: (workerId, action, args, timeoutMs) => this.command(workerId, action, args, timeoutMs),
                 consensus: (topic, params, options) => this.proposeConsensus(topic, params, options)
             },
@@ -194,7 +182,9 @@ class OrionOrchestrator {
             await this._startSystemAdmin();
         }
 
-        logger.info(`OrionOrchestrator v${__Version__} ready — cluster "${this.cluster}" on ${this.config.publicIp}:${this.config.port} (protocol v${PROTOCOL_VERSION})`);
+        logger.info(
+            `OrionOrchestrator v${__Version__} ready — cluster "${this.cluster}" on ${this.config.publicIp}:${this.config.port} (protocol v${PROTOCOL_VERSION})`
+        );
         return this;
     }
 
@@ -282,9 +272,7 @@ class OrionOrchestrator {
         if (workers.length === 0) return;
 
         logger.info(`OrionOrchestrator: identify sweep across ${workers.length} live tunnel(s)`);
-        const results = await Promise.allSettled(
-            workers.map(w => this.command(w.id, ClusterCommands.IDENTIFY, {}, this.config.identifyTimeoutMs))
-        );
+        const results = await Promise.allSettled(workers.map(w => this.command(w.id, ClusterCommands.IDENTIFY, {}, this.config.identifyTimeoutMs)));
 
         const now = getCurrentUnixTime();
         results.forEach((res, i) => {
@@ -405,11 +393,7 @@ class OrionOrchestrator {
         // INCIDENT is a big claim from one observer — before declaring it, ask
         // the reachable fleet whether it agrees it is unhealthy. If a quorum
         // affirms NODE_HEALTHY, the registry view is skewed: hold at DEGRADED.
-        if (
-            targetState === ClusterStates.INCIDENT &&
-            this._health.state !== ClusterStates.INCIDENT &&
-            this.config.confirmIncidentViaConsensus
-        ) {
+        if (targetState === ClusterStates.INCIDENT && this._health.state !== ClusterStates.INCIDENT && this.config.confirmIncidentViaConsensus) {
             try {
                 const vote = await this.proposeConsensus(ConsensusTopics.NODE_HEALTHY, {}, this.config.consensus);
                 evaluation.consensus = { decided: vote.decided, accepted: vote.accepted, ratio: vote.ratio };
@@ -426,8 +410,7 @@ class OrionOrchestrator {
         const previous = this._health.transitionTo(targetState);
         if (previous === null) return;
 
-        const severity = targetState === ClusterStates.INCIDENT ? 'critical'
-            : targetState === ClusterStates.DEGRADED ? 'warning' : 'info';
+        const severity = targetState === ClusterStates.INCIDENT ? 'critical' : targetState === ClusterStates.DEGRADED ? 'warning' : 'info';
 
         await this._escalations.raise({
             type: ClusterAlerts.CLUSTER_STATE_CHANGED,
@@ -504,14 +487,32 @@ class OrionOrchestrator {
 
     // ── Hooks ─────────────────────────────────────────────────────────────────
 
-    onNodeHello(cb) { this._addHook('hello', cb); return this; }
-    onNodeStatus(cb) { this._addHook('status', cb); return this; }
-    onNodeAlert(cb) { this._addHook('alert', cb); return this; }
-    onNodeGoodbye(cb) { this._addHook('goodbye', cb); return this; }
+    onNodeHello(cb) {
+        this._addHook('hello', cb);
+        return this;
+    }
+    onNodeStatus(cb) {
+        this._addHook('status', cb);
+        return this;
+    }
+    onNodeAlert(cb) {
+        this._addHook('alert', cb);
+        return this;
+    }
+    onNodeGoodbye(cb) {
+        this._addHook('goodbye', cb);
+        return this;
+    }
     /** Any node event that is not part of the cluster protocol */
-    onNodeEvent(cb) { this._addHook('event', cb); return this; }
+    onNodeEvent(cb) {
+        this._addHook('event', cb);
+        return this;
+    }
     /** Cluster health transitions — (state, previousState, evaluation) */
-    onClusterStateChange(cb) { this._addHook('clusterState', cb); return this; }
+    onClusterStateChange(cb) {
+        this._addHook('clusterState', cb);
+        return this;
+    }
 
     _addHook(kind, cb) {
         if (typeof cb !== 'function') {
@@ -541,7 +542,13 @@ class OrionOrchestrator {
 
         try {
             const outcome = await this._dispatcher.execute(workerId, action, args, timeoutMs, issuedBy);
-            this._logCommand({ workerId, action, ok: outcome.ok === true, commandId: outcome.commandId || null, issuedBy: issuedBy?.email || issuedBy?.id || 'system' });
+            this._logCommand({
+                workerId,
+                action,
+                ok: outcome.ok === true,
+                commandId: outcome.commandId || null,
+                issuedBy: issuedBy?.email || issuedBy?.id || 'system'
+            });
             return outcome;
         } catch (err) {
             this._logCommand({ workerId, action, ok: false, error: err.message, issuedBy: issuedBy?.email || issuedBy?.id || 'system' });
@@ -565,13 +572,10 @@ class OrionOrchestrator {
         this._assertStarted();
 
         const workers = (await getAllWorkers()).filter(isActiveWorker);
-        const settled = await Promise.allSettled(
-            workers.map(w => this.command(w.id, action, args, timeoutMs, issuedBy))
-        );
+        const settled = await Promise.allSettled(workers.map(w => this.command(w.id, action, args, timeoutMs, issuedBy)));
 
-        return settled.map((res, i) => res.status === 'fulfilled'
-            ? res.value
-            : { workerId: workers[i].id, ok: false, error: { message: res.reason?.message || 'Command failed' } }
+        return settled.map((res, i) =>
+            res.status === 'fulfilled' ? res.value : { workerId: workers[i].id, ok: false, error: { message: res.reason?.message || 'Command failed' } }
         );
     }
 
@@ -594,15 +598,81 @@ class OrionOrchestrator {
 
     // ── Convenience wrappers over common commands ─────────────────────────────
 
-    pingNode(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.PING, {}, this.config.commandTimeoutMs, issuedBy); }
-    getNodeStatus(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.GET_STATUS, {}, this.config.commandTimeoutMs, issuedBy); }
-    lockNode(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.LOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
-    unlockNode(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.UNLOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
-    lockCluster(issuedBy = null) { return this.commandAll(ClusterCommands.LOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
-    unlockCluster(issuedBy = null) { return this.commandAll(ClusterCommands.UNLOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy); }
-    clearNodeEtsLockdown(workerId, issuedBy = null) { return this.command(workerId, ClusterCommands.CLEAR_ETS_LOCKDOWN, {}, this.config.commandTimeoutMs, issuedBy); }
+    pingNode(workerId, issuedBy = null) {
+        return this.command(workerId, ClusterCommands.PING, {}, this.config.commandTimeoutMs, issuedBy);
+    }
+    getNodeStatus(workerId, issuedBy = null) {
+        return this.command(workerId, ClusterCommands.GET_STATUS, {}, this.config.commandTimeoutMs, issuedBy);
+    }
+    lockNode(workerId, issuedBy = null) {
+        return this.command(workerId, ClusterCommands.LOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy);
+    }
+    unlockNode(workerId, issuedBy = null) {
+        return this.command(workerId, ClusterCommands.UNLOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy);
+    }
+    lockCluster(issuedBy = null) {
+        return this.commandAll(ClusterCommands.LOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy);
+    }
+    unlockCluster(issuedBy = null) {
+        return this.commandAll(ClusterCommands.UNLOCK_SERVER, {}, this.config.commandTimeoutMs, issuedBy);
+    }
+    clearNodeEtsLockdown(workerId, issuedBy = null) {
+        return this.command(workerId, ClusterCommands.CLEAR_ETS_LOCKDOWN, {}, this.config.commandTimeoutMs, issuedBy);
+    }
     /** Push additional allowed client URLs to every node that permits runtime updates */
-    addClientUrls(clientUrls, issuedBy = null) { return this.commandAll(ClusterCommands.ADD_CLIENT_URLS, { clientUrls }, this.config.commandTimeoutMs, issuedBy); }
+    addClientUrls(clientUrls, issuedBy = null) {
+        return this.commandAll(ClusterCommands.ADD_CLIENT_URLS, { clientUrls }, this.config.commandTimeoutMs, issuedBy);
+    }
+
+    // ── Signing-key revocation plane ──────────────────────────────────────────
+
+    /**
+     * Fleet-wide signing/verification key inventory, organized per node —
+     * every manager's active (non-expired) kids with their expiries. Never
+     * carries key material.
+     */
+    async listClusterSigningKeys(issuedBy = null) {
+        const results = await this.commandAll(ClusterCommands.SECRETS_LIST_KIDS, {}, this.config.commandTimeoutMs, issuedBy);
+        return results.map(r => ({
+            workerId: r.workerId,
+            ok: r.ok === true,
+            ...(r.ok === true ? { managers: r.result?.managers || [] } : { error: r.error || null })
+        }));
+    }
+
+    /**
+     * Broadcasts an immediate revocation of the given kids to EVERY node. Each
+     * node self-discovers what a kid means to it: the owner of the signing
+     * pair decommissions it and rotates in a replacement; every other node
+     * wipes it from its verification pool; the kid is deleted from the shared
+     * Redis fan-out either way — no further signing OR verification anywhere.
+     */
+    revokeSigningKids(kids, issuedBy = null) {
+        if (!Array.isArray(kids) || kids.length === 0) {
+            throw new Error('revokeSigningKids requires a non-empty kids array');
+        }
+        return this.commandAll(ClusterCommands.SECRETS_REVOKE_KIDS, { kids: kids.map(String) }, this.config.commandTimeoutMs, issuedBy);
+    }
+
+    /**
+     * Decommissions ALL of one node's signing keys: collects the node's active
+     * signing kids, then broadcasts them as a revocation to the whole fleet
+     * (same self-discovery principle as revokeSigningKids — the target node
+     * rotates, everyone else wipes their verification pools).
+     */
+    async forceRotateNodeKeys(workerId, issuedBy = null) {
+        const listed = await this.command(workerId, ClusterCommands.SECRETS_LIST_KIDS, {}, this.config.commandTimeoutMs, issuedBy);
+        if (listed.ok !== true) {
+            throw new Error(`Could not list signing keys on ${workerId}: ${listed.error?.message || listed.error?.code || 'unknown error'}`);
+        }
+
+        const kids = (listed.result?.managers || []).flatMap(m => (m.signing || []).map(k => k.kid));
+        if (kids.length === 0) {
+            return { workerId, kids: [], results: [] };
+        }
+
+        return { workerId, kids, results: await this.revokeSigningKids(kids, issuedBy) };
+    }
 
     // ── Observability ─────────────────────────────────────────────────────────
 
@@ -662,13 +732,15 @@ class OrionOrchestrator {
                 online: app?.online ?? isActiveWorker(transport),
                 offlineReason: app?.offlineReason || null,
                 unhealthyReason: app ? this._health.isNodeUnhealthy(app, getCurrentUnixTime()) : null,
-                transport: transport ? {
-                    status: transport.status,
-                    ip: transport.ip,
-                    port: transport.port,
-                    registeredAt: transport.registeredAt,
-                    lastHeartbeat: transport.lastHeartbeat
-                } : null,
+                transport: transport
+                    ? {
+                          status: transport.status,
+                          ip: transport.ip,
+                          port: transport.port,
+                          registeredAt: transport.registeredAt,
+                          lastHeartbeat: transport.lastHeartbeat
+                      }
+                    : null,
                 identity: app?.hello || null,
                 lastStatus: app?.lastStatus || null,
                 lastStatusAt: app?.lastStatusAt || null,

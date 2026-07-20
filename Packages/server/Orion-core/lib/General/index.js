@@ -5,9 +5,9 @@ const NAME_SPACE = globalAccessPoint.nameSpace();
 /**
  * Central Rate-Limit Policy Configuration
  * =========================================
- * 
+ *
  * Single source of truth for all endpoint rate-limit behavior.
- * 
+ *
  * - `defaults`: Global token bucket parameters applied when no route-specific override exists.
  * - `actors`:   Per-actor-type bucket sizing. Each actor (ip, fp, account) gets ONE canonical
  *               bucket in Redis/memory — route policy only changes the *cost* deducted from it.
@@ -17,13 +17,12 @@ const NAME_SPACE = globalAccessPoint.nameSpace();
  *               Must never be zero-cost to prevent accidental unlimited access.
  */
 const rateLimitPolicy = {
-
     // ── Global defaults ──────────────────────────────────────────────────
     defaults: {
-        cost: 1,          // Standard request cost (most endpoints)
-        ttl: 300,         // Bucket key TTL in seconds
-        refillRate: 10,   // Tokens restored per second (global default)
-        maxTokens: 100    // Bucket capacity (global default)
+        cost: 1, // Standard request cost (most endpoints)
+        ttl: 300, // Bucket key TTL in seconds
+        refillRate: 10, // Tokens restored per second (global default)
+        maxTokens: 100 // Bucket capacity (global default)
     },
 
     // ── Actor-class bucket definitions ───────────────────────────────────
@@ -56,39 +55,39 @@ const rateLimitPolicy = {
     //  10  = extreme  (bulk exports, uploads, search)
     routes: {
         // ── Auth: abuse-prone, high cost ─────────────────────────────────
-        [`POST /${NAME_SPACE}/api/v1/action/sign-up-user`]:                          { cost: 5 },
-        [`POST /${NAME_SPACE}/api/v1/action/sign-in-user`]:                          { cost: 5 },
-        [`POST /${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`]:   { cost: 5 },
-        [`POST /${NAME_SPACE}/api/v1/action/complete-passkey-sign-up`]:              { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/sign-up-user`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/sign-in-user`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/sign-in-with-passkey-authentication`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/complete-passkey-sign-up`]: { cost: 5 },
 
         // ── Token generation: moderate cost ──────────────────────────────
-        [`POST /${NAME_SPACE}/api/v1/action/generate-no-auth-token-transaction`]:    { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/generate-no-auth-token`]:                { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/generate-no-auth-token-transaction`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/generate-no-auth-token`]: { cost: 3 },
 
         // ── Passkey ceremony: crypto-heavy ───────────────────────────────
         [`POST /${NAME_SPACE}/api/v1/action/generate-passkey-registration-options`]: { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/complete-passkey-registration`]:         { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/complete-passkey-registration`]: { cost: 3 },
         [`POST /${NAME_SPACE}/api/v1/action/generate-passkey-authentication-options`]: { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/generate-passkey-sign-up-options`]:      { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/generate-passkey-sign-up-options`]: { cost: 3 },
 
         // ── OAuth: external calls ────────────────────────────────────────
-        [`POST /${NAME_SPACE}/api/v1/action/get-o-auth-redirect-url`]:               { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/authorize-me`]:                          { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/handle-o-auth-callback`]:                { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/get-o-auth-redirect-url`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/authorize-me`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/handle-o-auth-callback`]: { cost: 3 },
 
         // ── 2FA / device auth: moderate ──────────────────────────────────
-        [`POST /${NAME_SPACE}/api/v1/action/send-device-authorization-email`]:       { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/authorize-device-with-passkey`]:         { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/authorize-device-with-totp`]:            { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/generate-totp-secret`]:                  { cost: 3 },
-        [`POST /${NAME_SPACE}/api/v1/action/verify-and-enable-totp`]:                { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/send-device-authorization-email`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/authorize-device-with-passkey`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/authorize-device-with-totp`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/generate-totp-secret`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/verify-and-enable-totp`]: { cost: 3 },
 
         // ── Session management ───────────────────────────────────────────
-        [`POST /${NAME_SPACE}/api/v1/action/sign-out-user`]:                         { cost: 1 },
+        [`POST /${NAME_SPACE}/api/v1/action/sign-out-user`]: { cost: 1 },
 
         // ── Read-only / lightweight ──────────────────────────────────────
-        [`POST /${NAME_SPACE}/api/v1/request/have-no-auth-token`]:                   { cost: 1 },
-        [`POST /${NAME_SPACE}/api/v1/request/available-2fa-methods`]:                { cost: 1 }
+        [`POST /${NAME_SPACE}/api/v1/request/have-no-auth-token`]: { cost: 1 },
+        [`POST /${NAME_SPACE}/api/v1/request/available-2fa-methods`]: { cost: 1 }
     },
 
     // ── Fallback for unmatched routes ────────────────────────────────────
@@ -113,7 +112,7 @@ Object.freeze(rateLimitPolicy);
  * Validates the policy table at boot time.
  * Ensures every route entry has a sane cost value and the fallback is non-zero.
  * Call once at server startup before the limiter middleware is mounted.
- * 
+ *
  * @param {typeof rateLimitPolicy} policy
  * @throws {Error} on invalid cost values or missing fallback
  */
@@ -121,10 +120,7 @@ function validateRateLimitPolicy(policy) {
     const VALID_COSTS = [1, 2, 3, 5, 10];
     for (const [key, entry] of Object.entries(policy.routes)) {
         if (!VALID_COSTS.includes(entry.cost)) {
-            throw new Error(
-                `RateLimitPolicy: invalid cost ${entry.cost} on route "${key}". ` +
-                `Must be one of ${VALID_COSTS.join(', ')}.`
-            );
+            throw new Error(`RateLimitPolicy: invalid cost ${entry.cost} on route "${key}". ` + `Must be one of ${VALID_COSTS.join(', ')}.`);
         }
     }
     if (!policy.fallback || policy.fallback.cost <= 0) {
@@ -139,7 +135,7 @@ function validateRateLimitPolicy(policy) {
  * Normalizes a raw URL path by replacing dynamic segments with `:id` tokens.
  * Matches UUID-v4 and pure numeric IDs only — intentionally excludes short hex
  * strings to avoid collapsing semantic route segments that happen to be all-hex.
- * 
+ *
  * Example: "/alpine/api/v1/products/9dc5b7f5-e2a8-43d1-a243-588ed7f422fa"
  *       -> "/alpine/api/v1/products/:id"
  */
@@ -151,18 +147,18 @@ function normalizeRoutePath(rawPath) {
     const clean = rawPath.split('?')[0].replace(/\/+$/, '') || '/';
     return clean
         .split('/')
-        .map(seg => DYNAMIC_SEGMENT_PATTERN.test(seg) ? ':id' : seg)
+        .map(seg => (DYNAMIC_SEGMENT_PATTERN.test(seg) ? ':id' : seg))
         .join('/');
 }
 
 /**
  * Resolves the effective rate-limit policy for a given request.
- * 
+ *
  * Resolution order:
  *   1. Exact match:  "METHOD /normalized/path"
  *   2. Wildcard method: "* /normalized/path"
  *   3. Fallback default
- * 
+ *
  * Returns a frozen policy object: { cost, ttl }
  */
 function resolveEndpointPolicy(method, rawPath) {

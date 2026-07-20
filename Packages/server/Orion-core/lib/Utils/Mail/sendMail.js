@@ -4,7 +4,6 @@ import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'sendMail.js');
 
-
 const generateAndSendMail = async (numPath, to, details) => {
     details.APPNAME = systemConfigModule.getModule()?.app?.appName || 'Orion';
 

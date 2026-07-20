@@ -21,6 +21,11 @@ import {
 } from '../../Utils/Core/SecurityManagment/DeviceAuthorization.js';
 import { routeHandlerInitiate2FAMethodRemoval, routeHandlerComplete2FAMethodRemoval } from '../../Utils/Core/SecurityManagment/Remove2FAMethod.js';
 import {
+    routeHandlerListActiveSessions,
+    routeHandlerRevokeSession,
+    routeHandlerRevokeAllSessions
+} from '../../Utils/Core/SecurityManagment/SessionRevocation.js';
+import {
     routeHandlerGenerateNoAuthTokenCreationTransaction,
     routeHandlerGenerateNoAuthToken,
     routeHandlerDeviceHasNoAuthToken
@@ -220,6 +225,24 @@ const defaultServerRoutes = {
             requireAuth: true,
             method: 'POST',
             callback: routeHandlerGetUserProfile
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/request/active-sessions`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerListActiveSessions
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/revoke-session`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerRevokeSession
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/revoke-all-sessions`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerRevokeAllSessions
         },
         {
             path: `/${NAME_SPACE}/api/v1/action/generate-passkey-sign-up-options`,

@@ -2,10 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    getRandomElement,
-    generateNumberedStringsFromTemplate
-} from '../../../../Packages/server/Orion-core/lib/Utils/ArrayUtilities.js';
+import { getRandomElement, generateNumberedStringsFromTemplate } from '../../../../Packages/server/Orion-core/lib/Utils/ArrayUtilities.js';
 
 describe('getRandomElement', () => {
     test('returns a member of the array', () => {

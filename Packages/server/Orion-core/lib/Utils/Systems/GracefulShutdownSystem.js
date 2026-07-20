@@ -10,7 +10,6 @@ const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'lo
 const clusterLinkSystemModule = new SafeModuleHandler('ClusterLinkSystem', 'clusterLinkSystem', 'GracefulShutdownSystem.js');
 const databaseJanitorModule = new SafeModuleHandler('DatabaseJanitor', 'databaseJanitor', 'GracefulShutdownSystem.js');
 
-
 const DRAIN_TIMEOUT_MS = 30_000;
 const DRAIN_POLL_MS = 500;
 
@@ -27,12 +26,12 @@ class GracefulShutdownSystem {
         process.on('SIGTERM', () => this._shutdown('SIGTERM', 0));
         process.on('SIGINT', () => this._shutdown('SIGINT', 0));
 
-        process.on('uncaughtException', (err) => {
+        process.on('uncaughtException', err => {
             logger.error('GracefulShutdown: uncaughtException —', err?.message || err);
             this._shutdown('uncaughtException', 1);
         });
 
-        process.on('unhandledRejection', (reason) => {
+        process.on('unhandledRejection', reason => {
             logger.error('GracefulShutdown: unhandledRejection —', reason?.message || reason);
             // Non-fatal: record in ETS if available, don't force shutdown
         });
@@ -84,9 +83,15 @@ class GracefulShutdownSystem {
         }
 
         // 5. Stop monitors and background sweepers
-        try { memoryMonitoringSystemModule.probeModule()?.stop(); } catch (_) {}
-        try { eventLoopMonitorModule.probeModule()?.stop(); } catch (_) {}
-        try { databaseJanitorModule.probeModule()?.stop(); } catch (_) {}
+        try {
+            memoryMonitoringSystemModule.probeModule()?.stop();
+        } catch (_) {}
+        try {
+            eventLoopMonitorModule.probeModule()?.stop();
+        } catch (_) {}
+        try {
+            databaseJanitorModule.probeModule()?.stop();
+        } catch (_) {}
 
         // 6. Close DB
         try {

@@ -2,12 +2,7 @@ import '../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    isValidEmail,
-    checkPasswordStrength,
-    generateNonce,
-    hexToUint8Array
-} from '../../../Packages/client/lib/Utils/Utils.js';
+import { isValidEmail, checkPasswordStrength, generateNonce, hexToUint8Array } from '../../../Packages/client/lib/Utils/Utils.js';
 
 // Note: sanitizeInput() depends on a live DOM (DOMPurify) and is covered by
 // browser-level tests, not this Node suite.

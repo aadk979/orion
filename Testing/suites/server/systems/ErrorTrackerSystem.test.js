@@ -29,9 +29,7 @@ describe('ErrorTrackerSystem.reportError', () => {
     });
 
     test('full error report is retrievable by id', async () => {
-        const { errorId } = await silenceConsole(() =>
-            report({ functionName: 'login', errorMessage: 'bad creds', functionSource: 'Auth.js' })
-        );
+        const { errorId } = await silenceConsole(() => report({ functionName: 'login', errorMessage: 'bad creds', functionSource: 'Auth.js' }));
         const full = ets.getFullErrorReport(errorId);
         assert.equal(full.errorId, errorId);
         assert.equal(full.functionName, 'login');

@@ -55,9 +55,16 @@ describe('Cluster protocol — envelope builders', () => {
     });
 
     test('command envelope attributes an admin principal when given', () => {
-        const env = buildCommandEnvelope('CMD-2', ClusterCommands.PING, {}, {
-            type: 'admin', id: 'SAD-1', email: 'ops@example.com'
-        });
+        const env = buildCommandEnvelope(
+            'CMD-2',
+            ClusterCommands.PING,
+            {},
+            {
+                type: 'admin',
+                id: 'SAD-1',
+                email: 'ops@example.com'
+            }
+        );
         assert.deepEqual(env.issuedBy, { type: 'admin', id: 'SAD-1', email: 'ops@example.com' });
     });
 

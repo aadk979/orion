@@ -1,12 +1,5 @@
 import express from 'express';
-import {
-    getEtsStatus,
-    getEtsReport,
-    getAnalytics,
-    getErrorById,
-    triggerLockdown,
-    liftLockdown
-} from '../controllers/etsController.js';
+import { getEtsStatus, getEtsReport, getAnalytics, getErrorById, triggerLockdown, liftLockdown } from '../controllers/etsController.js';
 import { restrictToLocalhost } from '../middleware/securityMiddleware.js';
 
 const router = express.Router();

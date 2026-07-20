@@ -13,10 +13,20 @@ const makeRes = () => ({
     headers: {},
     statusCode: null,
     sent: null,
-    set(k, v) { this.headers[k] = v; },
-    setHeader(k, v) { this.headers[k] = v; },
-    status(c) { this.statusCode = c; return this; },
-    send(b) { this.sent = b; return this; }
+    set(k, v) {
+        this.headers[k] = v;
+    },
+    setHeader(k, v) {
+        this.headers[k] = v;
+    },
+    status(c) {
+        this.statusCode = c;
+        return this;
+    },
+    send(b) {
+        this.sent = b;
+        return this;
+    }
 });
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489', 'hex');

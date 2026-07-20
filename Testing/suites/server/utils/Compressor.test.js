@@ -2,12 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    compressString,
-    decompressString,
-    compressURLs,
-    decompressURLs
-} from '../../../../Packages/server/Orion-core/lib/Utils/Compressor.js';
+import { compressString, decompressString, compressURLs, decompressURLs } from '../../../../Packages/server/Orion-core/lib/Utils/Compressor.js';
 
 describe('gzip string compression', () => {
     test('compress → decompress round-trips arbitrary text', async () => {

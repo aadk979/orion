@@ -13,6 +13,7 @@ import { handleOAuthCallback } from './API-Handlers/Auth/OAuth/HandleOAuthCallba
 import { setupTOTP, verifyAndEnableTOTP } from './API-Handlers/Auth/SetupTOTP.js';
 import { initiate2FAMethodRemoval, complete2FAMethodRemoval } from './API-Handlers/Auth/Remove2FAMethod.js';
 import { getUserProfile } from './API-Handlers/Auth/GetUserProfile.js';
+import { listActiveSessions, revokeSession, revokeAllSessions } from './API-Handlers/Auth/SessionManagement.js';
 import { globalAccessPoint } from './Utils/GlobalAccessPoint.js';
 import { getDeviceFingerprint } from './Utils/DevicePrint.js';
 
@@ -41,6 +42,24 @@ class Orion {
         globalAccessPoint.setValue('systemConfig', systemConfig);
 
         this.Api = new ApiInterface(systemConfig.serverUrl, systemConfig.nameSpace, systemConfig?.slug || '');
+
+        // Whenever the server flags a response with orion-session-logout (any
+        // logout-flagged token/auth error, or a revocation of this session),
+        // drop the local auth state instead of leaving the app to interpret
+        // raw token error codes.
+        this.Api.onSessionInvalid = () => this.#handleSessionInvalidated();
+    }
+
+    async #handleSessionInvalidated() {
+        try {
+            await orionVault.deleteItem('USER_EMAIL');
+        } catch (e) {
+            // vault may not be initialized yet — losing this cleanup is fine
+        }
+
+        if (this.#authState.status === 'AUTHENTICATED') {
+            this.#emitAuthState({ status: 'UNAUTHENTICATED' });
+        }
     }
 
     #emitAuthState(newState) {
@@ -50,13 +69,13 @@ class Orion {
 
     onAuthStateChanged(callback) {
         this.#authListeners.add(callback);
-        
+
         callback(this.#authState);
-        
+
         if (this.#authState.status === 'IDLE') {
             this.initialize();
         }
-        
+
         return () => this.#authListeners.delete(callback);
     }
 
@@ -83,7 +102,12 @@ class Orion {
                 const request = await this.Api.fetch(`/${this.systemConfig.nameSpace}/api/v1/action/get-current-auth-state`, 'POST', authHeader.authHead);
                 const data = await request.json();
 
-                const allowedErrors = ['AUTH::MISSING-TOKEN::A::p', 'TOKEN-ACCESS::EXPIRED::A::p', 'TOKEN-REFRESH::EXPIRED::A::p', 'AUTH::MISSING-SESSION-CREDENTIALS::A::p'];
+                const allowedErrors = [
+                    'AUTH::MISSING-TOKEN::A::p',
+                    'TOKEN-ACCESS::EXPIRED::A::p',
+                    'TOKEN-REFRESH::EXPIRED::A::p',
+                    'AUTH::MISSING-SESSION-CREDENTIALS::A::p'
+                ];
 
                 if (data.error && !allowedErrors.includes(data.errorData?.errorCode)) {
                     throw new Error('Unknown error: ' + JSON.stringify(data));
@@ -113,7 +137,7 @@ class Orion {
         await this.initialize();
 
         if (typeof callback === 'function') {
-            const compatCb = (state) => {
+            const compatCb = state => {
                 callback({
                     signedIn: state.status === 'AUTHENTICATED',
                     loading: state.status === 'IDLE' || state.status === 'LOADING'
@@ -169,7 +193,7 @@ class Orion {
 
     async signOutUser() {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await signOutUser({
             Api: this.Api,
@@ -180,7 +204,7 @@ class Orion {
 
     async registerPasskey() {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await registerPasskey({
             Api: this.Api,
@@ -253,14 +277,14 @@ class Orion {
             result = await handleOAuthCallback({
                 Api: this.Api,
                 getAuthHeader,
-                    This: this
+                This: this
             });
         } catch (e) {
             if (e._orionDeviceAuthCompleted) {
                 // OAuth codes are single-use — re-initiate a fresh OAuth redirect for the same provider.
                 const provider = sessionStorage.getItem('orion_oauth_provider');
                 sessionStorage.removeItem('orion_oauth_provider');
-                
+
                 if (provider) {
                     return await this.generateOAuthRedirectURLAndRedirect(provider);
                 }
@@ -288,7 +312,7 @@ class Orion {
 
     async setupTOTP() {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await setupTOTP({
             Api: this.Api,
@@ -299,7 +323,7 @@ class Orion {
 
     async verifyAndEnableTOTP(totpCode) {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await verifyAndEnableTOTP({
             Api: this.Api,
@@ -311,7 +335,7 @@ class Orion {
 
     async initiate2FAMethodRemoval(method) {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await initiate2FAMethodRemoval({
             Api: this.Api,
@@ -323,7 +347,7 @@ class Orion {
 
     async complete2FAMethodRemoval(code) {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await complete2FAMethodRemoval({
             Api: this.Api,
@@ -335,7 +359,7 @@ class Orion {
 
     async getUserProfile() {
         await this.initialize();
-        if (!this.#authState.status === 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
 
         return await getUserProfile({
             Api: this.Api,
@@ -343,7 +367,58 @@ class Orion {
             This: this
         });
     }
+
+    /**
+     * Active sessions for the signed-in user, grouped by session (one access +
+     * refresh token pair per entry). The entry whose `current` flag is true is
+     * the session making this call.
+     */
+    async listActiveSessions() {
+        await this.initialize();
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await listActiveSessions({
+            Api: this.Api,
+            getAuthHeader,
+            This: this
+        });
+    }
+
+    /**
+     * Revoke a single session or token. Pass exactly one of:
+     *   { linkCode } — revoke a whole session (access + refresh pair)
+     *   { tokenId }  — revoke one specific token
+     * If the revoked session is the current one, local auth state is torn down.
+     */
+    async revokeSession({ tokenId, linkCode } = {}) {
+        await this.initialize();
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await revokeSession({
+            Api: this.Api,
+            getAuthHeader,
+            This: this,
+            tokenId,
+            linkCode
+        });
+    }
+
+    /**
+     * Revoke every session for this user. keepCurrent: true (default) spares
+     * the session making the call ("sign out everywhere else"); false signs
+     * out this device too.
+     */
+    async revokeAllSessions({ keepCurrent = true } = {}) {
+        await this.initialize();
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await revokeAllSessions({
+            Api: this.Api,
+            getAuthHeader,
+            This: this,
+            keepCurrent
+        });
+    }
 }
 
 export { Orion, getDeviceFingerprint };
-

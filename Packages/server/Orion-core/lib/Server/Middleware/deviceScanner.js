@@ -1,12 +1,12 @@
 import { isDeviceRecognizedForUserEmail, isDeviceRecognizedForUserUID } from '../../Utils/Core/AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
 import { userControl } from '../../Utils/Core/AccountManagment/UserControl.js';
-import { parseDuration } from '../../Utils/Date&Time.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 import { tryCatch } from '../../Utils/TryCatch.js';
 import { fileURLToPath } from 'url';
 import { isValidEmailDomain } from '../../Utils/Validator.js';
 import { respondWithError } from '../Response/response.js';
 import { slugParser } from '../../Utils/Parsers.js';
+import { setManagedCookie, clearManagedCookie } from '../../Utils/CookieUtils.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -17,13 +17,13 @@ const PUBLIC_ROUTES_FOR_DEVICE_CHECK = [
 ];
 
 const handleCookieClearence = response => {
-    response.cookie('ACCESS_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'ACCESS_TOKEN');
 
-    response.cookie('REFRESH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'REFRESH_TOKEN');
 
-    response.cookie('authorizedDeviceId', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'authorizedDeviceId');
 
-    response.cookie('authorizedDeviceCode', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'authorizedDeviceCode');
 
     return;
 };
@@ -92,13 +92,7 @@ const deviceCheckMiddlware = async (request, response, next) => {
             }
 
             if (!deviceId || !deviceCode) {
-                parameters.response.cookie('deviceAuthEmailOffset', email, {
-                    httpOnly: true,
-                    secure: true,
-                    sameSite: 'None',
-                    path: '/',
-                    maxAge: parseDuration('15m')
-                });
+                setManagedCookie(parameters.response, 'deviceAuthEmailOffset', email);
 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
                 // Update note: the client sdk no longer listens for the error code to trigger the flow but listens for the orion-flow-activation header as to allow future support for other flows
@@ -108,17 +102,11 @@ const deviceCheckMiddlware = async (request, response, next) => {
             const check = await isDeviceRecognizedForUserEmail(email, userAgent, deviceId, deviceCode);
 
             if (check.error) {
-                parameters.response.cookie('authorizedDeviceId', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
+                clearManagedCookie(parameters.response, 'authorizedDeviceId');
 
-                parameters.response.cookie('authorizedDeviceCode', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
+                clearManagedCookie(parameters.response, 'authorizedDeviceCode');
 
-                parameters.response.cookie('deviceAuthEmailOffset', email, {
-                    httpOnly: true,
-                    secure: true,
-                    sameSite: 'None',
-                    path: '/',
-                    maxAge: parseDuration('15m')
-                });
+                setManagedCookie(parameters.response, 'deviceAuthEmailOffset', email);
 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
                 return respondWithError(parameters.response, 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p');

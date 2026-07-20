@@ -41,13 +41,7 @@ async function exportPrivateKeyECC(key) {
  * exportPrivateKeyECC) back into a usable CryptoKey for the given curve.
  */
 async function importPrivateKeyECC(pkcs8Bytes, size = 'P-256') {
-    return crypto.webcrypto.subtle.importKey(
-        'pkcs8',
-        pkcs8Bytes,
-        { name: 'ECDH', namedCurve: size },
-        true,
-        ['deriveKey', 'deriveBits']
-    );
+    return crypto.webcrypto.subtle.importKey('pkcs8', pkcs8Bytes, { name: 'ECDH', namedCurve: size }, true, ['deriveKey', 'deriveBits']);
 }
 
 async function deriveSharedSecret(privateKey, peerPublicKey) {
@@ -126,4 +120,15 @@ async function decryptPrivate(encryptedData, privateKey) {
     }
 }
 
-export { generateKeyPairDedicated, encryptPublic, decryptPrivate, generateKeyPairECC, exportPublicKeyECC, importPublicKeyECC, exportPrivateKeyECC, importPrivateKeyECC, deriveKey, deriveSharedSecret };
+export {
+    generateKeyPairDedicated,
+    encryptPublic,
+    decryptPrivate,
+    generateKeyPairECC,
+    exportPublicKeyECC,
+    importPublicKeyECC,
+    exportPrivateKeyECC,
+    importPrivateKeyECC,
+    deriveKey,
+    deriveSharedSecret
+};

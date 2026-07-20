@@ -231,6 +231,7 @@ CREATE TABLE IF NOT EXISTS oauth_requests (
     ip_range            TEXT NOT NULL,
     provider_name       TEXT NOT NULL,
     nonce               TEXT,
+    code_verifier       TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at          TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '1 hour')
 );

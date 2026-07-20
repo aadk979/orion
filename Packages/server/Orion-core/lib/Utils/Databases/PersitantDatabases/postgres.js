@@ -49,7 +49,7 @@ class PostgresService {
 
         // An errored idle client emits 'error' on the pool; without a handler
         // that becomes an uncaught exception and kills the process.
-        this.pool.on('error', (err) => {
+        this.pool.on('error', err => {
             logger.error(`PostgresService: idle client error — ${err.message}`);
         });
 
@@ -87,7 +87,7 @@ class PostgresService {
                     if (applied.get(file) !== checksum) {
                         logger.warn(
                             `PostgresService: migration ${file} was modified after being applied ` +
-                            `(checksum mismatch) — applied migrations must never be edited; add a new migration instead`
+                                `(checksum mismatch) — applied migrations must never be edited; add a new migration instead`
                         );
                     }
                     continue;
@@ -96,10 +96,7 @@ class PostgresService {
                 try {
                     await client.query('BEGIN');
                     await client.query(sql);
-                    await client.query(
-                        'INSERT INTO _orion_migrations (version, checksum) VALUES ($1, $2)',
-                        [file, checksum]
-                    );
+                    await client.query('INSERT INTO _orion_migrations (version, checksum) VALUES ($1, $2)', [file, checksum]);
                     await client.query('COMMIT');
                     logger.info(`PostgresService: applied migration ${file}`);
                 } catch (e) {
@@ -110,7 +107,9 @@ class PostgresService {
         } finally {
             try {
                 await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_ADVISORY_LOCK_KEY]);
-            } catch (_) { /* connection teardown releases the lock anyway */ }
+            } catch (_) {
+                /* connection teardown releases the lock anyway */
+            }
             client.release();
         }
     }

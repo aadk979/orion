@@ -67,7 +67,7 @@ const emailPrefixList = {
 };
 
 const generateUID = () => {
-    const randomId = crypto.randomUUID();;
+    const randomId = crypto.randomUUID();
     return randomId;
 };
 

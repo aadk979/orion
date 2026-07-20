@@ -9,7 +9,7 @@ describe('EscalationHub — channels', () => {
     test('custom channels receive normalized records', async () => {
         const hub = new EscalationHub();
         const seen = [];
-        hub.addChannel('capture', (e) => seen.push(e));
+        hub.addChannel('capture', e => seen.push(e));
 
         await silenceConsole(async () => {
             await hub.raise({ type: 'x', severity: 'critical', message: 'boom', workerId: 'W1', details: { a: 1 } });
@@ -31,8 +31,10 @@ describe('EscalationHub — channels', () => {
     test('a failing channel never breaks the others or the caller', async () => {
         const hub = new EscalationHub();
         const seen = [];
-        hub.addChannel('broken', () => { throw new Error('channel down'); });
-        hub.addChannel('working', (e) => seen.push(e));
+        hub.addChannel('broken', () => {
+            throw new Error('channel down');
+        });
+        hub.addChannel('working', e => seen.push(e));
 
         await silenceConsole(() => hub.raise({ type: 'x', severity: 'warning', message: 'm' }));
         assert.equal(seen.length, 1);
@@ -41,7 +43,7 @@ describe('EscalationHub — channels', () => {
     test('channels can be removed', async () => {
         const hub = new EscalationHub();
         const seen = [];
-        hub.addChannel('c', (e) => seen.push(e));
+        hub.addChannel('c', e => seen.push(e));
         hub.removeChannel('c');
         await silenceConsole(() => hub.raise({ type: 'x', severity: 'info', message: 'm' }));
         assert.equal(seen.length, 0);

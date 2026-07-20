@@ -6,7 +6,7 @@ const DEFAULTS = {
     failureThreshold: 5,
     successThreshold: 2,
     timeWindowMs: 60_000,
-    resetTimeoutMs: 30_000,
+    resetTimeoutMs: 30_000
 };
 
 class CircuitBreakerSystem {

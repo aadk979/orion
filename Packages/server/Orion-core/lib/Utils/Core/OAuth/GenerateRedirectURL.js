@@ -1,7 +1,6 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { cronScheduler } from '../../Cron.js';
 import { hashString } from '../../CryptoFunctions.js';
-import { parseDuration } from '../../Date&Time.js';
 import { base64Encode } from '../../Encoders.js';
 import { RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange } from '../../Ip.js';
@@ -10,26 +9,12 @@ import { fileURLToPath } from 'url';
 import { generateChallenge, generateRequestId } from '../../valueGenerator.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { setManagedCookie } from '../../CookieUtils.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'GenerateRedirectURL.js');
 const oAuthToolKitModule = new SafeModuleHandler('OAuthToolKit', 'oAuthToolKit', 'GenerateRedirectURL.js');
 
-
-const SUPPORTED_PROVIDERS = [
-    'GOOGLE',
-    'GITHUB',
-    'MICROSOFT',
-    'DISCORD',
-    'FACEBOOK',
-    'AMAZON',
-    'SLACK',
-    'APPLE',
-    'TWITTER',
-    'LINKEDIN',
-    'REDDIT',
-    'SPOTIFY',
-    'AUTHCORE'
-];
+const SUPPORTED_PROVIDERS = ['GOOGLE', 'GITHUB', 'MICROSOFT', 'DISCORD', 'FACEBOOK', 'AMAZON', 'SLACK', 'TWITTER', 'LINKEDIN', 'REDDIT', 'SPOTIFY'];
 
 const deleteFunction = async parameters => {
     await RequestModel.deleteOAuthRequest(parameters.requestId);
@@ -71,19 +56,15 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
         const hashedChallenge = await hashString(challenge);
         const ipRange = getIpRange(parameters.ip);
 
+        // PKCE verifier and OIDC nonce are generated for every request and kept
+        // server-side; the toolkit only forwards each one to providers that use it.
+        const codeVerifier = oAuthToolKit.generateCodeVerifier();
+        const nonce = oAuthToolKit.generateNonce();
+
         const stateForClient = {
             requestId,
             challenge,
-            providerName: parameters.providerName.toUpperCase(),
-            ...(parameters.providerName.toUpperCase() === 'AUTHCORE' && { nonce: generateChallenge(32) })
-        };
-        const stateForServer = {
-            requestId,
-            hashedFlowSecret,
-            hashedChallenge,
-            ipRange,
-            providerName: parameters.providerName.toUpperCase(),
-            ...(stateForClient.nonce && { nonce: stateForClient.nonce })
+            providerName: parameters.providerName.toUpperCase()
         };
 
         const encodedStateForClient = base64Encode(JSON.stringify(stateForClient));
@@ -93,13 +74,15 @@ const generateOAuthRedirectURL = async (providerName, ip) => {
             hashedChallenge,
             ipRange,
             providerName: parameters.providerName.toUpperCase(),
-            nonce: stateForClient.nonce || null
+            nonce,
+            codeVerifier
         });
 
         cronScheduler.addEvent(requestId, deleteFunction, '2m', { requestId });
 
-        const redirectURLResponse = oAuthToolKit.generateAuthUrl(parameters.providerName.toLowerCase(), encodedStateForClient, {
-            ...(stateForClient.nonce && { nonce: stateForClient.nonce })
+        const redirectURLResponse = await oAuthToolKit.generateAuthUrl(parameters.providerName.toLowerCase(), encodedStateForClient, {
+            nonce,
+            codeVerifier
         });
 
         if (redirectURLResponse?.error) {
@@ -176,12 +159,7 @@ const routeHandlerGenerateOAuthRedirectURL = async (request, response) => {
     }
 
     // Deliver flow_secret via HttpOnly cookie — never in the response body
-    response.cookie('oAuthFlowSecret', callback.flowSecret, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        maxAge: parseDuration('2m')
-    });
+    setManagedCookie(response, 'oAuthFlowSecret', callback.flowSecret);
 
     return respondWithSuccess(response, 200, { redirectURL: callback.redirectURL });
 };

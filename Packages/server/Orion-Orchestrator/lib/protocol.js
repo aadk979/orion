@@ -74,6 +74,25 @@ const ClusterCommands = Object.freeze({
      * Only honored when the node booted with clientUrls.runTimeUpdateAllowed.
      */
     ADD_CLIENT_URLS: 'config:client-urls:add',
+    /**
+     * Inventory of the node's secrets managers: active (non-expired) signing
+     * kids it owns and verification kids it trusts — kids and expiries only,
+     * never key material.
+     */
+    SECRETS_LIST_KIDS: 'secrets:list-kids',
+    /**
+     * Immediate revocation broadcast — args: { kids: [] }. Every node
+     * self-discovers what each kid means to it: a kid in its SIGNING pool is
+     * decommissioned and replaced with a fresh pair; a kid in its VERIFICATION
+     * pool is wiped so its signatures stop verifying; either way the kid is
+     * deleted from the shared Redis fan-out.
+     */
+    SECRETS_REVOKE_KIDS: 'secrets:revoke-kids',
+    /**
+     * Decommission ALL of this node's signing keys immediately and regenerate
+     * fresh pools — args: { kind?, domain? } to narrow to one manager family.
+     */
+    SECRETS_FORCE_ROTATE: 'secrets:force-rotate',
     /** Start the memory monitoring system */
     START_MEMORY_MONITOR: 'memory-monitor:start',
     /** Stop the memory monitoring system */
@@ -156,13 +175,14 @@ const buildCommandEnvelope = (commandId, action, args = {}, issuedBy = null) => 
     commandId,
     action,
     args,
-    issuedBy: issuedBy && typeof issuedBy === 'object'
-        ? {
-            type: issuedBy.type === 'admin' ? 'admin' : 'system',
-            id: issuedBy.id || null,
-            email: issuedBy.email || null
-        }
-        : { type: 'system', id: null, email: null }
+    issuedBy:
+        issuedBy && typeof issuedBy === 'object'
+            ? {
+                  type: issuedBy.type === 'admin' ? 'admin' : 'system',
+                  id: issuedBy.id || null,
+                  email: issuedBy.email || null
+              }
+            : { type: 'system', id: null, email: null }
 });
 
 /** Node → orchestrator command result envelope */
@@ -199,8 +219,8 @@ const buildClusterState = (state, previousState, summary = {}) => ({
     changedAt: Math.floor(Date.now() / 1000)
 });
 
-const isKnownCommand = (action) => Object.values(ClusterCommands).includes(action);
-const isKnownTopic = (topic) => Object.values(ConsensusTopics).includes(topic);
+const isKnownCommand = action => Object.values(ClusterCommands).includes(action);
+const isKnownTopic = topic => Object.values(ConsensusTopics).includes(topic);
 
 export {
     PROTOCOL_VERSION,

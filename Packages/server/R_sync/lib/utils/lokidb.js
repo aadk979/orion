@@ -4,15 +4,14 @@ import { R_SYNC_LOCAL_DB_NAME } from '../r_sync.meta.js';
 const COLLECTIONS = Object.freeze(['workers', 'encryptionKeys', 'events']);
 
 /** In-memory only, no disk I/O or autosave timers — keeps `node --test` from hanging */
-const isTestMode =
-    process.env.R_SYNC_TEST_MODE === '1' || process.env.NODE_ENV === 'test';
+const isTestMode = process.env.R_SYNC_TEST_MODE === '1' || process.env.NODE_ENV === 'test';
 
 let dbReady = false;
 let dbReadyPromise;
 let dbReadyResolve;
 
 // Create a promise that resolves when db is ready
-dbReadyPromise = new Promise((resolve) => {
+dbReadyPromise = new Promise(resolve => {
     dbReadyResolve = resolve;
 });
 
@@ -169,7 +168,7 @@ async function clearAllData() {
 
     // Force save to disk
     return new Promise((resolve, reject) => {
-        db.saveDatabase((err) => {
+        db.saveDatabase(err => {
             if (err) {
                 reject(err);
             } else {

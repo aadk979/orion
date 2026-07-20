@@ -150,8 +150,7 @@ class ErrorTrackerSystem {
             this._pruneWindow(Date.now() - WINDOW_MS);
             const burst = this.getRecentErrorBursts();
 
-            const stable = burst.length < THRESHOLDS.ERROR_BURST / 2
-                        && this._windowedErrors.length < THRESHOLDS.ERRORS_PER_MINUTE / 2;
+            const stable = burst.length < THRESHOLDS.ERROR_BURST / 2 && this._windowedErrors.length < THRESHOLDS.ERRORS_PER_MINUTE / 2;
 
             if (stable) {
                 this._recoveryStableCount++;
@@ -270,9 +269,7 @@ class ErrorTrackerSystem {
             errorCountByFunction: convertMap(this._errorCountByFunction),
             errorCountBySource: convertMap(this._errorCountBySource),
 
-            errorRelations: Object.fromEntries(
-                [...this._errorRelations.entries()].map(([key, innerMap]) => [key, convertMap(innerMap)])
-            ),
+            errorRelations: Object.fromEntries([...this._errorRelations.entries()].map(([key, innerMap]) => [key, convertMap(innerMap)])),
 
             recentErrors: this._recentErrors,
             exportedAt: new Date().toISOString()

@@ -57,7 +57,7 @@ function renderTodos(todos) {
             <input type="checkbox" class="todo-check" ${todo.done ? 'checked' : ''} />
             <span class="todo-title ${todo.done ? 'done' : ''}">${escapeHtml(todo.title)}</span>
         `;
-        info.querySelector('.todo-check').addEventListener('change', (e) => toggleTodo(todo.id, e.target.checked));
+        info.querySelector('.todo-check').addEventListener('change', e => toggleTodo(todo.id, e.target.checked));
 
         const actions = document.createElement('div');
         actions.className = 'section-row-actions';
@@ -106,7 +106,7 @@ async function deleteTodo(id) {
     await loadTodos();
 }
 
-form.addEventListener('submit', async (e) => {
+form.addEventListener('submit', async e => {
     e.preventDefault();
     const title = input.value.trim();
     if (!title) return;
@@ -131,7 +131,7 @@ document.getElementById('sign-out-btn').addEventListener('click', async () => {
     }
 });
 
-orion.onAuthStateChanged(async (state) => {
+orion.onAuthStateChanged(async state => {
     if (state.status === 'UNAUTHENTICATED') {
         window.location.href = './auth.html';
     } else if (state.status === 'AUTHENTICATED') {

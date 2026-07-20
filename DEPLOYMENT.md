@@ -105,26 +105,26 @@ orion/
 
 Deep-dive references (read these for exhaustive per-subsystem detail):
 
-| Topic | File |
-|-------|------|
-| Cluster control plane + system-admin plane | `Packages/server/Orion-Orchestrator/README.md` |
-| Encrypted M2M transport | `Packages/server/R_sync/README.md` |
-| Worked example, local + EC2 run | `Packages/apps/Todos-App/README.md` |
-| Full auth config template (annotated) | `Packages/apps/Todos-App/server/orion.config.example.js` |
-| Test suite | `Testing/README.md` |
+| Topic                                      | File                                                     |
+| ------------------------------------------ | -------------------------------------------------------- |
+| Cluster control plane + system-admin plane | `Packages/server/Orion-Orchestrator/README.md`           |
+| Encrypted M2M transport                    | `Packages/server/R_sync/README.md`                       |
+| Worked example, local + EC2 run            | `Packages/apps/Todos-App/README.md`                      |
+| Full auth config template (annotated)      | `Packages/apps/Todos-App/server/orion.config.example.js` |
+| Test suite                                 | `Testing/README.md`                                      |
 
 ---
 
 ## 3. Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| **Node.js** | ≥ 18.18 (20 LTS recommended; suite runs on 20–25) | `node -v` |
-| **PostgreSQL** | 13+ (verified on 16) | Users, tokens, devices, app data, and the `orch_*` admin tables |
-| **Redis** | 6+ | **Only required for multi-node** — shares JWT signing keys fleet-wide |
-| **MySQL** | 8+ | **Only if** the tamper-evident audit trail is enabled |
-| **SMTP creds** | — | **Required** if you enable email/password, device-auth, TOTP, passkey, or password reset (all send email OTPs). A Gmail App Password works. |
-| Build tools | `build-essential`/Xcode CLT | For native modules (`bcrypt`, `canvas`) if no prebuilt binary matches your platform |
+| Requirement    | Version                                           | Notes                                                                                                                                       |
+| -------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Node.js**    | ≥ 18.18 (20 LTS recommended; suite runs on 20–25) | `node -v`                                                                                                                                   |
+| **PostgreSQL** | 13+ (verified on 16)                              | Users, tokens, devices, app data, and the `orch_*` admin tables                                                                             |
+| **Redis**      | 6+                                                | **Only required for multi-node** — shares JWT signing keys fleet-wide                                                                       |
+| **MySQL**      | 8+                                                | **Only if** the tamper-evident audit trail is enabled                                                                                       |
+| **SMTP creds** | —                                                 | **Required** if you enable email/password, device-auth, TOTP, passkey, or password reset (all send email OTPs). A Gmail App Password works. |
+| Build tools    | `build-essential`/Xcode CLT                       | For native modules (`bcrypt`, `canvas`) if no prebuilt binary matches your platform                                                         |
 
 You do **not** need Docker, a bundler, or any global npm tooling. The system-admin
 GUI ships pre-built (`gui/out` is committed) — no Next.js build is required to run it.
@@ -210,7 +210,7 @@ convention for everything that must never be committed: real configs,
 credentials, keys, logs, deploy artifacts, throwaway scripts.
 
 - Committed template: `server/orion.config.example.js`
-- Your real config:  `server/gipsy.orion.config.js`   ← git-ignored, edit this
+- Your real config: `server/gipsy.orion.config.js` ← git-ignored, edit this
 
 The Todos server literally refuses to boot without `gipsy.orion.config.js` and
 tells you to copy the template. Keep every secret behind a `gipsy.` name (or an
@@ -238,7 +238,7 @@ import { initiateServer, logger } from '../../../server/Orion-core/index.js';
 import { configuration } from './gipsy.orion.config.js';
 
 const server = await initiateServer(undefined, configuration);
-server.app.listen(configuration.app.port);   // server.app is a standard Express app
+server.app.listen(configuration.app.port); // server.app is a standard Express app
 ```
 
 `server.app` is a normal Express instance — serve it over HTTP for local dev, or
@@ -253,17 +253,18 @@ Every key of the Orion-core configuration object, grouped. Optional blocks can
 be omitted entirely to disable the feature.
 
 ### `app` — identity & port
-| Key | Type | Notes |
-|-----|------|-------|
-| `port` | number | API listen port (default `3900` in the example) |
-| `appName` | string | Shown in emails, cluster hello, logs |
+
+| Key         | Type   | Notes                                             |
+| ----------- | ------ | ------------------------------------------------- |
+| `port`      | number | API listen port (default `3900` in the example)   |
+| `appName`   | string | Shown in emails, cluster hello, logs              |
 | `serviceID` | string | Stable unique ID for this service across restarts |
 
 ### `utilities` — subsystems
 
 **`logToFile`** `boolean` — mirror logs to `logs/`.
 
-**`rateLimiter.floodGuard`** — coarse per-IP breaker mounted *before* body
+**`rateLimiter.floodGuard`** — coarse per-IP breaker mounted _before_ body
 parsing (the shallow complement to the deep per-actor limiter).
 `{ enabled: true, windowMs: 60000, max: 1000 }`. Set `enabled:false` to remove.
 
@@ -304,43 +305,49 @@ README for the full table.
 `{ enabled, cluster, orchestratorIp, orchestratorPort, publicIp, port, requireOrchestrator, allowRemoteControl, statusReportIntervalMs, flagWatchIntervalMs, memoryPressureThresholdPercent, reRegisterAfterFailures }`.
 
 ### `db` — persistent store
+
 `{ provider: 'POSTGRES', credentials: { host, database, user, password, poolMax?, statementTimeoutMs?, ...pgPoolOpts } }`.
 Extra keys pass straight through to `pg.Pool` (e.g. `ssl: { rejectUnauthorized: true }`).
 Mind `poolMax` × cluster size against Postgres `max_connections`.
 
 ### `api` — your routes & static hosting
-| Key | Notes |
-|-----|-------|
-| `customEndpoints[]` | `{ path, method, requireAuth, callback }`. Parameterized paths (`/todos/:id`) are matched segment-aware. |
-| `customMiddlewares[]` | Express middleware run in the auth pipeline |
-| `slug` | Path prefix for all custom endpoints |
-| `static` | Opt-in plain static hosting: `{ enabled, directory, options: { dotfiles, index, maxAge } }`. Served before the auth stack — no `orion-*` headers needed. Distinct from token-gated ORAS. |
+
+| Key                   | Notes                                                                                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `customEndpoints[]`   | `{ path, method, requireAuth, callback }`. Parameterized paths (`/todos/:id`) are matched segment-aware.                                                                                 |
+| `customMiddlewares[]` | Express middleware run in the auth pipeline                                                                                                                                              |
+| `slug`                | Path prefix for all custom endpoints                                                                                                                                                     |
+| `static`              | Opt-in plain static hosting: `{ enabled, directory, options: { dotfiles, index, maxAge } }`. Served before the auth stack — no `orion-*` headers needed. Distinct from token-gated ORAS. |
 
 ### `client` / `server` — CORS & issuer allowlists
+
 - `client.urls[]` — allowed browser origins (CORS). `runTimeUpdateAllowed` /
   `persistentUpdateAllowed` let the orchestrator push new URLs at runtime.
 - `server.urls[]` — every node's public API URL (all nodes list all URLs so a
   token's `iss` validates cluster-wide). `selfUrl` — this node's own URL.
 
 ### `mail` — SMTP
+
 `{ email, password, service }` (e.g. `service: 'gmail'` with an App Password), or
 explicit SMTP host/port. **Required** for any email-OTP method.
 
 ### `tokens` — lifespans & security tier
+
 - `lifespans` — `{ accessTokens: '15m', refreshTokens: '7d', resourceTokens: '1h' }`.
 - `securityTier` — how tightly tokens bind to the client context:
 
-  | Tier | Binds the token to… |
-  |------|---------------------|
-  | 1 | Baseline (audited issuance) |
-  | 2 | + IP range |
-  | 3 | + device fingerprint |
-  | 4 | + IP range **and** device fingerprint (strictest) |
+    | Tier | Binds the token to…                               |
+    | ---- | ------------------------------------------------- |
+    | 1    | Baseline (audited issuance)                       |
+    | 2    | + IP range                                        |
+    | 3    | + device fingerprint                              |
+    | 4    | + IP range **and** device fingerprint (strictest) |
 
-  Higher tiers reject a stolen token replayed from a different network/device,
-  at the cost of legitimate re-auth when a user's IP or device changes.
+    Higher tiers reject a stolen token replayed from a different network/device,
+    at the cost of legitimate re-auth when a user's IP or device changes.
 
 ### `authMethods` — enabled sign-in methods
+
 ```js
 authMethods: {
     emailPassword: true,
@@ -348,14 +355,18 @@ authMethods: {
     OAuth: {                     // per-provider; empty {} disables OAuth
         google:   { clientId, clientSecret, redirectUri },
         github:   { clientId, clientSecret, redirectUri },
-        // custom OIDC: also supply authUrl, tokenUrl, userInfoUrl/jwksUri
     },
     allowedEmailDomains: ['*']   // or ['example.com', 'corp.io']
 }
 ```
-Built-in OAuth providers: **google, github, discord, slack, microsoft, facebook,
-amazon, apple, twitter, linkedin, reddit, spotify** (plus any custom OIDC
-provider you fully configure).
+
+Built-in OAuth providers: **google, github, discord, slack, microsoft,
+facebook, amazon, twitter, linkedin, reddit, spotify** — this fixed registry
+is the full set (config-defined custom providers are not supported). Slack
+uses **"Sign in with Slack" (OIDC)** — your Slack app must be configured with
+the `openid email profile` scopes, not the legacy `identity.*` ones. Apple is
+**not supported** (its form_post callback and JWT client secret don't fit the
+standard code flow).
 
 ---
 
@@ -393,7 +404,7 @@ Add nodes by running more Orion-core instances that share the **same** Postgres,
 1. **Redis is mandatory.** Every node points `ephemeralDB` at the same Redis so
    signing keys are shared — a token from any node validates on all nodes.
 2. **List all URLs in every config.** Each node's `server.urls` must contain the
-   public URL of *every* node (so cross-node `iss` validation passes);
+   public URL of _every_ node (so cross-node `iss` validation passes);
    `selfUrl` is that node's own URL. `client.urls` should list every client
    origin.
 3. **Give each node a unique `serviceID`, `appName`, and `publicIp`/`port`** for
@@ -420,10 +431,10 @@ Minimal orchestrator process:
 import { OrionOrchestrator, ClusterCommands, ConsensusTopics } from 'orion-orch';
 
 const orch = new OrionOrchestrator({
-    cluster: 'todos-demo',          // nodes must present the SAME name
-    publicIp: '127.0.0.1',          // address nodes reach it on
+    cluster: 'todos-demo', // nodes must present the SAME name
+    publicIp: '127.0.0.1', // address nodes reach it on
     port: 55321,
-    nodeStaleAfterSeconds: 120,
+    nodeStaleAfterSeconds: 120
     // persistence, health, consensus, policies, escalations, systemAdmin ...
 });
 
@@ -452,11 +463,12 @@ engine, and the R_Sync security model are documented in
 **`Packages/server/Orion-Orchestrator/README.md`**. Programmatic operations:
 
 ```js
-await orch.getClusterStatus();                       // merged fleet view
-await orch.lockCluster();                             // reject all API traffic fleet-wide
+await orch.getClusterStatus(); // merged fleet view
+await orch.lockCluster(); // reject all API traffic fleet-wide
 await orch.proposeConsensus(ConsensusTopics.NODE_HEALTHY);
 await orch.command(workerId, ClusterCommands.GET_STATUS);
-await orch.declareIncident('DB failover'); await orch.resolveIncident('done');
+await orch.declareIncident('DB failover');
+await orch.resolveIncident('done');
 ```
 
 ---
@@ -465,9 +477,10 @@ await orch.declareIncident('DB failover'); await orch.resolveIncident('done');
 
 Without this, anyone who can reach the orchestrator process has total, unaudited
 governance. Enabling it puts every human operator behind **policy**, **magic-link
-+ mandatory TOTP** auth (password + TOTP for the one root admin), and an
-**immutable, hash-chained audit trail** — with a web panel, a JSON API, and the
-`orionctl` CLI all speaking the same policy-guarded surface.
+
+- mandatory TOTP** auth (password + TOTP for the one root admin), and an
+  **immutable, hash-chained audit trail** — with a web panel, a JSON API, and the
+  `orionctl` CLI all speaking the same policy-guarded surface.
 
 ### Enable it
 
@@ -476,13 +489,15 @@ credentials:
 
 ```js
 new OrionOrchestrator({
-    cluster: 'todos-demo', publicIp: '127.0.0.1', port: 55321,
+    cluster: 'todos-demo',
+    publicIp: '127.0.0.1',
+    port: 55321,
     systemAdmin: {
         enabled: true,
         database: { host, port: 5432, database: 'todos_orion', user: 'todos_app', password },
         rootAdmin: { email: 'you@example.com', initialPassword: '<min-12-chars>' }, // FIRST boot only
-        http: { host: '0.0.0.0', port: 55330, secureCookies: true, trustProxy: true },
-        baseUrl: 'https://panel.example.com',   // this panel's own public URL (for magic links)
+        http: { host: '0.0.0.0', port: 55330, secureCookies: true, trustProxy: true, theme: 'modern' },
+        baseUrl: 'https://panel.example.com', // this panel's own public URL (for magic links)
         mail: { service: 'gmail', email, password, from: email, appName: 'Orion Orchestrator' }
     }
 });
@@ -493,6 +508,17 @@ reads all of this from environment variables so no secrets are committed — set
 `SYSTEM_ADMIN_ENABLED=true` plus `SA_DB_*`, `SA_ROOT_*`, `SA_HTTP_*`,
 `SA_BASE_URL`, `SA_MAIL_*` at launch (keep them in a git-ignored
 `gipsy.launch-orch.sh`).
+
+**Panel theme.** `http.theme` picks the panel's look: `modern` (default —
+light, Apple-style, roomy) or `classic` (dense MySQL Workbench-style: gray
+chrome, sharp rectangles, 11px type, zebra grids, status bar). `ORION_GUI_THEME`
+sets the same thing from the environment; the config key wins. Both themes are
+compiled into the shipped `gui/out` bundle and the attribute is stamped per
+request, so switching is a **restart, not a GUI rebuild**.
+
+```bash
+ORION_GUI_THEME=classic node orchestrator/start.js
+```
 
 ### What it does
 
@@ -564,7 +590,7 @@ In the reference client, the only line to change per deployment is
 `client/config.js`:
 
 ```js
-const SERVER_URL = 'https://<your-api-url>';   // the Orion-core node this client talks to
+const SERVER_URL = 'https://<your-api-url>'; // the Orion-core node this client talks to
 export { SERVER_URL };
 ```
 
@@ -606,10 +632,10 @@ client through a tunnel. Full narrative in `Packages/apps/Todos-App/README.md`.
 
 **Topology**
 
-| Role | Runs | M2M |
-|------|------|-----|
+| Role             | Runs                                                              | M2M      |
+| ---------------- | ----------------------------------------------------------------- | -------- |
 | orchestrator box | Orion-Orchestrator (+ system-admin plane), Postgres, Redis, MySQL | `:55321` |
-| worker ×3 | Orion-core API (`:3900`) + static client (`:8080`) | `:55322` |
+| worker ×3        | Orion-core API (`:3900`) + static client (`:8080`)                | `:55322` |
 
 **Per-box bootstrap**
 
@@ -708,17 +734,17 @@ and safely on boot, serialized cluster-wide via advisory locks.
 
 ## 20. Troubleshooting
 
-| Symptom | Likely cause / fix |
-|---------|--------------------|
-| Node exits: *"Missing server/gipsy.orion.config.js"* | Copy `orion.config.example.js` → `gipsy.orion.config.js` and fill it in. |
-| Signup/2FA/passkey silently unavailable | No `mail` credentials — email-OTP methods are force-disabled. Add SMTP creds. |
-| Tokens from node A rejected on node B | Redis not shared (or not configured). Multi-node **requires** a shared `ephemeralDB`. |
-| CORS errors in the browser | Client origin not in `client.urls`; add it (or push via `orch.addClientUrls`). |
-| Orchestrator can't reach nodes after restart | Benign: nodes re-register on their next heartbeat; health returns to `HEALTHY` within ~30–60s. |
-| Panel 401 / `AUTH::TOTP-REQUIRED` | Expected until you complete the login ladder (magic link/password → TOTP → active). |
-| Panel URL stopped working | Quick-tunnel URL changed on restart — re-sync `SA_BASE_URL` and the allowlists, or move to a named tunnel/domain. |
-| `CREATE TABLE` denied on boot | The DB user lacks DDL rights in its database. Grant it, or make it the DB owner. |
-| Audit chain reports BROKEN | The row set was tampered with outside the app; investigate — the DB trigger blocks normal edits, so this means direct DB access. |
+| Symptom                                              | Likely cause / fix                                                                                                               |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Node exits: _"Missing server/gipsy.orion.config.js"_ | Copy `orion.config.example.js` → `gipsy.orion.config.js` and fill it in.                                                         |
+| Signup/2FA/passkey silently unavailable              | No `mail` credentials — email-OTP methods are force-disabled. Add SMTP creds.                                                    |
+| Tokens from node A rejected on node B                | Redis not shared (or not configured). Multi-node **requires** a shared `ephemeralDB`.                                            |
+| CORS errors in the browser                           | Client origin not in `client.urls`; add it (or push via `orch.addClientUrls`).                                                   |
+| Orchestrator can't reach nodes after restart         | Benign: nodes re-register on their next heartbeat; health returns to `HEALTHY` within ~30–60s.                                   |
+| Panel 401 / `AUTH::TOTP-REQUIRED`                    | Expected until you complete the login ladder (magic link/password → TOTP → active).                                              |
+| Panel URL stopped working                            | Quick-tunnel URL changed on restart — re-sync `SA_BASE_URL` and the allowlists, or move to a named tunnel/domain.                |
+| `CREATE TABLE` denied on boot                        | The DB user lacks DDL rights in its database. Grant it, or make it the DB owner.                                                 |
+| Audit chain reports BROKEN                           | The row set was tampered with outside the app; investigate — the DB trigger blocks normal edits, so this means direct DB access. |
 
 ---
 

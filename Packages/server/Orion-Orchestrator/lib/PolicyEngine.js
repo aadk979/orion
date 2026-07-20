@@ -68,9 +68,7 @@ const DEFAULT_POLICIES = Object.freeze([
         id: 'memory-pressure',
         on: [ClusterAlerts.MEMORY_PRESSURE],
         cooldownSec: 300,
-        actions: [
-            { type: 'escalate', severity: 'warning', message: 'Node under memory pressure — approaching the memory monitor kill threshold' }
-        ]
+        actions: [{ type: 'escalate', severity: 'warning', message: 'Node under memory pressure — approaching the memory monitor kill threshold' }]
     },
     {
         id: 'memory-recovered',
@@ -105,7 +103,6 @@ const DEFAULT_POLICIES = Object.freeze([
 ]);
 
 class PolicyEngine {
-
     /**
      * @param {Object} executors
      * @param {(escalation) => Promise} executors.escalate
@@ -121,15 +118,12 @@ class PolicyEngine {
         }
 
         this._executors = executors;
-        this._rules = [
-            ...((config.useDefaults ?? true) ? DEFAULT_POLICIES : []),
-            ...(config.rules || [])
-        ];
+        this._rules = [...((config.useDefaults ?? true) ? DEFAULT_POLICIES : []), ...(config.rules || [])];
         this._validateRules();
 
-        this._cooldowns = new Map();          // `${ruleId}::${workerId}` → unix expiry
-        this._scheduledTimers = new Set();    // pending schedule-command timers
-        this._outcomes = [];                  // ring of recent rule executions
+        this._cooldowns = new Map(); // `${ruleId}::${workerId}` → unix expiry
+        this._scheduledTimers = new Set(); // pending schedule-command timers
+        this._outcomes = []; // ring of recent rule executions
         this._outcomeLimit = 100;
         this._stopped = false;
     }
@@ -238,7 +232,10 @@ class PolicyEngine {
                 }
                 const outcome = await this._executors.consensus(action.topic, action.params || {}, action.options || {});
                 context.consensus = {
-                    topic: outcome.topic, decided: outcome.decided, accepted: outcome.accepted, ratio: outcome.ratio
+                    topic: outcome.topic,
+                    decided: outcome.decided,
+                    accepted: outcome.accepted,
+                    ratio: outcome.ratio
                 };
                 return context.consensus;
             }
@@ -271,13 +268,15 @@ class PolicyEngine {
                 }
                 await this._executors.command(workerId, action.action, action.args || {});
             } catch (err) {
-                await this._executors.escalate({
-                    type: 'policy:scheduled-command-failed',
-                    severity: 'warning',
-                    message: `Scheduled command ${action.action} on ${workerId} failed: ${err.message}`,
-                    workerId,
-                    details: { action }
-                }).catch(() => { });
+                await this._executors
+                    .escalate({
+                        type: 'policy:scheduled-command-failed',
+                        severity: 'warning',
+                        message: `Scheduled command ${action.action} on ${workerId} failed: ${err.message}`,
+                        workerId,
+                        details: { action }
+                    })
+                    .catch(() => {});
             }
         }, action.delaySec * 1000);
 

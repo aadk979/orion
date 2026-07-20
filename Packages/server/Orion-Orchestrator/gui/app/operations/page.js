@@ -71,7 +71,11 @@ export default function Operations() {
                 <h2 style={{ marginTop: 0 }}>Fleet consensus</h2>
                 <div className="row">
                     <select value={topic} onChange={e => setTopic(e.target.value)} style={{ width: 'auto' }}>
-                        {['node-healthy', 'ets-lockdown', 'elm-degraded', 'memory-pressure', 'abuse-high'].map(t => <option key={t} value={t}>{t}</option>)}
+                        {['node-healthy', 'ets-lockdown', 'elm-degraded', 'memory-pressure', 'abuse-high'].map(t => (
+                            <option key={t} value={t}>
+                                {t}
+                            </option>
+                        ))}
                     </select>
                     <button disabled={busy} onClick={run(`Consensus: ${topic}`, () => post('/api/cluster/consensus', { topic }))}>
                         Propose vote
@@ -98,7 +102,14 @@ export default function Operations() {
                 </label>
                 <button
                     disabled={busy || !urls.trim()}
-                    onClick={run('Add client URLs', () => post('/api/cluster/client-urls', { clientUrls: urls.split(',').map(u => u.trim()).filter(Boolean) }))}
+                    onClick={run('Add client URLs', () =>
+                        post('/api/cluster/client-urls', {
+                            clientUrls: urls
+                                .split(',')
+                                .map(u => u.trim())
+                                .filter(Boolean)
+                        })
+                    )}
                 >
                     Propagate to fleet
                 </button>

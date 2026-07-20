@@ -29,49 +29,54 @@ const loadConfig = () => {
     }
 };
 
-const saveConfig = (config) => {
+const saveConfig = config => {
     writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-    try { chmodSync(CONFIG_PATH, 0o600); } catch (_) { /* windows */ }
+    try {
+        chmodSync(CONFIG_PATH, 0o600);
+    } catch (_) {
+        /* windows */
+    }
 };
 
 // ── Terminal helpers ─────────────────────────────────────────────────────────
 
-const prompt = (question, { hidden = false } = {}) => new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const prompt = (question, { hidden = false } = {}) =>
+    new Promise(resolve => {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-    if (hidden && process.stdin.isTTY) {
-        const onData = (char) => {
-            const s = String(char);
-            if (s === '\n' || s === '\r' || s === '') return;
-            readline.moveCursor(process.stdout, -s.length, 0);
-            process.stdout.write('*'.repeat(s.length));
-        };
-        process.stdin.on('data', onData);
-        rl.question(question, (answer) => {
-            process.stdin.off('data', onData);
-            process.stdout.write('\n');
+        if (hidden && process.stdin.isTTY) {
+            const onData = char => {
+                const s = String(char);
+                if (s === '\n' || s === '\r' || s === '') return;
+                readline.moveCursor(process.stdout, -s.length, 0);
+                process.stdout.write('*'.repeat(s.length));
+            };
+            process.stdin.on('data', onData);
+            rl.question(question, answer => {
+                process.stdin.off('data', onData);
+                process.stdout.write('\n');
+                rl.close();
+                resolve(answer.trim());
+            });
+            return;
+        }
+
+        rl.question(question, answer => {
             rl.close();
             resolve(answer.trim());
         });
-        return;
-    }
-
-    rl.question(question, (answer) => {
-        rl.close();
-        resolve(answer.trim());
     });
-});
 
 const die = (message, code = 1) => {
     console.error(`orionctl: ${message}`);
     process.exit(code);
 };
 
-const printJson = (value) => console.log(JSON.stringify(value, null, 2));
+const printJson = value => console.log(JSON.stringify(value, null, 2));
 
 // ── Argument parsing (positional + --flags) ─────────────────────────────────
 
-const parseArgs = (argv) => {
+const parseArgs = argv => {
     const positional = [];
     const flags = {};
     for (let i = 0; i < argv.length; i++) {
@@ -104,7 +109,6 @@ const parseJsonFlag = (value, name) => {
 // ── API client ───────────────────────────────────────────────────────────────
 
 class ApiClient {
-
     constructor(config) {
         this.url = config.url ? String(config.url).replace(/\/$/, '') : null;
         this.token = config.token || null;
@@ -130,7 +134,9 @@ class ApiClient {
         let payload = null;
         try {
             payload = await response.json();
-        } catch (_) { /* non-JSON error body */ }
+        } catch (_) {
+            /* non-JSON error body */
+        }
 
         if (!response.ok || payload?.error) {
             const code = payload?.code || `HTTP-${response.status}`;
@@ -143,10 +149,18 @@ class ApiClient {
         return payload;
     }
 
-    get(path) { return this.request('GET', path); }
-    post(path, body = {}) { return this.request('POST', path, body); }
-    patch(path, body = {}) { return this.request('PATCH', path, body); }
-    delete(path) { return this.request('DELETE', path); }
+    get(path) {
+        return this.request('GET', path);
+    }
+    post(path, body = {}) {
+        return this.request('POST', path, body);
+    }
+    patch(path, body = {}) {
+        return this.request('PATCH', path, body);
+    }
+    delete(path) {
+        return this.request('DELETE', path);
+    }
 }
 
 // ── Login flow (device-style: magic link + TOTP; root: password + TOTP) ─────
@@ -227,6 +241,9 @@ Cluster (governed by YOUR attached PBAC policy)
   incident <declare|resolve> [--reason TEXT]
   consensus <topic> [--params JSON]
   client-urls <url1,url2,...>
+  secrets keys                            active signing/verification kids per node
+  secrets revoke <kid1,kid2,...>          broadcast immediate kid revocation to the fleet
+  secrets rotate-node <workerId>          decommission ALL of a node's signing keys
 
 Audit
   audit [--limit N] [--action PREFIX] [--admin ID]
@@ -246,13 +263,13 @@ Governance (root only)
   groups members <id> | groups add <groupId> <adminId> | groups remove <groupId> <adminId>
 `;
 
-const principalFromFlags = (flags) => {
+const principalFromFlags = flags => {
     if (flags.admin) return { principalType: 'admin', principalId: flags.admin };
     if (flags.group) return { principalType: 'group', principalId: flags.group };
     die('pass --admin <adminId> or --group <groupId>');
 };
 
-const readPolicyFile = (file) => {
+const readPolicyFile = file => {
     if (!file) return undefined;
     try {
         return JSON.parse(readFileSync(file, 'utf-8'));
@@ -287,7 +304,7 @@ const main = async () => {
         }
 
         case 'whoami':
-            return printJson((await api.get('/api/auth/session')));
+            return printJson(await api.get('/api/auth/session'));
 
         case 'change-password': {
             const currentPassword = await prompt('Current password: ', { hidden: true });
@@ -325,18 +342,26 @@ const main = async () => {
         case 'cmd': {
             const [workerId, action] = positional;
             if (!workerId || !action) die('usage: orionctl cmd <workerId> <action> [--args JSON]');
-            return printJson((await api.post(`/api/cluster/nodes/${encodeURIComponent(workerId)}/command`, {
-                action,
-                args: parseJsonFlag(flags.args, 'args'),
-                timeoutMs: flags.timeout ? Number(flags.timeout) : undefined
-            })).outcome);
+            return printJson(
+                (
+                    await api.post(`/api/cluster/nodes/${encodeURIComponent(workerId)}/command`, {
+                        action,
+                        args: parseJsonFlag(flags.args, 'args'),
+                        timeoutMs: flags.timeout ? Number(flags.timeout) : undefined
+                    })
+                ).outcome
+            );
         }
         case 'cmd-all': {
             const action = positional[0] || die('usage: orionctl cmd-all <action> [--args JSON]');
-            return printJson((await api.post('/api/cluster/command-all', {
-                action,
-                args: parseJsonFlag(flags.args, 'args')
-            })).results);
+            return printJson(
+                (
+                    await api.post('/api/cluster/command-all', {
+                        action,
+                        args: parseJsonFlag(flags.args, 'args')
+                    })
+                ).results
+            );
         }
         case 'lock':
             return printJson((await api.post('/api/cluster/lock')).results);
@@ -355,6 +380,26 @@ const main = async () => {
             const urls = (positional[0] || '').split(',').filter(Boolean);
             if (urls.length === 0) die('usage: orionctl client-urls <url1,url2,...>');
             return printJson((await api.post('/api/cluster/client-urls', { clientUrls: urls })).results);
+        }
+
+        case 'secrets': {
+            const sub = positional[0];
+            switch (sub) {
+                case 'keys':
+                    return printJson((await api.get('/api/cluster/secrets/keys')).nodes);
+                case 'revoke': {
+                    const kids = (positional[1] || '').split(',').map(k => k.trim()).filter(Boolean);
+                    if (kids.length === 0) die('usage: orionctl secrets revoke <kid1,kid2,...>');
+                    return printJson((await api.post('/api/cluster/secrets/revoke', { kids })).results);
+                }
+                case 'rotate-node': {
+                    const workerId = positional[1] || die('usage: orionctl secrets rotate-node <workerId>');
+                    return printJson((await api.post('/api/cluster/secrets/rotate-node', { workerId })).outcome);
+                }
+                default:
+                    die('usage: orionctl secrets <keys|revoke|rotate-node>');
+            }
+            return;
         }
 
         // ── Audit ───────────────────────────────────────────────────────────
@@ -378,12 +423,16 @@ const main = async () => {
                     return printJson((await api.get('/api/admins')).admins);
                 case 'create': {
                     const email = positional[1] || die('usage: orionctl admins create <email> [--name TEXT] [--policy ID] [--group ID]');
-                    return printJson((await api.post('/api/admins', {
-                        email,
-                        displayName: flags.name || null,
-                        policyId: flags.policy || null,
-                        groupId: flags.group || null
-                    })).admin);
+                    return printJson(
+                        (
+                            await api.post('/api/admins', {
+                                email,
+                                displayName: flags.name || null,
+                                policyId: flags.policy || null,
+                                groupId: flags.group || null
+                            })
+                        ).admin
+                    );
                 }
                 case 'suspend':
                     return printJson((await api.post(`/api/admins/${encodeURIComponent(positional[1])}/status`, { status: 'suspended' })).admin);
@@ -407,19 +456,27 @@ const main = async () => {
                     return printJson((await api.get(`/api/policies/${encodeURIComponent(positional[1])}/attachments`)).attachments);
                 case 'create': {
                     if (!flags.name || !flags.file) die('usage: orionctl policies create --name NAME --file doc.json [--description TEXT]');
-                    return printJson((await api.post('/api/policies', {
-                        name: flags.name,
-                        description: flags.description || null,
-                        document: readPolicyFile(flags.file)
-                    })).policy);
+                    return printJson(
+                        (
+                            await api.post('/api/policies', {
+                                name: flags.name,
+                                description: flags.description || null,
+                                document: readPolicyFile(flags.file)
+                            })
+                        ).policy
+                    );
                 }
                 case 'update': {
                     const id = positional[1] || die('usage: orionctl policies update <id> [--name NAME] [--file doc.json]');
-                    return printJson((await api.patch(`/api/policies/${encodeURIComponent(id)}`, {
-                        name: flags.name,
-                        description: flags.description,
-                        document: readPolicyFile(flags.file)
-                    })).policy);
+                    return printJson(
+                        (
+                            await api.patch(`/api/policies/${encodeURIComponent(id)}`, {
+                                name: flags.name,
+                                description: flags.description,
+                                document: readPolicyFile(flags.file)
+                            })
+                        ).policy
+                    );
                 }
                 case 'delete':
                     return printJson(await api.delete(`/api/policies/${encodeURIComponent(positional[1])}`));

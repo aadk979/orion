@@ -3,12 +3,7 @@ import { startRegistration } from '../../../External-Scripts/webAuthn.js';
 async function registerPasskey({ Api, getAuthHeader, This }) {
     const authHeader = await getAuthHeader(true, 'ACCESS_BEARER');
 
-    const res = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/generate-passkey-registration-options`,
-        'POST',
-        authHeader.authHead,
-        {}
-    );
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/generate-passkey-registration-options`, 'POST', authHeader.authHead, {});
 
     const data = await res.json();
 
@@ -20,12 +15,7 @@ async function registerPasskey({ Api, getAuthHeader, This }) {
         packet: { registrationResponse: passkeyRegistration }
     };
 
-    const finalRes = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/complete-passkey-registration`,
-        'POST',
-        authHeader.authHead,
-        payload
-    );
+    const finalRes = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/complete-passkey-registration`, 'POST', authHeader.authHead, payload);
 
     const data2 = await finalRes.json();
     if (data2.error) return { error: true, errorCode: 'CLIENT-UNABLE-TO-REGISTER-PASSKEY' };

@@ -3,6 +3,7 @@ import { StepUpAuth } from './Security/stepUpAuth.js';
 import { RefreshTokens } from './Authentication/refreshTokens.js';
 import { AuthenticationMiddleware } from './Authentication/authenticationMiddleware.js';
 import { ResourceTokens } from './Authentication/resourceTokens.js';
+import { TokenRevocation } from './Authentication/tokenRevocation.js';
 import { AccountRegistration } from './Account/registration.js';
 import { AccountSignIn } from './Account/signIn.js';
 import { Passkeys } from './Account/passkeys.js';
@@ -27,6 +28,7 @@ const internalErrors = {
     ...RefreshTokens,
     ...AuthenticationMiddleware,
     ...ResourceTokens,
+    ...TokenRevocation,
     ...AccountRegistration,
     ...AccountSignIn,
     ...Passkeys,

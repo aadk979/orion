@@ -40,22 +40,22 @@ class AdminError extends Error {
     }
 }
 
-const publicAdmin = (a) => a && ({
-    id: a.id,
-    email: a.email,
-    displayName: a.display_name,
-    role: a.role,
-    status: a.status,
-    totpEnrolled: a.totp_enabled === true,
-    passwordChangeRequired: a.password_change_required === true,
-    createdBy: a.created_by,
-    createdAt: a.created_at,
-    updatedAt: a.updated_at,
-    lastLoginAt: a.last_login_at
-});
+const publicAdmin = a =>
+    a && {
+        id: a.id,
+        email: a.email,
+        displayName: a.display_name,
+        role: a.role,
+        status: a.status,
+        totpEnrolled: a.totp_enabled === true,
+        passwordChangeRequired: a.password_change_required === true,
+        createdBy: a.created_by,
+        createdAt: a.created_at,
+        updatedAt: a.updated_at,
+        lastLoginAt: a.last_login_at
+    };
 
 class SystemAdminService {
-
     constructor(db, config = {}) {
         this.db = db;
         this.config = {
@@ -80,8 +80,9 @@ class SystemAdminService {
 
     start() {
         this._purgeTimer = setInterval(() => {
-            Promise.all([this.magicLinks.purgeExpired(), this.sessions.purgeExpired()])
-                .catch(err => logger.warn(`SystemAdminService: purge cycle failed — ${err.message}`));
+            Promise.all([this.magicLinks.purgeExpired(), this.sessions.purgeExpired()]).catch(err =>
+                logger.warn(`SystemAdminService: purge cycle failed — ${err.message}`)
+            );
         }, PURGE_INTERVAL_MS);
         this._purgeTimer.unref?.();
     }
@@ -107,7 +108,7 @@ class SystemAdminService {
         if (!email || !initialPassword) {
             throw new Error(
                 'System admin bootstrap: no root admin exists and systemAdmin.rootAdmin ' +
-                '{ email, initialPassword } is not configured — the control plane cannot start ungoverned'
+                    '{ email, initialPassword } is not configured — the control plane cannot start ungoverned'
             );
         }
         if (initialPassword.length < MIN_PASSWORD_LENGTH) {
@@ -211,8 +212,7 @@ class SystemAdminService {
 
     async rootLogin(email, password, ip = null, userAgent = null) {
         const admin = email ? await this.admins.findByEmail(email) : null;
-        const valid = admin && admin.role === 'root' && admin.status !== 'suspended' &&
-            await verifyPassword(password || '', admin.password_hash);
+        const valid = admin && admin.role === 'root' && admin.status !== 'suspended' && (await verifyPassword(password || '', admin.password_hash));
 
         if (!valid) {
             this.audit.writeSafe({
@@ -311,7 +311,9 @@ class SystemAdminService {
         let qrDataUrl = null;
         try {
             qrDataUrl = await QRCode.toDataURL(uri);
-        } catch (_) { /* URI + manual secret entry still work */ }
+        } catch (_) {
+            /* URI + manual secret entry still work */
+        }
 
         this.audit.writeSafe({
             adminId: admin.id,
@@ -335,8 +337,13 @@ class SystemAdminService {
         const result = await verifyTotp({ token: String(token || ''), secret: admin.totp_pending_secret, window: 1 });
         if (!result?.valid) {
             this.audit.writeSafe({
-                adminId: admin.id, adminEmail: admin.email, ip,
-                action: 'auth:totp-activate-rejected', resource: 'auth', decision: 'deny', details: {}
+                adminId: admin.id,
+                adminEmail: admin.email,
+                ip,
+                action: 'auth:totp-activate-rejected',
+                resource: 'auth',
+                decision: 'deny',
+                details: {}
             });
             throw new AdminError('TOTP::INVALID-TOKEN', 'Invalid authenticator code', 401);
         }
@@ -349,8 +356,12 @@ class SystemAdminService {
 
         const fresh = await this.admins.findById(admin.id);
         await this.audit.write({
-            adminId: admin.id, adminEmail: admin.email, ip,
-            action: 'auth:totp-enrolled', resource: 'auth', decision: 'allow',
+            adminId: admin.id,
+            adminEmail: admin.email,
+            ip,
+            action: 'auth:totp-enrolled',
+            resource: 'auth',
+            decision: 'allow',
             details: { accountStatus: fresh.status }
         });
 
@@ -367,8 +378,13 @@ class SystemAdminService {
         const result = await verifyTotp({ token: String(token || ''), secret: admin.totp_secret, window: 1 });
         if (!result?.valid) {
             this.audit.writeSafe({
-                adminId: admin.id, adminEmail: admin.email, ip,
-                action: 'auth:totp-rejected', resource: 'auth', decision: 'deny', details: {}
+                adminId: admin.id,
+                adminEmail: admin.email,
+                ip,
+                action: 'auth:totp-rejected',
+                resource: 'auth',
+                decision: 'deny',
+                details: {}
             });
             throw new AdminError('TOTP::INVALID-TOKEN', 'Invalid authenticator code', 401);
         }
@@ -377,8 +393,13 @@ class SystemAdminService {
         await this.admins.markLogin(admin.id);
 
         this.audit.writeSafe({
-            adminId: admin.id, adminEmail: admin.email, ip,
-            action: 'auth:login-completed', resource: 'auth', decision: 'allow', details: {}
+            adminId: admin.id,
+            adminEmail: admin.email,
+            ip,
+            action: 'auth:login-completed',
+            resource: 'auth',
+            decision: 'allow',
+            details: {}
         });
 
         const fresh = await this.admins.findById(admin.id);
@@ -391,7 +412,7 @@ class SystemAdminService {
         if (!admin || admin.role !== 'root') {
             throw new AdminError('AUTH::ROOT-ONLY', 'Only the root admin has a password', 403);
         }
-        if (!await verifyPassword(currentPassword || '', admin.password_hash)) {
+        if (!(await verifyPassword(currentPassword || '', admin.password_hash))) {
             throw new AdminError('AUTH::INVALID-CREDENTIALS', 'Current password is incorrect', 401);
         }
         if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
@@ -406,8 +427,12 @@ class SystemAdminService {
 
         const fresh = await this.admins.findById(admin.id);
         await this.audit.write({
-            adminId: admin.id, adminEmail: admin.email, ip,
-            action: 'auth:root-password-rotated', resource: 'auth', decision: 'allow',
+            adminId: admin.id,
+            adminEmail: admin.email,
+            ip,
+            action: 'auth:root-password-rotated',
+            resource: 'auth',
+            decision: 'allow',
             details: { accountStatus: fresh.status }
         });
 
@@ -426,7 +451,11 @@ class SystemAdminService {
         }
 
         const docs = await this.policies.getEffectiveDocuments(admin.id);
-        const verdict = evaluate(docs.map(d => d.document), action, resource);
+        const verdict = evaluate(
+            docs.map(d => d.document),
+            action,
+            resource
+        );
         return { ...verdict, policies: docs.map(d => d.name) };
     }
 
@@ -452,10 +481,10 @@ class SystemAdminService {
         if (await this.admins.findByEmail(email)) {
             throw new AdminError('GOV::EMAIL-TAKEN', 'An admin with this email already exists', 409);
         }
-        if (policyId && !await this.policies.findById(policyId)) {
+        if (policyId && !(await this.policies.findById(policyId))) {
             throw new AdminError('GOV::POLICY-NOT-FOUND', 'Policy not found', 404);
         }
-        if (groupId && !await this.groups.findById(groupId)) {
+        if (groupId && !(await this.groups.findById(groupId))) {
             throw new AdminError('GOV::GROUP-NOT-FOUND', 'Group not found', 404);
         }
 
@@ -472,8 +501,12 @@ class SystemAdminService {
         }
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:admin-created', resource: `admin:${admin.id}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:admin-created',
+            resource: `admin:${admin.id}`,
+            decision: 'allow',
             details: { email: admin.email, policyId: policyId || (groupId ? null : DEFAULT_READ_ONLY_POLICY_ID), groupId }
         });
 
@@ -509,9 +542,12 @@ class SystemAdminService {
         }
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
             action: `governance:admin-${status === 'suspended' ? 'suspended' : 'reinstated'}`,
-            resource: `admin:${adminId}`, decision: 'allow',
+            resource: `admin:${adminId}`,
+            decision: 'allow',
             details: { email: target.email, resultingStatus: effective }
         });
 
@@ -531,8 +567,12 @@ class SystemAdminService {
         await this.admins.delete(adminId);
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:admin-deleted', resource: `admin:${adminId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:admin-deleted',
+            resource: `admin:${adminId}`,
+            decision: 'allow',
             details: { email: target.email }
         });
 
@@ -558,8 +598,12 @@ class SystemAdminService {
         const policy = await this.policies.create({ name, description, document, createdBy: actor.id });
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:policy-created', resource: `policy:${policy.id}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:policy-created',
+            resource: `policy:${policy.id}`,
+            decision: 'allow',
             details: { name, document }
         });
 
@@ -582,8 +626,12 @@ class SystemAdminService {
         }
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:policy-updated', resource: `policy:${policyId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:policy-updated',
+            resource: `policy:${policyId}`,
+            decision: 'allow',
             details: { name: updated.name, document: updated.document }
         });
 
@@ -599,8 +647,12 @@ class SystemAdminService {
         }
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:policy-deleted', resource: `policy:${policyId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:policy-deleted',
+            resource: `policy:${policyId}`,
+            decision: 'allow',
             details: {}
         });
 
@@ -610,13 +662,13 @@ class SystemAdminService {
     async attachPolicy(actor, policyId, principalType, principalId, ip = null) {
         this._assertRoot(actor);
 
-        if (!await this.policies.findById(policyId)) {
+        if (!(await this.policies.findById(policyId))) {
             throw new AdminError('GOV::POLICY-NOT-FOUND', 'Policy not found', 404);
         }
-        if (principalType === 'admin' && !await this.admins.findById(principalId)) {
+        if (principalType === 'admin' && !(await this.admins.findById(principalId))) {
             throw new AdminError('GOV::ADMIN-NOT-FOUND', 'Admin not found', 404);
         }
-        if (principalType === 'group' && !await this.groups.findById(principalId)) {
+        if (principalType === 'group' && !(await this.groups.findById(principalId))) {
             throw new AdminError('GOV::GROUP-NOT-FOUND', 'Group not found', 404);
         }
         if (!['admin', 'group'].includes(principalType)) {
@@ -626,8 +678,12 @@ class SystemAdminService {
         await this.policies.attach(policyId, principalType, principalId, actor.id);
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:policy-attached', resource: `policy:${policyId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:policy-attached',
+            resource: `policy:${policyId}`,
+            decision: 'allow',
             details: { principalType, principalId }
         });
 
@@ -640,8 +696,12 @@ class SystemAdminService {
         const detached = await this.policies.detach(policyId, principalType, principalId);
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:policy-detached', resource: `policy:${policyId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:policy-detached',
+            resource: `policy:${policyId}`,
+            decision: 'allow',
             details: { principalType, principalId, existed: detached }
         });
 
@@ -659,8 +719,12 @@ class SystemAdminService {
         const group = await this.groups.create({ name, description, createdBy: actor.id });
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:group-created', resource: `group:${group.id}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:group-created',
+            resource: `group:${group.id}`,
+            decision: 'allow',
             details: { name }
         });
 
@@ -674,8 +738,12 @@ class SystemAdminService {
         if (!deleted) throw new AdminError('GOV::GROUP-NOT-FOUND', 'Group not found', 404);
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:group-deleted', resource: `group:${groupId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:group-deleted',
+            resource: `group:${groupId}`,
+            decision: 'allow',
             details: {}
         });
 
@@ -685,7 +753,7 @@ class SystemAdminService {
     async addGroupMember(actor, groupId, adminId, ip = null) {
         this._assertRoot(actor);
 
-        if (!await this.groups.findById(groupId)) {
+        if (!(await this.groups.findById(groupId))) {
             throw new AdminError('GOV::GROUP-NOT-FOUND', 'Group not found', 404);
         }
         const target = await this.admins.findById(adminId);
@@ -694,8 +762,12 @@ class SystemAdminService {
         await this.groups.addMember(groupId, adminId, actor.id);
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:group-member-added', resource: `group:${groupId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:group-member-added',
+            resource: `group:${groupId}`,
+            decision: 'allow',
             details: { adminId, email: target.email }
         });
 
@@ -708,8 +780,12 @@ class SystemAdminService {
         const removed = await this.groups.removeMember(groupId, adminId);
 
         await this.audit.write({
-            adminId: actor.id, adminEmail: actor.email, ip,
-            action: 'governance:group-member-removed', resource: `group:${groupId}`, decision: 'allow',
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:group-member-removed',
+            resource: `group:${groupId}`,
+            decision: 'allow',
             details: { adminId, existed: removed }
         });
 

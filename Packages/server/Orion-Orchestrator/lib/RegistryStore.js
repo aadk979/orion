@@ -21,7 +21,6 @@ const DEFAULT_DEBOUNCE_MS = 2_000;
 const PERSISTED_ALERTS_PER_NODE = 10;
 
 class RegistryStore {
-
     constructor(config = {}) {
         this.filePath = path.resolve(config.directory || process.cwd(), config.fileName || REGISTRY_FILE_NAME);
         this.debounceMs = config.debounceMs ?? DEFAULT_DEBOUNCE_MS;

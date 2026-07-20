@@ -21,20 +21,24 @@ import { logger } from 'r-sync';
  * key order on storage, so the hash must be computed over a canonical form
  * that survives the Postgres round-trip.
  */
-const canonicalJson = (value) => {
+const canonicalJson = value => {
     if (Array.isArray(value)) {
         return '[' + value.map(canonicalJson).join(',') + ']';
     }
     if (value !== null && typeof value === 'object') {
-        return '{' + Object.keys(value).sort()
-            .map(k => JSON.stringify(k) + ':' + canonicalJson(value[k]))
-            .join(',') + '}';
+        return (
+            '{' +
+            Object.keys(value)
+                .sort()
+                .map(k => JSON.stringify(k) + ':' + canonicalJson(value[k]))
+                .join(',') +
+            '}'
+        );
     }
     return JSON.stringify(value) ?? 'null';
 };
 
 class AuditLog {
-
     constructor(db) {
         this.db = db;
         this._chain = Promise.resolve();
@@ -49,14 +53,12 @@ class AuditLog {
         const queued = this._chain.then(() => this._insert(entry));
         // The chain itself must survive a failed insert or every later write
         // would reject with the same stale error.
-        this._chain = queued.catch(() => { });
+        this._chain = queued.catch(() => {});
         return queued;
     }
 
     async _insert(entry) {
-        const { rows: lastRows } = await this.db.query(
-            'SELECT hash FROM orch_admin_audit ORDER BY id DESC LIMIT 1'
-        );
+        const { rows: lastRows } = await this.db.query('SELECT hash FROM orch_admin_audit ORDER BY id DESC LIMIT 1');
         const prevHash = lastRows[0]?.hash || null;
 
         const payload = {
@@ -83,9 +85,18 @@ class AuditLog {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
              RETURNING *`,
             [
-                payload.adminId, payload.adminEmail, payload.ip, payload.method, payload.path,
-                payload.action, payload.resource, payload.decision, payload.statusCode,
-                JSON.stringify(payload.details), prevHash, hash
+                payload.adminId,
+                payload.adminEmail,
+                payload.ip,
+                payload.method,
+                payload.path,
+                payload.action,
+                payload.resource,
+                payload.decision,
+                payload.statusCode,
+                JSON.stringify(payload.details),
+                prevHash,
+                hash
             ]
         );
         return rows[0];

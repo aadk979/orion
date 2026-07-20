@@ -15,12 +15,28 @@ const makeRes = () => ({
     jsonBody: null,
     sent: null,
     ended: false,
-    set(k, v) { this.headers[k] = v; },
-    setHeader(k, v) { this.headers[k] = v; },
-    status(c) { this.statusCode = c; return this; },
-    send(b) { this.sent = b; return this; },
-    json(b) { this.jsonBody = b; return this; },
-    end() { this.ended = true; return this; }
+    set(k, v) {
+        this.headers[k] = v;
+    },
+    setHeader(k, v) {
+        this.headers[k] = v;
+    },
+    status(c) {
+        this.statusCode = c;
+        return this;
+    },
+    send(b) {
+        this.sent = b;
+        return this;
+    },
+    json(b) {
+        this.jsonBody = b;
+        return this;
+    },
+    end() {
+        this.ended = true;
+        return this;
+    }
 });
 
 const setConfig = entries => globalAccessPoint.setValue('resourceAccessSystem_Config', entries);
@@ -33,14 +49,16 @@ describe('deliverSecureResource — S3-0 delivery', () => {
 
     test('happy path responds with the S3 URL JSON envelope', async () => {
         let received;
-        setConfig([{
-            callbackPath: 'report',
-            accessType: 'S3-0',
-            callback: async (tokenData, customData) => {
-                received = { tokenData, customData };
-                return { url: 'https://b.s3.amazonaws.com/k?X-Amz-Signature=x', expiresAt: 123 };
+        setConfig([
+            {
+                callbackPath: 'report',
+                accessType: 'S3-0',
+                callback: async (tokenData, customData) => {
+                    received = { tokenData, customData };
+                    return { url: 'https://b.s3.amazonaws.com/k?X-Amz-Signature=x', expiresAt: 123 };
+                }
             }
-        }]);
+        ]);
 
         const res = makeRes();
         await deliverSecureResource(res, {

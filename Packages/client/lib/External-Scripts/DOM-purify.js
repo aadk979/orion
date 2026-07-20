@@ -55,7 +55,7 @@ function w(e, o) {
     let r = arguments.length > 2 && void 0 !== arguments[2] ? arguments[2] : h;
     t && t(e, null);
     let i = o.length;
-    for (; i--; ) {
+    for (; i--;) {
         let t = o[i];
         if ('string' == typeof t) {
             const e = r(t);
@@ -79,7 +79,7 @@ function v(t) {
     return n;
 }
 function D(e, t) {
-    for (; null !== e; ) {
+    for (; null !== e;) {
         const n = r(e, t);
         if (n) {
             if (n.get) return R(n.get);
@@ -1115,17 +1115,15 @@ var re = (function t() {
             if (xe && !Le[t] && S(ye, t));
             else if (Ce && S(Ee, t));
             else if (!we[t] || Le[t]) {
-                if (
-                    !(
-                        (vt(e) &&
-                            ((ve.tagNameCheck instanceof RegExp && S(ve.tagNameCheck, e)) || (ve.tagNameCheck instanceof Function && ve.tagNameCheck(e))) &&
-                            ((ve.attributeNameCheck instanceof RegExp && S(ve.attributeNameCheck, t)) ||
-                                (ve.attributeNameCheck instanceof Function && ve.attributeNameCheck(t)))) ||
-                        ('is' === t &&
-                            ve.allowCustomizedBuiltInElements &&
-                            ((ve.tagNameCheck instanceof RegExp && S(ve.tagNameCheck, n)) || (ve.tagNameCheck instanceof Function && ve.tagNameCheck(n))))
-                    )
-                )
+                if (!(
+                    (vt(e) &&
+                        ((ve.tagNameCheck instanceof RegExp && S(ve.tagNameCheck, e)) || (ve.tagNameCheck instanceof Function && ve.tagNameCheck(e))) &&
+                        ((ve.attributeNameCheck instanceof RegExp && S(ve.attributeNameCheck, t)) ||
+                            (ve.attributeNameCheck instanceof Function && ve.attributeNameCheck(t)))) ||
+                    ('is' === t &&
+                        ve.allowCustomizedBuiltInElements &&
+                        ((ve.tagNameCheck instanceof RegExp && S(ve.tagNameCheck, n)) || (ve.tagNameCheck instanceof Function && ve.tagNameCheck(n))))
+                ))
                     return !1;
             } else if (Je[t]);
             else if (S(Ne, y(n, _e, '')));
@@ -1144,7 +1142,7 @@ var re = (function t() {
             if (!t || Nt(e)) return;
             const n = { attrName: '', attrValue: '', keepAttr: !0, allowedAttributes: we, forceKeepAttr: void 0 };
             let r = t.length;
-            for (; r--; ) {
+            for (; r--;) {
                 const i = t[r],
                     { name: a, namespaceURI: l, value: c } = i,
                     s = pt(a);
@@ -1194,7 +1192,7 @@ var re = (function t() {
         Lt = function e(t) {
             let n = null;
             const o = St(t);
-            for (Rt(de.beforeSanitizeShadowDOM, t, null); (n = o.nextNode()); )
+            for (Rt(de.beforeSanitizeShadowDOM, t, null); (n = o.nextNode());)
                 (Rt(de.uponSanitizeShadowNode, n, null), wt(n), Dt(n), n.content instanceof s && e(n.content));
             Rt(de.afterSanitizeShadowDOM, t, null);
         };
@@ -1225,10 +1223,10 @@ var re = (function t() {
             }
             n && He && Et(n.firstChild);
             const c = St(Xe ? e : n);
-            for (; (i = c.nextNode()); ) (wt(i), Dt(i), i.content instanceof s && Lt(i.content));
+            for (; (i = c.nextNode());) (wt(i), Dt(i), i.content instanceof s && Lt(i.content));
             if (Xe) return e;
             if (Fe) {
-                if (Be) for (l = me.call(n.ownerDocument); n.firstChild; ) l.appendChild(n.firstChild);
+                if (Be) for (l = me.call(n.ownerDocument); n.firstChild;) l.appendChild(n.firstChild);
                 else l = n;
                 return ((we.shadowroot || we.shadowrootmode) && (l = fe.call(a, l, !0)), l);
             }

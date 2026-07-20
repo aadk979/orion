@@ -19,17 +19,21 @@ const orchestrator = new OrionOrchestrator({
 
     // Optional: opt-in auto-remediation on top of the default policies
     policies: {
-        rules: [{
-            id: 'demo-auto-clear-lockdown',
-            on: ['ets:lockdown-engaged'],
-            cooldownSec: 900,
-            actions: [{
-                type: 'schedule-command',
-                delaySec: 600,
-                action: ClusterCommands.CLEAR_ETS_LOCKDOWN,
-                onlyIfStatusFlag: 'etsLockdown' // re-checked right before firing
-            }]
-        }]
+        rules: [
+            {
+                id: 'demo-auto-clear-lockdown',
+                on: ['ets:lockdown-engaged'],
+                cooldownSec: 900,
+                actions: [
+                    {
+                        type: 'schedule-command',
+                        delaySec: 600,
+                        action: ClusterCommands.CLEAR_ETS_LOCKDOWN,
+                        onlyIfStatusFlag: 'etsLockdown' // re-checked right before firing
+                    }
+                ]
+            }
+        ]
     }
 
     // Optional: the PBAC system-admin plane — orch panel (GUI), /api, and the
@@ -47,7 +51,10 @@ const orchestrator = new OrionOrchestrator({
     //         email: 'root@example.com',
     //         initialPassword: 'change-me-immediately'  // rotation forced on first login
     //     },
-    //     http: { host: '0.0.0.0', port: 55330, secureCookies: true },
+    //     http: { host: '0.0.0.0', port: 55330, secureCookies: true, theme: 'modern' },
+    //     // theme: panel look — 'modern' (default, light/Apple-style) or
+    //     // 'classic' (dense MySQL Workbench-style). Env ORION_GUI_THEME sets
+    //     // it too; this key wins. Applied at startup — restart, no rebuild.
     //     baseUrl: 'https://orch.example.com',           // magic-link target (this panel's own URL)
     //     mail: {                           // omit entirely for console-mode links (dev)
     //         service: 'gmail',
@@ -73,7 +80,7 @@ orchestrator
     });
 
 // Custom escalation channel (Slack/PagerDuty/etc. would go here)
-orchestrator.addEscalationChannel('console', (e) => {
+orchestrator.addEscalationChannel('console', e => {
     console.log(`[escalation:${e.severity}] ${e.type}: ${e.message}`);
 });
 

@@ -2,13 +2,9 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    evaluate,
-    matchesPattern,
-    validatePolicyDocument
-} from '../../../../Packages/server/Orion-Orchestrator/lib/SystemAdmin/PBACEngine.js';
+import { evaluate, matchesPattern, validatePolicyDocument } from '../../../../Packages/server/Orion-Orchestrator/lib/SystemAdmin/PBACEngine.js';
 
-const doc = (statements) => ({ version: 1, statements });
+const doc = statements => ({ version: 1, statements });
 
 describe('PBACEngine — pattern matching', () => {
     test('exact match', () => {
@@ -64,7 +60,10 @@ describe('PBACEngine — evaluation semantics', () => {
         const allowAll = doc([{ effect: 'allow', actions: ['*'], resources: ['*'] }]);
         const denyLock = doc([{ sid: 'no-lock', effect: 'deny', actions: ['cluster:ops:lock'], resources: ['*'] }]);
 
-        for (const documents of [[allowAll, denyLock], [denyLock, allowAll]]) {
+        for (const documents of [
+            [allowAll, denyLock],
+            [denyLock, allowAll]
+        ]) {
             const verdict = evaluate(documents, 'cluster:ops:lock', 'cluster');
             assert.equal(verdict.allowed, false);
             assert.equal(verdict.reason, 'explicit-deny');
@@ -73,10 +72,12 @@ describe('PBACEngine — evaluation semantics', () => {
     });
 
     test('resources scope the statement — a node-scoped deny leaves other nodes allowed', () => {
-        const documents = [doc([
-            { effect: 'allow', actions: ['cluster:command:*'], resources: ['*'] },
-            { sid: 'protect-prod', effect: 'deny', actions: ['cluster:command:*'], resources: ['node:PROD-1'] }
-        ])];
+        const documents = [
+            doc([
+                { effect: 'allow', actions: ['cluster:command:*'], resources: ['*'] },
+                { sid: 'protect-prod', effect: 'deny', actions: ['cluster:command:*'], resources: ['node:PROD-1'] }
+            ])
+        ];
 
         assert.equal(evaluate(documents, 'cluster:command:server:lock', 'node:STAGE-1').allowed, true);
         assert.equal(evaluate(documents, 'cluster:command:server:lock', 'node:PROD-1').allowed, false);
@@ -91,10 +92,12 @@ describe('PBACEngine — evaluation semantics', () => {
 
 describe('PBACEngine — document validation', () => {
     test('accepts a well-formed document', () => {
-        const { valid, errors } = validatePolicyDocument(doc([
-            { sid: 'a', effect: 'allow', actions: ['cluster:read:*'], resources: ['*'] },
-            { effect: 'deny', actions: ['cluster:ops:lock'], resources: ['cluster'] }
-        ]));
+        const { valid, errors } = validatePolicyDocument(
+            doc([
+                { sid: 'a', effect: 'allow', actions: ['cluster:read:*'], resources: ['*'] },
+                { effect: 'deny', actions: ['cluster:ops:lock'], resources: ['cluster'] }
+            ])
+        );
         assert.equal(valid, true);
         assert.deepEqual(errors, []);
     });

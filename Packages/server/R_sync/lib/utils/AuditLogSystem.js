@@ -5,11 +5,7 @@ import path from 'path';
 import { logger } from './logger.js';
 import { globalAccessPoint } from './globalAccessPoint.js';
 import { generateId } from './valueGenerators.js';
-import {
-    AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION,
-    AUDIT_WAL_FILE_NAME,
-    AUDIT_KEY_STORE_DIR_NAME
-} from '../r_sync.meta.js';
+import { AUDIT_TRAIL_SYSTEM_SCHEMA_VERSION, AUDIT_WAL_FILE_NAME, AUDIT_KEY_STORE_DIR_NAME } from '../r_sync.meta.js';
 
 const DEFAULT_FLUSH_THRESHOLD = 50;
 const DEFAULT_FLUSH_INTERVAL_MS = 30_000;
@@ -29,19 +25,13 @@ class AuditTrailSystem {
         const util = systemConfig?.utilities?.auditTrailSystem;
         const configEnabled = util?.enabled ?? enabled;
 
-        const passwordFromConfig =
-            util && Object.prototype.hasOwnProperty.call(util, 'password')
-                ? util.password
-                : undefined;
-        const password =
-            passwordFromConfig !== undefined
-                ? passwordFromConfig
-                : process.env.R_SYNC_AUDIT_DB_PASSWORD;
+        const passwordFromConfig = util && Object.prototype.hasOwnProperty.call(util, 'password') ? util.password : undefined;
+        const password = passwordFromConfig !== undefined ? passwordFromConfig : process.env.R_SYNC_AUDIT_DB_PASSWORD;
 
         if (configEnabled) {
             if (password === undefined) {
                 logger?.warn?.(
-                    'AuditTrailSystem: MySQL audit is enabled but no password is configured. Set utilities.auditTrailSystem.password or R_SYNC_AUDIT_DB_PASSWORD. Using JSONL file audit only.',
+                    'AuditTrailSystem: MySQL audit is enabled but no password is configured. Set utilities.auditTrailSystem.password or R_SYNC_AUDIT_DB_PASSWORD. Using JSONL file audit only.'
                 );
                 this.enabled = false;
                 this.pool = null;
@@ -94,9 +84,7 @@ class AuditTrailSystem {
         }
 
         if (!this.enabled) {
-            logger?.info?.(
-                'AuditTrailSystem: MySQL audit off — security audit events append to logs/r_sync.audit.jsonl',
-            );
+            logger?.info?.('AuditTrailSystem: MySQL audit off — security audit events append to logs/r_sync.audit.jsonl');
         }
     }
 
@@ -134,7 +122,7 @@ class AuditTrailSystem {
             // first so its connections are not leaked.
             const bootstrapPool = this.pool;
             this.pool = mysql.createPool(this.config);
-            await bootstrapPool.end().catch((err) => {
+            await bootstrapPool.end().catch(err => {
                 logger?.warn?.('Failed to close bootstrap audit pool:', err.message);
             });
         } catch (error) {
@@ -180,9 +168,15 @@ class AuditTrailSystem {
             await conn.query(query);
 
             // Schema Migration: Attempt to add columns if they don't exist
-            try { await conn.query(`ALTER TABLE m2m_audit_log ADD COLUMN ipAddress VARCHAR(45) AFTER resource`); } catch (e) { }
-            try { await conn.query(`ALTER TABLE m2m_audit_log ADD COLUMN userAgent TEXT AFTER ipAddress`); } catch (e) { }
-            try { await conn.query(`ALTER TABLE m2m_audit_log ADD COLUMN signingKeyId VARCHAR(128) NOT NULL AFTER userAgent`); } catch (e) { }
+            try {
+                await conn.query(`ALTER TABLE m2m_audit_log ADD COLUMN ipAddress VARCHAR(45) AFTER resource`);
+            } catch (e) {}
+            try {
+                await conn.query(`ALTER TABLE m2m_audit_log ADD COLUMN userAgent TEXT AFTER ipAddress`);
+            } catch (e) {}
+            try {
+                await conn.query(`ALTER TABLE m2m_audit_log ADD COLUMN signingKeyId VARCHAR(128) NOT NULL AFTER userAgent`);
+            } catch (e) {}
 
             conn.release();
 
@@ -252,12 +246,7 @@ class AuditTrailSystem {
             const keyData = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
             const publicKeyPem = keyData.publicKey;
 
-            return crypto.verify(
-                null,
-                Buffer.from(entryJson, 'utf8'),
-                publicKeyPem,
-                Buffer.from(signatureBase64, 'base64')
-            );
+            return crypto.verify(null, Buffer.from(entryJson, 'utf8'), publicKeyPem, Buffer.from(signatureBase64, 'base64'));
         } catch (err) {
             logger?.warn?.(`Signature verification error for ${keyId}:`, err.message);
             return false;
@@ -337,7 +326,7 @@ class AuditTrailSystem {
                 logger?.info?.(`🔄 Audit WAL recovery complete: ${recoveredCount} records recovered`);
                 try {
                     fs.unlinkSync(this._walFilePath);
-                } catch { }
+                } catch {}
             }
         } catch (err) {
             logger?.error?.('Audit WAL recovery failed:', err);
@@ -347,7 +336,7 @@ class AuditTrailSystem {
     _clearWAL() {
         try {
             fs.writeFileSync(this._walFilePath, '', 'utf8');
-        } catch { }
+        } catch {}
     }
 
     // ─── Hash Chain ──────────────────────────────────────────────────
@@ -393,12 +382,9 @@ class AuditTrailSystem {
                 userAgent: finalUA ? String(finalUA) : null,
                 outcome,
                 severity,
-                metadata: cleanMetadata,
+                metadata: cleanMetadata
             };
-            const integrityHash = crypto
-                .createHash('sha256')
-                .update(JSON.stringify(jsonlBase))
-                .digest('hex');
+            const integrityHash = crypto.createHash('sha256').update(JSON.stringify(jsonlBase)).digest('hex');
             const jsonlEntry = { ...jsonlBase, integrityHash };
 
             if (!this.enabled || !this.pool) {
@@ -495,7 +481,7 @@ class AuditTrailSystem {
 
                 logger?.info?.(`[AUDIT] Flushed ${batch.length} records to database`);
             } catch (txErr) {
-                await conn.rollback().catch(() => { });
+                await conn.rollback().catch(() => {});
                 throw txErr;
             } finally {
                 conn.release();
@@ -528,7 +514,10 @@ class AuditTrailSystem {
     }
 
     _stopFlushTimer() {
-        if (this._flushTimer) { clearInterval(this._flushTimer); this._flushTimer = null; }
+        if (this._flushTimer) {
+            clearInterval(this._flushTimer);
+            this._flushTimer = null;
+        }
     }
 
     _registerShutdownHandlers() {
@@ -542,7 +531,7 @@ class AuditTrailSystem {
 }
 
 const auditLogger = new AuditTrailSystem();
-auditLogger.initialize().catch((err) => {
+auditLogger.initialize().catch(err => {
     logger?.error?.('AuditTrailSystem initialize failed:', err.message);
 });
 

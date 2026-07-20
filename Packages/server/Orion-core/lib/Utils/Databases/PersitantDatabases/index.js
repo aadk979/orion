@@ -12,8 +12,7 @@ class PersistantDatabaseManager {
 
         if (provider !== 'POSTGRES') {
             throw new Error(
-                `Unsupported database provider: "${systemConfig?.db?.provider}". ` +
-                `Orion now supports only PostgreSQL. Set db.provider to "POSTGRES".`
+                `Unsupported database provider: "${systemConfig?.db?.provider}". ` + `Orion now supports only PostgreSQL. Set db.provider to "POSTGRES".`
             );
         }
 

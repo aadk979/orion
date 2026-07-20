@@ -9,7 +9,7 @@ import { __sealing } from '../../../../Packages/server/Orion-core/lib/Utils/Data
 
 const { seal, open, SEAL_PREFIX } = __sealing;
 
-const withKey = (key) => globalAccessPoint.setValue('systemConfig', { utilities: { dataEncryption: { key } } });
+const withKey = key => globalAccessPoint.setValue('systemConfig', { utilities: { dataEncryption: { key } } });
 
 describe('TOTPModel secret sealing (AES-256-GCM at rest)', () => {
     test('seal → open round-trips with a configured key', () => {

@@ -1,31 +1,37 @@
 /**
  * Resource Token Management System
  *
- * Handles generation and validation of resource access tokens. During token
- * generation, both user context and device identity fingerprints are present.
+ * Handles generation and validation of resource access tokens. Unlike
+ * access/refresh tokens, resource tokens are single-purpose grants: they
+ * carry their own allow-list of callbacks, a retrieval budget, and are not
+ * tier-aware or payload-compressed (they never travel as cookies).
  *
- * NOTE: For the "secure" view type, device fingerprint values may not be
- * present, so the system will not validate the device fingerprint for this
- * view type.
+ * NOTE: a fingerprint hash is stored at generation time, but validation does
+ * not check it — for the "secure" view type the fingerprint is legitimately
+ * absent at retrieval time (e.g. tokens opened outside the issuing browser
+ * when sharing is allowed).
  */
-
-import jwt from 'jsonwebtoken';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { TokenModel } from '../../Databases/models/index.js';
 import { hashString } from '../../CryptoFunctions.js';
 import { generateId } from '../../valueGenerator.js';
 import { getIpRange, isIpInRange } from '../../Ip.js';
-import { getFutureUnixTime, isUnixExpired, parseDuration } from '../../Date&Time.js';
-import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { getFutureUnixTime, parseDuration } from '../../Date&Time.js';
 import { SUPPORTED_TOKENS } from '../ResourceAccessManagment/configs.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { recordTokenEvent } from './internals/tokenAudit.js';
+import { decodeKeyId, signWithKeyPair, verifyWithKeyPair } from './internals/jwtCodec.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'ResourceTokens.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'ResourceTokens.js');
-const tokenSecretsManagerModule = new SafeModuleHandler('TokenSecretsManager', 'tokenSecretsManager', 'ResourceTokens.js');
+const tokenSecretsManagerResourceModule = new SafeModuleHandler('TokenSecretsManager(resource)', 'TOKEN_SECRETS_MANAGER_resource', 'ResourceTokens.js');
 
+const SOURCE = 'ResourceTokens.js';
 
+// Retrieval budget cap: this many retrievals per hour of token lifetime.
 const MAX_FILES_ACCESS_PER_HOUR = 25;
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 async function generateResourceToken(
     uid,
@@ -39,33 +45,28 @@ async function generateResourceToken(
     maxRetrievals,
     customData = {}
 ) {
-    if (!accessibleCallbacks || !Array.isArray(accessibleCallbacks) || accessibleCallbacks.length <= 0) {
+    if (!Array.isArray(accessibleCallbacks) || accessibleCallbacks.length <= 0) {
         return { error: true, errorCode: 'TOKEN-RESOURCE::INVALID-CALLBACKS-ARRAY::A::p' };
     }
 
-    if (!SUPPORTED_TOKENS.find(val => val.tokenType === viewType.toUpperCase().trim())) {
+    const normalizedViewType = viewType.toUpperCase().trim();
+
+    if (!SUPPORTED_TOKENS.some(val => val.tokenType === normalizedViewType)) {
         return { error: true, errorCode: 'TOKEN-RESOURCE::INVALID-VIEW-TYPE::A::p' };
     }
 
-    if (viewType.toUpperCase().trim() === 'PUBLIC') {
+    if (normalizedViewType === 'PUBLIC') {
         return { error: true, errorCode: 'TOKEN-RESOURCE::VIEW-TYPE-NOT-ACCEPTABLE::A::p' };
     }
 
-    if (
-        Math.floor((parseDuration(systemConfigModule.getModule().tokens?.lifespans.resourceTokens || '1h') / 1) * 60 * 60 * 1000) *
-        MAX_FILES_ACCESS_PER_HOUR <
-        maxRetrievals
-    ) {
+    const expiry = systemConfigModule.getModule().tokens?.lifespans.resourceTokens || '1h';
+
+    const lifespanHours = parseDuration(expiry) / MS_PER_HOUR;
+    if (maxRetrievals > lifespanHours * MAX_FILES_ACCESS_PER_HOUR) {
         return { error: true, errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-TOO-HIGH::A::p' };
     }
 
-    const auditTrail = auditTrailSystemModule.getModule();
-    const requestMetadata = requestContext.getStore();
-
-    const secret = await tokenSecretsManagerModule.getModule().getRandomKeyPair('resource_access');
-    const expiry = systemConfigModule.getModule().tokens?.lifespans.resourceAccessTokens || '1h';
-    const aud = globalAccessPoint.allowedClientUrls();
-    const iss = systemConfigModule.getModule().server.urls;
+    const secret = await tokenSecretsManagerResourceModule.getModule().getRandomSigningKeyPair();
 
     const hashedFingerprint = await hashString(fingerprint);
     const ipRange = getIpRange(ip);
@@ -75,11 +76,9 @@ async function generateResourceToken(
         type: 'RESOURCE_TOKEN'
     };
 
-    const dbExpiry = getFutureUnixTime(expiry);
-
     const payload = {
-        uid: uid,
-        email: email,
+        uid,
+        email,
         hashedDeviceFingerprint: hashedFingerprint,
         tokenData,
         ipRange,
@@ -91,86 +90,73 @@ async function generateResourceToken(
 
         // Standard JWT fields
         jti: tokenData.tokenId,
-        aud: aud,
-        iss: iss,
+        aud: globalAccessPoint.allowedClientUrls(),
+        iss: systemConfigModule.getModule().server.urls,
         sub: uid
     };
 
-    // Store token row
     const storage = await TokenModel.createToken({
         tokenId: tokenData.tokenId,
-        uid: uid,
+        uid,
         type: tokenData.type,
-        expiry: dbExpiry,
-        userAgent: userAgent,
+        expiry: getFutureUnixTime(expiry),
+        userAgent,
         hashedFingerprint,
         viewType,
         maxRetrievals
     });
 
     if (storage.error) {
-        auditTrail.record({
-            user: { email: email, uid: uid },
-            device: {
-                fingerprint: fingerprint,
-                userAgent: userAgent
-            },
+        recordTokenEvent(auditTrailSystemModule, {
+            source: SOURCE,
+            functionName: 'generateResourceToken',
+            ip,
+            user: { email, uid },
+            device: { fingerprint, userAgent },
             action: 'RESOURCE_TOKEN_GENERATION_ATTEMPT',
             status: 'FAILED',
-            source: 'resourceTokens.js',
-            functionName: 'generateResourceToken',
-            requestId: requestMetadata?.requestId,
-            ipAddress: ip,
             impact: 'Resource token generation failed - database error',
-            metadata: {
-                reason: 'DATABASE_ERROR'
-            },
+            metadata: { reason: 'DATABASE_ERROR' },
             errorCode: 'TOKEN-RESOURCE::GENERATION-FAILED::A::i'
         });
         return { error: true, errorCode: 'TOKEN-RESOURCE::GENERATION-FAILED::A::i' };
     }
 
-    const token = jwt.sign(payload, secret.privateKey, { expiresIn: expiry, algorithm: 'RS256', keyid: secret.keyPairId });
+    const token = signWithKeyPair(secret, payload, expiry);
 
-    auditTrail.record({
-        user: { email: email, uid: uid },
-        device: {
-            fingerprint: fingerprint,
-            userAgent: userAgent
-        },
-        action: 'ACCESS_TOKEN_GENERATION_SUCCESS',
-        status: 'SUCCESS',
-        source: 'resourceTokens.js',
+    recordTokenEvent(auditTrailSystemModule, {
+        source: SOURCE,
         functionName: 'generateResourceToken',
-        requestId: requestMetadata?.requestId,
-        ipAddress: ip,
+        ip,
+        user: { email, uid },
+        device: { fingerprint, userAgent },
+        action: 'RESOURCE_TOKEN_GENERATION_SUCCESS',
+        status: 'SUCCESS',
         impact: 'Resource token generated successfully',
         metadata: {
-            expiry: expiry,
+            expiry,
             tokenId: tokenData.tokenId,
             shareAllowed,
             accessibleCallbacks
         }
     });
 
-    return { error: false, token: token };
+    return { error: false, token };
 }
 
 async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, clientUrl) {
-    const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
 
     try {
         if (!token) {
-            auditTrail.record({
+            recordTokenEvent(auditTrailSystemModule, {
+                source: SOURCE,
+                functionName: 'validateResourceToken',
+                ip,
                 user: {},
                 device: { fingerprint, userAgent: requestMetadata?.userAgent },
                 action: 'RESOURCE_TOKEN_VALIDATION_ATTEMPT',
                 status: 'FAILED',
-                source: 'resourceTokens.js',
-                functionName: 'validateResourceToken',
-                requestId: requestMetadata?.requestId,
-                ipAddress: ip,
                 impact: 'Resource token validation failed - missing token',
                 metadata: { reason: 'MISSING_TOKEN' },
                 errorCode: 'TOKEN-RESOURCE::MISSING::A::p'
@@ -178,70 +164,75 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
             return { error: true, errorCode: 'TOKEN-RESOURCE::MISSING::A::p' };
         }
 
-        const decodedHeader = jwt.decode(token, { complete: true }).header;
-        const secret = await tokenSecretsManagerModule.getModule().getKeyPairById(decodedHeader.kid, 'resource_access');
+        const keyId = decodeKeyId(token);
+        if (!keyId) {
+            return { error: true, errorCode: 'TOKEN-RESOURCE::VALIDATION-FAILED::B::p' };
+        }
 
-        if (secret.notFound) {
+        const secret = await tokenSecretsManagerResourceModule.getModule().findKeyPair(keyId);
+        if (!secret) {
             return { error: true, errorCode: 'TOKEN-RESOURCE::KEY-NOT-FOUND::A::i' };
         }
 
-        const serverUrl = systemConfigModule.getModule().server.selfUrl;
+        const verification = verifyWithKeyPair(token, secret);
+        if (!verification.valid) {
+            return {
+                error: true,
+                errorCode: verification.expired ? 'TOKEN-RESOURCE::EXPIRED::A::p' : 'TOKEN-RESOURCE::VALIDATION-FAILED::B::p'
+            };
+        }
 
-        const validatedToken = jwt.verify(token, secret.publicKey, { algorithms: ['RS256'] });
+        const validatedToken = verification.payload;
 
         if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.allowedClientUrls().includes(clientUrl)) {
             return { error: true, errorCode: 'TOKEN-RESOURCE::INVALID-AUD::A::p' };
         }
 
+        const serverUrl = systemConfigModule.getModule().server.selfUrl;
         if (!validatedToken.iss.includes(serverUrl)) {
             return { error: true, errorCode: 'TOKEN-RESOURCE::ISS-NOT-ALLOWED::A::p' };
         }
 
+        // Shareable tokens may travel to other networks; non-shareable ones
+        // stay pinned to the requester's IP range.
         if (!(await isIpInRange(ip, validatedToken.ipRange)) && !validatedToken.shareAllowed) {
             return { error: true, errorCode: 'TOKEN-RESOURCE::IP-NOT-IN-RANGE::A::p' };
         }
 
-        const tokenData = await TokenModel.getToken(validatedToken.tokenData.tokenId);
-
-        if (!tokenData) {
+        const tokenRow = await TokenModel.getToken(validatedToken.tokenData.tokenId);
+        if (!tokenRow) {
             return { error: true, errorCode: 'TOKEN-RESOURCE::TOKEN-ID-NOT-FOUND::A::p' };
         }
-
-        if (tokenData.type !== 'RESOURCE_TOKEN') {
+        if (tokenRow.type !== 'RESOURCE_TOKEN') {
             return { error: true, errorCode: 'TOKEN-RESOURCE::TOKEN-TYPE-MISMATCH::A::p' };
         }
 
-        if (tokenData.retrieval_count >= tokenData.max_retrievals) {
+        if (tokenRow.retrieval_count >= tokenRow.max_retrievals) {
             await TokenModel.deleteToken(validatedToken.tokenData.tokenId);
             return { error: true, errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-HIT::A::p' };
         }
 
         await TokenModel.updateToken(validatedToken.tokenData.tokenId, {
-            retrieval_count: tokenData.retrieval_count + 1
+            retrieval_count: tokenRow.retrieval_count + 1
         });
 
-        auditTrail.record({
+        recordTokenEvent(auditTrailSystemModule, {
+            source: SOURCE,
+            functionName: 'validateResourceToken',
+            ip,
             user: { email: validatedToken.email, uid: validatedToken.uid },
             device: { fingerprint, userAgent: requestMetadata?.userAgent },
             action: 'RESOURCE_TOKEN_VALIDATION_SUCCESS',
             status: 'SUCCESS',
-            source: 'resourceTokens.js',
-            functionName: 'validateResourceToken',
-            requestId: requestMetadata?.requestId,
-            ipAddress: ip,
             impact: 'Resource token validated successfully',
             metadata: {
                 tokenId: validatedToken.tokenData.tokenId,
-                viewType: tokenData.view_type
+                viewType: tokenRow.view_type
             }
         });
 
         return { error: false, valid: true, data: validatedToken, customData: validatedToken.customData };
     } catch (e) {
-        if (e.message === 'jwt expired') {
-            return { error: true, errorCode: 'TOKEN-RESOURCE::EXPIRED::A::p' };
-        }
-
         return { error: true, errorCode: 'TOKEN-RESOURCE::VALIDATION-FAILED::B::p' };
     }
 }

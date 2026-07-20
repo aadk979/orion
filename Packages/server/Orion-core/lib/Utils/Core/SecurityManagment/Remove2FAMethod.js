@@ -8,14 +8,13 @@ import { fileURLToPath } from 'url';
 import { generateRandomNumber, generateRequestId } from '../../valueGenerator.js';
 import { generateAndSendMail } from '../../Mail/sendMail.js';
 import { cronScheduler } from '../../Cron.js';
-import { parseCookieData, stringifyCookieData } from '../../CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { getDeviceDetails } from '../../Device.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'Remove2FAMethod.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'Remove2FAMethod.js');
-
 
 const VALID_METHODS = ['totp', 'passkey'];
 
@@ -236,12 +235,7 @@ const routeHandlerInitiate2FAMethodRemoval = async (request, response) => {
     }
 
     if (callback.reqId) {
-        response.cookie('twoFARemovalRequestId', stringifyCookieData(callback.reqId), {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'None',
-            maxAge: 15 * 60 * 1000
-        });
+        setManagedCookie(response, 'twoFARemovalRequestId', callback.reqId);
     }
 
     return respondWithSuccess(response, 200, { sent: true });
@@ -266,14 +260,9 @@ const routeHandlerComplete2FAMethodRemoval = async (request, response) => {
         return respondWithError(response, callback.errorCode);
     }
 
-    response.cookie('twoFARemovalRequestId', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'twoFARemovalRequestId');
 
     return respondWithSuccess(response, 200, { success: true, method: callback.method });
 };
 
-export {
-    initiate2FAMethodRemoval,
-    complete2FAMethodRemoval,
-    routeHandlerInitiate2FAMethodRemoval,
-    routeHandlerComplete2FAMethodRemoval
-};
+export { initiate2FAMethodRemoval, complete2FAMethodRemoval, routeHandlerInitiate2FAMethodRemoval, routeHandlerComplete2FAMethodRemoval };

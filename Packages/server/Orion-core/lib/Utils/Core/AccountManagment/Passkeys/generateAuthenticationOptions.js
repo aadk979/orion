@@ -6,11 +6,10 @@ import { tryCatch } from '../../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
-import { stringifyCookieData } from '../../../CookieUtils.js';
+import { setManagedCookie } from '../../../CookieUtils.js';
 import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'generateAuthenticationOptions.js');
-
 
 const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL) => {
     const Function = async parameters => {
@@ -106,14 +105,8 @@ const routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser = async (requ
     }
 
     if (callback.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                maxAge: cookie.maxAge
-            });
+        for (const cookie of callback.cookies) {
+            setManagedCookie(response, cookie.key, cookie.data);
         }
     }
 

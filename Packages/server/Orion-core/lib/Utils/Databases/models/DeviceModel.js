@@ -2,7 +2,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'DeviceModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 // expiry is stored as TIMESTAMPTZ but exposed to callers as unix seconds
@@ -31,10 +30,7 @@ export const DeviceModel = {
      * @returns {{ device_id, user_uid, device_code_hash, user_agent_hash, expiry } | null}
      */
     async getDevice(deviceId) {
-        const result = await query(
-            `SELECT ${DEVICE_COLUMNS} FROM recognized_devices WHERE device_id = $1`,
-            [deviceId]
-        );
+        const result = await query(`SELECT ${DEVICE_COLUMNS} FROM recognized_devices WHERE device_id = $1`, [deviceId]);
         return result.rows[0] || null;
     },
 
@@ -78,10 +74,7 @@ export const DeviceModel = {
      * Get count of active (non-expired) devices.
      */
     async getActiveDeviceCount(uid) {
-        const result = await query(
-            'SELECT COUNT(*)::int AS count FROM recognized_devices WHERE user_uid = $1 AND expiry > now()',
-            [uid]
-        );
+        const result = await query('SELECT COUNT(*)::int AS count FROM recognized_devices WHERE user_uid = $1 AND expiry > now()', [uid]);
         return result.rows[0]?.count || 0;
     }
 };

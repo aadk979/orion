@@ -44,9 +44,15 @@ describe('tryCatch — error path', () => {
 
     test('captures rejected promises too', async () => {
         const result = await silenceConsole(() =>
-            tryCatch(async () => {
-                throw new Error('async-boom');
-            }, true, null, 'asyncThrower', 'test')
+            tryCatch(
+                async () => {
+                    throw new Error('async-boom');
+                },
+                true,
+                null,
+                'asyncThrower',
+                'test'
+            )
         );
         assert.equal(result.error, true);
         assert.equal(result.context, 'async-boom');

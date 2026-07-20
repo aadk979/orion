@@ -1,12 +1,12 @@
 /**
  * R_Sync Worker Example
- * 
+ *
  * This example demonstrates how to start a worker node
  * that registers with an orchestrator, receives events,
  * and can emit events to the orchestrator.
- * 
+ *
  * Run with: npm run start:worker
- * 
+ *
  * Note: Make sure the orchestrator is running first!
  */
 
@@ -20,12 +20,12 @@ const worker = new R_Sync({
     orchestratorIp: '127.0.0.1',
     orchestratorPort: 55321,
     encryptionAlg: 'ECC_256',
-    heartbeatIntervalMs: 30000,  // Send heartbeat every 30 seconds
-    cluster: 'default'  // Required: must match orchestrator cluster
+    heartbeatIntervalMs: 30000, // Send heartbeat every 30 seconds
+    cluster: 'default' // Required: must match orchestrator cluster
 });
 
 // Register event handler BEFORE starting
-worker.onEvent((event) => {
+worker.onEvent(event => {
     console.log('\n===========================================');
     console.log('   EVENT RECEIVED');
     console.log('===========================================');
@@ -63,7 +63,6 @@ try {
             console.error('Failed to send status report:', err.message);
         }
     }, 5000);
-
 } catch (err) {
     console.error('Failed to start worker:', err.message);
     console.error('Make sure the orchestrator is running first!');
@@ -76,4 +75,3 @@ process.on('SIGINT', async () => {
     await worker.stop();
     process.exit(0);
 });
-

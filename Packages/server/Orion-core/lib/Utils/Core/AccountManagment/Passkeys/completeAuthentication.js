@@ -6,7 +6,6 @@ import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'completeAuthentication.js');
 
-
 const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async parameters => {
         const systemConfig = systemConfigModule.getModule();
@@ -31,9 +30,7 @@ const veryifyAndCompletePasskeyAuthentication = async (authenticationResponse, c
             return { error: true, errorCode: 'PASSKEY-AUTH-NO-CREDENTIAL' };
         }
 
-        const publicKeyUint8 = passkey.public_key instanceof Buffer
-            ? new Uint8Array(passkey.public_key)
-            : new Uint8Array(passkey.public_key);
+        const publicKeyUint8 = passkey.public_key instanceof Buffer ? new Uint8Array(passkey.public_key) : new Uint8Array(passkey.public_key);
 
         const verification = await verifyAuthenticationResponse({
             response: parameters.authenticationResponse,

@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
-import compression from "compression";
+import compression from 'compression';
 
 import { logger } from '../Utils/logger.js';
 import { originVerifier } from './Middleware/originVerifier.js';
@@ -14,7 +14,7 @@ import { defaultServerRoutes } from './Endpoints/index.js';
 import { dataValidator } from './Middleware/dataValidator.js';
 import { authenticationMiddleware } from './Middleware/authentication.js';
 import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.js';
-import { getCurrentUnixTime, parseDuration } from '../Utils/Date&Time.js';
+import { getCurrentUnixTime } from '../Utils/Date&Time.js';
 import { OAuthProviderToolkit } from '../Utils/Core/OAuth/OrionOAuthToolKit.js';
 import { deviceCheckMiddlware } from './Middleware/deviceScanner.js';
 import { MemoryMonitoringSystem } from '../Utils/Systems/MemoryMonitoringSystem.js';
@@ -37,11 +37,11 @@ import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
 import { ClusterLinkSystem } from '../Utils/Systems/ClusterLinkSystem.js';
 import { DynamicGlobalRateLimiter } from '../Utils/Systems/DynamicGlobalRateLimiter.js';
 import { rateLimitPolicy, validateRateLimitPolicy } from '../General/index.js';
+import { validateCookiePolicy } from '../General/CookiePolicy.js';
 import { buildGlobalFloodGuard } from './Middleware/globalFloodGuard.js';
 import { buildStaticAssetServer } from './Middleware/staticAssets.js';
 
 const loggerModule = new SafeModuleHandler('Logger', 'logger', 'initiateServer.js');
-
 
 // Default config used if none provided
 const defaultStartConfig = Object.freeze({
@@ -139,11 +139,7 @@ const registerRoutes = (app, routes, middlewares) => {
 
         // Register route with filtered middlewares (if any), then callback
         if (middlewareCallbacks.length > 0) {
-            app[routeMethod](
-                `${globalAccessPoint.apiSlug() ? '/' + globalAccessPoint.apiSlug() : ''}${path}`,
-                ...middlewareCallbacks,
-                callback
-            );
+            app[routeMethod](`${globalAccessPoint.apiSlug() ? '/' + globalAccessPoint.apiSlug() : ''}${path}`, ...middlewareCallbacks, callback);
         } else {
             // No middleware to apply, just register the route with callback only
             app[routeMethod](`${globalAccessPoint.apiSlug() ? '/' + globalAccessPoint.apiSlug() : ''}${path}`, callback);
@@ -171,7 +167,6 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.setValue('oAuthToolKit', oAuthToolKit);
         await oAuthToolKit.initializeAllProviders();
 
-
         // Init Memory Handler system
         const memoryMonitioringSystem = new MemoryMonitoringSystem(false);
         memoryMonitioringSystem.start();
@@ -197,9 +192,7 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         globalAccessPoint.setValue('circuitBreakerSystem', circuitBreakerSystem);
         globalAccessPoint.setValue('abuseDetectionSystem', abuseDetectionSystem);
 
-        const loadSheddingSystemInstance = new LoadSheddingSystem(
-            systemConfig?.utilities?.loadShedding || {}
-        );
+        const loadSheddingSystemInstance = new LoadSheddingSystem(systemConfig?.utilities?.loadShedding || {});
         globalAccessPoint.setValue('loadSheddingSystem', loadSheddingSystemInstance);
 
         const eventLoopMonitorInstance = new EventLoopMonitor(
@@ -217,9 +210,7 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         databaseJanitor.start();
 
         // Init systems control and register in GAP for graceful shutdown access
-        const orionSystemsControl = new OrionSystemsControl(
-            systemConfig?.utilities?.safeMode ?? true
-        );
+        const orionSystemsControl = new OrionSystemsControl(systemConfig?.utilities?.safeMode ?? true);
         globalAccessPoint.setValue('orionSystemsControl', orionSystemsControl);
 
         // Init graceful shutdown — must be last so all systems are registered in GAP
@@ -243,6 +234,11 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         // Init rate limiter — policy is validated before the limiter is mounted so a
         // malformed cost table fails the boot rather than silently mis-throttling.
         validateRateLimitPolicy(rateLimitPolicy);
+
+        // Fail boot on a malformed cookie policy rather than silently setting
+        // insecure or non-clearing cookies at runtime.
+        validateCookiePolicy();
+
         const rateLimiter = new DynamicGlobalRateLimiter({
             defaultTTL: systemConfig?.utilities?.rateLimiter?.defaultTTL ?? 300
         });

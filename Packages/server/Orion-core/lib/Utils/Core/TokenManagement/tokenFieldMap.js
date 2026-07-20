@@ -1,6 +1,6 @@
 /**
  * Token Field Shorthand Map
- * 
+ *
  * Maps verbose JWT payload field names to compact abbreviations to reduce token size.
  * Provides bidirectional conversion so downstream consumers always see verbose names.
  */
@@ -18,26 +18,19 @@ const SHORT_MAP = {
     tokenId: 'ti',
     type: 't',
     refreshCount: 'rc',
-    maxRefreshes: 'mr',
+    maxRefreshes: 'mr'
 };
 
 // Auto-derive verbose map from short map
-const VERBOSE_MAP = Object.fromEntries(
-    Object.entries(SHORT_MAP).map(([verbose, short]) => [short, verbose])
-);
+const VERBOSE_MAP = Object.fromEntries(Object.entries(SHORT_MAP).map(([verbose, short]) => [short, verbose]));
 
 const TYPE_SHORT_MAP = {
-    'ACCESS_TOKEN': 'at',
-    'REFRESH_TOKEN': 'rt',
-    'RESOURCE_TOKEN': 'rst'
+    ACCESS_TOKEN: 'at',
+    REFRESH_TOKEN: 'rt',
+    RESOURCE_TOKEN: 'rst'
 };
 
-const TYPE_VERBOSE_MAP = Object.fromEntries(
-    Object.entries(TYPE_SHORT_MAP).map(([verbose, short]) => [short, verbose])
-);
-
-// Nested keys that live inside tokenData/td
-const TOKEN_DATA_KEYS = ['tokenId', 'type', 'accessTokenLinkCode', 'securityTier'];
+const TYPE_VERBOSE_MAP = Object.fromEntries(Object.entries(TYPE_SHORT_MAP).map(([verbose, short]) => [short, verbose]));
 
 function toShortPayload(payload) {
     const result = {};
@@ -92,37 +85,35 @@ function toVerbosePayload(decoded) {
 }
 
 const AUTH_METHOD_MAP_LONG_TO_SHORT = {
-    "PASSKEY": "PK",
-    "PASSWORD": "P",
-    "PROVIDER-GOOGLE": "PG",
-    "PROVIDER-GITHUB": "PGH",
-    "PROVIDER-DISCORD": "PD",
-    "PROVIDER-SLACK": "PS",
-    "PROVIDER-MICROSOFT": "PM",
-    "PROVIDER-FACEBOOK": "PFB",
-    "PROVIDER-AMAZON": "PA",
-    "PROVIDER-APPLE": "PAP",
-    "PROVIDER-TWITTER": "PT",
-    "PROVIDER-LINKEDIN": "PL",
-    "PROVIDER-REDDIT": "PR",
-    "PROVIDER-SPOTIFY": "PSP"
+    PASSKEY: 'PK',
+    PASSWORD: 'P',
+    'PROVIDER-GOOGLE': 'PG',
+    'PROVIDER-GITHUB': 'PGH',
+    'PROVIDER-DISCORD': 'PD',
+    'PROVIDER-SLACK': 'PS',
+    'PROVIDER-MICROSOFT': 'PM',
+    'PROVIDER-FACEBOOK': 'PFB',
+    'PROVIDER-AMAZON': 'PA',
+    'PROVIDER-TWITTER': 'PT',
+    'PROVIDER-LINKEDIN': 'PL',
+    'PROVIDER-REDDIT': 'PR',
+    'PROVIDER-SPOTIFY': 'PSP'
 };
 
 const AUTH_METHOD_MAP_SHORT_TO_LONG = {
-    "PK": "PASSKEY",
-    "P": "PASSWORD",
-    "PG": "PROVIDER-GOOGLE",
-    "PGH": "PROVIDER-GITHUB",
-    "PD": "PROVIDER-DISCORD",
-    "PS": "PROVIDER-SLACK",
-    "PM": "PROVIDER-MICROSOFT",
-    "PFB": "PROVIDER-FACEBOOK",
-    "PA": "PROVIDER-AMAZON",
-    "PAP": "PROVIDER-APPLE",
-    "PT": "PROVIDER-TWITTER",
-    "PL": "PROVIDER-LINKEDIN",
-    "PR": "PROVIDER-REDDIT",
-    "PSP": "PROVIDER-SPOTIFY"
+    PK: 'PASSKEY',
+    P: 'PASSWORD',
+    PG: 'PROVIDER-GOOGLE',
+    PGH: 'PROVIDER-GITHUB',
+    PD: 'PROVIDER-DISCORD',
+    PS: 'PROVIDER-SLACK',
+    PM: 'PROVIDER-MICROSOFT',
+    PFB: 'PROVIDER-FACEBOOK',
+    PA: 'PROVIDER-AMAZON',
+    PT: 'PROVIDER-TWITTER',
+    PL: 'PROVIDER-LINKEDIN',
+    PR: 'PROVIDER-REDDIT',
+    PSP: 'PROVIDER-SPOTIFY'
 };
 
 function getShortFormAuthMethod(am) {

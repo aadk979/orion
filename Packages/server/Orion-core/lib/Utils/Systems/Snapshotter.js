@@ -101,8 +101,7 @@ class Snapshotter {
         }
 
         // Plain object (Object.create(null) or {})
-        if (Object.getPrototypeOf(value) === Object.prototype ||
-            Object.getPrototypeOf(value) === null) {
+        if (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null) {
             const copy = Object.create(Object.getPrototypeOf(value));
             seen.set(value, copy);
             for (const key of Reflect.ownKeys(value)) {

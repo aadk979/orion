@@ -60,14 +60,10 @@ const buildStaticAssetServer = (config = {}) => {
         return null;
     }
 
-    const absoluteDir = path.isAbsolute(settings.directory)
-        ? settings.directory
-        : path.join(process.cwd(), settings.directory);
+    const absoluteDir = path.isAbsolute(settings.directory) ? settings.directory : path.join(process.cwd(), settings.directory);
 
     if (!fs.existsSync(absoluteDir)) {
-        logger.warn(
-            `Static asset serving is enabled but directory does not exist: ${absoluteDir}. Skipping.`
-        );
+        logger.warn(`Static asset serving is enabled but directory does not exist: ${absoluteDir}. Skipping.`);
         return null;
     }
 

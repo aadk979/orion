@@ -55,30 +55,30 @@ container works — during development this was verified against
    `server/gipsy.orion.config.js` (gitignored — see the repo's `gipsy.*`
    convention) and fill in your Postgres credentials.
 2. **API server**:
-   ```
-   cd server
-   node index.js
-   ```
-   It runs its own `todos` table migration on boot (`server/todos/TodosModel.js`)
-   against the same Postgres database Orion-core's auth tables live in.
+    ```
+    cd server
+    node index.js
+    ```
+    It runs its own `todos` table migration on boot (`server/todos/TodosModel.js`)
+    against the same Postgres database Orion-core's auth tables live in.
 3. **Orchestrator** (optional but recommended — this is the whole point of the
    live test):
-   ```
-   cd orchestrator
-   node start.js
-   ```
-   Start this **before** the API server for a clean first handshake; the API
-   server retries with backoff either way (`requireOrchestrator: false`), so
-   order isn't strictly required after the first run.
+    ```
+    cd orchestrator
+    node start.js
+    ```
+    Start this **before** the API server for a clean first handshake; the API
+    server retries with backoff either way (`requireOrchestrator: false`), so
+    order isn't strictly required after the first run.
 4. **Client**:
-   ```
-   cd client
-   python -m http.server 8080
-   ```
-   Open `http://localhost:8080`. If you change the API server's port or host,
-   update `client/config.js`'s `SERVER_URL` and add the client's exact origin
-   to `client.urls` in `gipsy.orion.config.js` (CORS + cookies require an exact
-   match), then restart the API server.
+    ```
+    cd client
+    python -m http.server 8080
+    ```
+    Open `http://localhost:8080`. If you change the API server's port or host,
+    update `client/config.js`'s `SERVER_URL` and add the client's exact origin
+    to `client.urls` in `gipsy.orion.config.js` (CORS + cookies require an exact
+    match), then restart the API server.
 
 You should see, in the orchestrator's terminal, `[hello]` when the API server
 joins and `[health] FORMING -> HEALTHY` once the cluster settles — that's the
@@ -97,11 +97,11 @@ You provision the instance; the commands below are copy-paste guidance.
 
 ### 2. Security group
 
-| Port | Purpose | Source |
-|---|---|---|
-| 22 | SSH | your IP only |
-| 3900 | Todos API | your IP, or `0.0.0.0/0` for a public demo |
-| 8080 | Static client | same as above |
+| Port | Purpose       | Source                                    |
+| ---- | ------------- | ----------------------------------------- |
+| 22   | SSH           | your IP only                              |
+| 3900 | Todos API     | your IP, or `0.0.0.0/0` for a public demo |
+| 8080 | Static client | same as above                             |
 
 Leave **55321/55322 closed** — orchestrator and API server run on the same box
 and talk over `127.0.0.1`, so the cluster-sync test is fully observable via

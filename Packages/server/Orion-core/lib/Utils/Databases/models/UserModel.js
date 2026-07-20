@@ -2,7 +2,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'UserModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const UserModel = {
@@ -13,17 +12,11 @@ export const UserModel = {
         const client = await dbModule.getModule().getPool().connect();
         try {
             await client.query('BEGIN');
-            
-            await client.query(
-                `INSERT INTO users (uid, email, password_hash, role) VALUES ($1, $2, $3, $4)`,
-                [uid, email, passwordHash || null, role]
-            );
-            
-            await client.query(
-                `INSERT INTO user_security (user_uid) VALUES ($1) ON CONFLICT DO NOTHING`,
-                [uid]
-            );
-            
+
+            await client.query(`INSERT INTO users (uid, email, password_hash, role) VALUES ($1, $2, $3, $4)`, [uid, email, passwordHash || null, role]);
+
+            await client.query(`INSERT INTO user_security (user_uid) VALUES ($1) ON CONFLICT DO NOTHING`, [uid]);
+
             await client.query('COMMIT');
             return { error: false };
         } catch (e) {

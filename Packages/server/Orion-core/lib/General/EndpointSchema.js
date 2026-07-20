@@ -61,6 +61,14 @@ const endpointSchemas = {
     [`/${NAME_SPACE}/api/v1/action/complete-passkey-sign-up`]: Joi.object({
         registrationResponse: Joi.object().min(1).required(),
         email: Joi.string().email().required()
+    }),
+    [`/${NAME_SPACE}/api/v1/request/active-sessions`]: Joi.object().max(0),
+    [`/${NAME_SPACE}/api/v1/action/revoke-session`]: Joi.object({
+        tokenId: Joi.string().min(1),
+        linkCode: Joi.string().min(1)
+    }).xor('tokenId', 'linkCode'),
+    [`/${NAME_SPACE}/api/v1/action/revoke-all-sessions`]: Joi.object({
+        keepCurrent: Joi.boolean().default(true)
     })
 };
 

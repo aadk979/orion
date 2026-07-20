@@ -26,9 +26,11 @@ const deliverSecureResource = async (response, { filePath, viewMode, requestedAc
     // accessType must all agree — a SECURE-0 token must not unlock an S3-0 callback.
     const requestedType = normalizeAccessType(requestedAccessType);
     if (requestedType !== normalizeAccessType(tokenData.viewType) || normalizeAccessType(callbackConfig.accessType) !== requestedType) {
-        return response
-            .status(403)
-            .json({ status: 'error', code: 'TOKEN-RESOURCE::ACCESS-TYPE-MISMATCH::A::p', message: 'Access denied. The resource token does not match the requested access mode.' });
+        return response.status(403).json({
+            status: 'error',
+            code: 'TOKEN-RESOURCE::ACCESS-TYPE-MISMATCH::A::p',
+            message: 'Access denied. The resource token does not match the requested access mode.'
+        });
     }
 
     const callbackResult = await callbackConfig.callback(tokenData, customData);

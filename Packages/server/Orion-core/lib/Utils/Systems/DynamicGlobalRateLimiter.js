@@ -7,20 +7,19 @@ import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
 
 const redisInstanceModule = new SafeModuleHandler('RedisInstance', 'redisInstance', 'DynamicGlobalRateLimiter.js');
 
-
 /**
  * DynamicGlobalRateLimiter — Centralized, Policy-Driven Rate Limiter
  * ====================================================================
- * 
+ *
  * Architecture:
  *   ONE global middleware instance → ONE central policy config → ONE canonical bucket per actor.
- * 
+ *
  * Key design principles:
  *   - Redis keys represent ACTORS (ip, fingerprint, account), never routes.
  *   - Endpoint differentiation is achieved through variable request COST, not separate buckets.
  *   - Policy is resolved at request time from a central config map, not baked into constructor args.
  *   - The Lua script receives dynamic cost/capacity/refill as arguments for atomic evaluation.
- * 
+ *
  * This eliminates key cardinality explosion that occurs when each route-level limiter
  * creates its own Redis state for the same actor identity.
  */
@@ -93,7 +92,7 @@ class DynamicGlobalRateLimiter {
     /**
      * Fast non-cryptographic hash for cache key generation.
      * FNV-1a 32-bit — ~20x faster than SHA-256, perfectly suited for hash-map keying.
-     * 
+     *
      * Keys are ACTOR-ONLY: "rl:<type>:<hash>" — no route suffix is ever appended.
      */
     _hashIdentifier(type, value) {
@@ -110,7 +109,7 @@ class DynamicGlobalRateLimiter {
     /**
      * Resolves the effective rate-limit policy for the current request.
      * Uses the central policy map from General/index.js — no constructor-fixed cost.
-     * 
+     *
      * @param {string} method  - HTTP method (GET, POST, etc.)
      * @param {string} path    - Raw request path (will be normalized internally)
      * @returns {{ cost: number, ttl: number, _matchedKey: string|null, _matchType: string }}
@@ -241,7 +240,6 @@ class DynamicGlobalRateLimiter {
                 this._applyRemainingHeader(res, limitResponse.remaining);
 
                 return next();
-
             } catch (err) {
                 logger.error('RateLimiter Middleware exception:', err);
                 // System failure fallback to next safely so we don't break infrastructure during a cache outage natively
@@ -277,7 +275,10 @@ class DynamicGlobalRateLimiter {
         // Avoid .filter() allocation in the common case where all identifiers are valid
         let allValid = true;
         for (let i = 0; i < identifiers.length; i++) {
-            if (!identifiers[i] || !identifiers[i].value) { allValid = false; break; }
+            if (!identifiers[i] || !identifiers[i].value) {
+                allValid = false;
+                break;
+            }
         }
         const validIdentifiers = allValid ? identifiers : identifiers.filter(id => id && id.value);
         if (validIdentifiers.length === 0) return { passed: true };
@@ -294,7 +295,7 @@ class DynamicGlobalRateLimiter {
                 this._isCluster = false;
             }
         }
-        
+
         if (this._isCluster) {
             return await this._evaluateRedis(validIdentifiers);
         } else {
@@ -316,17 +317,13 @@ class DynamicGlobalRateLimiter {
             } catch (loadErr) {
                 // Script load failed — fall through to full EVAL as last resort
                 logger.warn('RateLimiter: SCRIPT LOAD failed, falling back to EVAL:', loadErr.message);
-                const result = await redisClient.sendCommand(
-                    ['EVAL', this.LUA_SCRIPT, keys.length.toString(), ...keys, ...args.map(String)]
-                );
+                const result = await redisClient.sendCommand(['EVAL', this.LUA_SCRIPT, keys.length.toString(), ...keys, ...args.map(String)]);
                 return { error: false, data: result };
             }
         }
 
         try {
-            const result = await redisClient.sendCommand(
-                ['EVALSHA', this._scriptSha, keys.length.toString(), ...keys, ...args.map(String)]
-            );
+            const result = await redisClient.sendCommand(['EVALSHA', this._scriptSha, keys.length.toString(), ...keys, ...args.map(String)]);
             return { error: false, data: result };
         } catch (err) {
             if (err.message && err.message.includes('NOSCRIPT')) {
@@ -347,7 +344,7 @@ class DynamicGlobalRateLimiter {
 
         const keys = [];
         const args = [];
-        
+
         for (let i = 0; i < identifiers.length; i++) {
             const id = identifiers[i];
             keys.push(this._hashIdentifier(id.type, id.value));
@@ -372,7 +369,7 @@ class DynamicGlobalRateLimiter {
             // Limited
             const failedIndex = resArr[1] - 1; // Lua arrays are 1-indexed
             const remainingTokens = resArr[2];
-            const waitTime = resArr[3] || 1; 
+            const waitTime = resArr[3] || 1;
             const failedId = identifiers[failedIndex];
             const nowSec = Math.floor(Date.now() / 1000);
 
@@ -444,7 +441,7 @@ class DynamicGlobalRateLimiter {
         const now = Date.now(); // ms precision
         const states = new Array(identifiers.length);
         let lowestRemaining = Infinity;
-        
+
         // Single pass: compute all token states with one read per bucket
         for (let i = 0; i < identifiers.length; i++) {
             const id = identifiers[i];

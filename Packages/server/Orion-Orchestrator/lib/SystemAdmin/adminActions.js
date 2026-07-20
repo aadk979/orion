@@ -45,10 +45,10 @@ const AdminActions = Object.freeze({
 });
 
 /** PBAC action name for executing a specific node command. */
-const commandAction = (nodeAction) => `${AdminActions.COMMAND_PREFIX}:${nodeAction}`;
+const commandAction = nodeAction => `${AdminActions.COMMAND_PREFIX}:${nodeAction}`;
 
 /** PBAC resource name for a specific node. */
-const nodeResource = (workerId) => `node:${workerId}`;
+const nodeResource = workerId => `node:${workerId}`;
 
 const CLUSTER_RESOURCE = 'cluster';
 

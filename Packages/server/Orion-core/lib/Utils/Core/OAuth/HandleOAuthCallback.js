@@ -11,7 +11,7 @@ import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
 import { accountExist, checkAndAddProviderToAccount, createAccountWithProvider } from './Account.js';
 import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
-import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { isValidEmailDomain } from '../../Validator.js';
 import { userControl } from '../AccountManagment/UserControl.js';
@@ -20,7 +20,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'HandleOAuthCallback.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'HandleOAuthCallback.js');
 const oAuthToolKitModule = new SafeModuleHandler('OAuthToolKit', 'oAuthToolKit', 'HandleOAuthCallback.js');
-
 
 const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, userAgent, deviceId, deviceCode) => {
     const Function = async parameters => {
@@ -122,7 +121,10 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
 
         const provider = stateFromServer.provider_name.trim().toLowerCase();
 
-        const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code, parameters.state, { nonce: stateFromServer.nonce });
+        const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code, {
+            nonce: stateFromServer.nonce,
+            codeVerifier: stateFromServer.code_verifier
+        });
 
         if (oAuthResponse?.error) {
             auditTrail.record({
@@ -363,9 +365,12 @@ const routeHandlerHandleOAuthCallback = async (request, response) => {
     }
 
     if (callback?.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), { httpOnly: true, secure: true, sameSite: 'None', maxAge: cookie.maxAge });
+        for (const cookie of callback.cookies) {
+            if (cookie.maxAge === 0) {
+                clearManagedCookie(response, cookie.key);
+            } else {
+                setManagedCookie(response, cookie.key, cookie.data);
+            }
         }
     }
 
@@ -373,7 +378,7 @@ const routeHandlerHandleOAuthCallback = async (request, response) => {
         return respondWithError(response, callback.errorCode);
     }
 
-    response.cookie('oAuthFlowSecret', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'oAuthFlowSecret');
 
     delete callback.cookies;
 

@@ -50,16 +50,50 @@ const makeLink = (config = {}) => {
     link.protocol = protocol;
     link.rsync = {
         workerId: 'W-test',
-        emitToOrchestrator: async (name, data) => { emissions.push({ name, data }); return { acknowledged: true }; }
+        emitToOrchestrator: async (name, data) => {
+            emissions.push({ name, data });
+            return { acknowledged: true };
+        }
     };
     link.connected = true;
     return { link, emissions };
 };
 
+// Fake secrets manager mirroring the TokenSecretsManager/SignatureSecretsManager
+// surface the secrets:* executors consume (describeKeys + forceRotate).
+const makeSecretsManager = (domain, signingKids = [], overrides = {}) => {
+    const calls = [];
+    return {
+        calls,
+        describeKeys: () => ({
+            domain,
+            algorithm: 'ES256',
+            instanceType: 'SINGLE',
+            signing: signingKids.map(kid => ({ kid, privateKeyExp: 9_999_999_999, publicKeyExp: 9_999_999_999 })),
+            verification: []
+        }),
+        forceRotate: async opts => {
+            calls.push(opts);
+            return {
+                domain,
+                mode: opts.full ? 'full' : 'kids',
+                revokedSigning: (opts.kids || signingKids).filter(k => signingKids.includes(k)),
+                revokedVerification: [],
+                unknown: [],
+                generated: ['fresh-kid']
+            };
+        },
+        ...overrides
+    };
+};
+
+const seedSecretsRegistry = entries => globalAccessPoint.setValue('secretsManagersRegistry', entries);
+
 beforeEach(() => {
     globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl());
     globalAccessPoint.setValue('clientUrlsRunTimeUpdateAllowed', undefined);
     globalAccessPoint.setValue('clusterState', undefined);
+    globalAccessPoint.setValue('secretsManagersRegistry', undefined);
 });
 
 // ── Command execution ─────────────────────────────────────────────────────────
@@ -103,7 +137,9 @@ describe('ClusterLink — command execution', () => {
 
     test('every allowlisted command has an executor (no protocol drift)', async () => {
         const { link } = makeLink();
+        seedSecretsRegistry([{ kind: 'token', domain: 'access', manager: makeSecretsManager('access', ['kid-a']) }]);
         const argFillers = {
+            [ClusterCommands.SECRETS_REVOKE_KIDS]: { kids: ['kid-a'] },
             [ClusterCommands.CONSENSUS_VOTE]: { topic: ConsensusTopics.NODE_HEALTHY },
             [ClusterCommands.DEACTIVATE_SECURITY]: { system: 'captcha' },
             [ClusterCommands.REACTIVATE_SECURITY]: { system: 'captcha' },
@@ -120,6 +156,105 @@ describe('ClusterLink — command execution', () => {
     });
 });
 
+// ── Secrets key revocation ────────────────────────────────────────────────────
+
+describe('ClusterLink — secrets key commands', () => {
+    test('list-kids returns every manager organized by kind/domain', async () => {
+        seedSecretsRegistry([
+            { kind: 'token', domain: 'access', manager: makeSecretsManager('access', ['kid-a1', 'kid-a2']) },
+            { kind: 'signature', domain: 'internal', manager: makeSecretsManager('internal', ['kid-s1']) }
+        ]);
+        const { link } = makeLink();
+
+        const result = await link.executeCommand(ClusterCommands.SECRETS_LIST_KIDS, {});
+        assert.equal(result.managers.length, 2);
+        assert.deepEqual(
+            result.managers.map(m => [m.kind, m.domain]),
+            [
+                ['token', 'access'],
+                ['signature', 'internal']
+            ]
+        );
+        assert.deepEqual(
+            result.managers[0].signing.map(k => k.kid),
+            ['kid-a1', 'kid-a2']
+        );
+    });
+
+    test('revoke-kids fans the kid array to every manager (self-discovery)', async () => {
+        const token = makeSecretsManager('access', ['kid-a1']);
+        const signature = makeSecretsManager('internal', ['kid-s1']);
+        seedSecretsRegistry([
+            { kind: 'token', domain: 'access', manager: token },
+            { kind: 'signature', domain: 'internal', manager: signature }
+        ]);
+        const { link } = makeLink();
+
+        const result = await link.executeCommand(ClusterCommands.SECRETS_REVOKE_KIDS, { kids: ['kid-a1', 'kid-elsewhere'] });
+
+        // Every manager saw the full kid array and decided locally what to wipe
+        assert.deepEqual(token.calls, [{ kids: ['kid-a1', 'kid-elsewhere'] }]);
+        assert.deepEqual(signature.calls, [{ kids: ['kid-a1', 'kid-elsewhere'] }]);
+        assert.equal(result.results.length, 2);
+        assert.deepEqual(result.results[0].revokedSigning, ['kid-a1']);
+        assert.deepEqual(result.results[1].revokedSigning, []);
+    });
+
+    test('one manager failing does not stop the revocation sweep', async () => {
+        const failing = makeSecretsManager('access', ['kid-a1'], {
+            forceRotate: async () => {
+                throw new Error('redis down');
+            }
+        });
+        const healthy = makeSecretsManager('internal', ['kid-s1']);
+        seedSecretsRegistry([
+            { kind: 'token', domain: 'access', manager: failing },
+            { kind: 'signature', domain: 'internal', manager: healthy }
+        ]);
+        const { link } = makeLink();
+
+        const result = await link.executeCommand(ClusterCommands.SECRETS_REVOKE_KIDS, { kids: ['kid-s1'] });
+        assert.equal(result.results[0].ok, false);
+        assert.match(result.results[0].error, /redis down/);
+        assert.equal(result.results[1].ok, true);
+        assert.deepEqual(healthy.calls, [{ kids: ['kid-s1'] }]);
+    });
+
+    test('revoke-kids validates its argument', async () => {
+        seedSecretsRegistry([{ kind: 'token', domain: 'access', manager: makeSecretsManager('access') }]);
+        const { link } = makeLink();
+        await assert.rejects(link.executeCommand(ClusterCommands.SECRETS_REVOKE_KIDS, {}), /"kids" is required/);
+        await assert.rejects(link.executeCommand(ClusterCommands.SECRETS_REVOKE_KIDS, { kids: [] }), /"kids" is required|non-empty array/);
+        await assert.rejects(link.executeCommand(ClusterCommands.SECRETS_REVOKE_KIDS, { kids: 'kid-1' }), /non-empty array/);
+    });
+
+    test('force-rotate hits every manager with full mode, honoring filters', async () => {
+        const token = makeSecretsManager('access', ['kid-a1']);
+        const signature = makeSecretsManager('internal', ['kid-s1']);
+        seedSecretsRegistry([
+            { kind: 'token', domain: 'access', manager: token },
+            { kind: 'signature', domain: 'internal', manager: signature }
+        ]);
+        const { link } = makeLink();
+
+        const all = await link.executeCommand(ClusterCommands.SECRETS_FORCE_ROTATE, {});
+        assert.equal(all.results.length, 2);
+        assert.deepEqual(token.calls, [{ full: true }]);
+        assert.deepEqual(signature.calls, [{ full: true }]);
+
+        const filtered = await link.executeCommand(ClusterCommands.SECRETS_FORCE_ROTATE, { kind: 'signature' });
+        assert.equal(filtered.results.length, 1);
+        assert.equal(filtered.results[0].domain, 'internal');
+
+        await assert.rejects(link.executeCommand(ClusterCommands.SECRETS_FORCE_ROTATE, { domain: 'nope' }), /No secrets managers match/);
+    });
+
+    test('secrets commands fail cleanly when no registry exists on the node', async () => {
+        const { link } = makeLink();
+        await assert.rejects(link.executeCommand(ClusterCommands.SECRETS_LIST_KIDS, {}), /No secrets managers registered/);
+    });
+});
+
 // ── Consensus voting ──────────────────────────────────────────────────────────
 
 describe('ClusterLink — consensus ballots', () => {
@@ -129,51 +264,59 @@ describe('ClusterLink — consensus ballots', () => {
         assert.equal(ballot.vote, true);
         assert.equal(ballot.topic, ConsensusTopics.NODE_HEALTHY);
 
-        globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl({
-            getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: true, elmDegraded: false, memoryMonitor: null })
-        }));
+        globalAccessPoint.setValue(
+            'orionSystemsControl',
+            makeSystemsControl({
+                getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: true, elmDegraded: false, memoryMonitor: null })
+            })
+        );
         ballot = await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: ConsensusTopics.NODE_HEALTHY });
         assert.equal(ballot.vote, false);
         assert.equal(ballot.details.etsLockdown, true);
     });
 
     test('memory-pressure topic honors the per-vote threshold param', async () => {
-        globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl({
-            getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: false, elmDegraded: false, memoryMonitor: { usagePercent: 70 } })
-        }));
+        globalAccessPoint.setValue(
+            'orionSystemsControl',
+            makeSystemsControl({
+                getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: false, elmDegraded: false, memoryMonitor: { usagePercent: 70 } })
+            })
+        );
         const { link } = makeLink();
 
         let ballot = await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: ConsensusTopics.MEMORY_PRESSURE });
         assert.equal(ballot.vote, false); // 70 < default 80
 
         ballot = await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, {
-            topic: ConsensusTopics.MEMORY_PRESSURE, params: { thresholdPercent: 60 }
+            topic: ConsensusTopics.MEMORY_PRESSURE,
+            params: { thresholdPercent: 60 }
         });
         assert.equal(ballot.vote, true);
         assert.equal(ballot.details.usagePercent, 70);
     });
 
     test('abuse-high counts blocked actors against minBlocked', async () => {
-        globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl({
-            getSystemStatus: () => ({ safeMode: true, abuseDetection: { blockedActors: 3 }, memoryMonitor: null })
-        }));
+        globalAccessPoint.setValue(
+            'orionSystemsControl',
+            makeSystemsControl({
+                getSystemStatus: () => ({ safeMode: true, abuseDetection: { blockedActors: 3 }, memoryMonitor: null })
+            })
+        );
         const { link } = makeLink();
 
         let ballot = await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: ConsensusTopics.ABUSE_HIGH });
         assert.equal(ballot.vote, true); // 3 >= default 1
 
         ballot = await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, {
-            topic: ConsensusTopics.ABUSE_HIGH, params: { minBlocked: 5 }
+            topic: ConsensusTopics.ABUSE_HIGH,
+            params: { minBlocked: 5 }
         });
         assert.equal(ballot.vote, false);
     });
 
     test('unknown topics are rejected', async () => {
         const { link } = makeLink();
-        await assert.rejects(
-            link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: 'not-a-topic' }),
-            /Unknown consensus topic/
-        );
+        await assert.rejects(link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: 'not-a-topic' }), /Unknown consensus topic/);
     });
 });
 
@@ -192,9 +335,11 @@ describe('ClusterLink — client URL propagation', () => {
         globalAccessPoint.setValue('allowedClientUrls', ['https://existing.example']);
         const { link } = makeLink();
 
-        const result = await silenceConsole(() => link.executeCommand(ClusterCommands.ADD_CLIENT_URLS, {
-            clientUrls: ['https://new.example', 'https://existing.example', 'ftp://bad.example']
-        }));
+        const result = await silenceConsole(() =>
+            link.executeCommand(ClusterCommands.ADD_CLIENT_URLS, {
+                clientUrls: ['https://new.example', 'https://existing.example', 'ftp://bad.example']
+            })
+        );
 
         assert.equal(result.applied, true);
         assert.equal(result.added, 1); // dedup + invalid protocol filtered
@@ -300,35 +445,44 @@ describe('ClusterLink — status reports and edge-triggered alerts', () => {
 
     test('flag flips raise one alert per transition, both directions', async () => {
         let lockdown = false;
-        globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl({
-            getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: lockdown, elmDegraded: false, memoryMonitor: null })
-        }));
+        globalAccessPoint.setValue(
+            'orionSystemsControl',
+            makeSystemsControl({
+                getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: lockdown, elmDegraded: false, memoryMonitor: null })
+            })
+        );
         const { link, emissions } = makeLink();
 
-        await link._reportStatus();            // baseline
+        await link._reportStatus(); // baseline
         lockdown = true;
-        await link._reportStatus();            // rising edge
-        await link._reportStatus();            // steady state — no repeat
+        await link._reportStatus(); // rising edge
+        await link._reportStatus(); // steady state — no repeat
         lockdown = false;
-        await link._reportStatus();            // falling edge
+        await link._reportStatus(); // falling edge
 
         const alerts = emissions.filter(e => e.name === ClusterEvents.NODE_ALERT).map(e => e.data);
-        assert.deepEqual(alerts.map(a => a.type), ['ets:lockdown-engaged', 'ets:lockdown-lifted']);
+        assert.deepEqual(
+            alerts.map(a => a.type),
+            ['ets:lockdown-engaged', 'ets:lockdown-lifted']
+        );
         assert.equal(alerts[0].severity, 'critical');
         assert.equal(alerts[1].severity, 'info');
     });
 
     test('the fast flag watcher and the status reporter share one edge state (no double alerts)', async () => {
         let lockdown = false;
-        globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl({
-            getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: lockdown, elmDegraded: false, memoryMonitor: null })
-        }));
+        globalAccessPoint.setValue(
+            'orionSystemsControl',
+            makeSystemsControl({
+                getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: lockdown, elmDegraded: false, memoryMonitor: null })
+            })
+        );
         const { link, emissions } = makeLink();
 
-        await link._watchFlags();              // baseline via the watcher
+        await link._watchFlags(); // baseline via the watcher
         lockdown = true;
-        await link._watchFlags();              // watcher catches the edge first
-        await link._reportStatus();            // reporter must NOT re-alert
+        await link._watchFlags(); // watcher catches the edge first
+        await link._reportStatus(); // reporter must NOT re-alert
 
         const alerts = emissions.filter(e => e.name === ClusterEvents.NODE_ALERT);
         assert.equal(alerts.length, 1);
@@ -336,16 +490,19 @@ describe('ClusterLink — status reports and edge-triggered alerts', () => {
 
     test('memory pressure edges use the configured threshold', async () => {
         let usage = 50;
-        globalAccessPoint.setValue('orionSystemsControl', makeSystemsControl({
-            getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: false, elmDegraded: false, memoryMonitor: { usagePercent: usage } })
-        }));
+        globalAccessPoint.setValue(
+            'orionSystemsControl',
+            makeSystemsControl({
+                getSystemStatus: () => ({ safeMode: true, serverLocked: false, etsLockdown: false, elmDegraded: false, memoryMonitor: { usagePercent: usage } })
+            })
+        );
         const { link, emissions } = makeLink({ memoryPressureThresholdPercent: 75 });
 
-        await link._watchFlags();              // baseline
+        await link._watchFlags(); // baseline
         usage = 80;
-        await link._watchFlags();              // above threshold
+        await link._watchFlags(); // above threshold
         usage = 60;
-        await link._watchFlags();              // recovered
+        await link._watchFlags(); // recovered
 
         const alerts = emissions.filter(e => e.name === ClusterEvents.NODE_ALERT).map(e => e.data.type);
         assert.deepEqual(alerts, ['memory:pressure', 'memory:recovered']);
@@ -365,7 +522,9 @@ describe('ClusterLink — tunnel desync recovery', () => {
     test('re-registers after N consecutive delivery failures', async () => {
         const { link } = makeLink({ reRegisterAfterFailures: 3 });
         const causes = [];
-        link._reRegisterTransport = async (cause) => { causes.push(cause); };
+        link._reRegisterTransport = async cause => {
+            causes.push(cause);
+        };
 
         link._trackEmitFailure();
         link._trackEmitFailure();
@@ -379,7 +538,9 @@ describe('ClusterLink — tunnel desync recovery', () => {
     test('a success resets the failure streak', async () => {
         const { link } = makeLink({ reRegisterAfterFailures: 3 });
         const causes = [];
-        link._reRegisterTransport = async (cause) => { causes.push(cause); };
+        link._reRegisterTransport = async cause => {
+            causes.push(cause);
+        };
 
         link._trackEmitFailure();
         link._trackEmitFailure();
@@ -394,12 +555,16 @@ describe('ClusterLink — tunnel desync recovery', () => {
     test('failed deliveries feed the streak from real emit paths', async () => {
         const { link } = makeLink({ reRegisterAfterFailures: 2 });
         const causes = [];
-        link._reRegisterTransport = async (cause) => { causes.push(cause); };
-        link.rsync.emitToOrchestrator = async () => { throw new Error('403 signature rejected'); };
+        link._reRegisterTransport = async cause => {
+            causes.push(cause);
+        };
+        link.rsync.emitToOrchestrator = async () => {
+            throw new Error('403 signature rejected');
+        };
 
         await silenceConsole(async () => {
-            await link._reportStatus();   // baseline flags + failed report = 1 failure
-            await link._reportStatus();   // 2nd failure → re-register
+            await link._reportStatus(); // baseline flags + failed report = 1 failure
+            await link._reportStatus(); // 2nd failure → re-register
         });
         await new Promise(r => setImmediate(r));
 

@@ -2,12 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    hashPassword,
-    verifyPassword,
-    generateToken,
-    hashToken
-} from '../../../../Packages/server/Orion-Orchestrator/lib/SystemAdmin/authCrypto.js';
+import { hashPassword, verifyPassword, generateToken, hashToken } from '../../../../Packages/server/Orion-Orchestrator/lib/SystemAdmin/authCrypto.js';
 
 describe('authCrypto — passwords (scrypt)', () => {
     test('round-trips a password and rejects a wrong one', async () => {

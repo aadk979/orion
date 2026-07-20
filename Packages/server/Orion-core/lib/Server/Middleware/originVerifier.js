@@ -33,9 +33,7 @@ class originVerifier {
             const hostname = new URL(origin).host;
             const allowed = globalAccessPoint.allowedClientUrls();
 
-            const isAllowed = allowed.some(allowedHost =>
-                hostname === allowedHost || new URL(allowedHost).host === hostname
-            );
+            const isAllowed = allowed.some(allowedHost => hostname === allowedHost || new URL(allowedHost).host === hostname);
 
             if (isAllowed) {
                 return next();
@@ -63,9 +61,7 @@ class originVerifier {
             const allowed = globalAccessPoint.allowedClientUrls();
             const hostname = parsed.host;
 
-            const isAllowed = allowed.some(allowedHost =>
-                hostname === allowedHost || new URL(allowedHost).host === hostname
-            );
+            const isAllowed = allowed.some(allowedHost => hostname === allowedHost || new URL(allowedHost).host === hostname);
 
             return callback(null, isAllowed);
         } catch {

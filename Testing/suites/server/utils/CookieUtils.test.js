@@ -2,12 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    stringifyCookieData,
-    parseCookieData,
-    setCookie,
-    getCookie
-} from '../../../../Packages/server/Orion-core/lib/Utils/CookieUtils.js';
+import { stringifyCookieData, parseCookieData, setCookie, getCookie } from '../../../../Packages/server/Orion-core/lib/Utils/CookieUtils.js';
 import { mockRequest, mockResponse } from '../../../helpers/mocks.js';
 
 describe('stringifyCookieData', () => {

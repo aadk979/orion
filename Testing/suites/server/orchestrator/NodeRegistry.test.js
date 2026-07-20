@@ -56,7 +56,10 @@ describe('NodeRegistry — stale sweep', () => {
 
         // W1 is 120s silent, W2 only 20s
         const flipped = r.sweepStale(60, T0 + 120);
-        assert.deepEqual(flipped.map(n => n.workerId), ['W1']);
+        assert.deepEqual(
+            flipped.map(n => n.workerId),
+            ['W1']
+        );
         assert.equal(r.getNode('W1').online, false);
         assert.equal(r.getNode('W1').offlineReason, 'stale');
         assert.equal(r.getNode('W2').online, true);

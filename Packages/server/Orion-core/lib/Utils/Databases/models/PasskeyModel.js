@@ -2,7 +2,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'PasskeyModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const PasskeyModel = {
@@ -15,7 +14,7 @@ export const PasskeyModel = {
         const client = await dbModule.getModule().getPool().connect();
         try {
             await client.query('BEGIN');
-            
+
             await client.query(
                 `INSERT INTO user_passkeys (credential_id, user_uid, public_key, counter, device_type, backed_up)
                  VALUES ($1, $2, $3, $4, $5, $6)
@@ -26,18 +25,12 @@ export const PasskeyModel = {
             );
 
             if (cred.transports && cred.transports.length > 0) {
-                await client.query(
-                    'DELETE FROM user_passkey_transports WHERE passkey_credential_id = $1',
-                    [cred.id]
-                );
+                await client.query('DELETE FROM user_passkey_transports WHERE passkey_credential_id = $1', [cred.id]);
                 for (const transport of cred.transports) {
-                    await client.query(
-                        'INSERT INTO user_passkey_transports (passkey_credential_id, transport) VALUES ($1, $2)',
-                        [cred.id, transport]
-                    );
+                    await client.query('INSERT INTO user_passkey_transports (passkey_credential_id, transport) VALUES ($1, $2)', [cred.id, transport]);
                 }
             }
-            
+
             await client.query('COMMIT');
         } catch (e) {
             await client.query('ROLLBACK');
@@ -52,17 +45,11 @@ export const PasskeyModel = {
      * @returns {{ credential_id, public_key, counter, device_type, backed_up, transports[] } | null}
      */
     async getPasskey(uid) {
-        const result = await query(
-            'SELECT * FROM user_passkeys WHERE user_uid = $1 LIMIT 1',
-            [uid]
-        );
+        const result = await query('SELECT * FROM user_passkeys WHERE user_uid = $1 LIMIT 1', [uid]);
         if (result.rows.length === 0) return null;
 
         const passkey = result.rows[0];
-        const transportsResult = await query(
-            'SELECT transport FROM user_passkey_transports WHERE passkey_credential_id = $1',
-            [passkey.credential_id]
-        );
+        const transportsResult = await query('SELECT transport FROM user_passkey_transports WHERE passkey_credential_id = $1', [passkey.credential_id]);
         passkey.transports = transportsResult.rows.map(r => r.transport);
 
         return passkey;
@@ -72,27 +59,18 @@ export const PasskeyModel = {
      * Get passkey by credential ID.
      */
     async getPasskeyByCredentialId(credentialId) {
-        const result = await query(
-            'SELECT * FROM user_passkeys WHERE credential_id = $1',
-            [credentialId]
-        );
+        const result = await query('SELECT * FROM user_passkeys WHERE credential_id = $1', [credentialId]);
         if (result.rows.length === 0) return null;
 
         const passkey = result.rows[0];
-        const transportsResult = await query(
-            'SELECT transport FROM user_passkey_transports WHERE passkey_credential_id = $1',
-            [credentialId]
-        );
+        const transportsResult = await query('SELECT transport FROM user_passkey_transports WHERE passkey_credential_id = $1', [credentialId]);
         passkey.transports = transportsResult.rows.map(r => r.transport);
 
         return passkey;
     },
 
     async updateCounter(credentialId, counter) {
-        await query(
-            'UPDATE user_passkeys SET counter = $1 WHERE credential_id = $2',
-            [counter, credentialId]
-        );
+        await query('UPDATE user_passkeys SET counter = $1 WHERE credential_id = $2', [counter, credentialId]);
     },
 
     async deletePasskey(credentialId) {
@@ -104,10 +82,7 @@ export const PasskeyModel = {
     },
 
     async hasPasskey(uid) {
-        const result = await query(
-            'SELECT 1 FROM user_passkeys WHERE user_uid = $1 LIMIT 1',
-            [uid]
-        );
+        const result = await query('SELECT 1 FROM user_passkeys WHERE user_uid = $1 LIMIT 1', [uid]);
         return result.rows.length > 0;
     }
 };

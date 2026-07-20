@@ -51,8 +51,7 @@ const statementMatches = (statement, action, resource) => {
     const actions = Array.isArray(statement.actions) ? statement.actions : [];
     const resources = Array.isArray(statement.resources) ? statement.resources : [];
 
-    return actions.some(a => matchesPattern(a, action)) &&
-        resources.some(r => matchesPattern(r, resource));
+    return actions.some(a => matchesPattern(a, action)) && resources.some(r => matchesPattern(r, resource));
 };
 
 /**
@@ -60,7 +59,7 @@ const statementMatches = (statement, action, resource) => {
  * Used before persisting a policy so a typo can never silently grant nothing
  * (or worse, be interpreted differently later).
  */
-const validatePolicyDocument = (document) => {
+const validatePolicyDocument = document => {
     const errors = [];
 
     if (!document || typeof document !== 'object' || Array.isArray(document)) {
@@ -121,9 +120,7 @@ const evaluate = (documents, action, resource = 'cluster') => {
         }
     }
 
-    return allowedBy !== null
-        ? { allowed: true, reason: 'allow', matchedSid: allowedBy }
-        : { allowed: false, reason: 'default-deny', matchedSid: null };
+    return allowedBy !== null ? { allowed: true, reason: 'allow', matchedSid: allowedBy } : { allowed: false, reason: 'default-deny', matchedSid: null };
 };
 
 export { evaluate, matchesPattern, validatePolicyDocument };

@@ -5,16 +5,14 @@ import {
     sendDeviceAuthorizationMail,
     authorizeDeviceDirect
 } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
-import { stringifyCookieData, parseCookieData } from '../../CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel, PasskeyModel, TOTPModel } from '../../Databases/models/index.js';
-import { parseDuration } from '../../Date&Time.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../AccountManagment/Passkeys/completeAuthentication.js';
 import { verifyTOTPToken } from '../AccountManagment/TOTP.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'DeviceAuthorization.js');
-
 
 const routeHandlerDeviceAuthorization = async (request, response) => {
     const headers = request.headers;
@@ -37,15 +35,18 @@ const routeHandlerDeviceAuthorization = async (request, response) => {
     }
 
     if (callback?.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), { httpOnly: true, secure: true, sameSite: 'None', maxAge: cookie.maxAge });
+        for (const cookie of callback.cookies) {
+            if (cookie.maxAge === 0) {
+                clearManagedCookie(response, cookie.key);
+            } else {
+                setManagedCookie(response, cookie.key, cookie.data);
+            }
         }
     }
 
-    response.cookie('deviceAuthorizationRequestId', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
-    response.cookie('deviceAuthEmailOffset', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
-    response.cookie('deviceAuthFlowSecret', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
+    clearManagedCookie(response, 'deviceAuthorizationRequestId');
+    clearManagedCookie(response, 'deviceAuthEmailOffset');
+    clearManagedCookie(response, 'deviceAuthFlowSecret');
 
     return respondWithSuccess(response, 200, { success: true });
 };
@@ -95,22 +96,10 @@ const routeHandlerSendDeviceAuthorizationMail = async (request, response) => {
         return respondWithError(response, deviceAuthorizationRequest.errorCode);
     }
 
-    response.cookie('deviceAuthorizationRequestId', deviceAuthorizationRequest.reqId, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        path: '/',
-        maxAge: parseDuration('15m')
-    });
+    setManagedCookie(response, 'deviceAuthorizationRequestId', deviceAuthorizationRequest.reqId);
 
     // Deliver the flow_secret to the client as an HttpOnly cookie for later verification
-    response.cookie('deviceAuthFlowSecret', deviceAuthorizationRequest.flowSecret, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        path: '/',
-        maxAge: parseDuration('15m')
-    });
+    setManagedCookie(response, 'deviceAuthFlowSecret', deviceAuthorizationRequest.flowSecret);
 
     return respondWithSuccess(response, 200, { success: true });
 };
@@ -142,19 +131,17 @@ const routeHandlerAuthorizeDeviceWithPasskey = async (request, response) => {
     }
 
     if (authorization.cookies) {
-        for (let i = 0; i < authorization.cookies.length; i++) {
-            const cookieData = authorization.cookies[i];
-            response.cookie(cookieData.key, stringifyCookieData(cookieData.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                maxAge: cookieData.maxAge
-            });
+        for (const cookieData of authorization.cookies) {
+            if (cookieData.maxAge === 0) {
+                clearManagedCookie(response, cookieData.key);
+            } else {
+                setManagedCookie(response, cookieData.key, cookieData.data);
+            }
         }
     }
 
-    response.cookie('PASSKEY-AUTHENTICATION-INFO-STEP-1', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
-    response.cookie('deviceAuthEmailOffset', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
+    clearManagedCookie(response, 'PASSKEY-AUTHENTICATION-INFO-STEP-1');
+    clearManagedCookie(response, 'deviceAuthEmailOffset');
 
     return respondWithSuccess(response, 200, { success: true });
 };
@@ -200,18 +187,16 @@ const routeHandlerAuthorizeDeviceWithTOTP = async (request, response) => {
     }
 
     if (authorization.cookies) {
-        for (let i = 0; i < authorization.cookies.length; i++) {
-            const cookieData = authorization.cookies[i];
-            response.cookie(cookieData.key, stringifyCookieData(cookieData.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                maxAge: cookieData.maxAge
-            });
+        for (const cookieData of authorization.cookies) {
+            if (cookieData.maxAge === 0) {
+                clearManagedCookie(response, cookieData.key);
+            } else {
+                setManagedCookie(response, cookieData.key, cookieData.data);
+            }
         }
     }
 
-    response.cookie('deviceAuthEmailOffset', '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 0 });
+    clearManagedCookie(response, 'deviceAuthEmailOffset');
 
     return respondWithSuccess(response, 200, { success: true });
 };

@@ -1,38 +1,38 @@
 {
-  "name": "r-sync",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "index.js",
-  "directories": {
-    "lib": "lib"
-  },
-  "scripts": {
-    "start:orchestrator": "cd examples && node orchestrator.example.js",
-    "start:worker": "cd examples && node worker.example.js",
-    "test": "node --import ./test/set-env.mjs --test ./test/crypto.test.js ./test/configSchemas.test.js ./test/securityMiddleware.test.js ./test/hardening.test.js"
-  },
-  "engines": {
-    "node": ">=18.18.0"
-  },
-  "author": "Kalivaradhan Aadharsh",
-  "license": "MIT",
-  "description": "M2M communication library with encrypted tunnels and event broadcasting",
-  "dependencies": {
-    "bcrypt": "^5.1.0",
-    "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "express-rate-limit": "^7.0.0",
-    "helmet": "^8.1.0",
-    "hpp": "^0.2.3",
-    "lokijs": "^1.5.12",
-    "mysql2": "^3.17.1"
-  },
-  "keywords": [
-    "m2m",
-    "machine-to-machine",
-    "encrypted",
-    "event-driven",
-    "orchestrator",
-    "distributed"
-  ]
+    "name": "r-sync",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "index.js",
+    "directories": {
+        "lib": "lib"
+    },
+    "scripts": {
+        "start:orchestrator": "cd examples && node orchestrator.example.js",
+        "start:worker": "cd examples && node worker.example.js",
+        "test": "node --import ./test/set-env.mjs --test ./test/crypto.test.js ./test/configSchemas.test.js ./test/securityMiddleware.test.js ./test/hardening.test.js"
+    },
+    "engines": {
+        "node": ">=18.18.0"
+    },
+    "author": "Kalivaradhan Aadharsh",
+    "license": "MIT",
+    "description": "M2M communication library with encrypted tunnels and event broadcasting",
+    "dependencies": {
+        "bcrypt": "^5.1.0",
+        "cors": "^2.8.5",
+        "express": "^5.2.1",
+        "express-rate-limit": "^7.0.0",
+        "helmet": "^8.1.0",
+        "hpp": "^0.2.3",
+        "lokijs": "^1.5.12",
+        "mysql2": "^3.17.1"
+    },
+    "keywords": [
+        "m2m",
+        "machine-to-machine",
+        "encrypted",
+        "event-driven",
+        "orchestrator",
+        "distributed"
+    ]
 }

@@ -2,7 +2,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'HealthCheckModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const HealthCheckModel = {
@@ -21,10 +20,7 @@ export const HealthCheckModel = {
 
     async read(key) {
         try {
-            const result = await query(
-                'SELECT data FROM _orion_health_check WHERE id = $1',
-                [key]
-            );
+            const result = await query('SELECT data FROM _orion_health_check WHERE id = $1', [key]);
             if (result.rows.length === 0) return { error: true };
             return { error: false, data: JSON.parse(result.rows[0].data) };
         } catch (e) {

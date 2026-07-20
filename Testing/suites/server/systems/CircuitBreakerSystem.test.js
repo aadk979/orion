@@ -2,10 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    circuitBreakerSystem as cb,
-    CIRCUIT_STATES
-} from '../../../../Packages/server/Orion-core/lib/Utils/Systems/CircuitBreakerSystem.js';
+import { circuitBreakerSystem as cb, CIRCUIT_STATES } from '../../../../Packages/server/Orion-core/lib/Utils/Systems/CircuitBreakerSystem.js';
 import { silenceConsole } from '../../../helpers/mocks.js';
 
 // The system is a process singleton keyed by dependency name; each test uses a

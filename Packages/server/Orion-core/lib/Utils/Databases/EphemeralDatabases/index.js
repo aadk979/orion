@@ -2,7 +2,6 @@ import { RedisService } from './redis.js';
 import { InMemoryDB } from './localMemoryDB.js';
 
 class EphemeralDatabaseManager {
-
     static async create(provider, credentials) {
         const instance = new EphemeralDatabaseManager();
 

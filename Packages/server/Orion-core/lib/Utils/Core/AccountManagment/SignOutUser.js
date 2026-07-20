@@ -1,19 +1,18 @@
 import { respondWithSuccess } from '../../../Server/Response/response.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { clearManagedCookie } from '../../CookieUtils.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignOutUser.js');
-
 
 const routeHandlerSignOutUser = async (request, response) => {
     const auditTrail = auditTrailSystemModule.getModule();
     const requestMetadata = requestContext.getStore();
 
     if (request.user) {
+        clearManagedCookie(response, 'ACCESS_TOKEN');
 
-        response.cookie('ACCESS_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
-
-        response.cookie('REFRESH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+        clearManagedCookie(response, 'REFRESH_TOKEN');
 
         auditTrail.record({
             user: {

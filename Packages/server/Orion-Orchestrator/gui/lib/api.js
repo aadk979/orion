@@ -24,24 +24,22 @@ export const api = async (method, path, body = undefined) => {
     let payload = null;
     try {
         payload = await response.json();
-    } catch (_) { /* non-JSON */ }
+    } catch (_) {
+        /* non-JSON */
+    }
 
     if (!response.ok || payload?.error) {
-        throw new ApiError(
-            payload?.code || `HTTP-${response.status}`,
-            payload?.message || response.statusText,
-            response.status
-        );
+        throw new ApiError(payload?.code || `HTTP-${response.status}`, payload?.message || response.statusText, response.status);
     }
     return payload;
 };
 
-export const get = (path) => api('GET', path);
+export const get = path => api('GET', path);
 export const post = (path, body = {}) => api('POST', path, body);
 export const patch = (path, body = {}) => api('PATCH', path, body);
-export const del = (path) => api('DELETE', path);
+export const del = path => api('DELETE', path);
 
-export const fmtTime = (value) => {
+export const fmtTime = value => {
     if (!value) return '—';
     const d = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
     return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();

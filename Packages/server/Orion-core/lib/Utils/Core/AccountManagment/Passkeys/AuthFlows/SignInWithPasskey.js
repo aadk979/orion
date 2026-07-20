@@ -6,14 +6,13 @@ import { fileURLToPath } from 'url';
 import { generateAccessToken } from '../../../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../../../TokenManagement/RefreshTokens.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../completeAuthentication.js';
-import { stringifyCookieData } from '../../../../CookieUtils.js';
+import { setManagedCookie, clearManagedCookie } from '../../../../CookieUtils.js';
 import { requestContext } from '../../../../../Server/Middleware/requestMetadata.js';
 import { userControl } from '../../UserControl.js';
 import { SafeModuleHandler } from '../../../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'SignInWithPasskey.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignInWithPasskey.js');
-
 
 const signInWithPasskey = async (authenticationResponse, cookie, email, clientURL, parsedClientURL, userAgent, fingerprint, ip) => {
     const Function = async parameters => {
@@ -98,15 +97,7 @@ const signInWithPasskey = async (authenticationResponse, cookie, email, clientUR
             return { error: true, errorCode: 'PASSKEY::AUTH-UNAVAILABLE::A::i' };
         }
 
-        const accessToken = await generateAccessToken(
-            verification.uid,
-            email,
-            parameters.fingerprint,
-            'PASSKEY',
-            'USER',
-            parameters.ip,
-            parameters.userAgent
-        );
+        const accessToken = await generateAccessToken(verification.uid, email, parameters.fingerprint, 'PASSKEY', 'USER', parameters.ip, parameters.userAgent);
 
         if (accessToken.error) {
             auditTrail.record({
@@ -234,18 +225,12 @@ const routeHandlerSignInWithPasskey = async (request, response) => {
     }
 
     if (callback.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                maxAge: cookie.maxAge
-            });
+        for (const cookie of callback.cookies) {
+            setManagedCookie(response, cookie.key, cookie.data);
         }
     }
 
-    response.clearCookie('PASSKEY-REGISTRATION-INFO-STEP-1', { httpOnly: true, secure: false, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'PASSKEY-REGISTRATION-INFO-STEP-1');
 
     return respondWithSuccess(response, 200, callback.data);
 };

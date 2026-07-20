@@ -49,9 +49,7 @@ export async function bootOrion(systemConfig, startConfig) {
     fs.mkdirSync(scratch, { recursive: true });
     process.chdir(scratch);
 
-    const { initiateServer } = await import(
-        '../../../Packages/server/Orion-core/index.js'
-    );
+    const { initiateServer } = await import('../../../Packages/server/Orion-core/index.js');
 
     const server = await initiateServer(startConfig, systemConfig);
     return {

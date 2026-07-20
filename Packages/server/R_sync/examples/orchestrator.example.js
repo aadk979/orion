@@ -1,10 +1,10 @@
 /**
  * R_Sync Orchestrator Example
- * 
+ *
  * This example demonstrates how to start an orchestrator node
  * that accepts worker registrations, receives worker events,
  * and can broadcast or send targeted events.
- * 
+ *
  * Run with: npm run start:orchestrator
  */
 
@@ -16,7 +16,7 @@ const orchestrator = new R_Sync({
     publicIp: '127.0.0.1',
     port: 55321,
     encryptionAlg: 'ECC_256',
-    cluster: 'default'  // Required: cluster name for validation
+    cluster: 'default' // Required: cluster name for validation
 });
 
 // Register handler for events coming FROM workers
@@ -31,10 +31,12 @@ orchestrator.onWorkerEvent((workerId, event) => {
     console.log('===========================================\n');
 
     // Example: respond back to the specific worker that sent the event
-    orchestrator.sendTo(workerId, 'ack:received', {
-        originalEventId: event.id,
-        message: 'Your event was received!'
-    }).catch(err => console.error('Failed to ack worker:', err.message));
+    orchestrator
+        .sendTo(workerId, 'ack:received', {
+            originalEventId: event.id,
+            message: 'Your event was received!'
+        })
+        .catch(err => console.error('Failed to ack worker:', err.message));
 });
 
 // Start the orchestrator
@@ -79,4 +81,3 @@ process.on('SIGINT', async () => {
     await orchestrator.stop();
     process.exit(0);
 });
-

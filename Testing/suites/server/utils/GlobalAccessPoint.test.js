@@ -58,12 +58,15 @@ describe('GlobalAccessPoint — locked keys', () => {
     // `new Error({...})` throw was fixed, which is why the old text is not asserted here.
     test('reading an unset locked key throws', async () => {
         await silenceConsole(async () => {
-            assert.throws(() => globalAccessPoint.getValue('clusterMode'), err => {
-                assert.equal(err.code, 'GAP:$:VALUE_NOT_FOUND');
-                assert.equal(err.keyName, 'clusterMode');
-                assert.match(err.message, /Missing value for key clusterMode/);
-                return true;
-            });
+            assert.throws(
+                () => globalAccessPoint.getValue('clusterMode'),
+                err => {
+                    assert.equal(err.code, 'GAP:$:VALUE_NOT_FOUND');
+                    assert.equal(err.keyName, 'clusterMode');
+                    assert.match(err.message, /Missing value for key clusterMode/);
+                    return true;
+                }
+            );
         });
     });
 });

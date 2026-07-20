@@ -14,11 +14,17 @@ const baseBuilder = () => new S3UrlBuilder().bucket('my-bucket').region('eu-west
 
 describe('S3UrlBuilder — unsigned build() host and path resolution', () => {
     test('defaults to virtual-hosted AWS addressing', () => {
-        assert.equal(new S3UrlBuilder().bucket('my-bucket').region('eu-west-1').key('some/key.pdf').build(), 'https://my-bucket.s3.eu-west-1.amazonaws.com/some/key.pdf');
+        assert.equal(
+            new S3UrlBuilder().bucket('my-bucket').region('eu-west-1').key('some/key.pdf').build(),
+            'https://my-bucket.s3.eu-west-1.amazonaws.com/some/key.pdf'
+        );
     });
 
     test('pathStyle() moves the bucket into the path on AWS', () => {
-        assert.equal(new S3UrlBuilder().bucket('my-bucket').region('eu-west-1').key('some/key.pdf').pathStyle().build(), 'https://s3.eu-west-1.amazonaws.com/my-bucket/some/key.pdf');
+        assert.equal(
+            new S3UrlBuilder().bucket('my-bucket').region('eu-west-1').key('some/key.pdf').pathStyle().build(),
+            'https://s3.eu-west-1.amazonaws.com/my-bucket/some/key.pdf'
+        );
     });
 
     test('a custom endpoint defaults to path-style (MinIO/localstack convention)', () => {
@@ -26,7 +32,10 @@ describe('S3UrlBuilder — unsigned build() host and path resolution', () => {
     });
 
     test('virtualHosted() with a custom endpoint prefixes the bucket as a subdomain', () => {
-        assert.equal(new S3UrlBuilder().bucket('bucket').key('key.txt').endpoint('https://accountid.r2.cloudflarestorage.com').virtualHosted().region('auto').build(), 'https://bucket.accountid.r2.cloudflarestorage.com/key.txt');
+        assert.equal(
+            new S3UrlBuilder().bucket('bucket').key('key.txt').endpoint('https://accountid.r2.cloudflarestorage.com').virtualHosted().region('auto').build(),
+            'https://bucket.accountid.r2.cloudflarestorage.com/key.txt'
+        );
     });
 
     test('rejects non-http(s) endpoints', () => {
@@ -86,7 +95,9 @@ describe('S3UrlBuilder — presign()', () => {
     });
 
     test('a session token flows through to the query string', async () => {
-        const { url } = await baseBuilder().credentials({ ...CREDS, sessionToken: 'SESSION/TOKEN+VALUE' }).presign();
+        const { url } = await baseBuilder()
+            .credentials({ ...CREDS, sessionToken: 'SESSION/TOKEN+VALUE' })
+            .presign();
         assert.equal(new URL(url).searchParams.get('X-Amz-Security-Token'), 'SESSION/TOKEN+VALUE');
     });
 

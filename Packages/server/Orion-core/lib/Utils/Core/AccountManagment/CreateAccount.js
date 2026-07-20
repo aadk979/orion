@@ -8,12 +8,11 @@ import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { isValidEmail, isPasswordSafe, isValidEmailDomain } from '../../Validator.js';
 import { generateUID } from '../../valueGenerator.js';
-import { logger } from "../../logger.js";
+import { logger } from '../../logger.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'CreateAccount.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'CreateAccount.js');
-
 
 const createAccount = async (email, password) => {
     const Function = async parameters => {

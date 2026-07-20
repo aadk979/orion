@@ -28,10 +28,27 @@ import { System } from '../../../../Packages/server/Orion-core/lib/Errors/System
 import { ResourceAccessS3 } from '../../../../Packages/server/Orion-core/lib/Errors/System/resourceAccessS3.js';
 
 const modules = {
-    AccessTokens, AuthenticationMiddleware, RefreshTokens, ResourceTokens,
-    AccountRegistration, AccountSignIn, Passkeys, TOTP, UserControl, OAuth,
-    StepUpAuth, DeviceAuthorization, TwoFARemoval, Captcha, NoAuthToken,
-    DataValidation, General, Mail, Database, FileOperations, System,
+    AccessTokens,
+    AuthenticationMiddleware,
+    RefreshTokens,
+    ResourceTokens,
+    AccountRegistration,
+    AccountSignIn,
+    Passkeys,
+    TOTP,
+    UserControl,
+    OAuth,
+    StepUpAuth,
+    DeviceAuthorization,
+    TwoFARemoval,
+    Captcha,
+    NoAuthToken,
+    DataValidation,
+    General,
+    Mail,
+    Database,
+    FileOperations,
+    System,
     ResourceAccessS3
 };
 

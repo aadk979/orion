@@ -31,7 +31,7 @@ import { logger } from '../../Utils/logger.js';
 const FLOOD_GUARD_DEFAULTS = Object.freeze({
     enabled: true,
     windowMs: 60_000, // 1 minute
-    max: 1000         // permissive safety net — only trips on egregious floods
+    max: 1000 // permissive safety net — only trips on egregious floods
 });
 
 /**
@@ -52,15 +52,13 @@ const buildGlobalFloodGuard = (config = {}) => {
         return (req, res, next) => next();
     }
 
-    logger.info(
-        `Global flood guard active: max ${settings.max} req / ${settings.windowMs}ms per IP`
-    );
+    logger.info(`Global flood guard active: max ${settings.max} req / ${settings.windowMs}ms per IP`);
 
     return rateLimit({
         windowMs: settings.windowMs,
         limit: settings.max, // express-rate-limit v8 option name (`max` is the legacy alias)
         standardHeaders: true, // RateLimit-* headers (draft standard)
-        legacyHeaders: false,  // no X-RateLimit-* legacy headers
+        legacyHeaders: false, // no X-RateLimit-* legacy headers
         // Route the 429 through Orion's error envelope so the flood response is
         // shaped identically to every other Orion error (and to the deeper
         // per-actor limiter's over-limit response).

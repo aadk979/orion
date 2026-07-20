@@ -10,14 +10,13 @@ import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../Validator.js';
 import { generateRandomNumber, generateRequestId } from '../../valueGenerator.js';
 import { generateAndSendMail } from '../../Mail/sendMail.js';
-import { parseCookieData, stringifyCookieData } from '../../CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { userControl } from './UserControl.js';
 import { getDeviceDetails } from '../../Device.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'PasswordReset.js');
-
 
 const createPasswordResetRequest = async (email, ip, userAgent) => {
     const Function = async parameters => {
@@ -200,12 +199,7 @@ const routeHandlerInitiatePasswordReset = async (request, response) => {
     }
 
     if (callback.reqId) {
-        response.cookie('passwordResetRequestId', stringifyCookieData(callback.reqId), {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'None',
-            maxAge: 15 * 60 * 1000
-        });
+        setManagedCookie(response, 'passwordResetRequestId', callback.reqId);
     }
 
     return respondWithSuccess(response, 200, { sent: true });
@@ -232,7 +226,7 @@ const routeHandlerCompletePasswordReset = async (request, response) => {
         return respondWithError(response, callback.errorCode);
     }
 
-    response.cookie('passwordResetRequestId', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'passwordResetRequestId');
 
     return respondWithSuccess(response, 200, { success: true });
 };

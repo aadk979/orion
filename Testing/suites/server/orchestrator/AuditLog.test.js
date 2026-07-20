@@ -17,10 +17,14 @@ class FakeAuditDb {
     }
 
     _jsonbRoundTrip(value) {
-        const sort = (v) => {
+        const sort = v => {
             if (Array.isArray(v)) return v.map(sort);
             if (v && typeof v === 'object') {
-                return Object.fromEntries(Object.keys(v).sort().map(k => [k, sort(v[k])]));
+                return Object.fromEntries(
+                    Object.keys(v)
+                        .sort()
+                        .map(k => [k, sort(v[k])])
+                );
             }
             return v;
         };
@@ -39,9 +43,18 @@ class FakeAuditDb {
             const [admin_id, admin_email, ip, method, path, action, resource, decision, status_code, details, prev_hash, hash] = params;
             const row = {
                 id: ++this._id,
-                admin_id, admin_email, ip, method, path, action, resource, decision, status_code,
+                admin_id,
+                admin_email,
+                ip,
+                method,
+                path,
+                action,
+                resource,
+                decision,
+                status_code,
                 details: this._jsonbRoundTrip(JSON.parse(details)),
-                prev_hash, hash
+                prev_hash,
+                hash
             };
             this.rows.push(row);
             return { rows: [row] };
@@ -96,9 +109,7 @@ describe('AuditLog — hash chain', () => {
         const db = new FakeAuditDb();
         const log = new AuditLog(db);
 
-        await Promise.all(
-            Array.from({ length: 25 }, (_, i) => log.write({ action: `evt-${i}`, decision: 'allow' }))
-        );
+        await Promise.all(Array.from({ length: 25 }, (_, i) => log.write({ action: `evt-${i}`, decision: 'allow' })));
 
         assert.equal(db.rows.length, 25);
         for (let i = 1; i < db.rows.length; i++) {

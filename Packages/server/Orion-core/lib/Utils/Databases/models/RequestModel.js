@@ -2,7 +2,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'RequestModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const RequestModel = {
@@ -17,10 +16,7 @@ export const RequestModel = {
     },
 
     async getDeviceAuthRequest(reqId) {
-        const result = await query(
-            'SELECT * FROM device_authorization_requests WHERE request_id = $1',
-            [reqId]
-        );
+        const result = await query('SELECT * FROM device_authorization_requests WHERE request_id = $1', [reqId]);
         return result.rows[0] || null;
     },
 
@@ -30,19 +26,16 @@ export const RequestModel = {
 
     // ─── OAuth Requests ─────────────────────────────────────────────────────
 
-    async createOAuthRequest(reqId, { hashedFlowSecret, hashedChallenge, ipRange, providerName, nonce }) {
+    async createOAuthRequest(reqId, { hashedFlowSecret, hashedChallenge, ipRange, providerName, nonce, codeVerifier }) {
         await query(
-            `INSERT INTO oauth_requests (request_id, hashed_flow_secret, hashed_challenge, ip_range, provider_name, nonce)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [reqId, hashedFlowSecret, hashedChallenge, ipRange, providerName, nonce || null]
+            `INSERT INTO oauth_requests (request_id, hashed_flow_secret, hashed_challenge, ip_range, provider_name, nonce, code_verifier)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [reqId, hashedFlowSecret, hashedChallenge, ipRange, providerName, nonce || null, codeVerifier || null]
         );
     },
 
     async getOAuthRequest(reqId) {
-        const result = await query(
-            'SELECT * FROM oauth_requests WHERE request_id = $1',
-            [reqId]
-        );
+        const result = await query('SELECT * FROM oauth_requests WHERE request_id = $1', [reqId]);
         return result.rows[0] || null;
     },
 
@@ -61,10 +54,7 @@ export const RequestModel = {
     },
 
     async getStepUpAuthRequest(reqId) {
-        const result = await query(
-            'SELECT * FROM step_up_auth_requests WHERE request_id = $1',
-            [reqId]
-        );
+        const result = await query('SELECT * FROM step_up_auth_requests WHERE request_id = $1', [reqId]);
         return result.rows[0] || null;
     },
 
@@ -83,10 +73,7 @@ export const RequestModel = {
     },
 
     async get2FARemovalRequest(reqId) {
-        const result = await query(
-            'SELECT * FROM two_fa_removal_requests WHERE request_id = $1',
-            [reqId]
-        );
+        const result = await query('SELECT * FROM two_fa_removal_requests WHERE request_id = $1', [reqId]);
         return result.rows[0] || null;
     },
 
@@ -135,10 +122,7 @@ export const RequestModel = {
     },
 
     async getNoAuthTransaction(txnId) {
-        const result = await query(
-            'SELECT * FROM no_auth_token_transactions WHERE transaction_id = $1',
-            [txnId]
-        );
+        const result = await query('SELECT * FROM no_auth_token_transactions WHERE transaction_id = $1', [txnId]);
         return result.rows[0] || null;
     },
 

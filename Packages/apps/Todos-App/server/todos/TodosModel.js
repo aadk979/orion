@@ -23,7 +23,7 @@ const migrate = async () => {
     await pool.query('DROP INDEX IF EXISTS todos_user_uid_idx');
 };
 
-const listTodos = async (userUid) => {
+const listTodos = async userUid => {
     const pool = globalAccessPoint.db().getPool();
     const { rows } = await pool.query(
         `SELECT id, title, done, created_at, updated_at FROM todos
@@ -35,10 +35,10 @@ const listTodos = async (userUid) => {
 
 const createTodo = async (userUid, title) => {
     const pool = globalAccessPoint.db().getPool();
-    const { rows } = await pool.query(
-        'INSERT INTO todos (user_uid, title) VALUES ($1, $2) RETURNING id, title, done, created_at, updated_at',
-        [userUid, title]
-    );
+    const { rows } = await pool.query('INSERT INTO todos (user_uid, title) VALUES ($1, $2) RETURNING id, title, done, created_at, updated_at', [
+        userUid,
+        title
+    ]);
     return rows[0];
 };
 

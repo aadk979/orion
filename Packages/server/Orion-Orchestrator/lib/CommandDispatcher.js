@@ -12,7 +12,6 @@ import { ClusterEvents, buildCommandEnvelope } from './protocol.js';
 const DEFAULT_COMMAND_TIMEOUT_MS = 10_000;
 
 class CommandDispatcher {
-
     /**
      * @param {(workerId, eventName, data) => Promise} sendFn - transport send (R_Sync.sendTo)
      * @param {() => string} idFn - commandId generator
@@ -38,16 +37,15 @@ class CommandDispatcher {
 
             this._pending.set(commandId, { resolve, reject, timer, workerId, action });
 
-            this._sendFn(workerId, ClusterEvents.COMMAND, buildCommandEnvelope(commandId, action, args, issuedBy))
-                .catch(err => {
-                    // Transport failed before the node ever saw the command —
-                    // fail fast instead of waiting out the timeout.
-                    const entry = this._pending.get(commandId);
-                    if (!entry) return;
-                    clearTimeout(entry.timer);
-                    this._pending.delete(commandId);
-                    reject(err);
-                });
+            this._sendFn(workerId, ClusterEvents.COMMAND, buildCommandEnvelope(commandId, action, args, issuedBy)).catch(err => {
+                // Transport failed before the node ever saw the command —
+                // fail fast instead of waiting out the timeout.
+                const entry = this._pending.get(commandId);
+                if (!entry) return;
+                clearTimeout(entry.timer);
+                this._pending.delete(commandId);
+                reject(err);
+            });
         });
     }
 

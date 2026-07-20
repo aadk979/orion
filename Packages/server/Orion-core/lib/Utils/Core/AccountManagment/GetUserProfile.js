@@ -4,8 +4,8 @@ import { UserModel, PasskeyModel, TOTPModel, DeviceModel, UserProviderModel } fr
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 
-const getUserProfile = async (uid) => {
-    const Function = async (parameters) => {
+const getUserProfile = async uid => {
+    const Function = async parameters => {
         const user = await UserModel.getUserByUid(parameters.uid);
 
         if (!user) {

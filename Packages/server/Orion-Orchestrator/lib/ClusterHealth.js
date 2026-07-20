@@ -25,7 +25,6 @@ const defaultConfig = Object.freeze({
 });
 
 class ClusterHealth {
-
     constructor(config = {}) {
         this.config = { ...defaultConfig, ...config };
         this.state = ClusterStates.FORMING;
@@ -40,11 +39,7 @@ class ClusterHealth {
         if (status?.etsLockdown) return 'ets-lockdown';
         if (status?.elmDegraded) return 'elm-degraded';
 
-        if (
-            this.config.statusMaxAgeSeconds > 0 &&
-            node.lastStatusAt !== null &&
-            nowUnix - node.lastStatusAt > this.config.statusMaxAgeSeconds
-        ) {
+        if (this.config.statusMaxAgeSeconds > 0 && node.lastStatusAt !== null && nowUnix - node.lastStatusAt > this.config.statusMaxAgeSeconds) {
             return 'status-stale';
         }
 

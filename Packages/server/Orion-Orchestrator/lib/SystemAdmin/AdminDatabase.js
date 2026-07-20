@@ -32,7 +32,6 @@ const DEFAULT_STATEMENT_TIMEOUT_MS = 30_000;
  * advisory lock (separate key from Orion-core's migration lock).
  */
 class AdminDatabase {
-
     constructor(credentials = {}) {
         const { user, password, host, port, database, poolMax, statementTimeoutMs, ...rest } = credentials;
 
@@ -52,7 +51,7 @@ class AdminDatabase {
 
         // An errored idle client emits 'error' on the pool; without a handler
         // that becomes an uncaught exception and kills the orchestrator.
-        this.pool.on('error', (err) => {
+        this.pool.on('error', err => {
             logger.error(`AdminDatabase: idle client error — ${err.message}`);
         });
 
@@ -87,7 +86,7 @@ class AdminDatabase {
                     if (applied.get(file) !== checksum) {
                         logger.warn(
                             `AdminDatabase: migration ${file} was modified after being applied ` +
-                            `(checksum mismatch) — applied migrations must never be edited; add a new migration instead`
+                                `(checksum mismatch) — applied migrations must never be edited; add a new migration instead`
                         );
                     }
                     continue;
@@ -96,10 +95,7 @@ class AdminDatabase {
                 try {
                     await client.query('BEGIN');
                     await client.query(sql);
-                    await client.query(
-                        'INSERT INTO _orch_migrations (version, checksum) VALUES ($1, $2)',
-                        [file, checksum]
-                    );
+                    await client.query('INSERT INTO _orch_migrations (version, checksum) VALUES ($1, $2)', [file, checksum]);
                     await client.query('COMMIT');
                     logger.info(`AdminDatabase: applied migration ${file}`);
                 } catch (e) {
@@ -110,7 +106,9 @@ class AdminDatabase {
         } finally {
             try {
                 await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_ADVISORY_LOCK_KEY]);
-            } catch (_) { /* connection teardown releases the lock anyway */ }
+            } catch (_) {
+                /* connection teardown releases the lock anyway */
+            }
             client.release();
         }
     }

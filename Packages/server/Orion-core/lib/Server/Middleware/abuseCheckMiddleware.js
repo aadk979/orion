@@ -3,7 +3,6 @@ import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
 
 const abuseDetectionSystemModule = new SafeModuleHandler('AbuseDetectionSystem', 'abuseDetectionSystem', 'abuseCheckMiddleware.js');
 
-
 const abuseCheckMiddleware = (req, res, next) => {
     const abuseDetection = abuseDetectionSystemModule.probeModule();
     if (!abuseDetection) return next();

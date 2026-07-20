@@ -129,10 +129,10 @@ function verifyHashSync(input, hashed, alg = 'sha256') {
             computedHash = blake2sHash(input + resolvedSalt);
             break;
         case 'pbkdf2':
-            computedHash = pbkdf2Hash(input, resolvedSalt);  // ← was using undefined salt, triggering random default
+            computedHash = pbkdf2Hash(input, resolvedSalt); // ← was using undefined salt, triggering random default
             break;
         case 'scrypt':
-            computedHash = scryptHash(input, resolvedSalt);  // ← same
+            computedHash = scryptHash(input, resolvedSalt); // ← same
             break;
         default:
             throw new Error('Unsupported algorithm');

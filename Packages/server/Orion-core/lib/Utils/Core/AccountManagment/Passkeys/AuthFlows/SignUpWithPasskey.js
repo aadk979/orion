@@ -7,7 +7,7 @@ import { sanitizeString } from '../../../../Sanitizer.js';
 import { tryCatch } from '../../../../TryCatch.js';
 import { isValidEmail, isValidEmailDomain } from '../../../../Validator.js';
 import { generateUID } from '../../../../valueGenerator.js';
-import { stringifyCookieData, parseCookieData } from '../../../../CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../../../CookieUtils.js';
 import { fileURLToPath } from 'url';
 import { requestContext } from '../../../../../Server/Middleware/requestMetadata.js';
 import { logger } from '../../../../logger.js';
@@ -15,7 +15,6 @@ import { SafeModuleHandler } from '../../../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'SignUpWithPasskey.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SignUpWithPasskey.js');
-
 
 // ─── Step 1: Generate registration options for a NEW user ────────────────────
 
@@ -153,14 +152,8 @@ const routeHandlerGeneratePasskeySignUpOptions = async (request, response) => {
     }
 
     if (callback.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                maxAge: cookie.maxAge
-            });
+        for (const cookie of callback.cookies) {
+            setManagedCookie(response, cookie.key, cookie.data);
         }
     }
 
@@ -356,7 +349,7 @@ const routeHandlerCompletePasskeySignUp = async (request, response) => {
         return respondWithError(response, callback.errorCode);
     }
 
-    response.clearCookie('PASSKEY-SIGN-UP-INFO-STEP-1', { httpOnly: true, secure: false, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(response, 'PASSKEY-SIGN-UP-INFO-STEP-1');
 
     return respondWithSuccess(response, 200, callback.data);
 };

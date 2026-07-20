@@ -5,7 +5,6 @@ import { SafeModuleHandler } from '../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'MemoryMonitoringSystem.js');
 
-
 function deepDelete(obj, path) {
     let curr = obj;
 

@@ -5,12 +5,7 @@ async function initiate2FAMethodRemoval({ Api, getAuthHeader, This, method }) {
         packet: { method }
     };
 
-    const res = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/initiate-2fa-method-removal`,
-        'POST',
-        authHeader.authHead,
-        payload
-    );
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/initiate-2fa-method-removal`, 'POST', authHeader.authHead, payload);
 
     const data = await res.json();
 
@@ -26,12 +21,7 @@ async function complete2FAMethodRemoval({ Api, getAuthHeader, This, code }) {
         packet: { code }
     };
 
-    const res = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/complete-2fa-method-removal`,
-        'POST',
-        authHeader.authHead,
-        payload
-    );
+    const res = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/complete-2fa-method-removal`, 'POST', authHeader.authHead, payload);
 
     const data = await res.json();
 

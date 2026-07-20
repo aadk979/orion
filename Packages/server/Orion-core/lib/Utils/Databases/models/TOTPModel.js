@@ -5,7 +5,6 @@ import { logger } from '../../logger.js';
 const dbModule = new SafeModuleHandler('Database', 'db', 'TOTPModel.js');
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'TOTPModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 // ─── Encryption at rest ──────────────────────────────────────────────────────
@@ -24,7 +23,7 @@ const getSealKey = () => {
     return crypto.createHash('sha256').update(String(raw)).digest();
 };
 
-const seal = (plain) => {
+const seal = plain => {
     if (plain === null || plain === undefined) return plain;
 
     const key = getSealKey();
@@ -44,7 +43,7 @@ const seal = (plain) => {
     return `${SEAL_PREFIX}${iv.toString('base64')}.${tag.toString('base64')}.${ciphertext.toString('base64')}`;
 };
 
-const open = (stored) => {
+const open = stored => {
     if (stored === null || stored === undefined) return stored;
     if (!String(stored).startsWith(SEAL_PREFIX)) return stored; // legacy plaintext
 
@@ -107,26 +106,17 @@ export const TOTPModel = {
     },
 
     async isEnabled(uid) {
-        const result = await query(
-            'SELECT enabled FROM user_totp WHERE user_uid = $1',
-            [uid]
-        );
+        const result = await query('SELECT enabled FROM user_totp WHERE user_uid = $1', [uid]);
         return result.rows[0]?.enabled || false;
     },
 
     async getSecret(uid) {
-        const result = await query(
-            'SELECT secret FROM user_totp WHERE user_uid = $1',
-            [uid]
-        );
+        const result = await query('SELECT secret FROM user_totp WHERE user_uid = $1', [uid]);
         return open(result.rows[0]?.secret || null);
     },
 
     async getPendingSecret(uid) {
-        const result = await query(
-            'SELECT pending_secret FROM user_totp WHERE user_uid = $1',
-            [uid]
-        );
+        const result = await query('SELECT pending_secret FROM user_totp WHERE user_uid = $1', [uid]);
         return open(result.rows[0]?.pending_secret || null);
     }
 };

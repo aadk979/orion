@@ -11,7 +11,6 @@
 const ALERT_HISTORY_LIMIT = 50;
 
 class NodeRegistry {
-
     constructor() {
         this._nodes = new Map();
     }

@@ -47,9 +47,7 @@ function setLoading(btn, loading) {
 }
 function setStatusBadge(el, active) {
     el.className = active ? 'badge badge-active' : 'badge badge-inactive';
-    el.innerHTML = active
-        ? '<span class="status-dot active"></span> Active'
-        : '<span class="status-dot inactive"></span> Inactive';
+    el.innerHTML = active ? '<span class="status-dot active"></span> Active' : '<span class="status-dot inactive"></span> Inactive';
 }
 
 async function loadProfile() {
@@ -161,7 +159,10 @@ async function initiateRemoval(method) {
 }
 removeTotpBtn.addEventListener('click', () => initiateRemoval('totp'));
 removePasskeyBtn.addEventListener('click', () => initiateRemoval('passkey'));
-removalCancelBtn.addEventListener('click', () => { removalCard.style.display = 'none'; currentRemovalMethod = null; });
+removalCancelBtn.addEventListener('click', () => {
+    removalCard.style.display = 'none';
+    currentRemovalMethod = null;
+});
 
 removalVerifyBtn.addEventListener('click', async () => {
     const code = removalCode.value.trim();
@@ -185,6 +186,6 @@ removalVerifyBtn.addEventListener('click', async () => {
 });
 
 // Load profile once authenticated (app.js owns the loading overlay + redirect)
-orion.onAuthStateChanged((state) => {
+orion.onAuthStateChanged(state => {
     if (state.status === 'AUTHENTICATED') loadProfile();
 });

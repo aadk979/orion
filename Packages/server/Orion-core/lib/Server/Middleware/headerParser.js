@@ -3,11 +3,7 @@ import { respondWithError } from '../Response/response.js';
 // NOTE: The DIP (orion-dip-*) and transport-encryption (orion-encryption-*) headers
 // were removed when those subsystems were decommissioned in favour of TLS 1.3.
 // See Graveyard/ for the historical record.
-const orionHeaders = [
-    'orion-fingerprint',
-    'orion-user-agent',
-    'orion-api-system-version'
-];
+const orionHeaders = ['orion-fingerprint', 'orion-user-agent', 'orion-api-system-version'];
 
 class headerParser {
     constructor(systemConfig) {

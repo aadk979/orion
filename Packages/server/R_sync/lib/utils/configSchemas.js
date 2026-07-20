@@ -1,12 +1,12 @@
 /**
  * Configuration Schemas and Validator
- * 
+ *
  * Defines the expected structure and types for Orchestrator and Worker configurations.
  * Provides a validation function to ensure configs match schema.
  */
 
-const VALID_ROLES = ["ORCHESTRATOR", "WORKER"];
-const VALID_ENCRYPTION_ALGS = ["ECC_256", "ECC_384", "ECC_521"];
+const VALID_ROLES = ['ORCHESTRATOR', 'WORKER'];
+const VALID_ENCRYPTION_ALGS = ['ECC_256', 'ECC_384', 'ECC_521'];
 
 const OrchestratorConfigSchema = {
     role: { type: 'string', required: true, enum: VALID_ROLES },
@@ -47,7 +47,7 @@ const WorkerConfigSchema = {
  */
 function validateConfig(config, schema) {
     if (!config || typeof config !== 'object') {
-        throw new Error("Configuration must be an object");
+        throw new Error('Configuration must be an object');
     }
 
     const validatedConfig = { ...config };
@@ -111,8 +111,4 @@ function validateConfig(config, schema) {
     return validatedConfig;
 }
 
-export {
-    OrchestratorConfigSchema,
-    WorkerConfigSchema,
-    validateConfig
-};
+export { OrchestratorConfigSchema, WorkerConfigSchema, validateConfig };

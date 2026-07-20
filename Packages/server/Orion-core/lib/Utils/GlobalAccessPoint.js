@@ -35,12 +35,11 @@ class GlobalAccessPoint {
     }
 
     getValue(name) {
-        
         if (!(name in this._values) && this._lockedKeys.has(name)) {
             logger.error(`CRITICAL: Requested value for key ${name} does not exist.`);
             const error = new Error(`GlobalAccessPoint: Missing value for key ${name}`);
             error.keyName = name;
-            error.code = "GAP:$:VALUE_NOT_FOUND";
+            error.code = 'GAP:$:VALUE_NOT_FOUND';
             throw error;
         }
 
@@ -206,13 +205,6 @@ class GlobalAccessPoint {
     }
 
     /**
-     * @returns {import('./Systems/TokenSecretsManager.js').TokenSecretsManager | undefined}
-     */
-    tokenSecretsManager() {
-        return this.getValue('tokenSecretsManager');
-    }
-
-    /**
      * @returns {boolean | undefined}
      */
     clusterMode() {
@@ -231,6 +223,13 @@ class GlobalAccessPoint {
      */
     TOKEN_SECRETS_MANAGER_refresh() {
         return this.getValue('TOKEN_SECRETS_MANAGER_refresh');
+    }
+
+    /**
+     * @returns {import('./Systems/TokenSecretsManager.js').TokenSecretsManager | undefined}
+     */
+    TOKEN_SECRETS_MANAGER_resource() {
+        return this.getValue('TOKEN_SECRETS_MANAGER_resource');
     }
 
     /**

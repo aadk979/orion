@@ -3,7 +3,7 @@ import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 
 export async function cleanUpTokens(uid) {
-    const Function = async (parameters) => {
+    const Function = async parameters => {
         await TokenModel.removeExpiredTokens(parameters.uid);
         return { error: false, completed: true };
     };

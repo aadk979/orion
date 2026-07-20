@@ -2,12 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    isValidEmail,
-    isPasswordSafe,
-    isValidEmailDomain,
-    validateClientUrls
-} from '../../../../Packages/server/Orion-core/lib/Utils/Validator.js';
+import { isValidEmail, isPasswordSafe, isValidEmailDomain, validateClientUrls } from '../../../../Packages/server/Orion-core/lib/Utils/Validator.js';
 import { emails, passwords } from '../../../helpers/fixtures.js';
 
 describe('isValidEmail', () => {
@@ -67,11 +62,7 @@ describe('validateClientUrls', () => {
     });
 
     test('rejects urls with paths, queries or fragments', () => {
-        const out = validateClientUrls([
-            'https://example.com/path',
-            'https://example.com/?q=1',
-            'https://example.com/#frag'
-        ]);
+        const out = validateClientUrls(['https://example.com/path', 'https://example.com/?q=1', 'https://example.com/#frag']);
         assert.deepEqual(out, []);
     });
 

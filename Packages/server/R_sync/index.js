@@ -9,21 +9,13 @@ import { packageExports as dateTimeExports } from './lib/utils/Date&Time.js';
 import { packageExports as valueGeneratorExports } from './lib/utils/valueGenerators.js';
 
 // Export database utilities
-import {
-    waitForDb,
-    getAllWorkers,
-    getWorkerById
-} from './lib/utils/lokidb.js';
+import { waitForDb, getAllWorkers, getWorkerById } from './lib/utils/lokidb.js';
 
 // Export logger
 import { logger } from './lib/utils/logger.js';
 
 // Export metadata
-import {
-    __Version__,
-    __Status__,
-    __PackageType__
-} from './lib/r_sync.meta.js';
+import { __Version__, __Status__, __PackageType__ } from './lib/r_sync.meta.js';
 
 export {
     R_Sync,

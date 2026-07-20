@@ -10,9 +10,8 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SetupTOTP.js');
 
-
-const generateTOTPSetupSecret = async (uid) => {
-    const Function = async (parameters) => {
+const generateTOTPSetupSecret = async uid => {
+    const Function = async parameters => {
         if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
 
         const auditTrail = auditTrailSystemModule.getModule();
@@ -71,7 +70,7 @@ const generateTOTPSetupSecret = async (uid) => {
 };
 
 const verifyAndEnableTOTP = async (uid, totpCode) => {
-    const Function = async (parameters) => {
+    const Function = async parameters => {
         if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
 
         const auditTrail = auditTrailSystemModule.getModule();

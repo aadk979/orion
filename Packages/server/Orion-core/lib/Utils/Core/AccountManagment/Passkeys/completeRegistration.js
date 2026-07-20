@@ -2,12 +2,11 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { PasskeyModel, UserSecurityModel } from '../../../Databases/models/index.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
-import { parseCookieData } from '../../../CookieUtils.js';
+import { parseCookieData, clearManagedCookie } from '../../../CookieUtils.js';
 import { fileURLToPath } from 'url';
 import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'completeRegistration.js');
-
 
 const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cookie, email, expectedOrigin, parsedClientURL) => {
     const Function = async parameters => {
@@ -81,7 +80,7 @@ const routeHandlerVerifyAndCompletePasskeyRegistration = async (request, respons
         return respondWithError(response, callback.errorCode);
     }
 
-    response.clearCookie('PASSKEY-REGISTRATION-INFO-STEP-1', { httpOnly: true, secure: false, sameSite: 'None' });
+    clearManagedCookie(response, 'PASSKEY-REGISTRATION-INFO-STEP-1');
 
     return respondWithSuccess(response, 200, callback.data);
 };

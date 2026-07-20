@@ -2,7 +2,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'UserProviderModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const UserProviderModel = {
@@ -19,25 +18,16 @@ export const UserProviderModel = {
      * @returns {string[]} Array of provider names, e.g. ['GOOGLE', 'GITHUB']
      */
     async getProviders(uid) {
-        const result = await query(
-            'SELECT provider_name FROM user_providers WHERE user_uid = $1',
-            [uid]
-        );
+        const result = await query('SELECT provider_name FROM user_providers WHERE user_uid = $1', [uid]);
         return result.rows.map(r => r.provider_name);
     },
 
     async hasProvider(uid, providerName) {
-        const result = await query(
-            'SELECT 1 FROM user_providers WHERE user_uid = $1 AND provider_name = $2',
-            [uid, providerName.trim().toUpperCase()]
-        );
+        const result = await query('SELECT 1 FROM user_providers WHERE user_uid = $1 AND provider_name = $2', [uid, providerName.trim().toUpperCase()]);
         return result.rows.length > 0;
     },
 
     async removeProvider(uid, providerName) {
-        await query(
-            'DELETE FROM user_providers WHERE user_uid = $1 AND provider_name = $2',
-            [uid, providerName.trim().toUpperCase()]
-        );
+        await query('DELETE FROM user_providers WHERE user_uid = $1 AND provider_name = $2', [uid, providerName.trim().toUpperCase()]);
     }
 };

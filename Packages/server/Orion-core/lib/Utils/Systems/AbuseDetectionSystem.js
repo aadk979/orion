@@ -6,7 +6,7 @@ const THRESHOLDS = {
     authFailureHardBlock: 10,
     blockDurationMs: 15 * 60_000,
     fpChurnWindowMs: 60_000,
-    fpChurnThreshold: 10,
+    fpChurnThreshold: 10
 };
 
 class AbuseDetectionSystem {

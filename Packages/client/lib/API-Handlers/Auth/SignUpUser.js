@@ -18,12 +18,7 @@ async function signUpUser({ Api, email, password, getAuthHeader, This }) {
         packet: { email: cleanedEmail, password: cleanedPassword }
     };
 
-    const request = await Api.fetch(
-        `/${This.systemConfig.nameSpace}/api/v1/action/sign-up-user`,
-        'POST',
-        authHeader.authHead,
-        payload
-    );
+    const request = await Api.fetch(`/${This.systemConfig.nameSpace}/api/v1/action/sign-up-user`, 'POST', authHeader.authHead, payload);
 
     const data = await request.json();
     if (data.error) return data.errorData;

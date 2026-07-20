@@ -17,40 +17,40 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 
 ### Utilities (`lib/Utils`)
 
-| Module | Status | Suite |
-| --- | --- | --- |
-| `Encoders.js` | ✅ | `server/utils/Encoders.test.js` |
-| `Date&Time.js` | ✅ | `server/utils/DateTime.test.js` |
-| `valueGenerator.js` | ✅ | `server/utils/valueGenerator.test.js` |
-| `ArrayUtilities.js` | ✅ | `server/utils/ArrayUtilities.test.js` |
-| `Validator.js` | ✅ | `server/utils/Validator.test.js` |
-| `Sanitizer.js` | ✅ | `server/utils/Sanitizer.test.js` |
-| `CookieUtils.js` | ✅ | `server/utils/CookieUtils.test.js` |
-| `CryptoFunctions.js` | ✅ | `server/utils/CryptoFunctions.test.js` |
-| `dedicatedCrypto.js` | ✅ | `server/utils/dedicatedCrypto.test.js` |
-| `Compressor.js` | ✅ | `server/utils/Compressor.test.js` |
-| `Ip.js` | ✅ (network paths excluded) | `server/utils/Ip.test.js` |
-| `Parsers.js` | ✅ | `server/utils/Parsers.test.js` |
-| `GlobalAccessPoint.js` | ✅ | `server/utils/GlobalAccessPoint.test.js` |
-| `TryCatch.js` | ✅ | `server/utils/TryCatch.test.js` |
-| `FileHandler.js` | ✅ | `server/utils/FileHandler.test.js` |
-| `logger.js` | ⚙️ | exercised via bootstrap + every importing suite |
-| `Device.js` | 🔌 | ua-parser over real request headers |
-| `Cron.js` | 🔌 | node-cron scheduling |
-| `CustomCaptchaSystem.js` | 🔌 | canvas rendering |
-| `SystemsControl.js` | 🔌 | orchestrates live systems |
+| Module                   | Status                      | Suite                                           |
+| ------------------------ | --------------------------- | ----------------------------------------------- |
+| `Encoders.js`            | ✅                          | `server/utils/Encoders.test.js`                 |
+| `Date&Time.js`           | ✅                          | `server/utils/DateTime.test.js`                 |
+| `valueGenerator.js`      | ✅                          | `server/utils/valueGenerator.test.js`           |
+| `ArrayUtilities.js`      | ✅                          | `server/utils/ArrayUtilities.test.js`           |
+| `Validator.js`           | ✅                          | `server/utils/Validator.test.js`                |
+| `Sanitizer.js`           | ✅                          | `server/utils/Sanitizer.test.js`                |
+| `CookieUtils.js`         | ✅                          | `server/utils/CookieUtils.test.js`              |
+| `CryptoFunctions.js`     | ✅                          | `server/utils/CryptoFunctions.test.js`          |
+| `dedicatedCrypto.js`     | ✅                          | `server/utils/dedicatedCrypto.test.js`          |
+| `Compressor.js`          | ✅                          | `server/utils/Compressor.test.js`               |
+| `Ip.js`                  | ✅ (network paths excluded) | `server/utils/Ip.test.js`                       |
+| `Parsers.js`             | ✅                          | `server/utils/Parsers.test.js`                  |
+| `GlobalAccessPoint.js`   | ✅                          | `server/utils/GlobalAccessPoint.test.js`        |
+| `TryCatch.js`            | ✅                          | `server/utils/TryCatch.test.js`                 |
+| `FileHandler.js`         | ✅                          | `server/utils/FileHandler.test.js`              |
+| `logger.js`              | ⚙️                          | exercised via bootstrap + every importing suite |
+| `Device.js`              | 🔌                          | ua-parser over real request headers             |
+| `Cron.js`                | 🔌                          | node-cron scheduling                            |
+| `CustomCaptchaSystem.js` | 🔌                          | canvas rendering                                |
+| `SystemsControl.js`      | 🔌                          | orchestrates live systems                       |
 
 ### Resource Access (`lib/Utils/Core/ResourceAccessManagment`)
 
-| Module | Status | Suite |
-| --- | --- | --- |
-| `dirBasedResources/convertors.js`, `dirBasedResources/fileResponse.js` | ✅ (type sniffing, nosniff, disposition) | `server/utils/fileResponse.test.js` |
-| `s3BasedResources/S3UrlBuilder.js` | ✅ (host/path styles, key templating, presign determinism; signs via AWS SDK v3) | `server/utils/s3UrlBuilder.test.js` |
-| `s3BasedResources/urlResponse.js` | ✅ (JSON envelope, no-store, url validation) | `server/utils/s3UrlResponse.test.js` |
-| `callbackBasedResources/callbackValidator.js` | ✅ (accepts SECURE-0/S3-0, rejects bad entries) | `server/utils/rasCallbackValidator.test.js` |
-| `callbackBasedResources/secureDelivery.js` | ✅ (S3 delivery, access-type binding, allowlist, SECURE-0 regression) | `server/utils/secureDelivery.test.js` |
-| `configs.js` | ✅ (via callbackValidator + secureDelivery) | — |
-| `callbackBasedResources/utils.js` (`resourceUriBuilder`), `dirBasedResources/utils.js` (`getSafePath`) | 🔌 | URL/path helpers exercised through the live middleware |
+| Module                                                                                                 | Status                                                                           | Suite                                                  |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `dirBasedResources/convertors.js`, `dirBasedResources/fileResponse.js`                                 | ✅ (type sniffing, nosniff, disposition)                                         | `server/utils/fileResponse.test.js`                    |
+| `s3BasedResources/S3UrlBuilder.js`                                                                     | ✅ (host/path styles, key templating, presign determinism; signs via AWS SDK v3) | `server/utils/s3UrlBuilder.test.js`                    |
+| `s3BasedResources/urlResponse.js`                                                                      | ✅ (JSON envelope, no-store, url validation)                                     | `server/utils/s3UrlResponse.test.js`                   |
+| `callbackBasedResources/callbackValidator.js`                                                          | ✅ (accepts SECURE-0/S3-0, rejects bad entries)                                  | `server/utils/rasCallbackValidator.test.js`            |
+| `callbackBasedResources/secureDelivery.js`                                                             | ✅ (S3 delivery, access-type binding, allowlist, SECURE-0 regression)            | `server/utils/secureDelivery.test.js`                  |
+| `configs.js`                                                                                           | ✅ (via callbackValidator + secureDelivery)                                      | —                                                      |
+| `callbackBasedResources/utils.js` (`resourceUriBuilder`), `dirBasedResources/utils.js` (`getSafePath`) | 🔌                                                                               | URL/path helpers exercised through the live middleware |
 
 ### Cryptography surface tested (security-critical)
 
@@ -70,51 +70,51 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 
 ### Databases (`lib/Utils/Databases`)
 
-| Module | Status | Suite |
-| --- | --- | --- |
-| `EphemeralDatabases/localMemoryDB.js` | ✅ (CRUD + TTL + clone isolation) | `server/databases/localMemoryDB.test.js` |
-| `EphemeralDatabases/redis.js` | 🔌 | needs a Redis instance |
-| `EphemeralDatabases/index.js` | 🔌 | selects a live backend |
-| `PersitantDatabases/postgres.js` | 🔌 | migration runner + pool; needs Postgres |
-| `PersitantDatabases/index.js` | 🔌 | selects a live backend |
-| `migrations/*.sql` | 🔌 | versioned DDL applied by the runner against a live DB |
-| `models/*` | 🔌 | queries against a live DB |
-| `models/TOTPModel.js` sealing | ✅ (AES-256-GCM round-trip, tamper, legacy plaintext, keyless degradation) | `server/utils/totpSecretSealing.test.js` |
+| Module                                | Status                                                                     | Suite                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `EphemeralDatabases/localMemoryDB.js` | ✅ (CRUD + TTL + clone isolation)                                          | `server/databases/localMemoryDB.test.js`              |
+| `EphemeralDatabases/redis.js`         | 🔌                                                                         | needs a Redis instance                                |
+| `EphemeralDatabases/index.js`         | 🔌                                                                         | selects a live backend                                |
+| `PersitantDatabases/postgres.js`      | 🔌                                                                         | migration runner + pool; needs Postgres               |
+| `PersitantDatabases/index.js`         | 🔌                                                                         | selects a live backend                                |
+| `migrations/*.sql`                    | 🔌                                                                         | versioned DDL applied by the runner against a live DB |
+| `models/*`                            | 🔌                                                                         | queries against a live DB                             |
+| `models/TOTPModel.js` sealing         | ✅ (AES-256-GCM round-trip, tamper, legacy plaintext, keyless degradation) | `server/utils/totpSecretSealing.test.js`              |
 
 ### Systems (`lib/Utils/Systems`)
 
-| Module | Status | Suite |
-| --- | --- | --- |
-| `CircuitBreakerSystem.js` | ✅ (full state machine) | `server/systems/CircuitBreakerSystem.test.js` |
-| `ErrorTrackerSystem.js` | ✅ (reporting + analytics + export) | `server/systems/ErrorTrackerSystem.test.js` |
-| `SecretsCrypto.js` | ✅ | `server/systems/SecretsCrypto.test.js` |
-| `SignatureSecretsManager.js` | 🔌 | key rotation w/ shared store |
-| `TokenSecretsManager.js` | 🔌 | tiered secrets w/ store |
-| `VolatileSecretsManager.js` | 🔌 | in-memory secret lifecycle + timers |
-| `AbuseDetectionSystem.js` | 🔌 | request-stream heuristics |
-| `DynamicGlobalRateLimiter.js` | 🔌 | limiter over live traffic |
-| `LoadSheddingSystem.js` / `EventLoopMonitor.js` / `MemoryMonitoringSystem.js` | 🔌 | runtime load signals |
-| `GracefulShutdownSystem.js` | 🔌 | process signal lifecycle |
-| `DatabaseJanitor.js` | 🔌 | advisory-locked TTL sweeps against a live DB |
-| `AuditTrailSystem.js` / `Tracer.js` / `Snapshotter.js` | 🔌 | observability against a store |
-| `ClusterLinkSystem.js` | ✅ (commands, consensus ballots, alert edges, desync recovery, cluster-state tracking; live transport 🔌) | `server/orchestrator/ClusterLinkSystem.test.js` |
+| Module                                                                        | Status                                                                                                    | Suite                                           |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `CircuitBreakerSystem.js`                                                     | ✅ (full state machine)                                                                                   | `server/systems/CircuitBreakerSystem.test.js`   |
+| `ErrorTrackerSystem.js`                                                       | ✅ (reporting + analytics + export)                                                                       | `server/systems/ErrorTrackerSystem.test.js`     |
+| `SecretsCrypto.js`                                                            | ✅                                                                                                        | `server/systems/SecretsCrypto.test.js`          |
+| `SignatureSecretsManager.js`                                                  | ✅ forceRotate/describeKeys (scheduled rotation w/ shared store 🔌)                                       | `server/systems/SecretsManagersForceRotate.test.js` |
+| `TokenSecretsManager.js`                                                      | ✅ forceRotate/describeKeys (scheduled rotation w/ shared store 🔌)                                       | `server/systems/SecretsManagersForceRotate.test.js` |
+| `VolatileSecretsManager.js`                                                   | 🔌                                                                                                        | in-memory secret lifecycle + timers             |
+| `AbuseDetectionSystem.js`                                                     | 🔌                                                                                                        | request-stream heuristics                       |
+| `DynamicGlobalRateLimiter.js`                                                 | 🔌                                                                                                        | limiter over live traffic                       |
+| `LoadSheddingSystem.js` / `EventLoopMonitor.js` / `MemoryMonitoringSystem.js` | 🔌                                                                                                        | runtime load signals                            |
+| `GracefulShutdownSystem.js`                                                   | 🔌                                                                                                        | process signal lifecycle                        |
+| `DatabaseJanitor.js`                                                          | 🔌                                                                                                        | advisory-locked TTL sweeps against a live DB    |
+| `AuditTrailSystem.js` / `Tracer.js` / `Snapshotter.js`                        | 🔌                                                                                                        | observability against a store                   |
+| `ClusterLinkSystem.js`                                                        | ✅ (commands, secrets revocation, consensus ballots, alert edges, desync recovery, cluster-state tracking; live transport 🔌) | `server/orchestrator/ClusterLinkSystem.test.js` |
 
 ### Errors (`lib/Errors`)
 
-| Area | Status | Suite |
-| --- | --- | --- |
-| All 22 registry modules | ✅ (schema integrity + global uniqueness) | `server/errors/errorRegistry.test.js` |
-| `internal-errors.js` | ⚙️ | aggregation + `errors.json` write (side-effecting; tested via the individual modules) |
+| Area                    | Status                                    | Suite                                                                                 |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| All 22 registry modules | ✅ (schema integrity + global uniqueness) | `server/errors/errorRegistry.test.js`                                                 |
+| `internal-errors.js`    | ⚙️                                        | aggregation + `errors.json` write (side-effecting; tested via the individual modules) |
 
 ### General & Server
 
-| Area | Status | Suite / Note |
-| --- | --- | --- |
-| `General/EndpointSchema.js` | ✅ (Joi accept/reject) | `server/general/EndpointSchema.test.js` |
-| `index.js` (package entry) | ✅ (public API surface) | `server/PackageSurface.test.js` |
-| `lib/Server/initiateServer.js` | 🔌 | boots Express + all systems |
-| `lib/Server/Middleware/*` | 🔌 | request pipeline (auth, origin, abuse, load-shedding, device scan, header parse, resource access, metadata) |
-| `lib/Server/Endpoints/*`, `Response/response.js`, `onStartConfigurations.js` | 🔌 | live routing/response |
+| Area                                                                         | Status                  | Suite / Note                                                                                                |
+| ---------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `General/EndpointSchema.js`                                                  | ✅ (Joi accept/reject)  | `server/general/EndpointSchema.test.js`                                                                     |
+| `index.js` (package entry)                                                   | ✅ (public API surface) | `server/PackageSurface.test.js`                                                                             |
+| `lib/Server/initiateServer.js`                                               | 🔌                      | boots Express + all systems                                                                                 |
+| `lib/Server/Middleware/*`                                                    | 🔌                      | request pipeline (auth, origin, abuse, load-shedding, device scan, header parse, resource access, metadata) |
+| `lib/Server/Endpoints/*`, `Response/response.js`, `onStartConfigurations.js` | 🔌                      | live routing/response                                                                                       |
 
 ### Core account/security/token/OAuth/resource logic (`lib/Utils/Core`)
 
@@ -134,38 +134,38 @@ are unit-tested — see the Resource Access section above.
 ### Communication (`lib/Utils/Mail`)
 
 `mailConstructor.js`, `mailer.js`, `sendMail.js` — 🔌 (nodemailer transport).
-The template *construction* in `mailConstructor.js` is a candidate for a pure
+The template _construction_ in `mailConstructor.js` is a candidate for a pure
 unit test if the SMTP transport is injectable.
 
 ---
 
 ## Client — `Packages/client`
 
-| Module | Status | Suite / Note |
-| --- | --- | --- |
-| `lib/Utils/Encoders.js` | ✅ (utf16 defect pinned) | `client/Encoders.test.js` |
-| `lib/Utils/Utils.js` | ✅ (sanitizeInput excluded — needs DOM) | `client/Utils.test.js` |
-| `lib/Utils/Date&Time.js` | candidate ✅ | pure; promote next |
-| `lib/Utils/Api.js`, `Api-2.js`, `Captcha.js`, `Authorisation.js`, `OrionVault.js`, `DevicePrint.js`, `GlobalAccessPoint.js` | 🔌 | depend on `fetch`, DOM, WebAuthn, storage |
-| `lib/API-Handlers/**`, `lib/Flows/**`, `lib/Root.js` | 🔌 | full browser SDK flows (jsdom/Playwright) |
-| `lib/External-Scripts/*` | n/a | vendored bundles (DOMPurify, webAuthn, fingerprint) |
+| Module                                                                                                                      | Status                                  | Suite / Note                                        |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------- |
+| `lib/Utils/Encoders.js`                                                                                                     | ✅ (utf16 defect pinned)                | `client/Encoders.test.js`                           |
+| `lib/Utils/Utils.js`                                                                                                        | ✅ (sanitizeInput excluded — needs DOM) | `client/Utils.test.js`                              |
+| `lib/Utils/Date&Time.js`                                                                                                    | candidate ✅                            | pure; promote next                                  |
+| `lib/Utils/Api.js`, `Api-2.js`, `Captcha.js`, `Authorisation.js`, `OrionVault.js`, `DevicePrint.js`, `GlobalAccessPoint.js` | 🔌                                      | depend on `fetch`, DOM, WebAuthn, storage           |
+| `lib/API-Handlers/**`, `lib/Flows/**`, `lib/Root.js`                                                                        | 🔌                                      | full browser SDK flows (jsdom/Playwright)           |
+| `lib/External-Scripts/*`                                                                                                    | n/a                                     | vendored bundles (DOMPurify, webAuthn, fingerprint) |
 
 ---
 
 ## Server — `Packages/server/Orion-Orchestrator`
 
-| Module | Status | Suite |
-| --- | --- | --- |
-| `lib/protocol.js` | ✅ (contract stability + envelope builders) | `server/orchestrator/protocol.test.js` |
-| `lib/CommandDispatcher.js` | ✅ (correlation, timeout, impersonation guard, clear) | `server/orchestrator/CommandDispatcher.test.js` |
-| `lib/NodeRegistry.js` | ✅ (lifecycle, alert cap, stale sweep, hydration) | `server/orchestrator/NodeRegistry.test.js` |
-| `lib/PolicyEngine.js` | ✅ (defaults coverage, cooldowns, all action types, scheduled remediation, validation) | `server/orchestrator/PolicyEngine.test.js` |
-| `lib/ConsensusEngine.js` | ✅ (quorum math, partitions, undecided semantics) | `server/orchestrator/ConsensusEngine.test.js` |
-| `lib/ClusterHealth.js` | ✅ (node health rules, state computation, transitions) | `server/orchestrator/ClusterHealth.test.js` |
-| `lib/EscalationHub.js` | ✅ (channels, isolation, history caps; webhook delivery 🔌) | `server/orchestrator/EscalationHub.test.js` |
-| `lib/RegistryStore.js` | ✅ (round trip, debounce, corruption recovery) | `server/orchestrator/RegistryStore.test.js` |
-| `lib/OrionOrchestrator.js` | 🔌 | binds an R_Sync ORCHESTRATOR HTTP server; full production loop verified live against a ClusterLinkSystem node |
-| `index.js` (package entry) | ⚙️ | re-exports evaluated via the suites above |
+| Module                     | Status                                                                                 | Suite                                                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `lib/protocol.js`          | ✅ (contract stability + envelope builders)                                            | `server/orchestrator/protocol.test.js`                                                                        |
+| `lib/CommandDispatcher.js` | ✅ (correlation, timeout, impersonation guard, clear)                                  | `server/orchestrator/CommandDispatcher.test.js`                                                               |
+| `lib/NodeRegistry.js`      | ✅ (lifecycle, alert cap, stale sweep, hydration)                                      | `server/orchestrator/NodeRegistry.test.js`                                                                    |
+| `lib/PolicyEngine.js`      | ✅ (defaults coverage, cooldowns, all action types, scheduled remediation, validation) | `server/orchestrator/PolicyEngine.test.js`                                                                    |
+| `lib/ConsensusEngine.js`   | ✅ (quorum math, partitions, undecided semantics)                                      | `server/orchestrator/ConsensusEngine.test.js`                                                                 |
+| `lib/ClusterHealth.js`     | ✅ (node health rules, state computation, transitions)                                 | `server/orchestrator/ClusterHealth.test.js`                                                                   |
+| `lib/EscalationHub.js`     | ✅ (channels, isolation, history caps; webhook delivery 🔌)                            | `server/orchestrator/EscalationHub.test.js`                                                                   |
+| `lib/RegistryStore.js`     | ✅ (round trip, debounce, corruption recovery)                                         | `server/orchestrator/RegistryStore.test.js`                                                                   |
+| `lib/OrionOrchestrator.js` | 🔌                                                                                     | binds an R_Sync ORCHESTRATOR HTTP server; full production loop verified live against a ClusterLinkSystem node |
+| `index.js` (package entry) | ⚙️                                                                                     | re-exports evaluated via the suites above                                                                     |
 
 ---
 

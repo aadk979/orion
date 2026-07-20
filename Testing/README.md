@@ -71,11 +71,11 @@ Testing/
 Several Orion modules perform **filesystem side effects at import time**, keyed
 off `process.cwd()`:
 
-| Module | Side effect on import |
-| --- | --- |
-| `lib/Utils/logger.js` | creates a `logs/` directory |
-| `lib/Errors/internal-errors.js` | writes `errors.json` |
-| `lib/Utils/FileHandler.js` | reads/writes relative to cwd |
+| Module                          | Side effect on import        |
+| ------------------------------- | ---------------------------- |
+| `lib/Utils/logger.js`           | creates a `logs/` directory  |
+| `lib/Errors/internal-errors.js` | writes `errors.json`         |
+| `lib/Utils/FileHandler.js`      | reads/writes relative to cwd |
 
 `helpers/bootstrap.js` handles this. **It must be the first import in every test
 file.** Because ES modules evaluate imports depth-first in source order,
@@ -90,7 +90,7 @@ repo-wide `gipsy.*` rule), so test runs never dirty the working tree.
 ### The pattern every test file follows
 
 ```js
-import '../../../helpers/bootstrap.js';   // 1. FIRST — redirects cwd side effects
+import '../../../helpers/bootstrap.js'; // 1. FIRST — redirects cwd side effects
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -126,7 +126,7 @@ module-by-module breakdown. In short:
 
 ## Known defects pinned by tests
 
-A few tests deliberately assert *current, incorrect* behavior so a future fix
+A few tests deliberately assert _current, incorrect_ behavior so a future fix
 trips the test (a "regression pin"). These are labelled in-place, e.g. the
 browser SDK `utf16` codec, which does not round-trip because
 `new TextEncoder('utf-16le')` silently emits UTF-8. Search the suites for

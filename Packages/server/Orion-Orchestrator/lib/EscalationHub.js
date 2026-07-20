@@ -19,7 +19,6 @@ const WEBHOOK_RETRY_BASE_MS = 1_000;
 const WEBHOOK_TIMEOUT_MS = 10_000;
 
 class EscalationHub {
-
     /**
      * @param {Object} config
      * @param {{url: string, headers?: Object}} [config.webhook] - enable the webhook channel
@@ -30,7 +29,7 @@ class EscalationHub {
         this._counts = { info: 0, warning: 0, critical: 0 };
 
         // Built-in: structured log line (always on)
-        this.addChannel('log', (escalation) => {
+        this.addChannel('log', escalation => {
             const line = `ESCALATION [${escalation.severity}] ${escalation.type}: ${escalation.message}`;
             if (escalation.severity === 'critical') logger.error(line);
             else if (escalation.severity === 'warning') logger.warn(line);
@@ -39,7 +38,7 @@ class EscalationHub {
 
         if (config.webhook?.url) {
             this._webhookConfig = config.webhook;
-            this.addChannel('webhook', (escalation) => this._deliverWebhook(escalation));
+            this.addChannel('webhook', escalation => this._deliverWebhook(escalation));
         }
     }
 
@@ -77,13 +76,15 @@ class EscalationHub {
         }
         this._counts[record.severity] += 1;
 
-        await Promise.all([...this._channels.entries()].map(async ([name, handler]) => {
-            try {
-                await handler(record);
-            } catch (err) {
-                logger.error(`EscalationHub: channel "${name}" failed — ${err.message}`);
-            }
-        }));
+        await Promise.all(
+            [...this._channels.entries()].map(async ([name, handler]) => {
+                try {
+                    await handler(record);
+                } catch (err) {
+                    logger.error(`EscalationHub: channel "${name}" failed — ${err.message}`);
+                }
+            })
+        );
 
         return record;
     }

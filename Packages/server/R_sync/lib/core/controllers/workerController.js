@@ -1,7 +1,4 @@
-import {
-    decrypt,
-    verifySignature
-} from '../../utils/crypto.js';
+import { decrypt, verifySignature } from '../../utils/crypto.js';
 import { getCurrentUnixTime } from '../../utils/Date&Time.js';
 import { logger } from '../../utils/logger.js';
 import { clearAllData } from '../../utils/lokidb.js';
@@ -30,9 +27,46 @@ let workerTunnelState = {
 };
 
 /**
+ * Self-heal hook. An orchestrator whose signing key changed (restored from a
+ * wiped config, deliberately rotated, restarted on an older build) leaves this
+ * worker holding a stale public key, and every inbound event fails signature
+ * verification forever — the tunnel is only ever rebuilt by the worker, so
+ * without this the box needs a manual restart to recover. Installed by
+ * startWorker(); absent for embedded callers that never registered.
+ */
+let reregisterHandler = null;
+let lastReregisterAt = 0;
+
+/** Floor between re-registration attempts, so a burst of bad events triggers one handshake. */
+const REREGISTER_COOLDOWN_SEC = 30;
+
+const setReregisterHandler = handler => {
+    reregisterHandler = typeof handler === 'function' ? handler : null;
+};
+
+/**
+ * Fire-and-forget re-registration. Never awaited by a request handler: the
+ * orchestrator is waiting on this response, and the handshake it needs to make
+ * is a separate inbound call.
+ */
+const triggerReregistration = reason => {
+    if (!reregisterHandler) return;
+
+    const now = getCurrentUnixTime();
+    if (now - lastReregisterAt < REREGISTER_COOLDOWN_SEC) return;
+    lastReregisterAt = now;
+
+    logger.warn(`Tunnel looks stale (${reason}) — re-registering with orchestrator...`);
+    Promise.resolve()
+        .then(() => reregisterHandler(reason))
+        .then(() => logger.info('Re-registration complete — tunnel keys refreshed'))
+        .catch(err => logger.error(`Re-registration failed: ${err.message}`));
+};
+
+/**
  * Handle system:flush event - clears all data and exits
  */
-const handleFlushEvent = async (event) => {
+const handleFlushEvent = async event => {
     logger.warn('FLUSH: Received flush command from orchestrator');
     logger.info(`FLUSH: Reason: ${event.data?.reason || 'No reason provided'}`);
 
@@ -62,7 +96,6 @@ const handleFlushEvent = async (event) => {
             logger.info('FLUSH: Process exit');
             process.exit(0);
         }, 500);
-
     } catch (err) {
         logger.error(`FLUSH: Failed to flush worker: ${err.message}`);
     }
@@ -87,6 +120,9 @@ const handleEvent = async (req, res) => {
 
         // Verify and decrypt the message
         if (!workerTunnelState.sharedKey) {
+            // Orchestrator believes we are registered; we disagree. Rebuild the
+            // tunnel rather than sitting at 503 until someone notices.
+            triggerReregistration('missing-shared-key');
             return res.status(503).json({
                 error: true,
                 errorCode: 'NOT_REGISTERED',
@@ -95,14 +131,15 @@ const handleEvent = async (req, res) => {
         }
 
         // Verify signature
-        const isValid = verifySignature(
-            payload,
-            signature,
-            workerTunnelState.orchestratorSignaturePublicKey
-        );
+        const isValid = verifySignature(payload, signature, workerTunnelState.orchestratorSignaturePublicKey);
 
         if (!isValid) {
             logger.error('Invalid event signature received');
+            // Most likely our stored orchestrator public key is stale rather than
+            // the event being forged — a forger cannot produce a valid signature
+            // either way, and re-registration only ever replaces our own key
+            // material via the normal authenticated handshake.
+            triggerReregistration('invalid-signature');
             return res.status(401).json({
                 error: true,
                 errorCode: 'INVALID_SIGNATURE',
@@ -178,7 +215,6 @@ const handleEvent = async (req, res) => {
             eventId: event.id,
             timestamp: getCurrentUnixTime()
         });
-
     } catch (err) {
         logger.error(`Event handling failed: ${err.message}`);
         return res.status(500).json({
@@ -214,7 +250,7 @@ const getWorkerStatus = async (req, res) => {
 /**
  * Register an event handler
  */
-const registerEventHandler = (handler) => {
+const registerEventHandler = handler => {
     if (typeof handler === 'function') {
         workerTunnelState.eventHandlers.push(handler);
     }
@@ -223,7 +259,7 @@ const registerEventHandler = (handler) => {
 /**
  * Set tunnel state after registration
  */
-const setTunnelState = (state) => {
+const setTunnelState = state => {
     workerTunnelState = { ...workerTunnelState, ...state };
 };
 
@@ -232,10 +268,4 @@ const setTunnelState = (state) => {
  */
 const getTunnelState = () => workerTunnelState;
 
-export {
-    handleEvent,
-    getWorkerStatus,
-    registerEventHandler,
-    setTunnelState,
-    getTunnelState
-};
+export { handleEvent, getWorkerStatus, registerEventHandler, setTunnelState, getTunnelState, setReregisterHandler };

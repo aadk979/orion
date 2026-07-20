@@ -47,17 +47,17 @@ const resourceAccessMiddleware = async (request, response, next) => {
             const tokenValidation = await validateResourceToken(token, undefined, ip, clientUrl);
 
             if (tokenValidation?.errorCode === 'TOKEN-RESOURCE::EXPIRED::A::p') {
-                return res.status(401).json({ status: 'error', code: 'TOKEN-RESOURCE::EXPIRED::A::p', message: 'Access denied. The resource token has expired.' });
+                return res
+                    .status(401)
+                    .json({ status: 'error', code: 'TOKEN-RESOURCE::EXPIRED::A::p', message: 'Access denied. The resource token has expired.' });
             }
 
             if (tokenValidation.error) {
-                return res
-                    .status(401)
-                    .json({
-                        status: 'error',
-                        code: tokenValidation.errorCode || 'TOKEN-RESOURCE::VALIDATION-FAILED::A::p',
-                        message: 'Access denied. Unable to validate the resource token.'
-                    });
+                return res.status(401).json({
+                    status: 'error',
+                    code: tokenValidation.errorCode || 'TOKEN-RESOURCE::VALIDATION-FAILED::A::p',
+                    message: 'Access denied. Unable to validate the resource token.'
+                });
             }
 
             if (!tokenValidation.valid) {

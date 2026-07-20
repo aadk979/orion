@@ -19,7 +19,10 @@ describe('validateRASCallbacks', () => {
             ])
         );
         assert.equal(result.length, 3);
-        assert.deepEqual(result.map(r => r.callbackPath), ['a', 'b', 'c']);
+        assert.deepEqual(
+            result.map(r => r.callbackPath),
+            ['a', 'b', 'c']
+        );
     });
 
     test('drops entries with an unsupported access type', async () => {
@@ -29,7 +32,10 @@ describe('validateRASCallbacks', () => {
                 { callbackPath: 'b', accessType: 'S3-0', callback: cb }
             ])
         );
-        assert.deepEqual(result.map(r => r.callbackPath), ['b']);
+        assert.deepEqual(
+            result.map(r => r.callbackPath),
+            ['b']
+        );
     });
 
     test('drops entries with a missing/blank path or a non-function callback', async () => {
@@ -41,7 +47,10 @@ describe('validateRASCallbacks', () => {
                 { callbackPath: 'good', accessType: 'S3-0', callback: cb }
             ])
         );
-        assert.deepEqual(result.map(r => r.callbackPath), ['good']);
+        assert.deepEqual(
+            result.map(r => r.callbackPath),
+            ['good']
+        );
     });
 
     test('an empty or omitted config yields an empty array', async () => {

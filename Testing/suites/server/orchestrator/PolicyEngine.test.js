@@ -10,7 +10,10 @@ const makeExecutors = () => {
     return {
         calls,
         executors: {
-            escalate: async (e) => { calls.escalations.push(e); return e; },
+            escalate: async e => {
+                calls.escalations.push(e);
+                return e;
+            },
             command: async (workerId, action, args) => {
                 calls.commands.push({ workerId, action, args });
                 return { workerId, ok: true, result: { etsLockdown: true, safeMode: true } };
@@ -29,11 +32,17 @@ describe('PolicyEngine — defaults', () => {
     test('every protocol alert type a node or the orch can raise has a matching default rule', () => {
         const covered = new Set(DEFAULT_POLICIES.flatMap(r => r.on));
         const expected = [
-            ClusterAlerts.ETS_LOCKDOWN_ENGAGED, ClusterAlerts.ETS_LOCKDOWN_LIFTED,
-            ClusterAlerts.EVENT_LOOP_DEGRADED, ClusterAlerts.EVENT_LOOP_RECOVERED,
-            ClusterAlerts.MEMORY_PRESSURE, ClusterAlerts.MEMORY_RECOVERED,
-            ClusterAlerts.SERVER_LOCKED, ClusterAlerts.SERVER_UNLOCKED,
-            ClusterAlerts.TUNNEL_RESYNCED, ClusterAlerts.NODE_STALE, ClusterAlerts.NODE_RECOVERED
+            ClusterAlerts.ETS_LOCKDOWN_ENGAGED,
+            ClusterAlerts.ETS_LOCKDOWN_LIFTED,
+            ClusterAlerts.EVENT_LOOP_DEGRADED,
+            ClusterAlerts.EVENT_LOOP_RECOVERED,
+            ClusterAlerts.MEMORY_PRESSURE,
+            ClusterAlerts.MEMORY_RECOVERED,
+            ClusterAlerts.SERVER_LOCKED,
+            ClusterAlerts.SERVER_UNLOCKED,
+            ClusterAlerts.TUNNEL_RESYNCED,
+            ClusterAlerts.NODE_STALE,
+            ClusterAlerts.NODE_RECOVERED
         ];
         for (const type of expected) {
             assert.ok(covered.has(type), `no default policy covers ${type}`);
@@ -72,7 +81,10 @@ describe('PolicyEngine — cooldowns and matching', () => {
         await engine.handleAlert('W2', alert(ClusterAlerts.NODE_STALE)); // different node — runs
 
         assert.equal(calls.escalations.length, 2);
-        assert.deepEqual(calls.escalations.map(e => e.workerId), ['W1', 'W2']);
+        assert.deepEqual(
+            calls.escalations.map(e => e.workerId),
+            ['W1', 'W2']
+        );
     });
 
     test('minSeverity filters below-threshold alerts', async () => {
@@ -102,13 +114,16 @@ describe('PolicyEngine — action types', () => {
         const { calls, executors } = makeExecutors();
         const engine = new PolicyEngine(executors, {
             useDefaults: false,
-            rules: [{
-                id: 'r1', on: ['x'],
-                actions: [
-                    { type: 'consensus', topic: 'node-healthy' },
-                    { type: 'escalate', severity: 'critical' }
-                ]
-            }]
+            rules: [
+                {
+                    id: 'r1',
+                    on: ['x'],
+                    actions: [
+                        { type: 'consensus', topic: 'node-healthy' },
+                        { type: 'escalate', severity: 'critical' }
+                    ]
+                }
+            ]
         });
 
         await engine.handleAlert('W1', alert('x'));
@@ -118,7 +133,9 @@ describe('PolicyEngine — action types', () => {
 
     test('action failures are captured per-action, not thrown', async () => {
         const { executors } = makeExecutors();
-        executors.command = async () => { throw new Error('node unreachable'); };
+        executors.command = async () => {
+            throw new Error('node unreachable');
+        };
         const engine = new PolicyEngine(executors, {
             useDefaults: false,
             rules: [{ id: 'r1', on: ['x'], actions: [{ type: 'verify-status' }, { type: 'escalate' }] }]
@@ -141,23 +158,32 @@ describe('PolicyEngine — action types', () => {
 
         const engine = new PolicyEngine(executors, {
             useDefaults: false,
-            rules: [{
-                id: 'auto-clear', on: ['x'],
-                actions: [{ type: 'schedule-command', delaySec: 0.05, action: ClusterCommands.CLEAR_ETS_LOCKDOWN, onlyIfStatusFlag: 'etsLockdown' }]
-            }]
+            rules: [
+                {
+                    id: 'auto-clear',
+                    on: ['x'],
+                    actions: [{ type: 'schedule-command', delaySec: 0.05, action: ClusterCommands.CLEAR_ETS_LOCKDOWN, onlyIfStatusFlag: 'etsLockdown' }]
+                }
+            ]
         });
 
         // Case 1: flag still true → command fires
         await engine.handleAlert('W1', alert('x'));
         await new Promise(r => setTimeout(r, 150));
-        assert.deepEqual(calls.commands.map(c => c.action), ['status:get', ClusterCommands.CLEAR_ETS_LOCKDOWN]);
+        assert.deepEqual(
+            calls.commands.map(c => c.action),
+            ['status:get', ClusterCommands.CLEAR_ETS_LOCKDOWN]
+        );
 
         // Case 2: flag resolved in the meantime → command skipped
         calls.commands.length = 0;
         flagValue = false;
         await engine.handleAlert('W2', alert('x'));
         await new Promise(r => setTimeout(r, 150));
-        assert.deepEqual(calls.commands.map(c => c.action), ['status:get']);
+        assert.deepEqual(
+            calls.commands.map(c => c.action),
+            ['status:get']
+        );
     });
 
     test('stop() cancels pending scheduled commands', async () => {
@@ -177,8 +203,21 @@ describe('PolicyEngine — action types', () => {
 describe('PolicyEngine — rule validation', () => {
     test('duplicate ids, empty matchers, and empty actions are rejected', () => {
         const { executors } = makeExecutors();
-        assert.throws(() => new PolicyEngine(executors, { useDefaults: false, rules: [{ id: 'a', on: ['x'], actions: [{ type: 'escalate' }] }, { id: 'a', on: ['y'], actions: [{ type: 'escalate' }] }] }), /unique ids/);
-        assert.throws(() => new PolicyEngine(executors, { useDefaults: false, rules: [{ id: 'a', on: [], actions: [{ type: 'escalate' }] }] }), /non-empty "on"/);
+        assert.throws(
+            () =>
+                new PolicyEngine(executors, {
+                    useDefaults: false,
+                    rules: [
+                        { id: 'a', on: ['x'], actions: [{ type: 'escalate' }] },
+                        { id: 'a', on: ['y'], actions: [{ type: 'escalate' }] }
+                    ]
+                }),
+            /unique ids/
+        );
+        assert.throws(
+            () => new PolicyEngine(executors, { useDefaults: false, rules: [{ id: 'a', on: [], actions: [{ type: 'escalate' }] }] }),
+            /non-empty "on"/
+        );
         assert.throws(() => new PolicyEngine(executors, { useDefaults: false, rules: [{ id: 'a', on: ['x'], actions: [] }] }), /non-empty action/);
     });
 

@@ -24,10 +24,20 @@ const makeRes = () => ({
     headers: {},
     statusCode: null,
     body: null,
-    setHeader(k, v) { this.headers[k] = v; },
-    getHeader(k) { return this.headers[k]; },
-    status(c) { this.statusCode = c; return this; },
-    json(b) { this.body = b; return this; }
+    setHeader(k, v) {
+        this.headers[k] = v;
+    },
+    getHeader(k) {
+        return this.headers[k];
+    },
+    status(c) {
+        this.statusCode = c;
+        return this;
+    },
+    json(b) {
+        this.body = b;
+        return this;
+    }
 });
 
 const makeReq = (path, user) => ({
@@ -43,7 +53,9 @@ const makeReq = (path, user) => ({
 const drive = async (mw, req) => {
     const res = makeRes();
     let nexted = false;
-    await mw(req, res, () => { nexted = true; });
+    await mw(req, res, () => {
+        nexted = true;
+    });
     return { res, nexted };
 };
 
@@ -95,7 +107,8 @@ describe('DynamicGlobalRateLimiter — edge pass', () => {
         let passed = 0;
         for (let i = 0; i < 60; i++) {
             const { nexted } = await drive(limiter.middleware, req);
-            if (nexted) passed++; else break;
+            if (nexted) passed++;
+            else break;
         }
         assert.equal(passed, 50, `cost-1 route should allow 50, got ${passed}`);
     });
@@ -115,7 +128,8 @@ describe('DynamicGlobalRateLimiter — account pass', () => {
         let passed = 0;
         for (let i = 0; i < 40; i++) {
             const { nexted } = await drive(limiter.accountMiddleware, req);
-            if (nexted) passed++; else break;
+            if (nexted) passed++;
+            else break;
         }
         assert.equal(passed, 30, `expected 30 passes from the account bucket, got ${passed}`);
     });
@@ -124,6 +138,6 @@ describe('DynamicGlobalRateLimiter — account pass', () => {
         const limiter = makeLimiter(t);
         for (let i = 0; i < 30; i++) await drive(limiter.accountMiddleware, makeReq('/x', { uid: 'heavy-user' }));
         const { nexted } = await drive(limiter.accountMiddleware, makeReq('/x', { uid: 'innocent-user' }));
-        assert.ok(nexted, 'a second account must not inherit the first account\'s exhaustion');
+        assert.ok(nexted, "a second account must not inherit the first account's exhaustion");
     });
 });

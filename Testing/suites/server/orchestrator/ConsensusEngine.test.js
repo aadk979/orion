@@ -6,9 +6,9 @@ import { ConsensusEngine } from '../../../../Packages/server/Orion-Orchestrator/
 
 // Builds an engine over a fixed fleet. `behaviors` maps workerId → true/false
 // (ballot), 'reject' (node refuses), or 'timeout' (transport failure).
-const makeEngine = (behaviors) => {
+const makeEngine = behaviors => {
     const voters = Object.keys(behaviors).map(id => ({ id }));
-    const commandFn = async (workerId) => {
+    const commandFn = async workerId => {
         const behavior = behaviors[workerId];
         if (behavior === 'timeout') throw new Error('timed out');
         if (behavior === 'reject') return { workerId, ok: false, error: { message: 'REMOTE_CONTROL_DISABLED' } };
@@ -98,6 +98,9 @@ describe('ConsensusEngine — history', () => {
         await engine.propose('a');
         await engine.propose('b');
         const history = engine.getHistory();
-        assert.deepEqual(history.map(h => h.topic), ['a', 'b']);
+        assert.deepEqual(
+            history.map(h => h.topic),
+            ['a', 'b']
+        );
     });
 });

@@ -1,4 +1,4 @@
-import { globalAccessPoint } from "../../../Utils/GlobalAccessPoint.js";
+import { globalAccessPoint } from '../../../Utils/GlobalAccessPoint.js';
 
 async function handleOAuthCallback({ Api, getAuthHeader, This }) {
     // Extract code and state from URL parameters
@@ -27,7 +27,7 @@ async function handleOAuthCallback({ Api, getAuthHeader, This }) {
         return data.errorData;
     }
 
-    const { postAuthRedirect = window.location.origin } = globalAccessPoint.getValue("systemConfig");
+    const { postAuthRedirect = window.location.origin } = globalAccessPoint.getValue('systemConfig');
 
     window.history.replaceState({}, '', postAuthRedirect.toString());
 

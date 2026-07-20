@@ -3,7 +3,6 @@ import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
 
 const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'loadSheddingMiddleware.js');
 
-
 const loadSheddingMiddleware = (req, res, next) => {
     const loadShedder = loadSheddingSystemModule.probeModule();
     if (!loadShedder) return next();

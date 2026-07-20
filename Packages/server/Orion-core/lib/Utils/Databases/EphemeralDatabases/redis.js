@@ -74,6 +74,30 @@ class RedisService {
         }
     }
 
+    // Atomic SET NX — data:true when this caller created the key, data:false when
+    // it already existed. Usable as a lightweight distributed lock/leader claim.
+    async setIfAbsent(id, data, ttl) {
+        try {
+            this.ensureInitialized();
+            const key = this._key(id);
+            const value = JSON.stringify(data);
+            const options = { NX: true };
+
+            if (ttl !== undefined) {
+                const now = Math.floor(Date.now() / 1000);
+                const expiresIn = ttl - now;
+                if (expiresIn <= 0) return { error: false, data: false, expired: true, completed: true };
+                options.EX = expiresIn;
+            }
+
+            const res = await this.client.set(key, value, options);
+            return { error: false, data: res === 'OK', completed: true };
+        } catch (err) {
+            logger.error('SetIfAbsent Error:', err.message);
+            return { error: true, completed: false };
+        }
+    }
+
     async getData(id) {
         try {
             this.ensureInitialized();
@@ -128,24 +152,97 @@ class RedisService {
         };
     }
 
+    // Cursor-based SCAN instead of KEYS: KEYS is O(entire keyspace) and blocks
+    // the Redis thread, which is unsafe on a shared production instance.
+    async _scanKeys(pattern) {
+        const found = new Set();
+        for await (const batch of this.client.scanIterator({ MATCH: pattern, COUNT: 500 })) {
+            for (const key of Array.isArray(batch) ? batch : [batch]) found.add(key);
+        }
+        return [...found];
+    }
+
     async clear() {
-        const keys = await this.client.keys(`${this.collectionName}:*`);
+        const keys = await this._scanKeys(`${this.collectionName}:*`);
         if (keys.length) await this.client.del(keys);
         return { error: false, completed: true };
     }
 
     async size() {
-        const keys = await this.client.keys(`${this.collectionName}:*`);
+        const keys = await this._scanKeys(`${this.collectionName}:*`);
         return { error: false, data: keys.length, completed: true };
     }
 
-    async keys() {
-        const keys = await this.client.keys(`${this.collectionName}:*`);
+    async keys(prefix = '') {
+        const keys = await this._scanKeys(`${this.collectionName}:${prefix}*`);
         return {
             error: false,
             data: keys.map(k => k.replace(`${this.collectionName}:`, '')),
             completed: true
         };
+    }
+
+    async hashSet(id, fields, ttl) {
+        try {
+            this.ensureInitialized();
+            const entries = Object.entries(fields || {});
+            if (entries.length === 0) return { error: false, completed: true };
+
+            const key = this._key(id);
+            const serialized = {};
+            for (const [field, value] of entries) serialized[field] = JSON.stringify(value);
+
+            await this.client.hSet(key, serialized);
+            // Hash fields have no individual TTL; callers pass a whole-hash expiry
+            // (absolute unix seconds) as a safety net, refreshed on every write.
+            if (ttl !== undefined) await this.client.expireAt(key, ttl);
+
+            return { error: false, completed: true };
+        } catch (err) {
+            logger.error('Hash Set Error:', err.message);
+            return { error: true, completed: false };
+        }
+    }
+
+    async hashGet(id, field) {
+        try {
+            this.ensureInitialized();
+            const res = await this.client.hGet(this._key(id), field);
+            return {
+                error: false,
+                data: res ? JSON.parse(res) : undefined,
+                completed: true
+            };
+        } catch (err) {
+            logger.error('Hash Get Error:', err.message);
+            return { error: true, completed: false };
+        }
+    }
+
+    async hashGetAll(id) {
+        try {
+            this.ensureInitialized();
+            const res = await this.client.hGetAll(this._key(id));
+            const data = {};
+            for (const [field, value] of Object.entries(res || {})) data[field] = JSON.parse(value);
+            return { error: false, data, completed: true };
+        } catch (err) {
+            logger.error('Hash Get All Error:', err.message);
+            return { error: true, completed: false };
+        }
+    }
+
+    async hashDelete(id, fields) {
+        try {
+            this.ensureInitialized();
+            const list = Array.isArray(fields) ? fields : [fields];
+            if (list.length === 0) return { error: false, data: 0, completed: true };
+            const removed = await this.client.hDel(this._key(id), list);
+            return { error: false, data: removed, completed: true };
+        } catch (err) {
+            logger.error('Hash Delete Error:', err.message);
+            return { error: true, completed: false };
+        }
     }
 
     async evalScript(script, keys = [], args = []) {
@@ -162,7 +259,7 @@ class RedisService {
     }
 
     async close() {
-        if (this.client) await this.client.disconnect();
+        if (this.client) await this.client.close();
         this.initialized = false;
         logger.info('Redis connection closed');
         return { error: false, completed: true };

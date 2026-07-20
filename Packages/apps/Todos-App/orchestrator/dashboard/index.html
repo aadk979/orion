@@ -6,99 +6,347 @@
         <title>Orion — Cluster Control Plane</title>
         <style>
             :root {
-                --bg: #09090b; --panel: #1c1c21; --panel2: #18181b; --hover: #27272a;
-                --border: #3f3f46; --text: #fafafa; --muted: #a1a1aa; --dim: #71717a;
-                --accent: #6366f1; --accent2: #a855f7;
-                --ok: #22c55e; --okbg: rgba(34,197,94,.12);
-                --warn: #f59e0b; --warnbg: rgba(245,158,11,.12);
-                --bad: #ef4444; --badbg: rgba(239,68,68,.12);
-                --radius: 12px; --radius-sm: 8px;
+                --bg: #09090b;
+                --panel: #1c1c21;
+                --panel2: #18181b;
+                --hover: #27272a;
+                --border: #3f3f46;
+                --text: #fafafa;
+                --muted: #a1a1aa;
+                --dim: #71717a;
+                --accent: #6366f1;
+                --accent2: #a855f7;
+                --ok: #22c55e;
+                --okbg: rgba(34, 197, 94, 0.12);
+                --warn: #f59e0b;
+                --warnbg: rgba(245, 158, 11, 0.12);
+                --bad: #ef4444;
+                --badbg: rgba(239, 68, 68, 0.12);
+                --radius: 12px;
+                --radius-sm: 8px;
             }
-            * { box-sizing: border-box; margin: 0; padding: 0; }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
             body {
-                font-family: 'Inter', system-ui, -apple-system, sans-serif;
-                background: var(--bg); color: var(--text); line-height: 1.5;
-                -webkit-font-smoothing: antialiased; padding-bottom: 4rem;
+                font-family:
+                    'Inter',
+                    system-ui,
+                    -apple-system,
+                    sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                line-height: 1.5;
+                -webkit-font-smoothing: antialiased;
+                padding-bottom: 4rem;
             }
             .nav {
-                display: flex; align-items: center; justify-content: space-between;
-                padding: 1rem 1.5rem; background: rgba(24,24,27,.85);
-                border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem 1.5rem;
+                background: rgba(24, 24, 27, 0.85);
+                border-bottom: 1px solid var(--border);
+                position: sticky;
+                top: 0;
+                z-index: 10;
                 backdrop-filter: blur(12px);
             }
             .logo {
-                font-size: 1.1rem; font-weight: 800; letter-spacing: 2px;
+                font-size: 1.1rem;
+                font-weight: 800;
+                letter-spacing: 2px;
                 background: linear-gradient(135deg, var(--accent), var(--accent2));
-                -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
             }
-            .nav-meta { font-size: .8rem; color: var(--muted); display: flex; gap: 1rem; align-items: center; }
-            .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
-            .grid { display: grid; gap: 1rem; }
-            .cols-4 { grid-template-columns: repeat(4, 1fr); }
-            .cols-2 { grid-template-columns: repeat(2, 1fr); }
-            @media (max-width: 780px) { .cols-4 { grid-template-columns: repeat(2,1fr); } .cols-2 { grid-template-columns: 1fr; } }
+            .nav-meta {
+                font-size: 0.8rem;
+                color: var(--muted);
+                display: flex;
+                gap: 1rem;
+                align-items: center;
+            }
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 1.5rem;
+            }
+            .grid {
+                display: grid;
+                gap: 1rem;
+            }
+            .cols-4 {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .cols-2 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            @media (max-width: 780px) {
+                .cols-4 {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+                .cols-2 {
+                    grid-template-columns: 1fr;
+                }
+            }
             .card {
-                background: var(--panel); border: 1px solid var(--border);
-                border-radius: var(--radius); padding: 1.25rem;
+                background: var(--panel);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 1.25rem;
             }
-            .stat { text-align: center; }
-            .stat .n { font-size: 2rem; font-weight: 800; }
-            .stat .l { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: .25rem; }
+            .stat {
+                text-align: center;
+            }
+            .stat .n {
+                font-size: 2rem;
+                font-weight: 800;
+            }
+            .stat .l {
+                font-size: 0.75rem;
+                color: var(--muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-top: 0.25rem;
+            }
             .section-title {
-                font-size: .8rem; font-weight: 700; color: var(--dim); text-transform: uppercase;
-                letter-spacing: 1px; margin: 1.75rem 0 .75rem;
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: var(--dim);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin: 1.75rem 0 0.75rem;
             }
             .health-banner {
-                display: flex; align-items: center; gap: .75rem; padding: 1rem 1.25rem;
-                border-radius: var(--radius); font-weight: 600; margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 1rem 1.25rem;
+                border-radius: var(--radius);
+                font-weight: 600;
+                margin-bottom: 1rem;
             }
-            .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-            .h-HEALTHY { background: var(--okbg); color: var(--ok); } .h-HEALTHY .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-            .h-FORMING { background: var(--warnbg); color: var(--warn); } .h-FORMING .dot { background: var(--warn); }
-            .h-DEGRADED { background: var(--warnbg); color: var(--warn); } .h-DEGRADED .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
-            .h-INCIDENT { background: var(--badbg); color: var(--bad); } .h-INCIDENT .dot { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+            .dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .h-HEALTHY {
+                background: var(--okbg);
+                color: var(--ok);
+            }
+            .h-HEALTHY .dot {
+                background: var(--ok);
+                box-shadow: 0 0 8px var(--ok);
+            }
+            .h-FORMING {
+                background: var(--warnbg);
+                color: var(--warn);
+            }
+            .h-FORMING .dot {
+                background: var(--warn);
+            }
+            .h-DEGRADED {
+                background: var(--warnbg);
+                color: var(--warn);
+            }
+            .h-DEGRADED .dot {
+                background: var(--warn);
+                box-shadow: 0 0 8px var(--warn);
+            }
+            .h-INCIDENT {
+                background: var(--badbg);
+                color: var(--bad);
+            }
+            .h-INCIDENT .dot {
+                background: var(--bad);
+                box-shadow: 0 0 8px var(--bad);
+            }
             .node {
-                background: var(--panel); border: 1px solid var(--border);
-                border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: .75rem;
+                background: var(--panel);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 1rem 1.25rem;
+                margin-bottom: 0.75rem;
             }
-            .node-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
-            .node-name { font-weight: 600; font-size: .95rem; }
-            .node-id { font-size: .7rem; color: var(--dim); font-family: monospace; }
-            .badge { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 600; }
-            .b-on { background: var(--okbg); color: var(--ok); } .b-off { background: var(--badbg); color: var(--bad); }
-            .b-warn { background: var(--warnbg); color: var(--warn); }
-            .node-meta { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: .6rem; font-size: .78rem; color: var(--muted); }
-            .node-meta b { color: var(--text); font-weight: 500; }
-            .node-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .75rem; }
+            .node-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+                flex-wrap: wrap;
+            }
+            .node-name {
+                font-weight: 600;
+                font-size: 0.95rem;
+            }
+            .node-id {
+                font-size: 0.7rem;
+                color: var(--dim);
+                font-family: monospace;
+            }
+            .badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                padding: 0.2rem 0.55rem;
+                border-radius: 999px;
+                font-size: 0.72rem;
+                font-weight: 600;
+            }
+            .b-on {
+                background: var(--okbg);
+                color: var(--ok);
+            }
+            .b-off {
+                background: var(--badbg);
+                color: var(--bad);
+            }
+            .b-warn {
+                background: var(--warnbg);
+                color: var(--warn);
+            }
+            .node-meta {
+                display: flex;
+                gap: 1.25rem;
+                flex-wrap: wrap;
+                margin-top: 0.6rem;
+                font-size: 0.78rem;
+                color: var(--muted);
+            }
+            .node-meta b {
+                color: var(--text);
+                font-weight: 500;
+            }
+            .node-actions {
+                display: flex;
+                gap: 0.4rem;
+                flex-wrap: wrap;
+                margin-top: 0.75rem;
+            }
             .btn {
-                font-family: inherit; font-size: .78rem; font-weight: 600; padding: .4rem .8rem;
-                border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--hover);
-                color: var(--text); cursor: pointer; transition: .15s;
+                font-family: inherit;
+                font-size: 0.78rem;
+                font-weight: 600;
+                padding: 0.4rem 0.8rem;
+                border-radius: var(--radius-sm);
+                border: 1px solid var(--border);
+                background: var(--hover);
+                color: var(--text);
+                cursor: pointer;
+                transition: 0.15s;
             }
-            .btn:hover { border-color: var(--accent); }
-            .btn-danger { background: var(--badbg); color: var(--bad); border-color: transparent; }
-            .btn-danger:hover { background: var(--bad); color: #fff; }
-            .btn-warn { background: var(--warnbg); color: var(--warn); border-color: transparent; }
-            .feed { max-height: 320px; overflow-y: auto; }
-            .feed-row { padding: .55rem .25rem; border-bottom: 1px solid var(--panel2); font-size: .8rem; display: flex; gap: .6rem; align-items: baseline; }
-            .feed-row:last-child { border: none; }
-            .feed-time { color: var(--dim); font-size: .7rem; font-family: monospace; white-space: nowrap; }
-            .sev { padding: .05rem .4rem; border-radius: 4px; font-size: .65rem; font-weight: 700; text-transform: uppercase; }
-            .sev-info { background: rgba(99,102,241,.15); color: var(--accent); }
-            .sev-warning { background: var(--warnbg); color: var(--warn); }
-            .sev-critical { background: var(--badbg); color: var(--bad); }
-            .empty { color: var(--dim); font-size: .82rem; padding: 1rem; text-align: center; }
-            .toolbar { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+            .btn:hover {
+                border-color: var(--accent);
+            }
+            .btn-danger {
+                background: var(--badbg);
+                color: var(--bad);
+                border-color: transparent;
+            }
+            .btn-danger:hover {
+                background: var(--bad);
+                color: #fff;
+            }
+            .btn-warn {
+                background: var(--warnbg);
+                color: var(--warn);
+                border-color: transparent;
+            }
+            .feed {
+                max-height: 320px;
+                overflow-y: auto;
+            }
+            .feed-row {
+                padding: 0.55rem 0.25rem;
+                border-bottom: 1px solid var(--panel2);
+                font-size: 0.8rem;
+                display: flex;
+                gap: 0.6rem;
+                align-items: baseline;
+            }
+            .feed-row:last-child {
+                border: none;
+            }
+            .feed-time {
+                color: var(--dim);
+                font-size: 0.7rem;
+                font-family: monospace;
+                white-space: nowrap;
+            }
+            .sev {
+                padding: 0.05rem 0.4rem;
+                border-radius: 4px;
+                font-size: 0.65rem;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .sev-info {
+                background: rgba(99, 102, 241, 0.15);
+                color: var(--accent);
+            }
+            .sev-warning {
+                background: var(--warnbg);
+                color: var(--warn);
+            }
+            .sev-critical {
+                background: var(--badbg);
+                color: var(--bad);
+            }
+            .empty {
+                color: var(--dim);
+                font-size: 0.82rem;
+                padding: 1rem;
+                text-align: center;
+            }
+            .toolbar {
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+                margin-bottom: 1rem;
+            }
             .toast {
-                position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
-                background: var(--panel); border: 1px solid var(--border); padding: .75rem 1.25rem;
-                border-radius: var(--radius-sm); font-size: .85rem; opacity: 0; transition: opacity .3s;
-                z-index: 50; max-width: 90vw; box-shadow: 0 8px 40px rgba(0,0,0,.4);
+                position: fixed;
+                bottom: 1.5rem;
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--panel);
+                border: 1px solid var(--border);
+                padding: 0.75rem 1.25rem;
+                border-radius: var(--radius-sm);
+                font-size: 0.85rem;
+                opacity: 0;
+                transition: opacity 0.3s;
+                z-index: 50;
+                max-width: 90vw;
+                box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
             }
-            .toast.show { opacity: 1; }
-            .live { display: inline-flex; align-items: center; gap: .35rem; }
-            .live .dot { background: var(--ok); animation: pulse 1.6s infinite; }
-            @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+            .toast.show {
+                opacity: 1;
+            }
+            .live {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+            }
+            .live .dot {
+                background: var(--ok);
+                animation: pulse 1.6s infinite;
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.3;
+                }
+            }
         </style>
     </head>
     <body>
@@ -114,19 +362,31 @@
             <div id="health" class="health-banner h-FORMING"><span class="dot"></span> <span id="health-text">Connecting…</span></div>
 
             <div class="grid cols-4">
-                <div class="card stat"><div class="n" id="s-total">—</div><div class="l">Nodes</div></div>
-                <div class="card stat"><div class="n" id="s-online" style="color:var(--ok)">—</div><div class="l">Online</div></div>
-                <div class="card stat"><div class="n" id="s-unhealthy" style="color:var(--warn)">—</div><div class="l">Unhealthy</div></div>
-                <div class="card stat"><div class="n" id="s-pending">—</div><div class="l">Pending Cmds</div></div>
+                <div class="card stat">
+                    <div class="n" id="s-total">—</div>
+                    <div class="l">Nodes</div>
+                </div>
+                <div class="card stat">
+                    <div class="n" id="s-online" style="color: var(--ok)">—</div>
+                    <div class="l">Online</div>
+                </div>
+                <div class="card stat">
+                    <div class="n" id="s-unhealthy" style="color: var(--warn)">—</div>
+                    <div class="l">Unhealthy</div>
+                </div>
+                <div class="card stat">
+                    <div class="n" id="s-pending">—</div>
+                    <div class="l">Pending Cmds</div>
+                </div>
             </div>
 
             <div class="section-title">Cluster commands</div>
             <div class="toolbar">
-                <button class="btn btn-danger" onclick="act({kind:'lock-cluster'}, 'Lock entire cluster?')">🔒 Lock cluster</button>
-                <button class="btn" onclick="act({kind:'unlock-cluster'})">🔓 Unlock cluster</button>
-                <button class="btn" onclick="act({kind:'consensus', topic:'node-healthy'})">🗳️ Health vote</button>
-                <button class="btn btn-warn" onclick="act({kind:'declare-incident'}, 'Declare a cluster incident?')">⚠️ Declare incident</button>
-                <button class="btn" onclick="act({kind:'resolve-incident'})">✅ Resolve incident</button>
+                <button class="btn btn-danger" onclick="act({ kind: 'lock-cluster' }, 'Lock entire cluster?')">🔒 Lock cluster</button>
+                <button class="btn" onclick="act({ kind: 'unlock-cluster' })">🔓 Unlock cluster</button>
+                <button class="btn" onclick="act({ kind: 'consensus', topic: 'node-healthy' })">🗳️ Health vote</button>
+                <button class="btn btn-warn" onclick="act({ kind: 'declare-incident' }, 'Declare a cluster incident?')">⚠️ Declare incident</button>
+                <button class="btn" onclick="act({ kind: 'resolve-incident' })">✅ Resolve incident</button>
             </div>
 
             <div class="section-title">Nodes</div>
@@ -150,13 +410,17 @@
         <div id="toast" class="toast"></div>
 
         <script>
-            const $ = (id) => document.getElementById(id);
-            const fmtTime = (unix) => {
+            const $ = id => document.getElementById(id);
+            const fmtTime = unix => {
                 if (!unix) return '—';
                 const ms = unix < 1e12 ? unix * 1000 : unix;
                 return new Date(ms).toLocaleTimeString();
             };
-            const esc = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+            const esc = s => {
+                const d = document.createElement('div');
+                d.textContent = String(s ?? '');
+                return d.innerHTML;
+            };
 
             function toast(msg) {
                 const t = $('toast');
@@ -189,15 +453,19 @@
 
             function renderNodes(nodes) {
                 const el = $('nodes');
-                if (!nodes.length) { el.innerHTML = '<div class="card empty">No nodes registered</div>'; return; }
-                el.innerHTML = nodes.map((n) => {
-                    const id = n.identity || {};
-                    const st = n.lastStatus || {};
-                    const online = n.online;
-                    const locked = st.serverLocked || st.locked;
-                    const ets = st.etsLockdown;
-                    const alerts = (n.recentAlerts || []).slice(-3);
-                    return `
+                if (!nodes.length) {
+                    el.innerHTML = '<div class="card empty">No nodes registered</div>';
+                    return;
+                }
+                el.innerHTML = nodes
+                    .map(n => {
+                        const id = n.identity || {};
+                        const st = n.lastStatus || {};
+                        const online = n.online;
+                        const locked = st.serverLocked || st.locked;
+                        const ets = st.etsLockdown;
+                        const alerts = (n.recentAlerts || []).slice(-3);
+                        return `
                     <div class="node">
                       <div class="node-head">
                         <div>
@@ -224,14 +492,18 @@
                         <button class="btn" onclick="act({kind:'unlock-node', workerId:'${esc(n.workerId)}'})">Unlock</button>
                         <button class="btn btn-warn" onclick="act({kind:'clear-ets', workerId:'${esc(n.workerId)}'})">Clear ETS</button>
                       </div>
-                      ${alerts.length ? `<div class="node-meta" style="margin-top:.5rem">${alerts.map(a => `<span class="sev sev-${esc(a.severity||'info')}">${esc(a.type||a)}</span>`).join('')}</div>` : ''}
+                      ${alerts.length ? `<div class="node-meta" style="margin-top:.5rem">${alerts.map(a => `<span class="sev sev-${esc(a.severity || 'info')}">${esc(a.type || a)}</span>`).join('')}</div>` : ''}
                     </div>`;
-                }).join('');
+                    })
+                    .join('');
             }
 
             function renderFeed(elId, rows, mapper, emptyMsg) {
                 const el = $(elId);
-                if (!rows || !rows.length) { el.innerHTML = `<div class="empty">${emptyMsg}</div>`; return; }
+                if (!rows || !rows.length) {
+                    el.innerHTML = `<div class="empty">${emptyMsg}</div>`;
+                    return;
+                }
                 el.innerHTML = rows.slice().reverse().map(mapper).join('');
             }
 
@@ -247,35 +519,47 @@
                     const state = s.health?.state || 'FORMING';
                     const banner = $('health');
                     banner.className = 'health-banner h-' + state;
-                    $('health-text').textContent = `Cluster ${state}` +
-                        (s.health?.unhealthy?.length ? ` — ${s.health.unhealthy.length} unhealthy` : '');
+                    $('health-text').textContent = `Cluster ${state}` + (s.health?.unhealthy?.length ? ` — ${s.health.unhealthy.length} unhealthy` : '');
 
                     renderNodes(s.nodes || []);
 
-                    const [esc_, cmd, cons] = await Promise.all([
-                        api('/api/escalations'), api('/api/commands'), api('/api/consensus')
-                    ]);
+                    const [esc_, cmd, cons] = await Promise.all([api('/api/escalations'), api('/api/commands'), api('/api/consensus')]);
 
-                    renderFeed('escalations', esc_.escalations, (e) => `
+                    renderFeed(
+                        'escalations',
+                        esc_.escalations,
+                        e => `
                         <div class="feed-row">
                           <span class="feed-time">${fmtTime(e.at || e.timestamp)}</span>
-                          <span class="sev sev-${esc(e.severity||'info')}">${esc(e.severity||'info')}</span>
+                          <span class="sev sev-${esc(e.severity || 'info')}">${esc(e.severity || 'info')}</span>
                           <span>${esc(e.type)}: ${esc(e.message || '')}</span>
-                        </div>`, 'No escalations');
+                        </div>`,
+                        'No escalations'
+                    );
 
-                    renderFeed('commands', cmd.commands, (c) => `
+                    renderFeed(
+                        'commands',
+                        cmd.commands,
+                        c => `
                         <div class="feed-row">
                           <span class="feed-time">${fmtTime(c.at)}</span>
                           <span>${esc(c.action || c.kind)} → ${esc(c.workerId || 'all')}</span>
                           <span class="badge ${c.applied === false ? 'b-off' : 'b-on'}">${c.applied === false ? 'refused' : 'ok'}</span>
-                        </div>`, 'No commands yet');
+                        </div>`,
+                        'No commands yet'
+                    );
 
-                    renderFeed('consensus', cons.history, (v) => `
+                    renderFeed(
+                        'consensus',
+                        cons.history,
+                        v => `
                         <div class="feed-row">
                           <span class="feed-time">${fmtTime(v.at)}</span>
                           <span>${esc(v.topic)}</span>
                           <span class="badge ${v.accepted ? 'b-on' : 'b-off'}">${v.decided ? (v.accepted ? 'accepted' : 'rejected') : 'undecided'} ${esc(v.yes ?? '')}/${esc(v.eligible ?? '')}</span>
-                        </div>`, 'No consensus votes yet');
+                        </div>`,
+                        'No consensus votes yet'
+                    );
                 } catch (e) {
                     $('health-text').textContent = 'Connection lost — retrying…';
                 }

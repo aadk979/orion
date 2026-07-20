@@ -2,11 +2,7 @@ import '../../../helpers/bootstrap.js';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    writeToCaller,
-    readFromCaller,
-    removeFromCaller
-} from '../../../../Packages/server/Orion-core/lib/Utils/FileHandler.js';
+import { writeToCaller, readFromCaller, removeFromCaller } from '../../../../Packages/server/Orion-core/lib/Utils/FileHandler.js';
 
 // bootstrap.js chdir'd us into a per-process artifacts dir, so these operate
 // on real (but throwaway) files under gipsy.test-artifacts/.

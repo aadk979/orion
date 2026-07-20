@@ -66,7 +66,6 @@ const defaultConfig = Object.freeze({
 });
 
 class ClusterLinkSystem {
-
     constructor(config = {}) {
         this.config = { ...defaultConfig, ...config };
         this.enabled = this.config.enabled === true;
@@ -118,10 +117,7 @@ class ClusterLinkSystem {
 
         // Both packages resolve from Orion-core's own dependencies; loading them
         // lazily keeps non-clustered deployments free of the requirement.
-        const [rsyncModule, protocolModule] = await Promise.all([
-            import('r-sync'),
-            import('orion-orch/protocol')
-        ]);
+        const [rsyncModule, protocolModule] = await Promise.all([import('r-sync'), import('orion-orch/protocol')]);
 
         this.rsyncModule = rsyncModule;
         this.protocol = protocolModule;
@@ -160,7 +156,7 @@ class ClusterLinkSystem {
         // transport re-creation — register exactly once or every re-registration
         // would add a duplicate handler.
         if (!this._handlerRegistered) {
-            this.rsync.onEvent((event) => this._handleOrchestratorEvent(event));
+            this.rsync.onEvent(event => this._handleOrchestratorEvent(event));
             this._handlerRegistered = true;
         }
     }
@@ -246,12 +242,14 @@ class ClusterLinkSystem {
         if (
             this.config.reRegisterAfterFailures > 0 &&
             this._consecutiveEmitFailures >= this.config.reRegisterAfterFailures &&
-            this.connected && !this._reRegistering
+            this.connected &&
+            !this._reRegistering
         ) {
             this._consecutiveEmitFailures = 0;
             // Fire-and-forget: re-registration must not block the caller's cycle
-            this._reRegisterTransport(`${this.config.reRegisterAfterFailures} consecutive delivery failures`)
-                .catch(err => logger.error(`ClusterLink: re-registration error — ${err.message}`));
+            this._reRegisterTransport(`${this.config.reRegisterAfterFailures} consecutive delivery failures`).catch(err =>
+                logger.error(`ClusterLink: re-registration error — ${err.message}`)
+            );
         }
     }
 
@@ -406,9 +404,7 @@ class ClusterLinkSystem {
             etsLockdown: !!status.etsLockdown,
             elmDegraded: !!status.elmDegraded,
             serverLocked: !!status.serverLocked,
-            memoryPressure: typeof memUsage === 'number'
-                ? memUsage >= this.config.memoryPressureThresholdPercent
-                : false
+            memoryPressure: typeof memUsage === 'number' ? memUsage >= this.config.memoryPressureThresholdPercent : false
         };
     }
 
@@ -434,10 +430,7 @@ class ClusterLinkSystem {
             const alertSeverity = flags[flag] ? severity : 'info';
 
             try {
-                await this.rsync.emitToOrchestrator(
-                    this.protocol.ClusterEvents.NODE_ALERT,
-                    buildAlert(type, alertSeverity, { flag, value: flags[flag] })
-                );
+                await this.rsync.emitToOrchestrator(this.protocol.ClusterEvents.NODE_ALERT, buildAlert(type, alertSeverity, { flag, value: flags[flag] }));
                 this._stats.alertsSent += 1;
                 this._trackEmitSuccess();
             } catch (err) {
@@ -558,9 +551,7 @@ class ClusterLinkSystem {
             const auditTrail = globalAccessPoint.getValue('auditTrailSystem');
             if (!auditTrail?.record) return;
 
-            const issuedBy = envelope.issuedBy && typeof envelope.issuedBy === 'object'
-                ? envelope.issuedBy
-                : { type: 'system', id: null, email: null };
+            const issuedBy = envelope.issuedBy && typeof envelope.issuedBy === 'object' ? envelope.issuedBy : { type: 'system', id: null, email: null };
 
             auditTrail.record({
                 user: {
@@ -579,7 +570,7 @@ class ClusterLinkSystem {
                     issuedByType: issuedBy.type || 'system',
                     cluster: this.config.cluster,
                     workerId: this.rsync?.workerId || null,
-                    errorCode: result?.ok === true ? null : (result?.error?.code || null)
+                    errorCode: result?.ok === true ? null : result?.error?.code || null
                 }
             });
         } catch (err) {
@@ -596,7 +587,15 @@ class ClusterLinkSystem {
         const { ClusterCommands } = this.protocol;
         const systemsControl = globalAccessPoint.getValue('orionSystemsControl');
 
-        const noControlNeeded = [ClusterCommands.PING, ClusterCommands.IDENTIFY, ClusterCommands.ADD_CLIENT_URLS];
+        const noControlNeeded = [
+            ClusterCommands.PING,
+            ClusterCommands.IDENTIFY,
+            ClusterCommands.ADD_CLIENT_URLS,
+            // secrets:* commands run against the secrets-manager registry, not SystemsControl
+            ClusterCommands.SECRETS_LIST_KIDS,
+            ClusterCommands.SECRETS_REVOKE_KIDS,
+            ClusterCommands.SECRETS_FORCE_ROTATE
+        ];
         if (!systemsControl && !noControlNeeded.includes(action)) {
             throw new Error('OrionSystemsControl unavailable on this node');
         }
@@ -658,6 +657,19 @@ class ClusterLinkSystem {
             case ClusterCommands.ADD_CLIENT_URLS:
                 return this._addClientUrls(args);
 
+            case ClusterCommands.SECRETS_LIST_KIDS:
+                return this._listSecretsKids();
+
+            case ClusterCommands.SECRETS_REVOKE_KIDS:
+                this._requireArg(args, 'kids');
+                if (!Array.isArray(args.kids) || args.kids.length === 0) {
+                    throw new Error('Command argument "kids" must be a non-empty array');
+                }
+                return this._revokeSecretsKids(args.kids);
+
+            case ClusterCommands.SECRETS_FORCE_ROTATE:
+                return this._forceRotateSecrets(args);
+
             case ClusterCommands.START_MEMORY_MONITOR:
                 systemsControl.reactivateMemoryMonitoring();
                 return { applied: true };
@@ -715,9 +727,7 @@ class ClusterLinkSystem {
                 break;
 
             case ConsensusTopics.MEMORY_PRESSURE: {
-                const threshold = typeof params.thresholdPercent === 'number'
-                    ? params.thresholdPercent
-                    : this.config.memoryPressureThresholdPercent;
+                const threshold = typeof params.thresholdPercent === 'number' ? params.thresholdPercent : this.config.memoryPressureThresholdPercent;
                 const usage = status?.memoryMonitor?.usagePercent;
                 vote = typeof usage === 'number' ? usage >= threshold : false;
                 details = { usagePercent: usage ?? null, threshold };
@@ -727,9 +737,7 @@ class ClusterLinkSystem {
             case ConsensusTopics.ABUSE_HIGH: {
                 const minBlocked = typeof params.minBlocked === 'number' ? params.minBlocked : 1;
                 const stats = status?.abuseDetection || {};
-                const blocked = Number(
-                    stats.blockedActors ?? stats.currentlyBlocked ?? stats.blocked ?? 0
-                );
+                const blocked = Number(stats.blockedActors ?? stats.currentlyBlocked ?? stats.blocked ?? 0);
                 vote = blocked >= minBlocked;
                 details = { blocked, minBlocked };
                 break;
@@ -768,6 +776,62 @@ class ClusterLinkSystem {
         if (args?.[name] === undefined || args?.[name] === null || args?.[name] === '') {
             throw new Error(`Command argument "${name}" is required`);
         }
+    }
+
+    // ── Secrets-manager command executors ─────────────────────────────────────
+
+    /** Every live TokenSecretsManager / SignatureSecretsManager on this node. */
+    _getSecretsManagers() {
+        const registry = globalAccessPoint.getValue('secretsManagersRegistry');
+        if (!Array.isArray(registry) || registry.length === 0) {
+            throw new Error('No secrets managers registered on this node');
+        }
+        return registry;
+    }
+
+    _listSecretsKids() {
+        return {
+            managers: this._getSecretsManagers().map(({ kind, domain, manager }) => ({ kind, domain, ...manager.describeKeys() }))
+        };
+    }
+
+    /**
+     * Fans the kid array to every manager — each self-discovers whether a kid
+     * lives in its signing pool (revoke + regenerate) or verification pool
+     * (wipe), and deletes it from its Redis hash either way. One manager
+     * failing must not stop the others: revocation is maximal by design, so
+     * failures are reported per manager instead of aborting the sweep.
+     */
+    async _revokeSecretsKids(kids) {
+        const results = [];
+        for (const { kind, domain, manager } of this._getSecretsManagers()) {
+            try {
+                results.push({ kind, domain, ok: true, ...(await manager.forceRotate({ kids })) });
+            } catch (err) {
+                results.push({ kind, domain, ok: false, error: err.message });
+            }
+        }
+        return { results };
+    }
+
+    /** Full decommission of this node's signing pools (optionally one manager family). */
+    async _forceRotateSecrets(args = {}) {
+        const managers = this._getSecretsManagers().filter(
+            entry => (!args.kind || entry.kind === args.kind) && (!args.domain || entry.domain === args.domain)
+        );
+        if (managers.length === 0) {
+            throw new Error(`No secrets managers match kind="${args.kind || '*'}" domain="${args.domain || '*'}"`);
+        }
+
+        const results = [];
+        for (const { kind, domain, manager } of managers) {
+            try {
+                results.push({ kind, domain, ok: true, ...(await manager.forceRotate({ full: true })) });
+            } catch (err) {
+                results.push({ kind, domain, ok: false, error: err.message });
+            }
+        }
+        return { results };
     }
 
     // ── Observability ─────────────────────────────────────────────────────────

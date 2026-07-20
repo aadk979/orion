@@ -37,7 +37,9 @@ export default function Observability() {
 
             <div className="tabs">
                 {TABS.map(t => (
-                    <button key={t.id} className={tab.id === t.id ? 'active' : ''} onClick={() => setTab(t)}>{t.label}</button>
+                    <button key={t.id} className={tab.id === t.id ? 'active' : ''} onClick={() => setTab(t)}>
+                        {t.label}
+                    </button>
                 ))}
             </div>
 
@@ -47,9 +49,23 @@ export default function Observability() {
             {tab.id === 'commands' && Array.isArray(data) && (
                 <div className="panel table-wrap">
                     <table>
-                        <thead><tr><th>At</th><th>Worker</th><th>Action</th><th>Issued by</th><th>OK</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>At</th>
+                                <th>Worker</th>
+                                <th>Action</th>
+                                <th>Issued by</th>
+                                <th>OK</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            {data.length === 0 && <tr><td colSpan={5} className="sub">No commands issued yet.</td></tr>}
+                            {data.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="sub">
+                                        No commands issued yet.
+                                    </td>
+                                </tr>
+                            )}
                             {[...data].reverse().map((entry, i) => (
                                 <tr key={i}>
                                     <td className="mono">{fmtTime(entry.at)}</td>
@@ -65,7 +81,9 @@ export default function Observability() {
             )}
 
             {tab.id !== 'commands' && data !== null && (
-                <pre className="json" style={{ maxHeight: 600 }}>{JSON.stringify(data, null, 2)}</pre>
+                <pre className="json" style={{ maxHeight: 600 }}>
+                    {JSON.stringify(data, null, 2)}
+                </pre>
             )}
         </Shell>
     );

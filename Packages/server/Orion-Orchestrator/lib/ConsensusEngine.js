@@ -33,7 +33,6 @@ const defaultOptions = Object.freeze({
 });
 
 class ConsensusEngine {
-
     /**
      * @param {(workerId, action, args, timeoutMs) => Promise} commandFn - orchestrator command executor
      * @param {() => Promise<Array<{id: string}>>} eligibleVotersFn - returns ACTIVE transport workers
@@ -56,18 +55,14 @@ class ConsensusEngine {
         const opts = { ...defaultOptions, ...options };
         const voters = await this._eligibleVotersFn();
 
-        const ballots = await Promise.allSettled(
-            voters.map(v => this._commandFn(v.id, ClusterCommands.CONSENSUS_VOTE, { topic, params }, opts.timeoutMs))
-        );
+        const ballots = await Promise.allSettled(voters.map(v => this._commandFn(v.id, ClusterCommands.CONSENSUS_VOTE, { topic, params }, opts.timeoutMs)));
 
         const votes = ballots.map((b, i) => {
             const workerId = voters[i].id;
             if (b.status === 'fulfilled' && b.value?.ok === true) {
                 return { workerId, responded: true, vote: b.value.result?.vote === true, details: b.value.result?.details || {} };
             }
-            const reason = b.status === 'rejected'
-                ? (b.reason?.message || 'vote failed')
-                : (b.value?.error?.message || 'node rejected the vote');
+            const reason = b.status === 'rejected' ? b.reason?.message || 'vote failed' : b.value?.error?.message || 'node rejected the vote';
             return { workerId, responded: false, vote: null, error: reason };
         });
 
@@ -77,9 +72,7 @@ class ConsensusEngine {
         const no = votes.filter(v => v.vote === false).length;
 
         // Decidability: quorum of the fleet must have actually answered.
-        const decided = eligible > 0 &&
-            responded >= opts.minVoters &&
-            responded / eligible >= opts.quorumRatio;
+        const decided = eligible > 0 && responded >= opts.minVoters && responded / eligible >= opts.quorumRatio;
 
         // Acceptance is measured against ELIGIBLE voters, so silent nodes make
         // acceptance harder, never easier.

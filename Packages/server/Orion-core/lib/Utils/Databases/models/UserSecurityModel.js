@@ -2,15 +2,11 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const dbModule = new SafeModuleHandler('Database', 'db', 'UserSecurityModel.js');
 
-
 const query = (text, params) => dbModule.getModule().query(text, params);
 
 export const UserSecurityModel = {
     async getOrCreate(uid) {
-        await query(
-            `INSERT INTO user_security (user_uid) VALUES ($1) ON CONFLICT DO NOTHING`,
-            [uid]
-        );
+        await query(`INSERT INTO user_security (user_uid) VALUES ($1) ON CONFLICT DO NOTHING`, [uid]);
         const result = await query('SELECT * FROM user_security WHERE user_uid = $1', [uid]);
         return result.rows[0];
     },
@@ -26,25 +22,16 @@ export const UserSecurityModel = {
     },
 
     async getTwoFAEnabled(uid) {
-        const result = await query(
-            'SELECT two_fa_enabled FROM user_security WHERE user_uid = $1',
-            [uid]
-        );
+        const result = await query('SELECT two_fa_enabled FROM user_security WHERE user_uid = $1', [uid]);
         return result.rows[0]?.two_fa_enabled || false;
     },
 
     async setRevocationDate(uid, date) {
-        await query(
-            `UPDATE user_security SET revocation_date = $1, updated_at = NOW() WHERE user_uid = $2`,
-            [date, uid]
-        );
+        await query(`UPDATE user_security SET revocation_date = $1, updated_at = NOW() WHERE user_uid = $2`, [date, uid]);
     },
 
     async getRevocationDate(uid) {
-        const result = await query(
-            'SELECT revocation_date FROM user_security WHERE user_uid = $1',
-            [uid]
-        );
+        const result = await query('SELECT revocation_date FROM user_security WHERE user_uid = $1', [uid]);
         return result.rows[0]?.revocation_date || null;
     }
 };

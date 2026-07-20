@@ -29,10 +29,10 @@ const sendJson = (res, status, body) => {
     res.end(payload);
 };
 
-const readBody = (req) =>
-    new Promise((resolve) => {
+const readBody = req =>
+    new Promise(resolve => {
         let data = '';
-        req.on('data', (c) => {
+        req.on('data', c => {
             data += c;
             if (data.length > 1_000_000) req.destroy();
         });
@@ -50,7 +50,7 @@ const readBody = (req) =>
  * @param {{ port: number, username: string, password: string }} options
  */
 export function startDashboard(orchestrator, { port, username, password }) {
-    const checkAuth = (req) => {
+    const checkAuth = req => {
         const header = req.headers['authorization'] || '';
         if (!header.startsWith('Basic ')) return false;
         const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
@@ -60,7 +60,7 @@ export function startDashboard(orchestrator, { port, username, password }) {
         return timingSafeEqual(user, username) && timingSafeEqual(pass, password);
     };
 
-    const runAction = async (payload) => {
+    const runAction = async payload => {
         const { kind, workerId, action, args = {}, topic } = payload;
 
         switch (kind) {

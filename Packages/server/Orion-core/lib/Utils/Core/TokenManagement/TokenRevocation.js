@@ -1,0 +1,239 @@
+/**
+ * Granular token revocation.
+ *
+ * Revocation for the stateful tiers (2-4) works by deleting the token rows —
+ * the mirrored validation pipeline in internals/sessionTokenCore.js re-reads
+ * the row on every request, so a revoked token fails its next use with
+ * TOKEN-*::TOKEN-ID-NOT-FOUND::A::p. That code is flagged logout: true in the
+ * error registry, which makes respondWithError clear the session cookies and
+ * emit the orion-session-logout header the client SDK reacts to.
+ *
+ * Tier 1 tokens are stateless by design: nothing is persisted, so nothing can
+ * be revoked before natural expiry. Every entry point here refuses at tier 1
+ * (TOKEN-REVOCATION::STATELESS-TIER::A::p) rather than pretending.
+ *
+ * Three revocation scopes, all owner-scopable and filterable:
+ *   revokeTokenById        — one token row
+ *   revokeTokensByLinkCode — a session pair (access + refresh share link_code)
+ *   revokeAllTokensForUser — everything for a uid, minus optional exceptions
+ */
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { TokenModel } from '../../Databases/models/index.js';
+import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { recordTokenEvent } from './internals/tokenAudit.js';
+
+const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'TokenRevocation.js');
+
+const SESSION_TOKEN_TYPES = ['ACCESS_TOKEN', 'REFRESH_TOKEN'];
+
+const toRevokedRef = row => ({ tokenId: row.token_id, uid: row.user_uid, type: row.type, linkCode: row.link_code });
+
+const statelessTierRefusal = () => {
+    if (globalAccessPoint.tokenSecurityTier() === 1) {
+        return { error: true, errorCode: 'TOKEN-REVOCATION::STATELESS-TIER::A::p' };
+    }
+    return null;
+};
+
+const auditRevocation = ({ functionName, status, impact, uid, ip, metadata, errorCode }) => {
+    const requestMetadata = requestContext.getStore();
+
+    recordTokenEvent(auditTrailSystemModule, {
+        source: 'TokenRevocation.js',
+        functionName,
+        ip: ip || requestMetadata?.ip,
+        user: { uid },
+        device: { userAgent: requestMetadata?.userAgent },
+        action: status === 'SUCCESS' ? 'TOKEN_REVOCATION_SUCCESS' : 'TOKEN_REVOCATION_ATTEMPT',
+        status,
+        impact,
+        metadata,
+        errorCode
+    });
+};
+
+/**
+ * Shared execution path: run the filtered delete, audit, shape the result.
+ * `target` is only used for audit/error texts; `requireMatch` controls whether
+ * zero deletions is NOT-FOUND (targeted revokes) or a valid no-op (revoke-all).
+ */
+async function executeRevocation({ functionName, filters, uid, reason, revokedBy, ip, target, requireMatch }) {
+    try {
+        const deletedRows = await TokenModel.deleteTokensWhere(filters);
+
+        if (requireMatch && deletedRows.length === 0) {
+            auditRevocation({
+                functionName,
+                status: 'FAILED',
+                impact: `Token revocation matched nothing — ${target}`,
+                uid,
+                ip,
+                metadata: { reason, revokedBy, target },
+                errorCode: 'TOKEN-REVOCATION::NOT-FOUND::A::p'
+            });
+            return { error: true, errorCode: 'TOKEN-REVOCATION::NOT-FOUND::A::p' };
+        }
+
+        const revokedTokens = deletedRows.map(toRevokedRef);
+
+        auditRevocation({
+            functionName,
+            status: 'SUCCESS',
+            impact: `Revoked ${revokedTokens.length} token(s) — ${target}`,
+            uid,
+            ip,
+            metadata: { reason, revokedBy, target, revokedCount: revokedTokens.length, revokedTokenIds: revokedTokens.map(t => t.tokenId) }
+        });
+
+        return { error: false, revokedCount: revokedTokens.length, revokedTokens };
+    } catch (e) {
+        auditRevocation({
+            functionName,
+            status: 'FAILED',
+            impact: `Token revocation failed — ${e.message}`,
+            uid,
+            ip,
+            metadata: { reason, revokedBy, target },
+            errorCode: 'TOKEN-REVOCATION::FAILED::A::i'
+        });
+        return { error: true, errorCode: 'TOKEN-REVOCATION::FAILED::A::i' };
+    }
+}
+
+/**
+ * Revoke a single token by its tokenId.
+ *
+ * @param {string} tokenId
+ * @param {object} [options]
+ * @param {string} [options.uid]       scope to this owner — a tokenId belonging to
+ *                                     anyone else becomes NOT-FOUND (always pass it
+ *                                     for user-initiated revocation)
+ * @param {string} [options.reason]    audit-trail reason
+ * @param {string} [options.revokedBy] uid/actor performing the revocation
+ * @param {string} [options.ip]        override for non-request contexts
+ */
+async function revokeTokenById(tokenId, { uid = null, reason = 'unspecified', revokedBy = null, ip = null } = {}) {
+    const refusal = statelessTierRefusal();
+    if (refusal) return refusal;
+
+    if (!tokenId) return { error: true, errorCode: 'TOKEN-REVOCATION::INVALID-TARGET::A::p' };
+
+    return executeRevocation({
+        functionName: 'revokeTokenById',
+        filters: { tokenId, uid },
+        uid,
+        reason,
+        revokedBy,
+        ip,
+        target: `tokenId ${tokenId}`,
+        requireMatch: true
+    });
+}
+
+/**
+ * Revoke every token carrying an access-token link code — i.e. one whole
+ * session (the access token and the refresh token minted alongside it).
+ *
+ * @param {string} linkCode
+ * @param {object} [options]
+ * @param {string} [options.uid]     scope to this owner
+ * @param {string[]} [options.types] restrict to specific token types
+ * @param {string} [options.reason]
+ * @param {string} [options.revokedBy]
+ * @param {string} [options.ip]
+ */
+async function revokeTokensByLinkCode(linkCode, { uid = null, types = null, reason = 'unspecified', revokedBy = null, ip = null } = {}) {
+    const refusal = statelessTierRefusal();
+    if (refusal) return refusal;
+
+    if (!linkCode) return { error: true, errorCode: 'TOKEN-REVOCATION::INVALID-TARGET::A::p' };
+
+    return executeRevocation({
+        functionName: 'revokeTokensByLinkCode',
+        filters: { linkCode, uid, types },
+        uid,
+        reason,
+        revokedBy,
+        ip,
+        target: `linkCode ${linkCode}`,
+        requireMatch: true
+    });
+}
+
+/**
+ * Revoke all of a user's tokens, with granular carve-outs. Zero matches is a
+ * valid outcome (nothing was active), not an error.
+ *
+ * @param {string} uid
+ * @param {object} [options]
+ * @param {string[]} [options.types]            defaults to session tokens
+ *                                              (ACCESS_TOKEN + REFRESH_TOKEN);
+ *                                              pass null for every type
+ * @param {string[]} [options.exceptTokenIds]   tokens to spare
+ * @param {string[]} [options.exceptLinkCodes]  sessions to spare (e.g. the caller's
+ *                                              own session for a "sign out everywhere
+ *                                              else" experience)
+ * @param {string} [options.reason]
+ * @param {string} [options.revokedBy]
+ * @param {string} [options.ip]
+ */
+async function revokeAllTokensForUser(
+    uid,
+    { types = SESSION_TOKEN_TYPES, exceptTokenIds = null, exceptLinkCodes = null, reason = 'unspecified', revokedBy = null, ip = null } = {}
+) {
+    const refusal = statelessTierRefusal();
+    if (refusal) return refusal;
+
+    if (!uid) return { error: true, errorCode: 'TOKEN-REVOCATION::INVALID-TARGET::A::p' };
+
+    return executeRevocation({
+        functionName: 'revokeAllTokensForUser',
+        filters: { uid, types, exceptTokenIds, exceptLinkCodes },
+        uid,
+        reason,
+        revokedBy,
+        ip,
+        target: `all tokens for uid ${uid}`,
+        requireMatch: false
+    });
+}
+
+/**
+ * Active session view for a user: non-expired session token rows grouped by
+ * link code, so an access/refresh pair reads as one session. Rows without a
+ * link code stand alone under their tokenId.
+ */
+async function listActiveTokenSessions(uid) {
+    const refusal = statelessTierRefusal();
+    if (refusal) return refusal;
+
+    if (!uid) return { error: true, errorCode: 'TOKEN-REVOCATION::INVALID-TARGET::A::p' };
+
+    try {
+        const rows = await TokenModel.getActiveTokens(uid);
+
+        const sessions = new Map();
+        for (const row of rows) {
+            if (!SESSION_TOKEN_TYPES.includes(row.type)) continue;
+
+            const key = row.link_code || row.token_id;
+            if (!sessions.has(key)) {
+                sessions.set(key, {
+                    linkCode: row.link_code,
+                    userAgent: row.user_agent,
+                    securityTier: row.security_tier,
+                    createdAt: row.created_at,
+                    tokens: []
+                });
+            }
+            sessions.get(key).tokens.push({ tokenId: row.token_id, type: row.type, expiry: row.expiry });
+        }
+
+        return { error: false, sessions: [...sessions.values()] };
+    } catch (e) {
+        return { error: true, errorCode: 'TOKEN-REVOCATION::FAILED::A::i' };
+    }
+}
+
+export { revokeTokenById, revokeTokensByLinkCode, revokeAllTokensForUser, listActiveTokenSessions, SESSION_TOKEN_TYPES };

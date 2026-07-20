@@ -1,6 +1,6 @@
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { hashString, verifyHash, sha256Hash } from '../../CryptoFunctions.js';
-import { getFutureUnixTime, getCurrentUnixTime, parseDuration } from '../../Date&Time.js';
+import { getFutureUnixTime, getCurrentUnixTime } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel, PasskeyModel, TOTPModel, RequestModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { generateRandomNumber, generateRequestId, generateChallenge } from '../../valueGenerator.js';
 import { generateAndSendMail } from '../../Mail/sendMail.js';
 import { cronScheduler } from '../../Cron.js';
-import { parseCookieData, stringifyCookieData } from '../../CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { verifyTOTPToken } from '../AccountManagment/TOTP.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../AccountManagment/Passkeys/completeAuthentication.js';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
@@ -19,7 +19,6 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'StepUpAuth.js');
 const signatureSecretsManagerModule = new SafeModuleHandler('SignatureSecretsManager(internal)', 'SIGNATURE_SECRETS_MANAGER_internal', 'StepUpAuth.js');
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERNAL TOKEN HELPERS
@@ -659,13 +658,7 @@ const resolveStepUpContext = async (request, response) => {
  * @param {string} token    Signed Step-Up Auth Token
  */
 const setStepUpTokenCookie = (response, token) => {
-    response.cookie('STEP_UP_TOKEN', stringifyCookieData(token), {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        path: '/',
-        maxAge: parseDuration('5h')
-    });
+    setManagedCookie(response, 'STEP_UP_TOKEN', token);
 };
 
 /**
@@ -675,13 +668,7 @@ const setStepUpTokenCookie = (response, token) => {
  * @param {string} key      Cookie name
  */
 const clearCookie = (response, key) => {
-    response.cookie(key, '', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        path: '/',
-        maxAge: 0
-    });
+    clearManagedCookie(response, key);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -726,21 +713,9 @@ const routeHandlerInitiateStepUpEmail = async (request, response) => {
 
     // Store the request ID and flow secret in separate httpOnly cookies so the
     // verify handler can reconstruct the full challenge context.
-    response.cookie('stepUpEmailReqId', stringifyCookieData(callback.reqId), {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        path: '/',
-        maxAge: parseDuration('10m')
-    });
+    setManagedCookie(response, 'stepUpEmailReqId', callback.reqId);
 
-    response.cookie('stepUpFlowSecret', stringifyCookieData(callback.flowSecret), {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        path: '/',
-        maxAge: parseDuration('10m')
-    });
+    setManagedCookie(response, 'stepUpFlowSecret', callback.flowSecret);
 
     return respondWithSuccess(response, 200, { sent: true });
 };
@@ -803,15 +778,8 @@ const routeHandlerGenerateStepUpPasskeyOptions = async (request, response) => {
     if (callback.error) return respondWithError(response, callback.errorCode);
 
     if (callback.cookies) {
-        for (let i = 0; i < callback.cookies.length; i++) {
-            const cookie = callback.cookies[i];
-            response.cookie(cookie.key, stringifyCookieData(cookie.data), {
-                httpOnly: true,
-                secure: true,
-                sameSite: 'None',
-                path: '/',
-                maxAge: cookie.maxAge
-            });
+        for (const cookie of callback.cookies) {
+            setManagedCookie(response, cookie.key, cookie.data);
         }
     }
 

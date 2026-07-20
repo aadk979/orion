@@ -12,6 +12,12 @@ class ApiInterface {
         this.baseUrl = baseUrl;
         this.nameSpace = nameSpace;
         this.slug = slug;
+
+        // Set by the Orion root: invoked whenever the server flags a response
+        // with orion-session-logout, i.e. the session on this device is dead
+        // (revoked / expired beyond refresh / tampered). Central teardown —
+        // individual API handlers never need to interpret token error codes.
+        this.onSessionInvalid = null;
     }
 
     // NOTE: The custom DIP integrity envelope and hybrid transport-encryption layer
@@ -41,6 +47,12 @@ class ApiInterface {
             if (String(refresh) === 'true') {
                 window.location.reload();
             }
+        }
+
+        const sessionLogout = response.headers.get('orion-session-logout') || response.headers.get('Orion-Session-Logout');
+
+        if (String(sessionLogout) === 'true' && typeof this.onSessionInvalid === 'function') {
+            await this.onSessionInvalid();
         }
 
         const flow = response.headers.get('orion-flow-activation') || response.headers.get('Orion-Flow-Activation');

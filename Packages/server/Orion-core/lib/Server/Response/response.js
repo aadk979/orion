@@ -1,7 +1,8 @@
 import { internalErrors } from '../../Errors/internal-errors.js';
 import { logger } from '../../Utils/logger.js';
+import { clearManagedCookie } from '../../Utils/CookieUtils.js';
 
-const EXPOSED_HEADERS = ['orion-flow-activation', 'orion-response-refresh', 'orion-served-by'];
+const EXPOSED_HEADERS = ['orion-flow-activation', 'orion-response-refresh', 'orion-served-by', 'orion-session-logout'];
 
 const respondWithError = (response, errorCode) => {
     if (!internalErrors[errorCode]) {
@@ -11,7 +12,8 @@ const respondWithError = (response, errorCode) => {
     const trueError = internalErrors[errorCode];
 
     // If the error has a clientSafeErrorCode, swap it out so sensitive details are not exposed
-    const clientError = (trueError?.clientSafeErrorCode && internalErrors[trueError.clientSafeErrorCode]) ? internalErrors[trueError.clientSafeErrorCode] : trueError;
+    const clientError =
+        trueError?.clientSafeErrorCode && internalErrors[trueError.clientSafeErrorCode] ? internalErrors[trueError.clientSafeErrorCode] : trueError;
 
     response.setHeader('orion-response-status', clientError?.customStatus || clientError?.status || 'UNKNOWN');
 
@@ -21,6 +23,16 @@ const respondWithError = (response, errorCode) => {
 
     if (clientError?.flow) {
         response.setHeader('orion-flow-activation', clientError.flow);
+    }
+
+    // logout-flagged errors mean the session on this device is no longer usable.
+    // Tear it down here — every response path used to be responsible for its own
+    // cookie clearing and most forgot — and surface the signal as a header so the
+    // client SDK can drop its auth state without parsing response bodies.
+    if (clientError?.logout === true) {
+        clearManagedCookie(response, 'ACCESS_TOKEN');
+        clearManagedCookie(response, 'REFRESH_TOKEN');
+        response.setHeader('orion-session-logout', 'true');
     }
 
     const error = clientError || internalErrors['GENERAL::UNKNOWN-ERROR::A::i'];

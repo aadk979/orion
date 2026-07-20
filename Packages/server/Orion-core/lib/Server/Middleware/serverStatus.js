@@ -4,17 +4,16 @@ import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
 
 const volatileSecretsManagerModule = new SafeModuleHandler('VolatileSecretsManager', 'volatileSecretsManager', 'serverStatus.js');
 
-
 const serverStatusMiddlware = (request, response, next) => {
     const etsLockdown = globalAccessPoint.ETS_LOCKDOWN();
-    const orionSystemsControlServerLock = globalAccessPoint.getValue("OrionSystemsControlServerLock");
+    const orionSystemsControlServerLock = globalAccessPoint.getValue('OrionSystemsControlServerLock');
 
     if (orionSystemsControlServerLock) {
         return respondWithError(response, 'GENERAL::SERVER-LOCKDOWN::A::i');
     }
 
     if (etsLockdown) {
-        return respondWithError(response, 'SYSTEM::UNHEALTHY::A::i');  // now defined in Errors/System/system.js
+        return respondWithError(response, 'SYSTEM::UNHEALTHY::A::i'); // now defined in Errors/System/system.js
     }
 
     const systemsReady = volatileSecretsManagerModule.getModule().ready();

@@ -8,7 +8,6 @@ import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'requestMetadata.js');
 
-
 const RULES = [
     {
         applyTo: 'fingerprint',

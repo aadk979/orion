@@ -12,7 +12,7 @@ const generateTOTPSecret = async () => {
 };
 
 const verifyTOTPToken = async (token, secret, window = 1) => {
-    const Function = async (parameters) => {
+    const Function = async parameters => {
         const result = await verify({ token: parameters.token, secret: parameters.secret, window: parameters.window });
 
         if (result.valid) {
@@ -27,7 +27,7 @@ const verifyTOTPToken = async (token, secret, window = 1) => {
 };
 
 const generateTOTPAuthURI = async (secret, accountName, issuer) => {
-    const Function = async (parameters) => {
+    const Function = async parameters => {
         const uri = generateURI({
             label: parameters.accountName,
             issuer: parameters.issuer,

@@ -11,15 +11,13 @@ import { validateRefreshToken, generateRefreshToken } from '../../Utils/Core/Tok
 import { validateNoAuthToken } from '../../Utils/Core/SecurityManagment/NoAuthToken.js';
 import { defaultServerRoutes } from '../Endpoints/index.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
-import { parseDuration } from '../../Utils/Date&Time.js';
-import { parseCookieData, stringifyCookieData } from '../../Utils/CookieUtils.js';
+import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../Utils/CookieUtils.js';
 import { slugParser } from '../../Utils/Parsers.js';
 import { generateStepUpContextToken } from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
 import { requestContext } from './requestMetadata.js';
 import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'authentication.js');
-
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -83,9 +81,9 @@ const STEP_UP_FLOW_ROUTES = [
 ];
 
 const handleSessionClearance = parameters => {
-    parameters.response.cookie('ACCESS_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(parameters.response, 'ACCESS_TOKEN');
 
-    parameters.response.cookie('REFRESH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+    clearManagedCookie(parameters.response, 'REFRESH_TOKEN');
 };
 
 const handleIsAuthStateCheck = parameters => {
@@ -191,13 +189,7 @@ const authenticationMiddleware = async (request, response, next) => {
 
                         // Set a signed step-up context cookie so flow routes can identify the user
                         const stepUpContextToken = await generateStepUpContextToken(uid);
-                        parameters.response.cookie('stepUpContext', stepUpContextToken, {
-                            httpOnly: true,
-                            secure: true,
-                            sameSite: 'None',
-                            path: '/',
-                            maxAge: parseDuration('10m')
-                        });
+                        setManagedCookie(parameters.response, 'stepUpContext', stepUpContextToken);
 
                         return respondWithError(parameters.response, 'STEP-UP::REQUIRED::A::p');
                         // respondWithError auto-sets: orion-flow-activation: FLOW-STEP-UP-AUTH
@@ -227,13 +219,7 @@ const authenticationMiddleware = async (request, response, next) => {
                                 }
 
                                 const stepUpContextToken = await generateStepUpContextToken(uid);
-                                parameters.response.cookie('stepUpContext', stepUpContextToken, {
-                                    httpOnly: true,
-                                    secure: true,
-                                    sameSite: 'None',
-                                    path: '/',
-                                    maxAge: parseDuration('10m')
-                                });
+                                setManagedCookie(parameters.response, 'stepUpContext', stepUpContextToken);
 
                                 return respondWithError(parameters.response, 'STEP-UP::REQUIRED::A::p');
                             }
@@ -292,21 +278,9 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, verification.errorCode);
                         }
 
-                        const tokenLifespans = systemConfigModule.getModule().tokens.lifespans;
+                        setManagedCookie(parameters.response, 'ACCESS_TOKEN', newAccessToken.token);
 
-                        parameters.response.cookie('ACCESS_TOKEN', stringifyCookieData(newAccessToken.token), {
-                            httpOnly: true,
-                            secure: true,
-                            sameSite: 'None',
-                            maxAge: parseDuration(tokenLifespans.accessTokens)
-                        });
-
-                        parameters.response.cookie('REFRESH_TOKEN', stringifyCookieData(newRefreshToken.token), {
-                            httpOnly: true,
-                            secure: true,
-                            sameSite: 'None',
-                            maxAge: parseDuration(tokenLifespans.refreshTokens)
-                        });
+                        setManagedCookie(parameters.response, 'REFRESH_TOKEN', newRefreshToken.token);
                     }
                 }
 
@@ -353,7 +327,7 @@ const authenticationMiddleware = async (request, response, next) => {
                 const noAuthVerification = await validateNoAuthToken(noAuthToken, ip, fingerprint, userAgent);
 
                 if (noAuthVerification.error || !noAuthVerification.valid) {
-                    parameters.response.cookie('NO_AUTH_TOKEN', '', { httpOnly: true, secure: true, sameSite: 'None', maxAge: 0 });
+                    clearManagedCookie(parameters.response, 'NO_AUTH_TOKEN');
 
                     return respondWithError(parameters.response, noAuthVerification.errorCode);
                 }

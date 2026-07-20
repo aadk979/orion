@@ -6,7 +6,7 @@ const DEFAULTS = {
     intervalMs: 10_000,
     resolutionMs: 20,
     lagWarningMs: 100,
-    lagCriticalMs: 500,
+    lagCriticalMs: 500
 };
 
 class EventLoopMonitor {

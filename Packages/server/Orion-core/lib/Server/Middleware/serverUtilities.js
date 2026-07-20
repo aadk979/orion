@@ -14,7 +14,6 @@ const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'lo
 const circuitBreakerSystemModule = new SafeModuleHandler('CircuitBreakerSystem', 'circuitBreakerSystem', 'serverUtilities.js');
 const abuseDetectionSystemModule = new SafeModuleHandler('AbuseDetectionSystem', 'abuseDetectionSystem', 'serverUtilities.js');
 
-
 const serverUtilitiesMiddleware = async (request, response, next) => {
     const systemConfig = systemConfigModule.getModule();
     const server = serverModule.getModule();
@@ -27,7 +26,7 @@ const serverUtilitiesMiddleware = async (request, response, next) => {
             const elmDegraded = !!globalAccessPoint.getValue('ELM_DEGRADED');
             const serverLocked = !!globalAccessPoint.getValue('OrionSystemsControlServerLock');
 
-            const overallStatus = serverLocked ? 'LOCKED' : etsLockdown ? 'UNHEALTHY' : elmDegraded ? 'DEGRADED': 'OK';
+            const overallStatus = serverLocked ? 'LOCKED' : etsLockdown ? 'UNHEALTHY' : elmDegraded ? 'DEGRADED' : 'OK';
 
             const timeOfLife = globalAccessPoint.timeOfLife();
             const uptime = formatTime((getCurrentUnixTime() - timeOfLife) * 1000);

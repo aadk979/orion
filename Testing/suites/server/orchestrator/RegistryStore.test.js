@@ -38,7 +38,7 @@ describe('RegistryStore — persistence round trip', () => {
         assert.equal(loaded[0].hello.serviceID, 's1');
         assert.equal(loaded[0].lastSeen, 120);
         assert.equal(loaded[0].lastStatus, undefined); // volatile — intentionally dropped
-        assert.equal(loaded[0].alerts.length, 10);     // persisted alert cap
+        assert.equal(loaded[0].alerts.length, 10); // persisted alert cap
         assert.equal(loaded[0].alerts.at(-1).type, 'a-29');
     });
 

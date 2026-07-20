@@ -3,7 +3,7 @@ import { globalAccessPoint } from '../GlobalAccessPoint.js';
 
 const DEFAULTS = {
     maxInFlight: 500,
-    degradedMaxInFlight: 100,
+    degradedMaxInFlight: 100
 };
 
 class LoadSheddingSystem {

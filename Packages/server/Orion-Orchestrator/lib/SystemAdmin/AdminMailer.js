@@ -14,7 +14,6 @@ import nodemailer from 'nodemailer';
 import { logger } from 'r-sync';
 
 class AdminMailer {
-
     constructor(config = {}) {
         this.config = config;
         this.appName = config.appName || 'Orion Orchestrator';
@@ -25,11 +24,11 @@ class AdminMailer {
                 config.service
                     ? { service: config.service, auth: { user: config.email, pass: config.password } }
                     : {
-                        host: config.host,
-                        port: config.port || 587,
-                        secure: config.secure === true,
-                        auth: config.email ? { user: config.email, pass: config.password } : undefined
-                    }
+                          host: config.host,
+                          port: config.port || 587,
+                          secure: config.secure === true,
+                          auth: config.email ? { user: config.email, pass: config.password } : undefined
+                      }
             );
         }
     }

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Shell from '../components/Shell';
 import { get, post, fmtTime, ApiError } from '../lib/api';
 
-const stateBadge = (state) => {
+const stateBadge = state => {
     const cls = { HEALTHY: 'ok', FORMING: 'info', DEGRADED: 'warn', INCIDENT: 'crit' }[state] || 'dim';
     return <span className={`badge ${cls}`}>{state || 'UNKNOWN'}</span>;
 };
@@ -41,9 +41,15 @@ function NodeRow({ node, commands, onResult }) {
             <td>
                 <div className="row">
                     <select value={action} onChange={e => setAction(e.target.value)} style={{ width: 'auto' }}>
-                        {commands.map(c => <option key={c} value={c}>{c}</option>)}
+                        {commands.map(c => (
+                            <option key={c} value={c}>
+                                {c}
+                            </option>
+                        ))}
                     </select>
-                    <button className="small" disabled={busy} onClick={runCommand}>Run</button>
+                    <button className="small" disabled={busy} onClick={runCommand}>
+                        Run
+                    </button>
                 </div>
             </td>
         </tr>
@@ -58,7 +64,10 @@ export default function Dashboard() {
 
     const refresh = useCallback(() => {
         get('/api/cluster/status')
-            .then(r => { setStatus(r.status); setError(null); })
+            .then(r => {
+                setStatus(r.status);
+                setError(null);
+            })
             .catch(err => setError(err instanceof ApiError ? `${err.code}: ${err.message}` : err.message));
         get('/api/cluster/commands')
             .then(r => setCommands(r.commands))
@@ -74,28 +83,64 @@ export default function Dashboard() {
     return (
         <Shell>
             <h1>Cluster dashboard</h1>
-            <p className="sub">{status ? <>Cluster <b>{status.cluster}</b> · protocol v{status.protocolVersion} · generated {fmtTime(status.generatedAt)}</> : 'Loading…'}</p>
+            <p className="sub">
+                {status ? (
+                    <>
+                        Cluster <b>{status.cluster}</b> · protocol v{status.protocolVersion} · generated {fmtTime(status.generatedAt)}
+                    </>
+                ) : (
+                    'Loading…'
+                )}
+            </p>
 
             {error && <div className="msg error">{error}</div>}
 
             {status && (
                 <>
                     <div className="cards">
-                        <div className="card"><div className="label">Health</div><div className="value">{stateBadge(status.health?.state)}</div></div>
-                        <div className="card"><div className="label">Nodes</div><div className="value">{status.summary.total}</div></div>
-                        <div className="card"><div className="label">Online</div><div className="value">{status.summary.online}</div></div>
-                        <div className="card"><div className="label">Unhealthy</div><div className="value">{status.summary.unhealthy}</div></div>
-                        <div className="card"><div className="label">Pending cmds</div><div className="value">{status.summary.pendingCommands}</div></div>
+                        <div className="card">
+                            <div className="label">Health</div>
+                            <div className="value">{stateBadge(status.health?.state)}</div>
+                        </div>
+                        <div className="card">
+                            <div className="label">Nodes</div>
+                            <div className="value">{status.summary.total}</div>
+                        </div>
+                        <div className="card">
+                            <div className="label">Online</div>
+                            <div className="value">{status.summary.online}</div>
+                        </div>
+                        <div className="card">
+                            <div className="label">Unhealthy</div>
+                            <div className="value">{status.summary.unhealthy}</div>
+                        </div>
+                        <div className="card">
+                            <div className="label">Pending cmds</div>
+                            <div className="value">{status.summary.pendingCommands}</div>
+                        </div>
                     </div>
 
                     <h2>Fleet</h2>
                     <div className="panel table-wrap">
                         <table>
                             <thead>
-                                <tr><th>Worker</th><th>App</th><th>Link</th><th>Health</th><th>Last seen</th><th>Command</th></tr>
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>App</th>
+                                    <th>Link</th>
+                                    <th>Health</th>
+                                    <th>Last seen</th>
+                                    <th>Command</th>
+                                </tr>
                             </thead>
                             <tbody>
-                                {status.nodes.length === 0 && <tr><td colSpan={6} className="sub">No nodes have registered yet.</td></tr>}
+                                {status.nodes.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="sub">
+                                            No nodes have registered yet.
+                                        </td>
+                                    </tr>
+                                )}
                                 {status.nodes.map(node => (
                                     <NodeRow key={node.workerId} node={node} commands={commands} onResult={setLastOutcome} />
                                 ))}
