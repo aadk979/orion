@@ -1,12 +1,13 @@
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { respondWithError, respondWithSuccess } from '../../../../../Server/Response/response.js';
 import { globalAccessPoint } from '../../../../GlobalAccessPoint.js';
-import { UserModel, PasskeyModel } from '../../../../Databases/models/index.js';
+import { UserModel, PasskeyModel, WebAuthnCeremonyModel } from '../../../../Databases/models/index.js';
 import { getIp } from '../../../../Ip.js';
 import { sanitizeString } from '../../../../Sanitizer.js';
 import { tryCatch } from '../../../../TryCatch.js';
 import { isValidEmail, isValidEmailDomain } from '../../../../Validator.js';
-import { generateUID } from '../../../../valueGenerator.js';
+import { generateUID, generateRequestId } from '../../../../valueGenerator.js';
+import { getFutureUnixTime } from '../../../../Date&Time.js';
 import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../../../CookieUtils.js';
 import { fileURLToPath } from 'url';
 import { requestContext } from '../../../../../Server/Middleware/requestMetadata.js';
@@ -110,18 +111,26 @@ const generatePasskeySignUpOptions = async (email, clientURL) => {
             userDisplayName: sanitizedEmail.split('@')[0]
         });
 
+        // Server-held ceremony state. The sign-up ceremony precedes the account,
+        // so the reserved uid travels in metadata rather than in the cookie.
+        const ceremonyId = generateRequestId('WEBAUTHN_SIGNUP', 32);
+
+        await WebAuthnCeremonyModel.create({
+            ceremonyId,
+            type: 'sign-up',
+            challenge: options.challenge,
+            email: sanitizedEmail,
+            metadata: { tempUid },
+            expiresAt: getFutureUnixTime('3m')
+        });
+
         return {
             error: false,
             options: options,
             cookies: [
                 {
                     key: 'PASSKEY-SIGN-UP-INFO-STEP-1',
-                    data: {
-                        tempUid: tempUid,
-                        id: options.user.id,
-                        email: sanitizedEmail,
-                        challenge: options.challenge
-                    },
+                    data: ceremonyId,
                     maxAge: 60 * 1000
                 }
             ]
@@ -172,7 +181,14 @@ const completePasskeySignUp = async (registrationResponse, cookie, email, client
             return { error: true, errorCode: 'PASSKEY::SIGN-UP-DISABLED::A::p' };
         }
 
-        const cookie = parameters.cookie ? parseCookieData(parameters.cookie) : undefined;
+        // Opaque handle in, server-held state out. Consumed atomically, so a
+        // captured sign-up assertion cannot be replayed to mint a second account.
+        const ceremonyId = parameters.cookie ? parseCookieData(parameters.cookie) : undefined;
+        const ceremony = typeof ceremonyId === 'string' ? await WebAuthnCeremonyModel.consume(ceremonyId, 'sign-up') : null;
+
+        // Shaped like the old cookie so the audit/verification body below reads
+        // unchanged — but every field now comes from the server's own record.
+        const cookie = ceremony ? { email: ceremony.email, challenge: ceremony.challenge, tempUid: ceremony.metadata?.tempUid } : undefined;
 
         if (!cookie) {
             auditTrail.record({

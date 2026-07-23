@@ -8,22 +8,32 @@
  * error registry, which makes respondWithError clear the session cookies and
  * emit the orion-session-logout header the client SDK reacts to.
  *
- * Tier 1 tokens are stateless by design: nothing is persisted, so nothing can
- * be revoked before natural expiry. Every entry point here refuses at tier 1
- * (TOKEN-REVOCATION::STATELESS-TIER::A::p) rather than pretending.
+ * Tier 1 tokens persist nothing, so the row-deletion scopes below cannot act on
+ * them and still refuse (TOKEN-REVOCATION::STATELESS-TIER::A::p). They are not
+ * unrevocable, though — two mechanisms cover them:
  *
- * Three revocation scopes, all owner-scopable and filterable:
+ *   - BULK revocation (password change, role change, disable, sign-out-everywhere)
+ *     is expressed as the account's users.sessions_valid_from watermark, checked
+ *     on every validation regardless of tier. No per-token state required.
+ *   - TARGETED revocation ("sign out this one device") uses revokeStatelessToken,
+ *     which puts the token's jti on a short-lived denylist.
+ *
+ * Four revocation scopes, all owner-scopable and filterable:
  *   revokeTokenById        — one token row
  *   revokeTokensByLinkCode — a session pair (access + refresh share link_code)
  *   revokeAllTokensForUser — everything for a uid, minus optional exceptions
+ *   revokeStatelessToken   — one tier-1 token, by jti
  */
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { TokenModel } from '../../Databases/models/index.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 import { recordTokenEvent } from './internals/tokenAudit.js';
+import { revokeJti } from './internals/jtiDenylist.js';
+import { parseDuration } from '../../Date&Time.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'TokenRevocation.js');
+const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'TokenRevocation.js');
 
 const SESSION_TOKEN_TYPES = ['ACCESS_TOKEN', 'REFRESH_TOKEN'];
 
@@ -35,6 +45,42 @@ const statelessTierRefusal = () => {
     }
     return null;
 };
+
+/**
+ * Revokes a single stateless (tier-1) token by its jti.
+ *
+ * Tier 1 stores nothing, so there is no row to delete — the id goes on a
+ * short-lived denylist that validation consults instead. This is what makes
+ * targeted "sign out this device" work at tier 1; bulk revocation (password
+ * change, disable, sign-out-everywhere) is handled by the account's
+ * sessions_valid_from watermark and needs no per-token state at all.
+ *
+ * @param {string} jti
+ * @param {object} [options]
+ * @param {number} [options.ttlSeconds] remaining lifetime; defaults to the
+ *   configured access-token lifespan, which is the longest a tier-1 token lives
+ * @param {string} [options.uid]
+ * @param {string} [options.reason]
+ * @param {string} [options.revokedBy]
+ */
+async function revokeStatelessToken(jti, { ttlSeconds = null, uid = null, reason = 'unspecified', revokedBy = null, ip = null } = {}) {
+    if (!jti) return { error: true, errorCode: 'TOKEN-REVOCATION::INVALID-TARGET::A::p' };
+
+    const lifespan = ttlSeconds ?? Math.ceil(parseDuration(systemConfigModule.getModule().tokens?.lifespans?.accessTokens || '15m') / 1000);
+
+    await revokeJti(jti, lifespan);
+
+    auditRevocation({
+        functionName: 'revokeStatelessToken',
+        status: 'SUCCESS',
+        impact: `Revoked stateless token ${jti}`,
+        uid,
+        ip,
+        metadata: { reason, revokedBy, target: `jti ${jti}`, ttlSeconds: lifespan }
+    });
+
+    return { error: false, revokedCount: 1, revokedTokens: [{ tokenId: jti, uid, type: 'STATELESS', linkCode: null }] };
+}
 
 const auditRevocation = ({ functionName, status, impact, uid, ip, metadata, errorCode }) => {
     const requestMetadata = requestContext.getStore();
@@ -236,4 +282,4 @@ async function listActiveTokenSessions(uid) {
     }
 }
 
-export { revokeTokenById, revokeTokensByLinkCode, revokeAllTokensForUser, listActiveTokenSessions, SESSION_TOKEN_TYPES };
+export { revokeTokenById, revokeTokensByLinkCode, revokeAllTokensForUser, revokeStatelessToken, listActiveTokenSessions, SESSION_TOKEN_TYPES };

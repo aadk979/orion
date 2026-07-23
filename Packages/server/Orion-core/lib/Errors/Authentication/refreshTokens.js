@@ -1,4 +1,11 @@
 const RefreshTokens = {
+    'TOKEN-REFRESH::PROOF-REQUIRED::A::p': {
+        status: 401,
+        context: 'This session is bound to a device key and requires a proof-of-possession header',
+        errorCode: 'TOKEN-REFRESH::PROOF-REQUIRED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Send a valid DPoP proof with the request', 'Sign in again if the device key was lost']
+    },
     // See TOKEN-ACCESS::SESSION-INVALIDATED — same watermark, refresh side.
     'TOKEN-REFRESH::SESSION-INVALIDATED::A::p': {
         status: 401,

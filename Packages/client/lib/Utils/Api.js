@@ -1,6 +1,7 @@
 import { renderDeviceAuthorizationUI } from '../Flows/DeviceAuthorizationFlow.js';
 import { renderStepUpAuthUI } from '../Flows/StepUpAuthFlow.js';
 import { getDeviceFingerprint } from './DevicePrint.js';
+import { createProof } from './DpopKey.js';
 
 const ORION_FLOW_TYPES = {
     'FLOW-DEVICE-AUTHORIZATION': { fn: renderDeviceAuthorizationUI, params: ['baseUrl', 'nameSpace', 'slug'] },
@@ -8,10 +9,15 @@ const ORION_FLOW_TYPES = {
 };
 
 class ApiInterface {
-    constructor(baseUrl, nameSpace, slug) {
+    constructor(baseUrl, nameSpace, slug, options = {}) {
         this.baseUrl = baseUrl;
         this.nameSpace = nameSpace;
         this.slug = slug;
+
+        // Attach a DPoP proof to every request. Must match the server's
+        // tokens.binding setting: proofs sent to a server that does not bind are
+        // simply ignored, but a bound server rejects requests that omit them.
+        this.useDpop = options.useDpop === true;
 
         // Set by the Orion root: invoked whenever the server flags a response
         // with orion-session-logout, i.e. the session on this device is dead
@@ -26,6 +32,20 @@ class ApiInterface {
     async fetch(endpoint, method, authorization, body = {}) {
         const url = `${this.baseUrl}${this.slug !== '' ? '/' + this.slug : ''}${endpoint}`;
 
+        // Proof of possession, when the deployment binds tokens to a device key.
+        // The proof is per-request (method + URI + a one-time jti), so it cannot
+        // be lifted onto another call. Failure is non-fatal: an unbound session
+        // never needs it, and the server rejects a bound one that arrives without.
+        let dpopProof = null;
+
+        if (this.useDpop) {
+            try {
+                dpopProof = await createProof(method, url);
+            } catch (e) {
+                console.warn('[Orion] Could not create a device proof for this request:', e?.message);
+            }
+        }
+
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -34,6 +54,7 @@ class ApiInterface {
                 'orion-fingerprint': await getDeviceFingerprint(),
                 'orion-user-agent': navigator.userAgent,
                 'orion-api-system-version': '1.0.0[BETA]',
+                ...(dpopProof ? { DPoP: dpopProof } : {}),
                 // NOTE: `Origin` is deliberately NOT set here. It is a forbidden
                 // header name — the browser discards any script-supplied value and
                 // sets its own — so writing it was dead code that also implied this

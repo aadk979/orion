@@ -3,6 +3,7 @@ import { verifyHash } from '../../CryptoFunctions.js';
 import { parseDuration } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel } from '../../Databases/models/index.js';
+import { generateStepUpContextToken } from '../SecurityManagment/StepUpAuth.js';
 import { getIp } from '../../Ip.js';
 import { sanitizeString } from '../../Sanitizer.js';
 import { tryCatch } from '../../TryCatch.js';
@@ -148,8 +149,42 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
                 metadata: { reason: 'INVALID_PASSWORD' },
                 errorCode: 'ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p'
             });
+            // Charge the failure and extend backoff. Deliberately AFTER the
+            // password check, so only wrong credentials count — see the throttle
+            // note below for why this can never lock an owner out.
+            await UserModel.recordFailedLogin(user.uid);
+
             return { error: true, errorCode: 'ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p' };
         }
+
+        // Credentials are CORRECT. If the account is under backoff from earlier
+        // failures, the request is not refused — refusing here is what turns a
+        // failure counter into a denial-of-service primitive, since anyone who
+        // knows an email could lock its owner out. Instead the successful sign-in
+        // is escalated to step-up: the real owner proves possession of a second
+        // factor and proceeds, while an attacker who guessed the password still
+        // cannot get in.
+        const throttle = await UserModel.getLoginThrottle(user.uid);
+
+        if (throttle.throttled) {
+            auditTrail.record({
+                user: { email: parameters.email, uid: user.uid },
+                device: { fingerprint: parameters.fingerprint, userAgent: parameters.userAgent },
+                action: 'SIGN_IN_ATTEMPT',
+                status: 'FAILED',
+                source: 'SignIn.js',
+                functionName: 'signInWithPassword',
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: 'Correct credentials during backoff — escalated to step-up rather than refused',
+                metadata: { reason: 'LOGIN_THROTTLED', throttledUntil: throttle.until }
+            });
+
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p', uid: user.uid };
+        }
+
+        // Successful authentication clears the backoff.
+        await UserModel.clearFailedLogins(user.uid);
 
         const accessToken = await generateAccessToken(
             user.uid,
@@ -271,6 +306,17 @@ const routeHandlerSignInWithPassword = async (request, response) => {
     const callback = await signInWithPassword(email, password, fingerprint, ip, userAgent);
 
     if (callback.error) {
+        // Backoff escalation: the credentials were right, so issue the signed
+        // context the step-up routes need to identify the user, then let the
+        // flow header on this error drive the client into that flow.
+        if (callback.errorCode === 'ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p' && callback.uid) {
+            const stepUpContextToken = await generateStepUpContextToken(callback.uid);
+
+            if (typeof stepUpContextToken === 'string') {
+                setManagedCookie(response, 'stepUpContext', stepUpContextToken);
+            }
+        }
+
         return respondWithError(response, callback.errorCode);
     }
 

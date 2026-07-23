@@ -82,6 +82,10 @@ const requestMetadataMiddleware = async (request, response, next) => {
         cookies: request.cookies,
         user: request.user || false,
         clientURL: request.headers.origin || request.headers.referer || `${request.protocol}://${request.get('host')}`,
+        // Needed to bind a DPoP proof to this exact request (htm / htu).
+        method: request.method,
+        requestUri: `${request.protocol}://${request.get('host')}${request.originalUrl.split('?')[0]}`,
+        dpopProof: request.headers['dpop'] || null,
         stepUpAuthComplete: false,
         stepUpUid: null
     };

@@ -1,5 +1,7 @@
 import { generateRegistrationOptions } from '@simplewebauthn/server';
-import { UserModel, PasskeyModel } from '../../../Databases/models/index.js';
+import { UserModel, PasskeyModel, WebAuthnCeremonyModel } from '../../../Databases/models/index.js';
+import { generateRequestId } from '../../../valueGenerator.js';
+import { getFutureUnixTime } from '../../../Date&Time.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { isValidEmail } from '../../../Validator.js';
@@ -53,18 +55,25 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
             userDisplayName: parameters.email.split('@')[0]
         });
 
+        // Server-held ceremony state; the cookie is an opaque handle only.
+        const ceremonyId = generateRequestId('WEBAUTHN_REG', 32);
+
+        await WebAuthnCeremonyModel.create({
+            ceremonyId,
+            type: 'registration',
+            challenge: options.challenge,
+            uid: user.uid,
+            email: email,
+            expiresAt: getFutureUnixTime('2m')
+        });
+
         return {
             error: false,
             options: options,
             cookies: [
                 {
                     key: 'PASSKEY-REGISTRATION-INFO-STEP-1',
-                    data: {
-                        uid: user.uid,
-                        id: options.user.id,
-                        email: email,
-                        challenge: options.challenge
-                    },
+                    data: ceremonyId,
                     maxAge: 30 * 1000
                 }
             ]

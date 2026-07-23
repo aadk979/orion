@@ -1,4 +1,31 @@
 {
+    "name": "@aadharsh/orion-client",
+    "version": "1.0.6",
+    "description": "Browser SDK for the Orion (Alpine) authentication framework.",
+    "type": "module",
+    "main": "./dist/orion.beta.sdk.js",
+    "exports": {
+        ".": "./dist/orion.beta.sdk.js"
+    },
+    "files": [
+        "dist",
+        "lib"
+    ],
+    "keywords": [
+        "orion",
+        "auth",
+        "authentication",
+        "sdk",
+        "browser",
+        "webauthn",
+        "dpop"
+    ],
+    "author": "Kalivaradhan Aadharsh",
+    "license": "MIT",
+    "scripts": {
+        "build": "node gipsy.non-commitable-dev-tooling/sdkBuilder.js",
+        "prepublishOnly": "npm run build"
+    },
     "devDependencies": {
         "esbuild": "^0.25.10"
     },

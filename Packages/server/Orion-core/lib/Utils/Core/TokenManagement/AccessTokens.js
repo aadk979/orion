@@ -26,25 +26,32 @@ const KIND = {
     label: 'access'
 };
 
-async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent) {
+/**
+ * @param {string|null} [dpopJkt] thumbprint of the client key to bind this token
+ *   to. Supplied by the sign-in flows when proof-of-possession is enabled;
+ *   omitted leaves the token unbound, which is what keeps rollout incremental.
+ */
+async function generateAccessToken(uid, email, fingerprint, authMethod, role, ip, userAgent, linkCode = null, dpopJkt = null) {
     return generateSessionToken({
         names: { ...KIND, functionName: 'generateAccessToken' },
         modules: MODULES,
         lifespanKey: 'accessTokens',
         identity: { uid, email, fingerprint, authMethod, role, ip, userAgent },
-        linkCode: generateId('AT_LINK', 10),
-        payloadExtras: { email }
+        linkCode: linkCode || generateId('AT_LINK', 10),
+        payloadExtras: { email },
+        dpopJkt
     });
 }
 
-async function validateAccessToken(token, fingerprint, ip, clientUrl) {
+async function validateAccessToken(token, fingerprint, ip, clientUrl, dpopProof = null) {
     return validateSessionToken({
         names: { ...KIND, functionName: 'validateAccessToken' },
         modules: MODULES,
         token,
         fingerprint,
         ip,
-        clientUrl
+        clientUrl,
+        dpopProof
     });
 }
 

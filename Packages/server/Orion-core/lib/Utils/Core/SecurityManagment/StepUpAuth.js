@@ -2,7 +2,7 @@ import { respondWithError, respondWithSuccess } from '../../../Server/Response/r
 import { hashString, verifyHash, sha256Hash } from '../../CryptoFunctions.js';
 import { getFutureUnixTime, getCurrentUnixTime } from '../../Date&Time.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
-import { UserModel, PasskeyModel, TOTPModel, RequestModel } from '../../Databases/models/index.js';
+import { UserModel, PasskeyModel, TOTPModel, RequestModel, WebAuthnCeremonyModel } from '../../Databases/models/index.js';
 import { getIp, getIpRange, isIpInRange } from '../../Ip.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -495,18 +495,26 @@ const generateStepUpPasskeyOptions = async (uid, clientURL) => {
             ]
         });
 
+        // Step-up shares the authentication ceremony type, so the same
+        // server-side single-use claim applies here.
+        const ceremonyId = generateRequestId('WEBAUTHN_STEPUP', 32);
+
+        await WebAuthnCeremonyModel.create({
+            ceremonyId,
+            type: 'authentication',
+            challenge: options.challenge,
+            uid: parameters.uid,
+            email,
+            expiresAt: getFutureUnixTime('2m')
+        });
+
         return {
             error: false,
             options,
             cookies: [
                 {
                     key: 'PASSKEY-AUTHENTICATION-INFO-STEP-1',
-                    data: {
-                        uid: parameters.uid,
-                        id: options.id,
-                        email,
-                        challenge: options.challenge
-                    },
+                    data: ceremonyId,
                     maxAge: 30000
                 }
             ]

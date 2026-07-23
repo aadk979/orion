@@ -258,9 +258,11 @@ const authorizeDeviceWithCode = async (reqID, code, flowSecret, ip, userAgent) =
             return { error: true, errorCode: 'DEVICE-AUTH::USERAGENT-MISMATCH::A::p' };
         }
 
-        if (!(await isIpInRange(parameters.ip, storedData.ip_range))) {
-            return { error: true, errorCode: 'DEVICE-AUTH::IP-MISMATCH::A::p' };
-        }
+        // No IP check — same reasoning as the password reset flow. The requester
+        // both starts and finishes device authorization, so the stored range is
+        // their own and always matches for an attacker, while penalising a real
+        // user who switches network between receiving the code and entering it.
+        // The emailed code plus the attempt ceiling are what actually gate this.
 
         if (!(await verifyHash(parameters.flowSecret, storedData.hashed_flow_secret))) {
             return { error: true, errorCode: 'DEVICE-AUTH::FLOW-SECRET-MISMATCH::A::p' };

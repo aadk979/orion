@@ -430,6 +430,34 @@ const handleTokenSecretsSetup = async () => {
 
     globalAccessPoint.setValue('tokenSecurityTier', Number(tokenSecurityTier) || 4);
 
+    // Server key for fingerprint digests (see Utils/fingerprintDigest.js). Must be
+    // stable across restarts, and identical across cluster nodes, or fingerprint
+    // risk signals stop matching. It is not an authentication secret — a mismatch
+    // degrades an advisory signal, it does not grant access — so an unset value
+    // warns rather than failing the boot.
+    const fingerprintDigestKey = systemConfigModule.getModule()?.tokens?.fingerprintDigestKey;
+
+    if (fingerprintDigestKey) {
+        globalAccessPoint.setValue('fingerprintDigestKey', fingerprintDigestKey);
+    }
+
+    // Proof-of-possession binding (DPoP). Opt-in: when enabled, tokens are bound
+    // to a non-extractable client key and a stolen token is unusable without it.
+    const bindingMode = systemConfigModule.getModule()?.tokens?.binding || 'none';
+
+    if (bindingMode !== 'none' && bindingMode !== 'dpop') {
+        throw new Error(`Configuration error: tokens.binding must be "none" or "dpop" (received "${bindingMode}")`);
+    }
+
+    globalAccessPoint.setValue('tokenBinding', bindingMode);
+
+    // ASN lookups are a network call on the auth path — opt-in only.
+    globalAccessPoint.setValue('ipRiskAsnLookupEnabled', systemConfigModule.getModule()?.utilities?.ipRisk?.asnLookup === true);
+
+    if (bindingMode === 'dpop') {
+        logger.info('Token binding: DPoP enabled — tokens are bound to a client-held key and proofs are required on every request.');
+    }
+
     let arr = [];
 
     for (let i = 0; i < defaultDomains.length; i++) {

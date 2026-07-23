@@ -44,7 +44,8 @@ async function generateRefreshToken(
     userAgent,
     accessTokenLinkCodeExternal,
     refreshCount = 0,
-    maxRefreshes = null
+    maxRefreshes = null,
+    dpopJkt = null
 ) {
     // Rotation budget, fixed at first issuance: enough refreshes to cover the
     // refresh window at access-token cadence, plus slack.
@@ -62,6 +63,7 @@ async function generateRefreshToken(
         identity: { uid, email, fingerprint, authMethod, role, ip, userAgent },
         linkCode: accessTokenLinkCodeExternal,
         payloadExtras: { refreshCount, maxRefreshes },
+        dpopJkt,
         tier1PayloadExtras: { email },
         // Reap this user's expired token rows. Rotation recurs for every active
         // session and is the point where superseded tokens become garbage, so it
@@ -89,6 +91,7 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
         fingerprint,
         ip,
         clientUrl,
+        dpopProof,
         // The account row was already loaded by the shared validator's account
         // gate; reuse it rather than issuing a second query for the same user.
         onStatefulPayload: async (validatedToken, accountState) => {

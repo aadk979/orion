@@ -24,7 +24,9 @@ const SWEEP_TARGETS = [
     { table: 'no_auth_token_transactions', column: 'expires_at' },
     // Retired refresh-token ids kept for reuse detection. They only need to
     // outlive the token itself; past that they are pure noise.
-    { table: 'consumed_refresh_tokens', column: 'expires_at' }
+    { table: 'consumed_refresh_tokens', column: 'expires_at' },
+    // Consumed and abandoned WebAuthn ceremonies alike — neither has value past expiry.
+    { table: 'webauthn_ceremonies', column: 'expires_at' }
 ];
 
 /**

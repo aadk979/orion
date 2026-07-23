@@ -163,6 +163,9 @@ const authenticationMiddleware = async (request, response, next) => {
         const clientUrl =
             parameters.request.headers.origin || parameters.request.headers.referer || `${parameters.request.protocol}://${parameters.request.get('host')}`;
 
+        // Proof-of-possession header, when the client is using bound tokens.
+        const dpopProof = headers['dpop'] || null;
+
         const reqIsAuthStateCheck = handleIsAuthStateCheck(parameters);
 
         const tokenType = authHeader.split(' ')[0];
@@ -187,7 +190,7 @@ const authenticationMiddleware = async (request, response, next) => {
 
         switch (tokenType) {
             case 'ACCESS_BEARER':
-                let verification = await validateAccessToken(parameters.request.cookies['ACCESS_TOKEN'], fingerprint, ip, clientUrl);
+                let verification = await validateAccessToken(parameters.request.cookies['ACCESS_TOKEN'], fingerprint, ip, clientUrl, dpopProof);
 
                 if (verification.error || !verification.valid) {
                     // ── Step-Up Auth gate ─────────────────────────────────────────────
@@ -219,7 +222,7 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, 'AUTH::MISSING-TOKEN::A::p');
                         }
 
-                        const refreshVerification = await validateRefreshToken(parameters.request.cookies['REFRESH_TOKEN'], fingerprint, ip, clientUrl);
+                        const refreshVerification = await validateRefreshToken(parameters.request.cookies['REFRESH_TOKEN'], fingerprint, ip, clientUrl, dpopProof);
 
                         if (refreshVerification.error || !refreshVerification.valid) {
                             if (refreshVerification.errorCode === 'STEP-UP::REQUIRED::A::p') {
@@ -270,6 +273,10 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, 'ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p');
                         }
 
+                        // Rotation carries the binding forward — a refresh must not
+                        // silently downgrade a bound session to an unbound one.
+                        const boundJkt = refreshVerification.data?.cnf?.jkt || null;
+
                         const newAccessToken = await generateAccessToken(
                             currentUser.uid,
                             currentUser.email,
@@ -278,7 +285,8 @@ const authenticationMiddleware = async (request, response, next) => {
                             currentUser.role,
                             ip,
                             userAgent,
-                            accessTokenLinkCode
+                            accessTokenLinkCode,
+                            boundJkt
                         );
 
                         if (newAccessToken.error) {
@@ -296,7 +304,8 @@ const authenticationMiddleware = async (request, response, next) => {
                             userAgent,
                             accessTokenLinkCode,
                             currentRefreshCount + 1,
-                            currentMaxRefreshes
+                            currentMaxRefreshes,
+                            boundJkt
                         );
 
                         if (newRefreshToken.error) {
@@ -310,7 +319,7 @@ const authenticationMiddleware = async (request, response, next) => {
                         // the session without a usable refresh token.
                         await retireRefreshToken(refreshVerification.data);
 
-                        verification = await validateAccessToken(newAccessToken.token, fingerprint, ip, clientUrl);
+                        verification = await validateAccessToken(newAccessToken.token, fingerprint, ip, clientUrl, dpopProof);
 
                         if (verification.error || !verification.valid) {
                             return respondWithError(parameters.response, verification.errorCode);

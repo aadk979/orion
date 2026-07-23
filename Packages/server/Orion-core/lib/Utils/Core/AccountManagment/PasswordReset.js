@@ -144,9 +144,17 @@ const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, us
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-USERAGENT-MISMATCH' };
         }
 
-        if (!(await isIpInRange(parameters.ip, record.ip_range))) {
-            return { error: true, errorCode: 'ACCOUNT-SIGNIN::PASSWORD-RESET-IP-MISMATCH::A::p' };
-        }
+        // NOTE: there is deliberately no IP check here.
+        //
+        // The party who initiates a reset is the party who completes it, so the
+        // stored range is the requester's OWN — for an attacker it always matches,
+        // and for a legitimate user opening the emailed code on mobile data it
+        // often does not. It only helps if the victim initiates and the attacker
+        // completes, which is not how this flow is abused. Removing it costs no
+        // security and stops locking real users out of their own recovery.
+        //
+        // What actually guards this flow: code entropy, the attempt ceiling below
+        // (which destroys the request), and the endpoint's rate-limit cost.
 
         if (!(await verifyHash(cleanCode, record.code_hash))) {
             // Charge the attempt and destroy the request once the ceiling is hit.

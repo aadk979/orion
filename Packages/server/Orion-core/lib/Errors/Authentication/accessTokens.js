@@ -1,4 +1,14 @@
 const AccessTokens = {
+    // The token is bound to a client-held key (cnf.jkt) and the request did not
+    // carry a valid proof of possession. Not a logout: the session is fine, the
+    // client simply has to sign the request with the key it already holds.
+    'TOKEN-ACCESS::PROOF-REQUIRED::A::p': {
+        status: 401,
+        context: 'This session is bound to a device key and requires a proof-of-possession header',
+        errorCode: 'TOKEN-ACCESS::PROOF-REQUIRED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Send a valid DPoP proof with the request', 'Sign in again if the device key was lost']
+    },
     // Signature and expiry were fine, but the account's sessions_valid_from
     // watermark moved past this token's iat — a password change, role change,
     // disable or explicit revocation happened after it was issued. logout so the

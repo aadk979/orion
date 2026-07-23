@@ -1,6 +1,8 @@
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
-import { UserModel, PasskeyModel } from '../../../Databases/models/index.js';
+import { UserModel, PasskeyModel, WebAuthnCeremonyModel } from '../../../Databases/models/index.js';
+import { generateRequestId } from '../../../valueGenerator.js';
+import { getFutureUnixTime } from '../../../Date&Time.js';
 import { sanitizeString } from '../../../Sanitizer.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { fileURLToPath } from 'url';
@@ -63,18 +65,28 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
             ]
         });
 
+        // Challenge and subject stay server-side; the cookie carries an opaque
+        // handle. Previously both rode in the cookie, so the caller chose the
+        // challenge the assertion was checked against AND which user's credential
+        // it was checked with.
+        const ceremonyId = generateRequestId('WEBAUTHN_AUTH', 32);
+
+        await WebAuthnCeremonyModel.create({
+            ceremonyId,
+            type: 'authentication',
+            challenge: options.challenge,
+            uid: user.uid,
+            email: lowerCaseEmail,
+            expiresAt: getFutureUnixTime('2m')
+        });
+
         return {
             error: false,
             options: options,
             cookies: [
                 {
                     key: 'PASSKEY-AUTHENTICATION-INFO-STEP-1',
-                    data: {
-                        uid: user.uid,
-                        id: options.id,
-                        email: lowerCaseEmail,
-                        challenge: options.challenge
-                    },
+                    data: ceremonyId,
                     maxAge: 30 * 1000
                 }
             ]

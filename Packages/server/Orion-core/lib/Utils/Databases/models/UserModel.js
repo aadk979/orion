@@ -115,6 +115,66 @@ export const UserModel = {
         await query('UPDATE users SET email_verified = $1, updated_at = NOW() WHERE uid = $2', [verified, uid]);
     },
 
+    /**
+     * Records a failed sign-in and returns the resulting backoff state.
+     *
+     * Increment, window reset and deadline are computed in ONE statement so
+     * concurrent attempts cannot race the counter. The window restarts if the
+     * last failure is older than `windowSeconds`, so occasional typos never
+     * accumulate into a penalty.
+     *
+     * @returns {{ failed_login_count: number, login_throttled_until: Date|null }}
+     */
+    async recordFailedLogin(uid, { windowSeconds = 900, threshold = 5, capSeconds = 900 } = {}) {
+        const result = await query(
+            `UPDATE users
+                SET failed_login_window_start =
+                        CASE WHEN failed_login_window_start IS NULL
+                               OR failed_login_window_start < now() - ($2 || ' seconds')::INTERVAL
+                             THEN now() ELSE failed_login_window_start END,
+                    failed_login_count =
+                        CASE WHEN failed_login_window_start IS NULL
+                               OR failed_login_window_start < now() - ($2 || ' seconds')::INTERVAL
+                             THEN 1 ELSE failed_login_count + 1 END,
+                    login_throttled_until =
+                        CASE WHEN (CASE WHEN failed_login_window_start IS NULL
+                                          OR failed_login_window_start < now() - ($2 || ' seconds')::INTERVAL
+                                        THEN 1 ELSE failed_login_count + 1 END) > $3
+                             THEN now() + (LEAST(
+                                    POWER(2, LEAST((CASE WHEN failed_login_window_start IS NULL
+                                                          OR failed_login_window_start < now() - ($2 || ' seconds')::INTERVAL
+                                                        THEN 1 ELSE failed_login_count + 1 END) - $3, 20)),
+                                    $4) || ' seconds')::INTERVAL
+                             ELSE login_throttled_until END,
+                    updated_at = now()
+              WHERE uid = $1
+          RETURNING failed_login_count, login_throttled_until`,
+            [uid, String(windowSeconds), threshold, capSeconds]
+        );
+
+        return result.rows[0] || { failed_login_count: 0, login_throttled_until: null };
+    },
+
+    /** Clears backoff state after a successful authentication. */
+    async clearFailedLogins(uid) {
+        await query(
+            `UPDATE users
+                SET failed_login_count = 0, failed_login_window_start = NULL, login_throttled_until = NULL, updated_at = now()
+              WHERE uid = $1`,
+            [uid]
+        );
+    },
+
+    /**
+     * @returns {{ throttled: boolean, until: Date|null }} current backoff state
+     */
+    async getLoginThrottle(uid) {
+        const result = await query('SELECT login_throttled_until FROM users WHERE uid = $1', [uid]);
+        const until = result.rows[0]?.login_throttled_until || null;
+
+        return { throttled: !!until && new Date(until).getTime() > Date.now(), until };
+    },
+
     async deleteUser(uid) {
         await query('DELETE FROM users WHERE uid = $1', [uid]);
     }

@@ -13,7 +13,15 @@
  */
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { clearManagedCookie } from '../../CookieUtils.js';
-import { revokeTokenById, revokeTokensByLinkCode, revokeAllTokensForUser, listActiveTokenSessions } from '../TokenManagement/TokenRevocation.js';
+import {
+    revokeTokenById,
+    revokeTokensByLinkCode,
+    revokeAllTokensForUser,
+    revokeStatelessToken,
+    listActiveTokenSessions
+} from '../TokenManagement/TokenRevocation.js';
+import { globalAccessPoint } from '../../GlobalAccessPoint.js';
+import { UserModel } from '../../Databases/models/index.js';
 
 // Tier 2-4 payloads carry the link code inside tokenData; tier 1 carries it flat.
 const currentSessionRefs = user => ({
@@ -48,6 +56,26 @@ const routeHandlerRevokeSession = async (request, response) => {
 
     const options = { uid, revokedBy: uid, reason: 'user-initiated session revocation' };
 
+    // At tier 1 there is no row to delete, so a targeted revoke goes to the jti
+    // denylist instead. Only the caller's OWN token can be revoked this way —
+    // the jti is read from the validated session, never from the request body,
+    // so this cannot be pointed at someone else's token.
+    if (globalAccessPoint.tokenSecurityTier() === 1) {
+        const ownJti = request.user?.jti;
+
+        if (!ownJti) {
+            return respondWithError(response, 'TOKEN-REVOCATION::STATELESS-TIER::A::p');
+        }
+
+        const statelessResult = await revokeStatelessToken(ownJti, options);
+
+        if (statelessResult.error) return respondWithError(response, statelessResult.errorCode);
+
+        clearSessionCookies(response);
+
+        return respondWithSuccess(response, 200, { revokedCount: statelessResult.revokedCount, currentSessionRevoked: true });
+    }
+
     const result = tokenId ? await revokeTokenById(tokenId, options) : await revokeTokensByLinkCode(linkCode, options);
 
     if (result.error) return respondWithError(response, result.errorCode);
@@ -68,6 +96,18 @@ const routeHandlerRevokeAllSessions = async (request, response) => {
 
     const current = currentSessionRefs(request.user);
     const exceptLinkCodes = keepCurrent && current.linkCode ? [current.linkCode] : null;
+
+    // Tier 1 has no rows, but bulk revocation does not need them: moving the
+    // account's sessions_valid_from watermark kills every token issued before
+    // now, which is exactly "sign out everywhere". keepCurrent cannot be honoured
+    // at this tier — the watermark is account-wide — so the caller's own session
+    // ends too, and the response says so.
+    if (globalAccessPoint.tokenSecurityTier() === 1) {
+        await UserModel.invalidateSessionsNow(uid);
+        clearSessionCookies(response);
+
+        return respondWithSuccess(response, 200, { revokedCount: null, currentSessionRevoked: true });
+    }
 
     const result = await revokeAllTokensForUser(uid, {
         exceptLinkCodes,

@@ -11,7 +11,7 @@
  * step-up auth rather than rejecting outright. (Note: tier 3's single signal
  * of 30 can never reach the threshold on its own — advisory by design.)
  */
-import { hashString, verifyHash } from '../../../CryptoFunctions.js';
+import { digestFingerprint, verifyFingerprint } from '../../../fingerprintDigest.js';
 import { getIpRange, isIpInRange } from '../../../Ip.js';
 
 const STEP_UP_RISK_THRESHOLD = 50;
@@ -33,7 +33,10 @@ async function buildTierBinding(securityTier, { fingerprint, ip }) {
     }
 
     if (securityTier === 3 || securityTier === 4) {
-        const hashedFingerprint = await hashString(fingerprint);
+        // Keyed HMAC, not bcrypt — a fingerprint is high-entropy, so the only
+        // property needed is that a database reader cannot correlate it back to a
+        // device. See fingerprintDigest.js.
+        const hashedFingerprint = digestFingerprint(fingerprint);
         payloadFields.hashedDeviceFingerprint = hashedFingerprint;
         dbFields.hashedFingerprint = hashedFingerprint;
     }
@@ -48,7 +51,7 @@ async function buildTierBinding(securityTier, { fingerprint, ip }) {
  * @returns {{ok: true} | {ok: false, hardFail: true} | {ok: false, stepUpRequired: true, riskScore: number}}
  */
 async function assessTierRisk(securityTier, { fingerprint, ip }, tokenRow, deps = {}) {
-    const { verifyHash: verifyHashFn = verifyHash, isIpInRange: isIpInRangeFn = isIpInRange } = deps;
+    const { verifyHash: verifyHashFn = verifyFingerprint, isIpInRange: isIpInRangeFn = isIpInRange } = deps;
 
     if (securityTier === 2) {
         const inRange = await isIpInRangeFn(ip, tokenRow.ip_range);

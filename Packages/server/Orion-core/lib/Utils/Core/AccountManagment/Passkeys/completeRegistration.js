@@ -1,5 +1,5 @@
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
-import { PasskeyModel, UserSecurityModel } from '../../../Databases/models/index.js';
+import { PasskeyModel, UserSecurityModel, WebAuthnCeremonyModel } from '../../../Databases/models/index.js';
 import { tryCatch } from '../../../TryCatch.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { parseCookieData, clearManagedCookie } from '../../../CookieUtils.js';
@@ -16,19 +16,29 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
             return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
         }
 
-        const cookie = parameters.cookie ? parseCookieData(parameters.cookie) : undefined;
+        const ceremonyId = parameters.cookie ? parseCookieData(parameters.cookie) : undefined;
 
-        if (!cookie) {
+        if (!ceremonyId || typeof ceremonyId !== 'string') {
             return { error: true, errorCode: 'PASSKEY::REGISTRATION-EXPIRED::A::p' };
         }
 
-        if (cookie.email !== parameters.email) {
+        // Atomic claim — a registration ceremony is single-use, and the 'registration'
+        // type predicate stops an authentication ceremony being spent here.
+        const ceremony = await WebAuthnCeremonyModel.consume(ceremonyId, 'registration');
+
+        if (!ceremony) {
+            return { error: true, errorCode: 'PASSKEY::REGISTRATION-EXPIRED::A::p' };
+        }
+
+        // Consistency check only. The ceremony's own uid is what the credential
+        // is saved against — the caller can no longer nominate the account.
+        if (parameters.email && ceremony.email && ceremony.email.toLowerCase() !== parameters.email.toLowerCase()) {
             return { error: true, errorCode: 'PASSKEY::REGISTRATION-EMAIL-MISMATCH::A::p' };
         }
 
         const verification = await verifyRegistrationResponse({
             response: parameters.registrationResponse,
-            expectedChallenge: cookie.challenge,
+            expectedChallenge: ceremony.challenge,
             expectedOrigin: parameters.expectedOrigin,
             expectedRPID: parameters.clientURL
         });
@@ -46,8 +56,8 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
             transports: verification.registrationInfo.credential.transports
         };
 
-        await PasskeyModel.savePasskey(cookie.uid, storageObj);
-        await UserSecurityModel.setTwoFAEnabled(cookie.uid, true);
+        await PasskeyModel.savePasskey(ceremony.user_uid, storageObj);
+        await UserSecurityModel.setTwoFAEnabled(ceremony.user_uid, true);
 
         return { error: false, data: {} };
     };

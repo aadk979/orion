@@ -21,6 +21,8 @@ import { toShortPayload, toVerbosePayload } from '../tokenFieldMap.js';
 import { recordTokenEvent } from './tokenAudit.js';
 import { decodeKeyId, signWithKeyPair, verifyWithKeyPair } from './jwtCodec.js';
 import { buildTierBinding, assessTierRisk } from './tierBinding.js';
+import { isJtiRevoked } from './jtiDenylist.js';
+import { verifyDpopProof } from './dpop.js';
 
 const capitalize = word => word.charAt(0).toUpperCase() + word.slice(1);
 
@@ -44,7 +46,8 @@ async function generateSessionToken(spec) {
         linkCode,
         payloadExtras = {},
         tier1PayloadExtras = {},
-        onStored = null
+        onStored = null,
+        dpopJkt = null
     } = spec;
 
     const securityTier = globalAccessPoint.tokenSecurityTier();
@@ -57,6 +60,11 @@ async function generateSessionToken(spec) {
         role,
         securityTier,
         accessTokenLinkCode: linkCode,
+        // Confirmation claim (RFC 7800). When proof-of-possession is enabled the
+        // token is bound to the thumbprint of a key the client holds
+        // non-extractably, and validation demands a signature from that key —
+        // so possessing the token is no longer sufficient to use it.
+        ...(dpopJkt ? { cnf: { jkt: dpopJkt } } : {}),
         ...payloadExtras,
 
         // Standard JWT fields
@@ -69,6 +77,11 @@ async function generateSessionToken(spec) {
     // Tier 1: stateless — sign and go, nothing persisted
     if (securityTier === 1) {
         Object.assign(payload, tier1PayloadExtras);
+
+        // A per-token id even though nothing is stored: it is what makes targeted
+        // revocation possible at tier 1 (see internals/jtiDenylist.js). Without
+        // it, "sign out this device" had no handle to revoke.
+        payload.jti = generateId(tokenType, 15);
 
         recordTokenEvent(auditModule, {
             ...auditBase,
@@ -105,6 +118,7 @@ async function generateSessionToken(spec) {
         userAgent,
         linkCode,
         securityTier,
+        dpopJkt,
         ...binding.dbFields
     });
 
@@ -157,7 +171,8 @@ async function validateSessionToken(spec) {
         fingerprint,
         ip,
         clientUrl,
-        onStatefulPayload = null
+        onStatefulPayload = null,
+        dpopProof = null
     } = spec;
 
     const requestMetadata = requestContext.getStore();
@@ -222,6 +237,26 @@ async function validateSessionToken(spec) {
             return { error: true, errorCode: `${errorPrefix}::TIER-CONFLICT::A::i` };
         }
 
+        // Proof-of-possession gate. A token carrying a cnf.jkt is only usable by
+        // whoever can sign with the matching key, so a stolen token is inert
+        // without it. Enforced before any database work — it is cheap and it is
+        // the strongest signal available.
+        const boundJkt = validatedToken.cnf?.jkt || null;
+
+        if (boundJkt) {
+            const proofResult = await verifyDpopProof({
+                proof: dpopProof,
+                method: requestMetadata?.method || 'POST',
+                url: requestMetadata?.requestUri || clientUrl,
+                accessToken: token,
+                expectedJkt: boundJkt
+            });
+
+            if (!proofResult.valid) {
+                return { error: true, errorCode: `${errorPrefix}::PROOF-REQUIRED::A::p`, reason: proofResult.reason };
+            }
+        }
+
         // Account state gate — applies to EVERY tier, including stateless tier 1.
         //
         // Deleting token rows cannot express "this user's sessions are over" for
@@ -247,8 +282,13 @@ async function validateSessionToken(spec) {
             return { error: true, errorCode: `${errorPrefix}::SESSION-INVALIDATED::A::p` };
         }
 
-        // Tier 1: stateless — signature plus the account gate above is the whole story
+        // Tier 1: stateless — signature, the account gate above, and the
+        // revocation denylist are the whole story.
         if (securityTier === 1) {
+            if (validatedToken.jti && (await isJtiRevoked(validatedToken.jti))) {
+                return { error: true, errorCode: `${errorPrefix}::SESSION-INVALIDATED::A::p` };
+            }
+
             return { error: false, valid: true, data: validatedToken };
         }
 

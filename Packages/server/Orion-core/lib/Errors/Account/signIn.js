@@ -1,4 +1,15 @@
 const AccountSignIn = {
+    // Correct credentials presented while the account is under failure backoff.
+    // Not a refusal — the client is told to run the step-up flow. This is what
+    // keeps a failure counter from becoming a way to lock an owner out.
+    'ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p': {
+        status: 401,
+        context: 'Additional verification is required before this sign-in can complete',
+        errorCode: 'ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Complete the additional verification step'],
+        flow: 'FLOW-STEP-UP-AUTH'
+    },
     // The single outcome every failed sign-in reports to the client.
     //
     // "no such account", "this account has no password" and "wrong password" are

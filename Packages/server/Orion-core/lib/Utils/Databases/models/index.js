@@ -7,4 +7,5 @@ export { TokenModel } from './TokenModel.js';
 export { ConsumedRefreshTokenModel } from './ConsumedRefreshTokenModel.js';
 export { DeviceModel } from './DeviceModel.js';
 export { RequestModel } from './RequestModel.js';
+export { WebAuthnCeremonyModel } from './WebAuthnCeremonyModel.js';
 export { HealthCheckModel } from './HealthCheckModel.js';

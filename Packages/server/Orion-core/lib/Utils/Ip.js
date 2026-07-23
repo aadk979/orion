@@ -3,6 +3,7 @@ import geoip from 'geoip-lite';
 import crypto from 'crypto';
 import asnLookup from 'ip-to-asn';
 import { logger } from './logger.js';
+import { globalAccessPoint } from './GlobalAccessPoint.js';
 
 /**
  * Configuration for risk assessment scoring
@@ -128,9 +129,22 @@ function calculateGeoScore(ip1, ip2) {
 }
 
 /**
- * ASN check (ISP consistency)
+ * ASN check (ISP consistency).
+ *
+ * OFF by default. `ip-to-asn` performs a network lookup, and this used to run
+ * twice per assessment on an authentication path — buying 20 points of a
+ * 100-point score at the cost of two round trips, with a slow provider turning
+ * into request latency. Enable deliberately via `utilities.ipRisk.asnLookup`
+ * when the latency is understood and acceptable.
+ *
+ * Returns the neutral 50 when disabled, which is exactly what it already
+ * returned whenever a lookup failed.
  */
 async function calculateAsnScore(ip1, ip2) {
+    if (globalAccessPoint.getValue('ipRiskAsnLookupEnabled') !== true) {
+        return 50;
+    }
+
     try {
         const a1 = await asnLookup(ip1);
         const a2 = await asnLookup(ip2);
