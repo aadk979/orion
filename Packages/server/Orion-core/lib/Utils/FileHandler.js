@@ -19,11 +19,22 @@ async function writeToCaller(filename, data) {
         if (!callerDir) return { error: true, errorCode: 'FILE-OPS::CALLER-DIRECTORY-NOT-FOUND::A::p' };
 
         const targetPath = path.resolve(callerDir, filename);
-        await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+        await fs.promises.mkdir(path.dirname(targetPath), { recursive: true, mode: 0o700 });
 
         const formattedData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 
-        await fs.promises.writeFile(targetPath, formattedData, 'utf8');
+        // Owner-only. This path writes the secrets stores, the audit WAL and the
+        // client-URL registry; the process umask would otherwise leave them
+        // world-readable. `mode` only applies when the file is created, so an
+        // existing file is tightened explicitly below.
+        await fs.promises.writeFile(targetPath, formattedData, { encoding: 'utf8', mode: 0o600 });
+
+        try {
+            await fs.promises.chmod(targetPath, 0o600);
+        } catch {
+            // chmod is a no-op on some filesystems (Windows, mounted volumes) —
+            // the write itself succeeded, so this must not fail the operation.
+        }
 
         return { error: false, path: targetPath };
     } catch (err) {

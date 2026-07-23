@@ -207,14 +207,18 @@ async function validateResourceToken(token, fingerprint = 'NO_FINGERPRINT', ip, 
             return { error: true, errorCode: 'TOKEN-RESOURCE::TOKEN-TYPE-MISMATCH::A::p' };
         }
 
-        if (tokenRow.retrieval_count >= tokenRow.max_retrievals) {
+        // Claim a retrieval atomically. Checking the count and then writing
+        // count+1 as a literal let N concurrent requests all read the same value,
+        // all pass the check, and all write the same increment — so a
+        // max_retrievals:1 token could be redeemed as many times as the caller
+        // could fire requests at once. The predicate now lives in the UPDATE, so
+        // exactly one of N racing requests can win.
+        const claimed = await TokenModel.claimRetrieval(validatedToken.tokenData.tokenId);
+
+        if (!claimed) {
             await TokenModel.deleteToken(validatedToken.tokenData.tokenId);
             return { error: true, errorCode: 'TOKEN-RESOURCE::MAX-RETRIEVALS-HIT::A::p' };
         }
-
-        await TokenModel.updateToken(validatedToken.tokenData.tokenId, {
-            retrieval_count: tokenRow.retrieval_count + 1
-        });
 
         recordTokenEvent(auditTrailSystemModule, {
             source: SOURCE,

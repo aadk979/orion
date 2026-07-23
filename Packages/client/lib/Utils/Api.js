@@ -34,7 +34,11 @@ class ApiInterface {
                 'orion-fingerprint': await getDeviceFingerprint(),
                 'orion-user-agent': navigator.userAgent,
                 'orion-api-system-version': '1.0.0[BETA]',
-                Origin: window.location.origin,
+                // NOTE: `Origin` is deliberately NOT set here. It is a forbidden
+                // header name — the browser discards any script-supplied value and
+                // sets its own — so writing it was dead code that also implied this
+                // SDK is what satisfies the server's mandatory-Origin check. It is
+                // the browser that does; a non-browser runtime must send it itself.
                 Authorization: authorization
             },
             credentials: 'include',

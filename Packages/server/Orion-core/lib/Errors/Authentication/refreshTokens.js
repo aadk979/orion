@@ -1,4 +1,24 @@
 const RefreshTokens = {
+    // See TOKEN-ACCESS::SESSION-INVALIDATED — same watermark, refresh side.
+    'TOKEN-REFRESH::SESSION-INVALIDATED::A::p': {
+        status: 401,
+        context: 'This session was ended by a security change on the account (password, role, or status)',
+        errorCode: 'TOKEN-REFRESH::SESSION-INVALIDATED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Sign in again'],
+        logout: true
+    },
+    // A refresh token that was already rotated away has been presented again.
+    // Treated as compromise: the whole session family is revoked, not just this
+    // token, because we cannot tell the legitimate holder from the replayer.
+    'TOKEN-REFRESH::REUSE-DETECTED::A::p': {
+        status: 401,
+        context: 'A refresh token that had already been rotated was presented again — the session family has been revoked',
+        errorCode: 'TOKEN-REFRESH::REUSE-DETECTED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Sign in again'],
+        logout: true
+    },
     'TOKEN-REFRESH::GENERATION-FAILED::A::i': {
         status: 500,
         context: 'An unknown error has occurred during the token generation process',

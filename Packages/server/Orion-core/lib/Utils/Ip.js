@@ -219,9 +219,42 @@ async function assessRisk(currentIp, referenceIp, options = {}) {
 }
 
 /**
- * Main IP validation
+ * Strict CIDR containment. This is a PREDICATE, not a heuristic.
+ *
+ * Every security binding in the framework goes through here — tier-2 token
+ * binding, step-up tokens, password reset, device authorization, the OAuth
+ * callback, resource-token pinning. It used to fall back to `assessRisk` when
+ * containment failed, so an address in a different subnet could still be
+ * accepted on geo/ASN similarity: a "binding" that accepted addresses it was not
+ * bound to. Ranges are already /24 (IPv4) and /64 (IPv6), which is the intended
+ * tolerance; anything looser has to be an explicit risk decision, not a silent
+ * one.
+ *
+ * For a graduated signal (e.g. feeding a tier-4 risk score), call
+ * `assessIpRisk` directly.
+ *
+ * Fails closed on malformed input.
  */
-async function isIpInRange(ip, cidr, options = {}) {
+async function isIpInRange(ip, cidr) {
+    try {
+        return ipaddr.parse(ip).match(ipaddr.parseCIDR(cidr));
+    } catch (e) {
+        logger.error('IP validation error:', e.message);
+        return false;
+    }
+}
+
+/**
+ * Graduated similarity signal between an address and a reference range —
+ * subnet distance, geolocation, ASN, reputation.
+ *
+ * Deliberately separate from `isIpInRange`: this answers "how alike are these?",
+ * which is a useful input to a risk score and a wrong answer to "is this address
+ * inside that range?".
+ *
+ * @returns {Promise<boolean>} true when similarity clears the threshold
+ */
+async function isIpPlausiblyRelated(ip, cidr, options = {}) {
     try {
         const addr = ipaddr.parse(ip);
         const range = ipaddr.parseCIDR(cidr);
@@ -231,7 +264,7 @@ async function isIpInRange(ip, cidr, options = {}) {
         const assessment = await assessRisk(ip, referenceIp, options);
         return assessment.accepted;
     } catch (e) {
-        logger.error('IP validation error:', e.message);
+        logger.error('IP similarity assessment error:', e.message);
         return false;
     }
 }
@@ -249,9 +282,30 @@ async function getIpRiskAssessment(currentIp, referenceIp, options = {}) {
 /**
  * IP extraction + fingerprint helpers
  */
+/**
+ * Resolves the client IP for a request.
+ *
+ * SECURITY: this must never read `X-Forwarded-For` directly. The leftmost entry
+ * of that header is written by the client, and this value is the binding
+ * material for token security tiers, step-up tokens, password reset, device
+ * authorization, the OAuth callback and every IP rate-limit bucket — trusting a
+ * client-supplied value there voids all of them at once.
+ *
+ * `req.ip` is Express's resolution, which honours the app's `trust proxy`
+ * setting: with no trusted proxy it is the socket peer and the header is
+ * ignored entirely; with one configured, Express walks the forwarded chain from
+ * the right and stops at the first untrusted hop. Configure the hop count or
+ * proxy CIDRs via `systemConfig.server.trustProxy` (see onStartConfigurations).
+ *
+ * Falls back to the raw socket address for non-Express callers.
+ */
 function getIp(req) {
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = forwarded ? forwarded.split(',')[0].trim() : req.connection.remoteAddress;
+    const ip = req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress;
+
+    if (!ip) {
+        throw new Error('getIp: unable to resolve a client IP for this request');
+    }
+
     return ipaddr.parse(ip).toString();
 }
 
@@ -271,4 +325,14 @@ const packageExports = {
     isIpInRange
 };
 
-export { getIpRange, getIp, isIpInRange, getIpRiskAssessment, generateIpFingerprint, verifyIpFingerprint, RISK_CONFIG, packageExports };
+export {
+    getIpRange,
+    getIp,
+    isIpInRange,
+    isIpPlausiblyRelated,
+    getIpRiskAssessment,
+    generateIpFingerprint,
+    verifyIpFingerprint,
+    RISK_CONFIG,
+    packageExports
+};

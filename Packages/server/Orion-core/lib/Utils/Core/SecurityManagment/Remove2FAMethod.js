@@ -161,6 +161,17 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
                     errorCode: 'TWO-FA::INVALID-CODE::A::p'
                 });
             }
+
+            // Guessing this code strips the account's second factor permanently,
+            // so the ceiling matters more here than anywhere else.
+            const attempt = await RequestModel.chargeFailedAttempt('two_fa_removal_requests', parseCookieData(parameters.reqId));
+
+            if (attempt.exhausted) {
+                await RequestModel.delete2FARemovalRequest(parseCookieData(parameters.reqId));
+                cronScheduler.cancelEvent(parseCookieData(parameters.reqId));
+                return { error: true, errorCode: 'TWO-FA::ATTEMPTS-EXCEEDED::A::p' };
+            }
+
             return { error: true, errorCode: 'TWO-FA::INVALID-CODE::A::p' };
         }
 
@@ -188,6 +199,11 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
         if (!hasTotp && !hasPasskey) {
             await UserSecurityModel.setTwoFAEnabled(storedData.user_uid, false);
         }
+
+        // Removing a second factor is a security downgrade — end every existing
+        // session so a stolen one cannot both trigger the removal and continue
+        // afterwards with the weakened account.
+        await UserModel.invalidateSessionsNow(storedData.user_uid);
 
         // Clean up the request
         await RequestModel.delete2FARemovalRequest(parseCookieData(parameters.reqId));

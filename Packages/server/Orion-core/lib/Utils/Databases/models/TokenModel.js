@@ -82,6 +82,29 @@ export const TokenModel = {
         await query(`UPDATE tokens SET ${setClauses.join(', ')} WHERE token_id = $1`, [tokenId, ...values]);
     },
 
+    /**
+     * Atomically consumes one retrieval from a resource token's budget.
+     *
+     * The check and the increment are one statement on purpose: a read-then-write
+     * pair lets concurrent requests all observe the same pre-increment count and
+     * every one of them pass, which defeats the whole point of max_retrievals.
+     *
+     * @returns {{ retrieval_count: number, max_retrievals: number } | null}
+     *   null when the budget was already spent (no row satisfied the predicate).
+     */
+    async claimRetrieval(tokenId) {
+        const result = await query(
+            `UPDATE tokens
+                SET retrieval_count = retrieval_count + 1
+              WHERE token_id = $1
+                AND max_retrievals IS NOT NULL
+                AND retrieval_count < max_retrievals
+          RETURNING retrieval_count, max_retrievals`,
+            [tokenId]
+        );
+        return result.rows[0] || null;
+    },
+
     async deleteToken(tokenId) {
         await query('DELETE FROM tokens WHERE token_id = $1', [tokenId]);
     },

@@ -4,6 +4,7 @@ export { UserSecurityModel } from './UserSecurityModel.js';
 export { PasskeyModel } from './PasskeyModel.js';
 export { TOTPModel } from './TOTPModel.js';
 export { TokenModel } from './TokenModel.js';
+export { ConsumedRefreshTokenModel } from './ConsumedRefreshTokenModel.js';
 export { DeviceModel } from './DeviceModel.js';
 export { RequestModel } from './RequestModel.js';
 export { HealthCheckModel } from './HealthCheckModel.js';

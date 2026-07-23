@@ -25,7 +25,20 @@
 
 const VALID_EFFECTS = new Set(['allow', 'deny']);
 
-/** '*' | 'a:b:*' | 'a:*:c' — segment-wise glob over ':'-separated names. */
+/**
+ * '*' | 'a:b:*' | 'a:*:c' | 'a:pre*' — segment-wise glob over ':'-separated names.
+ *
+ * Three wildcard forms, all segment-scoped:
+ *   - a lone '*' as the WHOLE pattern matches anything;
+ *   - a bare '*' segment matches exactly one segment;
+ *   - a bare '*' as the LAST segment swallows the remainder;
+ *   - a segment ending in '*' ("WKR_prod*") prefix-matches within that segment.
+ *
+ * The prefix form is load-bearing: it is the documented idiom for scoping a deny
+ * to a node-name family ("node:WKR_prod*"), and while it was unimplemented such a
+ * statement compared literally, never matched, and silently failed open — leaving
+ * a broad allow to win over a deny the operator believed was protecting them.
+ */
 const matchesPattern = (pattern, value) => {
     if (typeof pattern !== 'string' || typeof value !== 'string' || pattern === '' || value === '') return false;
     if (pattern === '*') return true;
@@ -35,12 +48,20 @@ const matchesPattern = (pattern, value) => {
 
     for (let i = 0; i < p.length; i++) {
         const seg = p[i];
+
         if (seg === '*' && i === p.length - 1) {
             // Trailing wildcard swallows the rest (at least one segment).
             return v.length > i;
         }
         if (v[i] === undefined) return false;
         if (seg === '*') continue;
+
+        // Intra-segment prefix glob: "WKR_prod*" matches "WKR_prod7".
+        if (seg.endsWith('*')) {
+            if (!v[i].startsWith(seg.slice(0, -1))) return false;
+            continue;
+        }
+
         if (seg !== v[i]) return false;
     }
 

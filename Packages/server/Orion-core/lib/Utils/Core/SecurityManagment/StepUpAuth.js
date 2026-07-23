@@ -428,6 +428,14 @@ const verifyStepUpWithEmailCode = async (reqId, code, flowSecret, uid, ip, userA
         // ── 6. One-time code check ────────────────────────────────────────────
         const codeValid = await verifyHash(parameters.code, storedData.code_hash);
         if (!codeValid) {
+            const attempt = await RequestModel.chargeFailedAttempt('step_up_auth_requests', parameters.reqId);
+
+            if (attempt.exhausted) {
+                await RequestModel.deleteStepUpAuthRequest(parameters.reqId);
+                cronScheduler.cancelEvent(parameters.reqId);
+                return { error: true, errorCode: 'STEP-UP::ATTEMPTS-EXCEEDED::A::p' };
+            }
+
             return { error: true, errorCode: 'STEP-UP::INVALID-CODE::A::p' };
         }
 

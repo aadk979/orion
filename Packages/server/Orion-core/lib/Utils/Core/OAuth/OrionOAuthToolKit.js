@@ -235,8 +235,20 @@ class OAuthProviderToolkit {
             ...merged,
             oidcConfig,
             clientId: config.clientId,
-            redirectUri: config.redirectUri
+            redirectUri: config.redirectUri,
+            // Opt-in: treat this provider's asserted email as verified even when
+            // the provider supplies no verification claim. Only correct when the
+            // deployment guarantees it (e.g. Microsoft pinned to a tenant whose
+            // domains are verified). See handleCallback.
+            trustEmailClaim: config.trustEmailClaim === true
         };
+
+        if (providerName === 'microsoft' && !config.issuer) {
+            logger.warn(
+                'Microsoft OAuth is configured on the multi-tenant "common" endpoint. Its email claim is a settable directory attribute and is treated as UNVERIFIED, ' +
+                    'so it cannot create or resolve accounts. Pin `issuer` to a single tenant (https://login.microsoftonline.com/<tenant-id>/v2.0) for full id_token validation.'
+            );
+        }
 
         logger.info(`Initialized OAuth provider: ${providerName}`);
         return true;
@@ -348,10 +360,21 @@ class OAuthProviderToolkit {
             }
         }
 
-        // An identity without a stable provider id is unusable downstream
+        // An identity without a stable provider id is unusable downstream — it is
+        // the value account resolution is keyed on.
         if (!normalizedUser?.id) {
             logger.error(`Provider ${providerName} returned an identity without an id`);
             return { error: true, errorCode: 'OAUTH::USERINFO-FETCH-FAILED::A::i' };
+        }
+
+        // Operator override for providers whose email claim this code cannot
+        // verify on its own but whose DEPLOYMENT makes it trustworthy — the
+        // canonical case being Microsoft pinned to a single tenant with verified
+        // domains. Opt-in per provider (`trustEmailClaim: true`), never a default,
+        // so the unsafe multi-tenant configuration cannot inherit it silently.
+        if (normalizedUser.verified !== true && client.trustEmailClaim === true) {
+            logger.warn(`Provider ${providerName}: trusting the asserted email claim because trustEmailClaim is set for this provider.`);
+            normalizedUser.verified = true;
         }
 
         return {
@@ -400,12 +423,19 @@ class OAuthProviderToolkit {
                 };
 
             case 'microsoft':
+                // `verified` is NOT asserted here. Entra's email/preferred_username
+                // claims are directory attributes: on the multi-tenant endpoint any
+                // tenant admin in the world can set them to an address they do not
+                // own, and nothing in the token distinguishes that from a real one.
+                // Only a tenant-pinned issuer with a verified-domain guarantee makes
+                // this claim meaningful, so trust must be declared per provider in
+                // config (`trustEmailClaim`) rather than assumed in code.
                 return {
                     id: claims.sub || claims.oid || claims.objectId,
                     email: claims.email || claims.preferred_username || null,
                     name: claims.name || null,
                     picture: null,
-                    verified: true
+                    verified: claims.email_verified === true
                 };
 
             default:
@@ -465,12 +495,16 @@ class OAuthProviderToolkit {
             }
 
             case 'microsoft':
+                // Graph's `mail` is a settable directory attribute. On the default
+                // multi-tenant configuration this is the nOAuth primitive: an
+                // attacker-controlled tenant sets mail to a victim's address and the
+                // asserted identity looks legitimate. Never self-certify it.
                 return {
                     id: userData.id,
                     email: userData.mail || userData.userPrincipalName,
                     name: userData.displayName,
                     picture: null,
-                    verified: true
+                    verified: false
                 };
 
             case 'discord':
@@ -489,7 +523,10 @@ class OAuthProviderToolkit {
                     email: userData.email || null,
                     name: userData.name,
                     picture: userData.picture?.data?.url || null,
-                    verified: true
+                    // Facebook does not expose a verification flag on /me; the
+                    // address is only present when the account holder granted the
+                    // email scope, which is not the same guarantee.
+                    verified: userData.email_verified === true
                 };
             }
 
@@ -499,7 +536,7 @@ class OAuthProviderToolkit {
                     email: userData.email,
                     name: userData.name,
                     picture: null,
-                    verified: true
+                    verified: userData.email_verified === true
                 };
 
             case 'twitter': {
@@ -529,7 +566,8 @@ class OAuthProviderToolkit {
                     email: null,
                     name: userData.name,
                     picture: userData.icon_img || null,
-                    verified: true
+                    // Reddit's identity scope returns no email at all.
+                    verified: false
                 };
 
             case 'spotify':
@@ -538,7 +576,8 @@ class OAuthProviderToolkit {
                     email: userData.email,
                     name: userData.display_name,
                     picture: userData.images?.[0]?.url || null,
-                    verified: true
+                    // Spotify exposes no email-verification state.
+                    verified: false
                 };
 
             default:

@@ -266,7 +266,17 @@ const authorizeDeviceWithCode = async (reqID, code, flowSecret, ip, userAgent) =
             return { error: true, errorCode: 'DEVICE-AUTH::FLOW-SECRET-MISMATCH::A::p' };
         }
 
+        const cleanReqId = parseCookieData(parameters.reqID);
+
         if (!(await verifyHash(parameters.code, storedData.code_hash))) {
+            const attempt = await RequestModel.chargeFailedAttempt('device_authorization_requests', cleanReqId);
+
+            if (attempt.exhausted) {
+                await RequestModel.deleteDeviceAuthRequest(cleanReqId);
+                cronScheduler.cancelEvent(cleanReqId);
+                return { error: true, errorCode: 'DEVICE-AUTH::ATTEMPTS-EXCEEDED::A::p' };
+            }
+
             return { error: true, errorCode: 'DEVICE-AUTH::INVALID-CODE::A::p' };
         }
 
@@ -275,6 +285,12 @@ const authorizeDeviceWithCode = async (reqID, code, flowSecret, ip, userAgent) =
         if (authorization.error) {
             return authorization;
         }
+
+        // Consume the request. It previously survived even a SUCCESSFUL
+        // authorization, leaving the emailed code replayable for its full
+        // 15-minute window — every other challenge flow deletes on use.
+        await RequestModel.deleteDeviceAuthRequest(cleanReqId);
+        cronScheduler.cancelEvent(cleanReqId);
 
         return { error: false, cookies: authorization.cookies };
     };

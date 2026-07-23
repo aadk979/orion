@@ -82,6 +82,22 @@ const rateLimitPolicy = {
         [`POST /${NAME_SPACE}/api/v1/action/generate-totp-secret`]: { cost: 3 },
         [`POST /${NAME_SPACE}/api/v1/action/verify-and-enable-totp`]: { cost: 3 },
 
+        // ── Account recovery / challenge verification ────────────────────
+        // These verify a 6-digit emailed code. They are the highest-value
+        // guessing targets in the API and previously had no entry at all, so
+        // they inherited the cost-1 fallback — a 10 req/s sustained guessing
+        // budget against a 10^6 keyspace. Cost 5 alongside the per-challenge
+        // attempt ceiling that now destroys the record after 5 failures.
+        [`POST /${NAME_SPACE}/api/v1/action/initiate-password-reset`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/complete-password-reset`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/verify-step-up-email`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/verify-step-up-totp`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/verify-step-up-passkey`]: { cost: 5 },
+        [`POST /${NAME_SPACE}/api/v1/action/initiate-step-up-email`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/generate-step-up-passkey-options`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/initiate-2fa-method-removal`]: { cost: 3 },
+        [`POST /${NAME_SPACE}/api/v1/action/complete-2fa-method-removal`]: { cost: 5 },
+
         // ── Session management ───────────────────────────────────────────
         [`POST /${NAME_SPACE}/api/v1/action/sign-out-user`]: { cost: 1 },
 

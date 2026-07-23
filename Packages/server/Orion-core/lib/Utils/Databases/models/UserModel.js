@@ -69,8 +69,30 @@ export const UserModel = {
         return result.rows.length > 0;
     },
 
+    /**
+     * Moves the session-invalidity watermark to now, killing every token issued
+     * before this instant. Deleting token rows cannot do this alone — tier 1 is
+     * stateless and has no rows — so this is the authoritative kill switch.
+     *
+     * Called automatically by the credential/authorization mutations below; call
+     * it directly for any other event that must end a user's sessions.
+     */
+    async invalidateSessionsNow(uid) {
+        await query('UPDATE users SET sessions_valid_from = NOW(), updated_at = NOW() WHERE uid = $1', [uid]);
+    },
+
+    /**
+     * Session-invalidity watermark as unix seconds (0 when never bumped).
+     */
+    async getSessionsValidFrom(uid) {
+        const result = await query('SELECT floor(EXTRACT(EPOCH FROM sessions_valid_from))::FLOAT8 AS valid_from FROM users WHERE uid = $1', [uid]);
+        return result.rows[0]?.valid_from ?? null;
+    },
+
+    // A password change ends every existing session, in one statement so the
+    // credential and the watermark can never disagree.
     async updatePassword(uid, hash) {
-        await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE uid = $2', [hash, uid]);
+        await query('UPDATE users SET password_hash = $1, sessions_valid_from = NOW(), updated_at = NOW() WHERE uid = $2', [hash, uid]);
     },
 
     async getPasswordHash(uid) {
@@ -78,12 +100,15 @@ export const UserModel = {
         return result.rows[0]?.password_hash || null;
     },
 
+    // A role change must not survive in already-issued tokens.
     async updateRole(uid, role) {
-        await query('UPDATE users SET role = $1, updated_at = NOW() WHERE uid = $2', [role, uid]);
+        await query('UPDATE users SET role = $1, sessions_valid_from = NOW(), updated_at = NOW() WHERE uid = $2', [role, uid]);
     },
 
+    // Disabling an account has to end its live sessions to be worth anything as
+    // an incident-response action.
     async setDisabled(uid, disabled) {
-        await query('UPDATE users SET disabled = $1, updated_at = NOW() WHERE uid = $2', [disabled, uid]);
+        await query('UPDATE users SET disabled = $1, sessions_valid_from = NOW(), updated_at = NOW() WHERE uid = $2', [disabled, uid]);
     },
 
     async setEmailVerified(uid, verified) {

@@ -41,7 +41,24 @@ const createPasswordResetRequest = async (email, ip, userAgent) => {
         const uid = await UserModel.getUidByEmail(sanitizedEmail);
 
         if (!uid) {
-            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p' };
+            // Report success for an unknown address. Distinguishing "sent" from
+            // "no such account" here is a free membership oracle, and the caller
+            // learns nothing either way — the code only ever reaches a real inbox.
+            // The audit trail below still records the real outcome.
+            auditTrail?.record({
+                user: { email: sanitizedEmail },
+                device: { fingerprint: requestMetadata?.fingerprint, userAgent: requestMetadata?.userAgent },
+                action: 'PASSWORD_RESET_REQUEST_IGNORED',
+                status: 'FAILED',
+                source: 'PasswordReset.js',
+                functionName: 'createPasswordResetRequest',
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: 'Password reset requested for an address with no account — indistinguishable response returned',
+                metadata: { reason: 'NO_SUCH_ACCOUNT' }
+            });
+
+            return { error: false, sent: true, reqId: null };
         }
 
         const code = generateRandomNumber(6);
@@ -132,6 +149,16 @@ const verifyPasswordResetCodeAndUpdate = async (reqId, code, newPassword, ip, us
         }
 
         if (!(await verifyHash(cleanCode, record.code_hash))) {
+            // Charge the attempt and destroy the request once the ceiling is hit.
+            // Without this the record survived every wrong guess for its full
+            // 15-minute life, so a 6-digit code was brute-forceable end to end.
+            const attempt = await RequestModel.chargeFailedAttempt('password_reset_requests', cleanReqId);
+
+            if (attempt.exhausted) {
+                await RequestModel.deletePasswordResetRequest(cleanReqId);
+                return { error: true, errorCode: 'ACC-PASSWORD-RESET-ATTEMPTS-EXCEEDED' };
+            }
+
             return { error: true, errorCode: 'ACC-PASSWORD-RESET-INVALID-CODE' };
         }
 

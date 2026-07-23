@@ -245,7 +245,24 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
 
         const app = express();
 
-        app.set('trust proxy', 1);
+        // Trusted-proxy configuration. This decides what `req.ip` resolves to, and
+        // therefore what every IP-bound security control (token tiers, step-up
+        // binding, password reset, device auth, rate limiting) is actually bound to.
+        //
+        // Defaults to `false` — trust nothing — so a directly-exposed deployment
+        // cannot be fed a spoofed X-Forwarded-For. Operators behind a proxy MUST
+        // declare it: a hop count (1 for a single reverse proxy) or a list of
+        // trusted proxy IPs/CIDRs. Getting this wrong in the permissive direction
+        // is what makes client IP forgeable, so it is opt-in rather than assumed.
+        const trustProxy = mergedConfig?.server?.trustProxy ?? false;
+        app.set('trust proxy', trustProxy);
+
+        if (trustProxy === false) {
+            logger.info('Trust proxy: disabled — client IP is the socket peer and X-Forwarded-For is ignored.');
+            logger.warn('If this service sits behind a reverse proxy or load balancer, set server.trustProxy (e.g. 1) or every request will be attributed to the proxy IP.');
+        } else {
+            logger.info(`Trust proxy: ${JSON.stringify(trustProxy)} — client IP resolved from the forwarded chain up to the first untrusted hop.`);
+        }
 
         // Apply middleware stack
         const middlewares = buildMiddlewarePipeline(mergedConfig, rateLimiter);

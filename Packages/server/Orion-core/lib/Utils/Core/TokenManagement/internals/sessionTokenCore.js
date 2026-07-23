@@ -12,7 +12,7 @@
  * and sign-in flows consume them positionally and by exact code string.
  */
 import { globalAccessPoint } from '../../../GlobalAccessPoint.js';
-import { TokenModel } from '../../../Databases/models/index.js';
+import { TokenModel, UserModel } from '../../../Databases/models/index.js';
 import { generateId } from '../../../valueGenerator.js';
 import { getFutureUnixTime } from '../../../Date&Time.js';
 import { requestContext } from '../../../../Server/Middleware/requestMetadata.js';
@@ -204,8 +204,11 @@ async function validateSessionToken(spec) {
         validatedToken.aud = decompressURLs(validatedToken.aud);
         validatedToken.iss = decompressURLs(validatedToken.iss);
 
-        // Validate audience and issuer for all tiers
-        if (!validatedToken.aud.includes(clientUrl) && !globalAccessPoint.allowedClientUrls().includes(clientUrl)) {
+        // Audience must be carried by the TOKEN. The previous disjunction also
+        // accepted any client in the server-wide allowlist, which every request
+        // reaching this point already satisfies (originVerifier ran first) — so
+        // the token's own aud claim could never decide anything.
+        if (!validatedToken.aud.includes(clientUrl)) {
             return { error: true, errorCode: `${errorPrefix}::INVALID-AUD::A::p` };
         }
 
@@ -219,17 +222,49 @@ async function validateSessionToken(spec) {
             return { error: true, errorCode: `${errorPrefix}::TIER-CONFLICT::A::i` };
         }
 
-        // Tier 1: stateless — the signature is the whole story
+        // Account state gate — applies to EVERY tier, including stateless tier 1.
+        //
+        // Deleting token rows cannot express "this user's sessions are over" for
+        // tier 1, and it also cannot express "this account is disabled" for any
+        // tier, because validation never used to read the user at all. Both are
+        // resolved here: a disabled/deleted user is refused outright, and any
+        // token issued before the user's invalidation watermark is dead even if
+        // its signature and expiry are still good.
+        const accountState = await UserModel.getUserByUid(validatedToken.uid);
+
+        if (!accountState) {
+            return { error: true, errorCode: `${errorPrefix}::VALIDATION-FAILED::A::p` };
+        }
+
+        if (accountState.disabled) {
+            return { error: true, errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p' };
+        }
+
+        const validFrom = accountState.sessions_valid_from ? Math.floor(new Date(accountState.sessions_valid_from).getTime() / 1000) : 0;
+
+        // `iat` is stamped by jwt.sign and survives the field-map round trip.
+        if (validFrom > 0 && typeof validatedToken.iat === 'number' && validatedToken.iat < validFrom) {
+            return { error: true, errorCode: `${errorPrefix}::SESSION-INVALIDATED::A::p` };
+        }
+
+        // Tier 1: stateless — signature plus the account gate above is the whole story
         if (securityTier === 1) {
             return { error: false, valid: true, data: validatedToken };
         }
 
-        // Tiers 2-4: stateful validation against the stored row
-        if (onStatefulPayload) await onStatefulPayload(validatedToken);
+        // Tiers 2-4: stateful validation against the stored row.
+        // The account row fetched above is handed to the hook so refresh does not
+        // re-query the same user just to resolve its email.
+        if (onStatefulPayload) await onStatefulPayload(validatedToken, accountState);
 
         const tokenRow = await TokenModel.getToken(validatedToken.tokenData.tokenId);
         if (!tokenRow) {
             return { error: true, errorCode: `${errorPrefix}::TOKEN-ID-NOT-FOUND::A::p` };
+        }
+        // The row must belong to the subject the signed payload claims. Defence in
+        // depth against any future path that can mint or move a row independently.
+        if (tokenRow.user_uid !== validatedToken.uid) {
+            return { error: true, errorCode: `${errorPrefix}::VALIDATION-FAILED::A::p` };
         }
         if (tokenRow.type !== tokenType) {
             return { error: true, errorCode: `${errorPrefix}::TOKEN-TYPE-MISMATCH::A::p` };

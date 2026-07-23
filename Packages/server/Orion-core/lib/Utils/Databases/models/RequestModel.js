@@ -4,8 +4,55 @@ const dbModule = new SafeModuleHandler('Database', 'db', 'RequestModel.js');
 
 const query = (text, params) => dbModule.getModule().query(text, params);
 
+// chargeFailedAttempt interpolates a table name into SQL — only these may appear.
+const CHALLENGE_TABLES = new Set([
+    'password_reset_requests',
+    'step_up_auth_requests',
+    'device_authorization_requests',
+    'two_fa_removal_requests'
+]);
+
 export const RequestModel = {
     // ─── Device Authorization Requests ───────────────────────────────────────
+
+    /**
+     * Charges one failed attempt against a challenge record and reports whether
+     * the record survives.
+     *
+     * Every code-based challenge in the system (password reset, step-up, device
+     * authorization, 2FA removal) issues a 6-digit code and previously returned
+     * early on a wrong guess WITHOUT touching the record — so the same request id
+     * accepted unlimited guesses for the full lifetime of the challenge. This is
+     * the shared ceiling: the increment and the limit test are one statement, so
+     * concurrent guesses cannot race past it, and the caller deletes the record
+     * once it is exhausted.
+     *
+     * @param {string} table  one of the *_requests tables
+     * @param {string} reqId
+     * @returns {{ attempts: number, maxAttempts: number, exhausted: boolean }}
+     */
+    async chargeFailedAttempt(table, reqId) {
+        if (!CHALLENGE_TABLES.has(table)) {
+            throw new Error(`RequestModel.chargeFailedAttempt: "${table}" is not a challenge table`);
+        }
+
+        const result = await query(
+            `UPDATE ${table}
+                SET attempts = attempts + 1
+              WHERE request_id = $1
+          RETURNING attempts, max_attempts`,
+            [reqId]
+        );
+
+        const row = result.rows[0];
+        if (!row) return { attempts: 0, maxAttempts: 0, exhausted: true };
+
+        return {
+            attempts: row.attempts,
+            maxAttempts: row.max_attempts,
+            exhausted: row.attempts >= row.max_attempts
+        };
+    },
 
     async createDeviceAuthRequest(reqId, { codeHash, hashedFlowSecret, ip, userAgentHash, email }) {
         await query(

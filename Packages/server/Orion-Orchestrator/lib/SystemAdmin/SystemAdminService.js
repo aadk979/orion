@@ -32,6 +32,11 @@ const DEFAULT_READ_ONLY_POLICY_ID = 'POL_DEFAULT_READ_ONLY';
 const MIN_PASSWORD_LENGTH = 12;
 const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
+// TOTP step is 30s and verification allows ±1 step, so a code stays arithmetically
+// valid for ~90s. Remembering consumed codes a little past that window makes them
+// genuinely one-time, as RFC 6238 §5.2 requires.
+const TOTP_CONSUMED_RETENTION_MS = 120 * 1000;
+
 class AdminError extends Error {
     constructor(code, message, status = 400) {
         super(message);
@@ -76,6 +81,28 @@ class SystemAdminService {
         this.mailer = new AdminMailer(config.mail || {});
 
         this._purgeTimer = null;
+
+        // adminId:code -> expiry. Makes an accepted TOTP code single-use, so an
+        // observed code cannot be replayed inside its validity window.
+        this._consumedTotp = new Map();
+    }
+
+    /**
+     * Records a TOTP code as consumed. Returns false when it was already used,
+     * which the caller must treat exactly like an invalid code.
+     */
+    _claimTotpCode(adminId, token) {
+        const key = `${adminId}:${token}`;
+        const now = Date.now();
+
+        for (const [k, expiry] of this._consumedTotp) {
+            if (expiry <= now) this._consumedTotp.delete(k);
+        }
+
+        if (this._consumedTotp.has(key)) return false;
+
+        this._consumedTotp.set(key, now + TOTP_CONSUMED_RETENTION_MS);
+        return true;
     }
 
     start() {
@@ -252,6 +279,35 @@ class SystemAdminService {
         };
     }
 
+    /**
+     * Issues a NEW session credential at the pending → active transition and
+     * revokes the pending one, instead of upgrading the pending row in place.
+     *
+     * The pending token exists before the second factor has been presented, and
+     * for non-root admins it is delivered by email. Carrying that same value
+     * forward as the fully privileged session means anyone who observed it holds
+     * the elevated session — the standard session-fixation-on-elevation problem.
+     *
+     * @returns {{ token: string }} the raw token to hand back to the caller
+     */
+    async _rotateSessionOnElevation(session, adminId, ip = null) {
+        const { raw, hash } = generateToken('OAS');
+
+        await this.sessions.create(adminId, hash, 'active', this.config.sessionTtlHours * 3600, ip, session.userAgent || null);
+        await this.sessions.revoke(session.sessionId);
+
+        this.audit.writeSafe({
+            adminId,
+            ip,
+            action: 'auth:session-rotated-on-elevation',
+            resource: 'auth',
+            decision: 'allow',
+            details: { previousSessionId: session.sessionId }
+        });
+
+        return { token: raw };
+    }
+
     // ── Session resolution (used by API middleware and the CLI) ──────────────
 
     async resolveSession(rawToken) {
@@ -351,7 +407,12 @@ class SystemAdminService {
         await this.admins.activateTotp(admin.id);
         // Root still rotating its bootstrap password stays 'pending' until done.
         await this.admins.activateIfComplete(admin.id);
-        await this.sessions.upgradeToActive(session.sessionId, this.config.sessionTtlHours * 3600);
+        // Rotate the session credential on privilege elevation rather than
+        // upgrading the existing row in place. The pending token was handed out
+        // BEFORE the second factor — for non-root admins it arrives via a magic
+        // link through email — so promoting that same value to a fully
+        // privileged session hands the elevated session to anyone who saw it.
+        const elevated = await this._rotateSessionOnElevation(session, admin.id, ip);
         await this.admins.markLogin(admin.id);
 
         const fresh = await this.admins.findById(admin.id);
@@ -365,7 +426,7 @@ class SystemAdminService {
             details: { accountStatus: fresh.status }
         });
 
-        return { stage: 'active', admin: publicAdmin(fresh) };
+        return { stage: 'active', admin: publicAdmin(fresh), token: elevated.token };
     }
 
     /** Second factor for every subsequent login. */
@@ -376,7 +437,12 @@ class SystemAdminService {
         }
 
         const result = await verifyTotp({ token: String(token || ''), secret: admin.totp_secret, window: 1 });
-        if (!result?.valid) {
+
+        // A code that verifies but has already been spent is rejected exactly
+        // like an invalid one — same audit action, same error, no oracle.
+        const fresh = result?.valid ? this._claimTotpCode(admin.id, String(token || '')) : false;
+
+        if (!result?.valid || !fresh) {
             this.audit.writeSafe({
                 adminId: admin.id,
                 adminEmail: admin.email,
@@ -389,7 +455,12 @@ class SystemAdminService {
             throw new AdminError('TOTP::INVALID-TOKEN', 'Invalid authenticator code', 401);
         }
 
-        await this.sessions.upgradeToActive(session.sessionId, this.config.sessionTtlHours * 3600);
+        // Rotate the session credential on privilege elevation rather than
+        // upgrading the existing row in place. The pending token was handed out
+        // BEFORE the second factor — for non-root admins it arrives via a magic
+        // link through email — so promoting that same value to a fully
+        // privileged session hands the elevated session to anyone who saw it.
+        const elevated = await this._rotateSessionOnElevation(session, admin.id, ip);
         await this.admins.markLogin(admin.id);
 
         this.audit.writeSafe({
@@ -403,7 +474,7 @@ class SystemAdminService {
         });
 
         const fresh = await this.admins.findById(admin.id);
-        return { stage: 'active', admin: publicAdmin(fresh) };
+        return { stage: 'active', admin: publicAdmin(fresh), token: elevated.token };
     }
 
     /** Root only — rotates the password (mandatory after bootstrap). */

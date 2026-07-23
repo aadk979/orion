@@ -1,4 +1,34 @@
 const OAuth = {
+    // The provider identity is new, but an account already owns the email it
+    // asserted. Auto-linking here is the account-takeover primitive, so the user
+    // must first prove control of the existing account with a factor it already
+    // has, and link the provider from an authenticated session.
+    'OAUTH::LINK-REQUIRES-VERIFICATION::A::p': {
+        status: 409,
+        context: 'An account already exists for this email address and is not linked to this provider identity',
+        errorCode: 'OAUTH::LINK-REQUIRES-VERIFICATION::A::p',
+        fault: 'CLIENT',
+        solutions: [
+            'Sign in with the method originally used for this account, then link this provider from account settings',
+            'If the account is not yours, use a different email with this provider'
+        ]
+    },
+    // Identity is keyed on the provider's stable subject; without one there is
+    // nothing safe to resolve against.
+    'OAUTH::MISSING-PROVIDER-SUBJECT::A::i': {
+        status: 502,
+        context: 'The identity provider did not return a stable subject identifier',
+        errorCode: 'OAUTH::MISSING-PROVIDER-SUBJECT::A::i',
+        fault: 'SERVER',
+        solutions: ['Verify the provider configuration and requested scopes', 'Contact support if the issue persists']
+    },
+    'OAUTH::EMAIL-NOT-PROVIDED::A::p': {
+        status: 400,
+        context: 'The identity provider did not return an email address for this account',
+        errorCode: 'OAUTH::EMAIL-NOT-PROVIDED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Grant the email permission to this application', 'Add and verify an email address with the provider, then try again']
+    },
     'OAUTH::UNSUPPORTED-PROVIDER::A::p': {
         status: 400,
         context: 'The OAuth provider specified is not supported',

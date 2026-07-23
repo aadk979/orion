@@ -25,6 +25,7 @@ import { waitForDb } from './utils/lokidb.js';
 import { registerEventHandler, setTunnelState, getTunnelState, setReregisterHandler } from './core/controllers/workerController.js';
 import { registerOrchestratorEventHandler } from './core/controllers/orchestratorController.js';
 import { validateConfig, OrchestratorConfigSchema, WorkerConfigSchema } from './utils/configSchemas.js';
+import { buildRequestSignaturePayload } from './utils/requestSignature.js';
 
 class R_Sync {
     static #ROLES = Object.freeze(['ORCHESTRATOR', 'WORKER']);
@@ -448,7 +449,20 @@ class R_Sync {
                 // and a unique nonce to pass the replay-attack guard on the orchestrator.
                 const timestamp = getCurrentUnixTime();
                 const nonce = generateRandomNumber(36);
-                const authPayload = `${this.workerId}:${timestamp}:${nonce}`;
+
+                // The auth signature covers this exact request — method, path and
+                // body digest included — so it cannot be lifted onto a different
+                // request. Body must match what is sent below, byte for byte.
+                const requestBody = { payload: encrypted, signature: payloadSignature, timestamp: timestamp };
+
+                const authPayload = buildRequestSignaturePayload({
+                    method: 'POST',
+                    path: new URL(EVENT_URL).pathname,
+                    body: requestBody,
+                    workerId: this.workerId,
+                    timestamp,
+                    nonce
+                });
                 const authSignature = generateSignature(authPayload, tunnelState.mySignatureKeyPair.privateKey);
 
                 logger.info(`Emitting "${eventName}" to orchestrator (attempt ${attempt}/${MAX_RETRIES})...`);
@@ -463,11 +477,8 @@ class R_Sync {
                         'x-r_sync-nonce': nonce,
                         'x-r_sync-signature': authSignature
                     },
-                    body: JSON.stringify({
-                        payload: encrypted,
-                        signature: payloadSignature,
-                        timestamp: timestamp
-                    })
+                    // Same object the signature was computed over.
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
@@ -547,7 +558,17 @@ class R_Sync {
                 }
 
                 const nonce = generateRandomNumber(36);
-                const signaturePayload = `${this.workerId}:${timestamp}:${nonce}`;
+
+                // Heartbeat sends no body; Express canonicalizes that to `{}` on
+                // the verifying side, so sign `{}` here to match.
+                const signaturePayload = buildRequestSignaturePayload({
+                    method: 'POST',
+                    path: new URL(HEARTBEAT_URL).pathname,
+                    body: {},
+                    workerId: this.workerId,
+                    timestamp,
+                    nonce
+                });
                 const signature = generateSignature(signaturePayload, tunnelState.mySignatureKeyPair.privateKey);
 
                 const response = await fetch(HEARTBEAT_URL, {

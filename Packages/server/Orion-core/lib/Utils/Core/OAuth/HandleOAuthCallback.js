@@ -9,10 +9,11 @@ import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
-import { accountExist, checkAndAddProviderToAccount, createAccountWithProvider } from './Account.js';
+import { resolveOAuthIdentity } from './Account.js';
 import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
 import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
+import { cronScheduler } from '../../Cron.js';
 import { isValidEmailDomain } from '../../Validator.js';
 import { userControl } from '../AccountManagment/UserControl.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
@@ -121,6 +122,13 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
 
         const provider = stateFromServer.provider_name.trim().toLowerCase();
 
+        // Consume the request BEFORE the token exchange. Every other short-lived
+        // flow in the system deletes its record on use; this one relied on the
+        // provider to reject a reused authorization code, which is someone else's
+        // guarantee to keep. Deleting here makes a replayed state fail locally.
+        await RequestModel.deleteOAuthRequest(stateFromClient.requestId);
+        cronScheduler.cancelEvent(stateFromClient.requestId);
+
         const oAuthResponse = await oAuthToolKit.handleCallback(provider, parameters.code, {
             nonce: stateFromServer.nonce,
             codeVerifier: stateFromServer.code_verifier
@@ -200,31 +208,40 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             }
         }
 
-        const accountExistCheck = await accountExist(oAuthResponse.email);
+        // Identity is resolved from the provider's stable subject, not from the
+        // email it asserted. Keying on email meant anyone who could get any
+        // configured provider to vouch for a victim's address — including via a
+        // directory tenant they control — landed in the victim's account.
+        const identity = await resolveOAuthIdentity({
+            providerName: provider,
+            subject: oAuthResponse.id,
+            email: oAuthResponse.email,
+            emailVerified: oAuthResponse.verified === true
+        });
 
-        if (accountExistCheck.error) {
-            return accountExistCheck;
+        if (identity.error) {
+            auditTrail.record({
+                user: { email: oAuthResponse.email },
+                device: { userAgent: parameters.userAgent },
+                action: 'OAUTH_CALLBACK_ATTEMPT',
+                status: 'FAILED',
+                source: 'HandleOAuthCallback.js',
+                functionName: 'handleOAuthCallback',
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: 'OAuth sign-in blocked - provider identity could not be safely resolved',
+                metadata: {
+                    reason: identity.errorCode,
+                    provider,
+                    requestId: stateFromClient.requestId
+                },
+                errorCode: identity.errorCode
+            });
+
+            return identity;
         }
 
-        let uid;
-
-        if (accountExistCheck.userExist) {
-            const addProviderResult = await checkAndAddProviderToAccount(oAuthResponse.email, provider);
-
-            if (addProviderResult.error) {
-                return addProviderResult;
-            }
-
-            uid = addProviderResult.uid;
-        } else {
-            const createAccountResult = await createAccountWithProvider(oAuthResponse.email, provider);
-
-            if (createAccountResult.error) {
-                return createAccountResult;
-            }
-
-            uid = createAccountResult.uid;
-        }
+        const uid = identity.uid;
 
         const userAccState = await userControl.getUserAccountState().byEmail(oAuthResponse.email);
 
@@ -248,7 +265,11 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                 parameters.deviceCode
             );
 
-            if (deviceRecognition.error) {
+            // Both halves of the contract are checked, matching deviceScanner.
+            // Testing only `error` left this path depending on an invariant of
+            // another module (that it never returns {error:false, valid:false});
+            // if that ever changed, this became a device-authorization bypass.
+            if (deviceRecognition.error || !deviceRecognition.valid) {
                 const cookies = [
                     { key: 'authorizedDeviceId', data: '', maxAge: 0 },
                     { key: 'authorizedDeviceCode', data: '', maxAge: 0 },

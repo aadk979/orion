@@ -33,4 +33,25 @@ function verifyWithKeyPair(token, secret) {
     }
 }
 
-export { decodeKeyId, signWithKeyPair, verifyWithKeyPair };
+/**
+ * Reads the stateful tokenId out of a token WITHOUT verifying its signature.
+ *
+ * Only for reuse detection, where the row a valid token would point at has
+ * already been deleted, so there is nothing left to verify against. The value is
+ * used purely as a lookup key into the consumed-token set — a forged token
+ * yields an id that is not in that set and is simply not found. Never use this
+ * for anything that grants access.
+ *
+ * @returns {string|null} the short-form tokenId (td.ti), or null
+ */
+function decodeTokenIdWithoutVerification(token) {
+    try {
+        const payload = jwt.decode(token);
+        // Short field map: tokenData -> td, tokenId -> ti
+        return payload?.td?.ti || payload?.tokenData?.tokenId || null;
+    } catch {
+        return null;
+    }
+}
+
+export { decodeKeyId, signWithKeyPair, verifyWithKeyPair, decodeTokenIdWithoutVerification };

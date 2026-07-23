@@ -1,4 +1,11 @@
 const DeviceAuthorization = {
+    'DEVICE-AUTH::ATTEMPTS-EXCEEDED::A::p': {
+        status: 429,
+        context: 'Too many incorrect device authorization codes were submitted; the request has been cancelled',
+        errorCode: 'DEVICE-AUTH::ATTEMPTS-EXCEEDED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Request a new device authorization email']
+    },
     'DEVICE-AUTH::UNRECOGNIZED::A::p': {
         status: 401,
         context: 'The device is not recognised and requires authorisation',

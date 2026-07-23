@@ -1,4 +1,11 @@
 const TwoFARemoval = {
+    'TWO-FA::ATTEMPTS-EXCEEDED::A::p': {
+        status: 429,
+        context: 'Too many incorrect codes were submitted; the 2FA removal request has been cancelled',
+        errorCode: 'TWO-FA::ATTEMPTS-EXCEEDED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Start the 2FA removal again to receive a new code']
+    },
     'TWO-FA::METHOD-NOT-ENABLED::A::p': {
         status: 400,
         context: 'The specified 2FA method is not enabled on this account',

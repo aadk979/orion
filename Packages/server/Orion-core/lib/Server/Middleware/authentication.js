@@ -7,7 +7,8 @@
 import { validateAccessToken, generateAccessToken } from '../../Utils/Core/TokenManagement/AccessTokens.js';
 import { getIp } from '../../Utils/Ip.js';
 import { respondWithError, respondWithSuccess } from '../Response/response.js';
-import { validateRefreshToken, generateRefreshToken } from '../../Utils/Core/TokenManagement/RefreshTokens.js';
+import { validateRefreshToken, generateRefreshToken, retireRefreshToken } from '../../Utils/Core/TokenManagement/RefreshTokens.js';
+import { UserModel } from '../../Utils/Databases/models/index.js';
 import { validateNoAuthToken } from '../../Utils/Core/SecurityManagment/NoAuthToken.js';
 import { defaultServerRoutes } from '../Endpoints/index.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
@@ -86,8 +87,16 @@ const handleSessionClearance = parameters => {
     clearManagedCookie(parameters.response, 'REFRESH_TOKEN');
 };
 
+// The auth-state check is a virtual endpoint — it is not in the route registry,
+// so handleValidateEndpoint has to special-case it. Compare the WHOLE normalized
+// path: matching only the last segment meant any path ending in
+// `/get-current-auth-state` was treated as the virtual endpoint by this function
+// but rejected by the exact comparison in handleValidateEndpoint, leaving that
+// function with no branch to return from.
+const AUTH_STATE_PATH = `/${NAME_SPACE}/api/v1/action/get-current-auth-state`;
+
 const handleIsAuthStateCheck = parameters => {
-    return slugParser(parameters.request.path).split('/')[slugParser(parameters.request.path).split('/').length - 1] === 'get-current-auth-state';
+    return slugParser(parameters.request.path) === AUTH_STATE_PATH;
 };
 
 const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
@@ -110,9 +119,14 @@ const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     }
 
     // Special virtual endpoint that will not be found in the endpoint registry
-    if (slugParser(parameters.request.path) === `/${globalAccessPoint.nameSpace()}/api/v1/action/get-current-auth-state`) {
+    if (slugParser(parameters.request.path) === AUTH_STATE_PATH) {
         return { error: false, setBy: 1, authRequired: true };
     }
+
+    // Every branch above returns. Falling through would hand the caller
+    // `undefined`, which it immediately dereferences — so an unresolved path
+    // fails closed here rather than as a TypeError.
+    return { error: true, errorCode: 'UNKOWN-API-ROUTE' };
 };
 
 const handleValidateTokenTypeAndpresence = (parameters, tokenType, noAuthTokenEnabled) => {
@@ -239,12 +253,29 @@ const authenticationMiddleware = async (request, response, next) => {
 
                         const accessTokenLinkCode = refreshVerification.data?.tokenData?.accessTokenLinkCode || refreshVerification.data?.accessTokenLinkCode;
 
+                        // Authorization claims are re-read from the database, never
+                        // carried over from the presented token. Copying `role`
+                        // forward made a role change unenforceable: each refresh
+                        // seeded the next, so a stale privilege propagated for as
+                        // long as the session kept refreshing.
+                        const currentUser = await UserModel.getUserByUid(refreshVerification.data.uid);
+
+                        if (!currentUser) {
+                            handleSessionClearance(parameters);
+                            return respondWithError(parameters.response, 'AUTH::MISSING-TOKEN::A::p');
+                        }
+
+                        if (currentUser.disabled) {
+                            handleSessionClearance(parameters);
+                            return respondWithError(parameters.response, 'ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p');
+                        }
+
                         const newAccessToken = await generateAccessToken(
-                            refreshVerification.data.uid,
-                            refreshVerification.data.email,
+                            currentUser.uid,
+                            currentUser.email,
                             fingerprint,
                             refreshVerification.data.authMethod,
-                            refreshVerification.data.role,
+                            currentUser.role,
                             ip,
                             userAgent,
                             accessTokenLinkCode
@@ -256,11 +287,11 @@ const authenticationMiddleware = async (request, response, next) => {
 
                         // Rotate refresh token with incremented count
                         const newRefreshToken = await generateRefreshToken(
-                            refreshVerification.data.uid,
-                            refreshVerification.data.email,
+                            currentUser.uid,
+                            currentUser.email,
                             fingerprint,
                             refreshVerification.data.authMethod,
-                            refreshVerification.data.role,
+                            currentUser.role,
                             ip,
                             userAgent,
                             accessTokenLinkCode,
@@ -271,6 +302,13 @@ const authenticationMiddleware = async (request, response, next) => {
                         if (newRefreshToken.error) {
                             return respondWithError(parameters.response, newRefreshToken.errorCode);
                         }
+
+                        // Retire the token we just rotated away: delete its row so it
+                        // stops validating, and remember its id so a later replay is
+                        // recognised as reuse rather than as an unknown token. Only
+                        // after the replacement exists, so a failure here cannot strand
+                        // the session without a usable refresh token.
+                        await retireRefreshToken(refreshVerification.data);
 
                         verification = await validateAccessToken(newAccessToken.token, fingerprint, ip, clientUrl);
 
@@ -302,12 +340,16 @@ const authenticationMiddleware = async (request, response, next) => {
                 return parameters.next();
 
             case 'NO_AUTH_BEARER':
-                if (!noAuthTokenEnabled) {
-                    return parameters.next();
-                }
-
+                // The endpoint's own auth requirement is decided FIRST and is never
+                // reachable past a subsystem-disabled shortcut. Disabling the captcha
+                // system relaxes anti-automation only — it must never relax the
+                // authentication decision for a route that declared requireAuth.
                 if (authRequired) {
                     return respondWithError(parameters.response, 'AUTH::INSUFFICIENT-PRIVILEGE::A::p');
+                }
+
+                if (!noAuthTokenEnabled) {
+                    return parameters.next();
                 }
 
                 const path = slugParser(parameters.request.path);
@@ -335,12 +377,14 @@ const authenticationMiddleware = async (request, response, next) => {
                 return parameters.next();
 
             case 'NO_BEARER':
-                if (!noAuthTokenEnabled) {
-                    return parameters.next();
-                }
-
+                // See NO_AUTH_BEARER above — authRequired is evaluated before any
+                // subsystem-disabled shortcut can reach next().
                 if (authRequired) {
                     return respondWithError(parameters.response, 'AUTH::INSUFFICIENT-PRIVILEGE::A::p');
+                }
+
+                if (!noAuthTokenEnabled) {
+                    return parameters.next();
                 }
 
                 if (!ROUTES_ACCESSIBLE_WITH_NO_BEARER.includes(slugParser(parameters.request.path))) {

@@ -1,4 +1,27 @@
 const AccountSignIn = {
+    // The single outcome every failed sign-in reports to the client.
+    //
+    // "no such account", "this account has no password" and "wrong password" are
+    // three different facts internally — and the audit trail still records which
+    // one occurred — but returning them separately let anyone enumerate
+    // registered addresses and, worse, identify which accounts are OAuth-only
+    // (i.e. have no password to fall back on).
+    'ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p': {
+        status: 401,
+        context: 'The email or password is incorrect',
+        errorCode: 'ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p',
+        fault: 'CLIENT',
+        solutions: ['Check the email and password', 'Reset the password if it has been forgotten']
+    },
+    // Challenge ceiling reached — the reset request is destroyed, not merely
+    // rejected, so a guessed code can never be retried against it.
+    'ACC-PASSWORD-RESET-ATTEMPTS-EXCEEDED': {
+        status: 429,
+        context: 'Too many incorrect password reset codes were submitted; the reset request has been cancelled',
+        errorCode: 'ACC-PASSWORD-RESET-ATTEMPTS-EXCEEDED',
+        fault: 'CLIENT',
+        solutions: ['Start a new password reset and use the most recent code']
+    },
     'ACCOUNT-SIGNIN::INVALID-EMAIL::A::p': {
         status: 400,
         context: 'The email provided is not valid',
@@ -11,14 +34,16 @@ const AccountSignIn = {
         context: 'There is no user associated with the provided email',
         errorCode: 'ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p',
         fault: 'CLIENT',
-        solutions: ['Ensure the email is correct or create a new account']
+        solutions: ['Ensure the email is correct or create a new account'],
+        clientSafeErrorCode: 'ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p'
     },
     'ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p': {
         status: 401,
         context: 'The provided password is incorrect for the specified email',
         errorCode: 'ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p',
         fault: 'CLIENT',
-        solutions: ['Ensure the password is correct or reset it']
+        solutions: ['Ensure the password is correct or reset it'],
+        clientSafeErrorCode: 'ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p'
     },
     'ACCOUNT-SIGNIN::EMAIL-PASSWORD-DISABLED::A::p': {
         status: 400,
@@ -32,7 +57,8 @@ const AccountSignIn = {
         context: 'No password has been set up for this account',
         errorCode: 'ACCOUNT-SIGNIN::NO-PASSWORD-SETUP::A::p',
         fault: 'CLIENT',
-        solutions: ['Set up a password first or use an alternative sign-in method']
+        solutions: ['Set up a password first or use an alternative sign-in method'],
+        clientSafeErrorCode: 'ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p'
     },
     'ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p': {
         status: 403,

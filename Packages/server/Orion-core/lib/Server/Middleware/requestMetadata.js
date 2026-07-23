@@ -1,10 +1,12 @@
-import { AsyncLocalStorage } from 'async_hooks';
 import ipaddr from 'ipaddr.js';
 import { getIp } from '../../Utils/Ip.js';
 import { respondWithError } from '../Response/response.js';
 import { parseCookieData } from '../../Utils/CookieUtils.js';
 import { validateStepUpToken } from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
 import { SafeModuleHandler } from '../../Utils/UnavailableModuleWrapper.js';
+// Store lives in its own leaf module so the response layer can read it without
+// closing an import cycle back through here. Re-exported below for compatibility.
+import { requestContext } from './requestContextStore.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'requestMetadata.js');
 
@@ -65,8 +67,6 @@ const evaluateRules = metadata => {
 
     return null;
 };
-
-const requestContext = new AsyncLocalStorage();
 
 const requestMetadataMiddleware = async (request, response, next) => {
     const metadata = {

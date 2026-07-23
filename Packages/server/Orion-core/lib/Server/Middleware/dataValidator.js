@@ -1,8 +1,13 @@
 import { endpointSchemas } from '../../General/EndpointSchema.js';
 import { respondWithError } from '../Response/response.js';
+import { slugParser } from '../../Utils/Parsers.js';
 
 const dataValidator = async (request, response, next) => {
-    const endpointKey = `${request.path}`;
+    // Schema keys are slug-less, but routes are mounted with the configured
+    // api.slug prefixed — so the raw path must be normalized before lookup or
+    // every schema misses and validation is silently skipped for the whole API.
+    // authentication.js and deviceScanner.js normalize the same way.
+    const endpointKey = slugParser(request.path);
     const schema = endpointSchemas[endpointKey];
 
     if (!schema) return next();

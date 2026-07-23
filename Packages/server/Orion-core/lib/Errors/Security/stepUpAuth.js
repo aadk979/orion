@@ -1,4 +1,11 @@
 const StepUpAuth = {
+    'STEP-UP::ATTEMPTS-EXCEEDED::A::p': {
+        status: 429,
+        context: 'Too many incorrect step-up codes were submitted; the challenge has been cancelled',
+        errorCode: 'STEP-UP::ATTEMPTS-EXCEEDED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Restart the step-up verification to receive a new code']
+    },
     'STEP-UP::REQUIRED::A::p': {
         status: 401,
         customStatus: 601,

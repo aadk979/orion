@@ -14,6 +14,7 @@ import { getCurrentUnixTime } from '../../utils/Date&Time.js';
 import { auditLogger } from '../../utils/AuditLogSystem.js';
 import { globalAccessPoint } from '../../utils/globalAccessPoint.js';
 import { createReplayGuard } from '../../utils/replayGuard.js';
+import { buildRequestSignaturePayload } from '../../utils/requestSignature.js';
 
 /** Max clock skew for signed worker requests (worker-event, heartbeat), in seconds */
 const AUTH_TIMESTAMP_LEEWAY_SEC = 30;
@@ -241,10 +242,27 @@ const validateWorkerSignature = async (req, res, next) => {
             });
         }
 
-        // Reconstruct signed payload
-        // Payload format: `${workerId}:${timestamp}:${nonce}`
-        // This MUST match the worker's signing logic
-        const signedPayload = `${workerId}:${timestamp}:${nonce}`;
+        // Reconstruct signed payload.
+        //
+        // The signature covers the REQUEST, not just the sender: method, path and
+        // a digest of the body are included alongside identity and freshness.
+        // Signing only `${workerId}:${timestamp}:${nonce}` authenticated who was
+        // talking but said nothing about what they said — anything able to alter
+        // a request in flight could swap the body or retarget the endpoint and
+        // the signature still verified. The registration PoP already binds its
+        // key material this way; this extends the same discipline to every
+        // subsequent request.
+        //
+        // Built from the shared canonical definition so signer and verifier
+        // cannot drift apart — see utils/requestSignature.js.
+        const signedPayload = buildRequestSignaturePayload({
+            method: req.method,
+            path: req.originalUrl.split('?')[0],
+            body: req.body,
+            workerId,
+            timestamp,
+            nonce
+        });
 
         const isValid = verifySignature(signedPayload, signature, worker.signaturePublicKey);
 

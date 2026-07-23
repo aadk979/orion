@@ -1,4 +1,17 @@
 const AccessTokens = {
+    // Signature and expiry were fine, but the account's sessions_valid_from
+    // watermark moved past this token's iat — a password change, role change,
+    // disable or explicit revocation happened after it was issued. logout so the
+    // client tears down instead of retrying a token that can never work again.
+    'TOKEN-ACCESS::SESSION-INVALIDATED::A::p': {
+        status: 401,
+        customStatus: 602,
+        context: 'This session was ended by a security change on the account (password, role, or status)',
+        errorCode: 'TOKEN-ACCESS::SESSION-INVALIDATED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Sign in again'],
+        logout: true
+    },
     'TOKEN-ACCESS::GENERATION-FAILED::A::i': {
         status: 500,
         context: 'An unknown error has occurred during the token generation process',

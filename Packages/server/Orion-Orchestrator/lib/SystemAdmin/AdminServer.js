@@ -329,8 +329,8 @@ class AdminServer {
             this._requireSession(),
             this._h(async (req, res) => {
                 const result = await this.service.totpActivate(req.adminSession, req.body?.token, this._ip(req));
-                const token = this._sessionToken(req);
-                this._setSessionCookie(res, token, this.service.config.sessionTtlHours * 3600);
+                // Elevation issues a fresh credential — the pending one is revoked.
+                this._setSessionCookie(res, result.token, this.service.config.sessionTtlHours * 3600);
                 res.json({ error: false, ...result });
             })
         );
@@ -341,8 +341,8 @@ class AdminServer {
             this._requireSession(),
             this._h(async (req, res) => {
                 const result = await this.service.totpVerify(req.adminSession, req.body?.token, this._ip(req));
-                const token = this._sessionToken(req);
-                this._setSessionCookie(res, token, this.service.config.sessionTtlHours * 3600);
+                // Elevation issues a fresh credential — the pending one is revoked.
+                this._setSessionCookie(res, result.token, this.service.config.sessionTtlHours * 3600);
                 res.json({ error: false, ...result });
             })
         );

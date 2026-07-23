@@ -21,7 +21,10 @@ const SWEEP_TARGETS = [
     { table: 'oauth_requests', column: 'expires_at' },
     { table: 'step_up_auth_requests', column: 'expires_at' },
     { table: 'two_fa_removal_requests', column: 'expires_at' },
-    { table: 'no_auth_token_transactions', column: 'expires_at' }
+    { table: 'no_auth_token_transactions', column: 'expires_at' },
+    // Retired refresh-token ids kept for reuse detection. They only need to
+    // outlive the token itself; past that they are pure noise.
+    { table: 'consumed_refresh_tokens', column: 'expires_at' }
 ];
 
 /**
