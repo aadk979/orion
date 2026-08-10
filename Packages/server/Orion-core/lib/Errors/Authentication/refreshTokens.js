@@ -18,6 +18,19 @@ const RefreshTokens = {
     // A refresh token that was already rotated away has been presented again.
     // Treated as compromise: the whole session family is revoked, not just this
     // token, because we cannot tell the legitimate holder from the replayer.
+    // A retired token presented within the rotation grace window — a client
+    // retrying a rotation whose response it never received, or two requests
+    // racing the same rotation. Deliberately NOT a logout and deliberately not
+    // charged as reuse: the successor tokens already exist, so the caller only
+    // needs to retry and pick them up.
+    'TOKEN-REFRESH::ROTATION-IN-PROGRESS::A::p': {
+        status: 409,
+        context: 'This session was refreshed a moment ago; retry the request',
+        errorCode: 'TOKEN-REFRESH::ROTATION-IN-PROGRESS::A::p',
+        fault: 'CLIENT',
+        solutions: ['Retry the request'],
+        refresh: false
+    },
     'TOKEN-REFRESH::REUSE-DETECTED::A::p': {
         status: 401,
         context: 'A refresh token that had already been rotated was presented again — the session family has been revoked',

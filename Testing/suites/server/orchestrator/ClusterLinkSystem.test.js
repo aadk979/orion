@@ -150,9 +150,104 @@ describe('ClusterLink — command execution', () => {
             [ClusterCommands.ADD_CLIENT_URLS]: { clientUrls: ['https://a.example'] }
         };
         for (const action of Object.values(ClusterCommands)) {
-            // Must never hit the "allowlisted but has no executor" branch
-            await link.executeCommand(action, argFillers[action] || {});
+            // The property under test is that the switch has an arm for every
+            // allowlisted action. A command may still fail for legitimate
+            // runtime reasons on this bare test node (keyvault:* refuses when no
+            // key vault is configured, which is correct behaviour) — what must
+            // never happen is falling through to the drift branch.
+            await link.executeCommand(action, argFillers[action] || {}).catch(error => {
+                assert.doesNotMatch(error.message, /allowlisted but has no executor/, `${action} has no executor`);
+            });
         }
+    });
+});
+
+// ── Key vault plane ───────────────────────────────────────────────────────────
+
+describe('ClusterLink — key vault commands', () => {
+    const seedKeyVault = (vault, keys) => {
+        globalAccessPoint.setValue('keyVaultManager', vault);
+        globalAccessPoint.setValue('encryptionKeyManager', keys);
+    };
+
+    test('status answers even when the vault is broken', async () => {
+        // A status command that fails when things are wrong is useless exactly
+        // when an operator needs it.
+        seedKeyVault(
+            {
+                providerId: 'AWS_KMS',
+                unavailableReason: 'AWS KMS could not be initialized: credentials rejected',
+                describe: () => ({ available: false, provider: 'AWS_KMS' }),
+                checkHealth: async () => ({ ok: false, error: 'credentials rejected' })
+            },
+            { available: false, unavailableReason: 'AWS KMS could not be initialized: credentials rejected', activeVersion: null }
+        );
+
+        const { link } = makeLink();
+        const result = await link.executeCommand(ClusterCommands.KEYVAULT_STATUS, {});
+
+        assert.equal(result.configured, true);
+        assert.equal(result.available, false);
+        assert.match(result.reason, /credentials rejected/);
+        assert.equal(result.health.ok, false);
+    });
+
+    test('status reports the key ledger and sealed-row inventory when healthy', async () => {
+        seedKeyVault(
+            { providerId: 'AWS_KMS', unavailableReason: null, describe: () => ({ available: true, provider: 'AWS_KMS' }), checkHealth: async () => ({ ok: true, latencyMs: 4 }) },
+            {
+                available: true,
+                unavailableReason: null,
+                activeVersion: 3,
+                inventory: async () => [{ field: 'totp-secrets', sealedRows: 12, staleRows: 2 }],
+                keyHistory: async () => [{ version: 3, state: 'active' }]
+            }
+        );
+
+        const { link } = makeLink();
+        const result = await link.executeCommand(ClusterCommands.KEYVAULT_STATUS, {});
+
+        assert.equal(result.available, true);
+        assert.equal(result.activeKeyVersion, 3);
+        assert.equal(result.inventory[0].staleRows, 2);
+        assert.equal(result.keyHistory[0].version, 3);
+    });
+
+    test('the wipe refuses without the exact confirmation phrase', async () => {
+        let wiped = false;
+
+        seedKeyVault(
+            { providerId: 'AWS_KMS', describe: () => ({}), checkHealth: async () => ({ ok: true }) },
+            {
+                available: true,
+                wipeEncryptedFields: async () => {
+                    wiped = true;
+                    return [];
+                }
+            }
+        );
+
+        const { link } = makeLink();
+
+        // The node re-checks the phrase independently of the orchestrator, so a
+        // single upstream component cannot destroy user data on its own.
+        await assert.rejects(link.executeCommand(ClusterCommands.KEYVAULT_WIPE_ENCRYPTED, {}), /confirmation phrase/);
+        await assert.rejects(link.executeCommand(ClusterCommands.KEYVAULT_WIPE_ENCRYPTED, { confirmation: 'yes' }), /confirmation phrase/);
+
+        assert.equal(wiped, false, 'nothing was wiped');
+    });
+
+    test('encryption-unavailable ballots report this node true only when it cannot decrypt', async () => {
+        const { link } = makeLink();
+
+        seedKeyVault({ providerId: 'AWS_KMS' }, { available: true, activeVersion: 2, unavailableReason: null });
+        assert.equal((await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: ConsensusTopics.ENCRYPTION_UNAVAILABLE })).vote, false);
+
+        seedKeyVault({ providerId: 'AWS_KMS', unavailableReason: 'vault unreachable' }, { available: false, activeVersion: null, unavailableReason: 'vault unreachable' });
+        const ballot = await link.executeCommand(ClusterCommands.CONSENSUS_VOTE, { topic: ConsensusTopics.ENCRYPTION_UNAVAILABLE });
+
+        assert.equal(ballot.vote, true);
+        assert.match(ballot.details.reason, /unreachable/);
     });
 });
 

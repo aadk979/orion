@@ -1,0 +1,87 @@
+---
+title: Guides
+description: Task-focused walkthroughs for wiring individual Orion features into a real application.
+---
+
+Each guide assumes a node is already running. If not, start with
+[Getting Started](/versions/alpine/docs/getting-started).
+
+## Authentication methods
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/email-password">Email &amp; password</a></CardTitle>
+    <CardDescription className="mt-2">Registration rules, password strength, domain allowlists, and login backoff.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/passkeys">Passkeys (WebAuthn)</a></CardTitle>
+    <CardDescription className="mt-2">Sign-up, sign-in, and adding a passkey to an existing account.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/oauth">OAuth providers</a></CardTitle>
+    <CardDescription className="mt-2">Configuring the five default providers, enabling the rest, and handling the callback.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/totp">TOTP two-factor</a></CardTitle>
+    <CardDescription className="mt-2">Enrollment with a QR code, verification, and removal.</CardDescription>
+  </Card>
+</Grid>
+
+## Security flows
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/device-authorization">Device authorization</a></CardTitle>
+    <CardDescription className="mt-2">Verifying a new device on first sign-in, by email code, passkey, or TOTP.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/step-up-auth">Step-up auth</a></CardTitle>
+    <CardDescription className="mt-2">When Orion demands re-verification, and the three ways to satisfy it.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/password-reset">Password reset</a></CardTitle>
+    <CardDescription className="mt-2">The emailed-code flow, its IP binding, and its attempt ceiling.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/token-binding">Token binding (DPoP)</a></CardTitle>
+    <CardDescription className="mt-2">Turning on proof-of-possession and rolling it out without invalidating sessions.</CardDescription>
+  </Card>
+</Grid>
+
+## Building on top
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/sessions">Session management</a></CardTitle>
+    <CardDescription className="mt-2">Listing active sessions and building a "sign out everywhere" screen.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/custom-endpoints">Custom endpoints</a></CardTitle>
+    <CardDescription className="mt-2">Adding your own routes and middleware inside the Orion pipeline.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/resource-access">Static files &amp; ORAS</a></CardTitle>
+    <CardDescription className="mt-2">Plain static hosting versus token-gated resource delivery, including S3.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/user-administration">User administration</a></CardTitle>
+    <CardDescription className="mt-2">Disabling accounts, changing roles, and administrative password resets.</CardDescription>
+  </Card>
+</Grid>
+
+## Operating
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/running-a-cluster">Running a cluster</a></CardTitle>
+    <CardDescription className="mt-2">Adding nodes, sharing Redis, and joining the control plane.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/guides/batch-mailing">Batch mailing</a></CardTitle>
+    <CardDescription className="mt-2">Spreadsheet-driven mail blasts executed by the whole fleet, with rate budgets, dead-lettering and a watchdog.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/deployment">Deployment</a></CardTitle>
+    <CardDescription className="mt-2">Backing services, TLS, day-2 operations, upgrades, troubleshooting.</CardDescription>
+  </Card>
+</Grid>

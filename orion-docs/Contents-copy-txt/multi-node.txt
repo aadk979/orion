@@ -1,0 +1,148 @@
+---
+title: Multi-node cluster
+description: Run multiple Orion-core nodes safely by sharing the right state, configuring the control plane, and avoiding the common cluster failure modes.
+---
+
+Adding nodes is configuration, not architecture. Nodes do not talk to each other
+— they coordinate through Postgres and Redis.
+
+## What must change
+
+| Setting | One node | Several nodes |
+| --- | --- | --- |
+| `utilities.ephemeralDB` | Optional | **Required**, same Redis on every node |
+| `server.urls` | This node's URL | **Every** node's URL, in every config |
+| `server.selfUrl` | This node | This node |
+| `app.serviceID` | Anything | Unique per node |
+| `app.appName` | Anything | Unique per node, so logs and the panel are readable |
+| `tokens.fingerprintDigestKey` | Optional | **Identical** on every node |
+| `clusterLink.publicIp` / `port` | n/a | Unique per node |
+| Working directory | Anything | Unique per node |
+
+Everything else — Postgres, MySQL, mail, token lifespans, security tier — is
+identical across the fleet.
+
+## Why each rule exists
+
+<Accordion allowMultiple>
+  <AccordionItem title="Shared Redis">
+    Each token kind has its own signing key pool. Redis is how a pool is
+    published to peers. Without it, node B has never seen the key node A signed
+    with, and every cross-node request fails validation.
+  </AccordionItem>
+  <AccordionItem title="Every URL in every server.urls">
+    A token's `iss` claim is checked against the allowlist. Node B must recognise
+    node A's issuer URL as legitimate, so all nodes list all URLs.
+  </AccordionItem>
+  <AccordionItem title="Identical fingerprintDigestKey">
+    Fingerprints are stored as keyed HMAC digests. A different key produces a
+    different digest for the same device, so tier-3/4 risk assessment stops
+    matching across nodes and users get pushed into step-up constantly.
+  </AccordionItem>
+  <AccordionItem title="Unique working directory">
+    R_Sync stores a node's persistent identity key in
+    `r_sync.internal.worker_config.json`, and the secrets managers write
+    `orion.internal.*` files. Two nodes sharing a directory produce a
+    `403 IDENTITY_MISMATCH` on registration and contend over key files.
+  </AccordionItem>
+</Accordion>
+
+## Example: three nodes
+
+```js filename="node-2/gipsy.orion.config.js"
+app: {
+    port: 3900,
+    appName: 'orion-node-2',
+    serviceID: 'b2c3d4e5-…'
+},
+server: {
+    urls: [
+        'https://auth-1.example.com',
+        'https://auth-2.example.com',
+        'https://auth-3.example.com'
+    ],
+    selfUrl: 'https://auth-2.example.com',
+    trustProxy: 1
+},
+client: {
+    urls: ['https://app.example.com'],
+    runTimeUpdateAllowed: true
+},
+utilities: {
+    ephemeralDB: {
+        provider: 'REDIS',
+        credentials: { host: '10.0.0.5', port: 6379, password: process.env.REDIS_PASSWORD }
+    },
+    clusterLink: {
+        enabled: true,
+        cluster: 'orion-prod',
+        orchestratorIp: '10.0.0.5',
+        orchestratorPort: 55321,
+        publicIp: '10.0.0.22',
+        port: 55322,
+        requireOrchestrator: false,
+        allowRemoteControl: true
+    }
+},
+tokens: {
+    lifespans: { accessTokens: '15m', refreshTokens: '7d', resourceTokens: '1h' },
+    securityTier: 4,
+    fingerprintDigestKey: process.env.FINGERPRINT_KEY   // same value on all nodes
+}
+```
+
+## Load balancing
+
+Put any standard load balancer or reverse proxy in front. Orion needs nothing
+from it beyond:
+
+- **TLS termination**, with the client IP forwarded and `server.trustProxy` set
+  to match.
+- **No sticky sessions required.** Any node can serve any request, so
+  round-robin is fine.
+- A **health target**. Orion does not expose a dedicated `/health` route; use a
+  cheap real endpoint such as `POST /alpine/api/v1/request/have-no-auth-token`
+  with the required headers, or a lightweight custom endpoint you declare
+  yourself.
+
+<Callout type="tip" title="Add your own health endpoint">
+```js
+api: {
+    customEndpoints: [
+        { path: '/healthz', requireAuth: false, method: 'GET',
+          callback: (req, res) => res.status(200).json({ ok: true }) }
+    ]
+}
+```
+It still traverses the pipeline, so it will also fail while the node is locked or
+shedding load — which is usually what you want from a health check.
+</Callout>
+
+## Booting the fleet
+
+Order does not matter. Migrations serialize on a Postgres advisory lock: exactly
+one node applies them while the others wait and verify. Booting everything at
+once is safe.
+
+## Postgres connections
+
+`poolMax` × node count must fit inside `max_connections`, with headroom for the
+orchestrator and your own tooling. Use PgBouncer in transaction mode if the
+arithmetic gets tight.
+
+## What you gain by adding the orchestrator
+
+Nothing about authentication changes — nodes already coordinate. The orchestrator
+adds fleet health, alerting, consensus, remote commands, key revocation, and
+governed human access. See [Control plane](/versions/alpine/docs/deployment/control-plane).
+
+## Common failures
+
+| Symptom | Cause |
+| --- | --- |
+| Tokens from node A rejected on node B | Redis not shared, or one node still on `LOCAL_DB` |
+| Intermittent `iss` failures | A node's URL missing from a peer's `server.urls` |
+| Constant step-up prompts after scaling out | `fingerprintDigestKey` differs between nodes |
+| `403 IDENTITY_MISMATCH` at registration | Two nodes sharing one working directory |
+| Postgres refusing connections | `poolMax` × nodes exceeds `max_connections` |
+| Tier-1 revocations not taking effect fleet-wide | No Redis — the `jti` denylist fell back to per-node memory |

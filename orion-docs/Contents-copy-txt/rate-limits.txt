@@ -1,0 +1,161 @@
+---
+title: Rate-limit policy
+description: The frozen policy table — actor buckets, per-route costs, and how resolution works.
+---
+
+The policy lives in `lib/General/index.js` as a deep-frozen module constant,
+validated at boot. It is not runtime-configurable: changing it means editing that
+file and restarting.
+
+## Actor buckets
+
+Each actor class gets exactly **one** canonical token bucket. Redis keys are
+`rl:<type>:<hash>` — no route suffix is ever appended, so a route cannot
+fragment the table.
+
+| Actor | Capacity | Refill |
+| --- | --- | --- |
+| `ip` | 100 | 10/s |
+| `fp` (fingerprint) | 50 | 5/s |
+| `account` | 150 | 15/s |
+
+Global defaults: `cost: 1`, `ttl: 300`, `refillRate: 10`, `maxTokens: 100`. The
+bucket TTL can be overridden with `utilities.rateLimiter.defaultTTL`.
+
+## Cost tiers
+
+Only five values are legal. An invalid cost fails the boot.
+
+| Cost | Meaning |
+| --- | --- |
+| 1 | Standard — the implicit default, no entry needed |
+| 2 | Moderate |
+| 3 | Heavy — crypto, DB writes, external calls |
+| 5 | Critical — auth attempts and abuse-prone surfaces |
+| 10 | Extreme — bulk exports, uploads, search |
+
+## The route table
+
+All paths are `POST /alpine/api/v1/…`.
+
+### Cost 5
+
+```text
+action/sign-up-user
+action/sign-in-user
+action/sign-in-with-passkey-authentication
+action/complete-passkey-sign-up
+action/initiate-password-reset
+action/complete-password-reset
+action/verify-step-up-email
+action/verify-step-up-totp
+action/verify-step-up-passkey
+action/complete-2fa-method-removal
+```
+
+The verify/complete endpoints in this group are the highest-value guessing
+targets in the API:
+a 6-digit code against a 10⁶ keyspace. At the fallback cost of 1 they would have
+inherited a sustained ~10 req/s guessing budget. Cost 5 plus the per-challenge
+attempt ceiling — which destroys the record after repeated failures — closes
+that.
+
+### Cost 3
+
+```text
+action/generate-no-auth-token-transaction
+action/generate-no-auth-token
+action/generate-passkey-registration-options
+action/complete-passkey-registration
+action/generate-passkey-authentication-options
+action/generate-passkey-sign-up-options
+action/get-o-auth-redirect-url
+action/authorize-me
+action/handle-o-auth-callback
+action/send-device-authorization-email
+action/authorize-device-with-passkey
+action/authorize-device-with-totp
+action/generate-totp-secret
+action/verify-and-enable-totp
+action/initiate-step-up-email
+action/generate-step-up-passkey-options
+action/initiate-2fa-method-removal
+```
+
+### Cost 1
+
+```text
+action/sign-out-user
+request/have-no-auth-token
+request/available-2fa-methods
+```
+
+Everything else, including all of your custom endpoints, falls through to the
+fallback.
+
+## Resolution
+
+<Steps>
+  <Step title="Normalize the path">
+    Query string and trailing slashes are stripped. UUID-v4 segments and pure
+    numeric segments collapse to `:id`, so `/todos/1` and `/todos/2` share one
+    entry. Short hex strings are deliberately excluded, so semantic route
+    segments that happen to be hex are not collapsed.
+  </Step>
+  <Step title="Exact match">
+    Look up `"METHOD /normalized/path"`. A route entry wins over the defaults;
+    the fallback is not merged in.
+  </Step>
+  <Step title="Wildcard method">
+    Look up `"* /normalized/path"` with the same precedence.
+  </Step>
+  <Step title="Fallback">
+    `{ cost: 1, ttl: 300 }` merged over the defaults. This is the only branch
+    where fallback values are used.
+  </Step>
+</Steps>
+
+The fallback cost is validated to be greater than zero, so no route can
+accidentally become unlimited.
+
+## Two passes per request
+
+| Pass | Position | Actors charged |
+| --- | --- | --- |
+| Edge | Right after IP and fingerprint resolve, before any expensive check | `ip`, `fp` |
+| Account | After authentication populated `req.user` | `account` |
+
+The account pass no-ops for unauthenticated requests.
+
+## Flood guard
+
+A separate, coarser breaker mounted first in the chain — ahead of body parsing —
+so gross volume is rejected before `express.json` allocates.
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    rateLimiter: {
+        floodGuard: { enabled: true, windowMs: 60_000, max: 1000 }
+    }
+}
+```
+
+## Exceeding a limit
+
+Returns `GENERAL::RATE-LIMIT-EXCEEDED::A::p` with HTTP 429.
+
+## Changing costs
+
+Edit the `routes` table in `lib/General/index.js` and restart. Use one of the
+five legal values; anything else throws at boot:
+
+```text
+RateLimitPolicy: invalid cost 4 on route "POST /alpine/api/v1/action/x".
+Must be one of 1, 2, 3, 5, 10.
+```
+
+<Callout type="info" title="Buckets are shared, costs are not">
+Because every actor has one bucket, a burst on an expensive route also throttles
+that actor's cheap routes. That is intentional — it prices an attacker's total
+budget rather than letting them spread across endpoints.
+</Callout>

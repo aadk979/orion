@@ -9,8 +9,10 @@ import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
+import { resolveIssuanceBinding } from '../TokenManagement/internals/dpopBinding.js';
 import { resolveOAuthIdentity } from './Account.js';
 import { isDeviceRecognizedForUserEmail, sendDeviceAuthorizationMail } from '../AccountManagment/2FA&DeviceAuthorization/DeviceAuthorization.js';
+import { generateDeviceAuthContext } from '../SecurityManagment/DeviceAuthContext.js';
 import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { cronScheduler } from '../../Cron.js';
@@ -243,17 +245,34 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
 
         const uid = identity.uid;
 
-        const userAccState = await userControl.getUserAccountState().byEmail(oAuthResponse.email);
+        // Keyed on the uid the provider SUBJECT resolved to, not on the email
+        // the provider asserted. The identity resolution directly above exists
+        // precisely because the email is not a safe account key; looking the
+        // account state up by email undid that for this check, and on any
+        // account whose local email differs from the provider's the lookup
+        // simply missed, leaving `disabled` undefined and a disabled account
+        // able to sign in.
+        const userAccState = await userControl.getUserAccountState().byUid(uid);
 
-        if (userAccState.disabled) {
+        if (userAccState.error || userAccState.disabled) {
             return { error: true, errorCode: 'OAUTH::ACCOUNT-DISABLED::A::p' };
         }
 
         const deviceAuthorizationEnabled = globalAccessPoint.deviceAuthorization();
 
         if (deviceAuthorizationEnabled) {
+            // Signed, device-bound context rather than the bare email — see
+            // Core/SecurityManagment/DeviceAuthContext.js for why a cookie
+            // holding a plain address could not be trusted to name the account
+            // the unauthenticated device-auth routes act on.
+            const deviceAuthContext = await generateDeviceAuthContext(oAuthResponse.email, uid);
+
+            if (typeof deviceAuthContext !== 'string') {
+                return { error: true, errorCode: 'DEVICE-AUTH::CONTEXT-UNAVAILABLE::A::i' };
+            }
+
             if (!parameters?.deviceId || !parameters?.deviceCode) {
-                const cookies = [{ key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }];
+                const cookies = [{ key: 'deviceAuthEmailOffset', data: deviceAuthContext, maxAge: parseDuration('15m') }];
 
                 return { error: true, errorCode: 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p', cookies };
             }
@@ -273,11 +292,33 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
                 const cookies = [
                     { key: 'authorizedDeviceId', data: '', maxAge: 0 },
                     { key: 'authorizedDeviceCode', data: '', maxAge: 0 },
-                    { key: 'deviceAuthEmailOffset', data: oAuthResponse.email, maxAge: parseDuration('15m') }
+                    { key: 'deviceAuthEmailOffset', data: deviceAuthContext, maxAge: parseDuration('15m') }
                 ];
 
                 return { error: true, errorCode: 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p', cookies };
             }
+        }
+
+        // Proof-of-possession binding — see the same call in SignIn.js. The
+        // callback reaches us as an SDK POST rather than a top-level redirect,
+        // so the request can and must carry the client's DPoP header.
+        const binding = await resolveIssuanceBinding();
+
+        if (binding.error) {
+            auditTrail.record({
+                user: { email: oAuthResponse.email, uid },
+                device: { userAgent: parameters.userAgent },
+                action: 'OAUTH_SIGN_IN_ATTEMPT',
+                status: 'FAILED',
+                source: 'HandleOAuthCallback.js',
+                functionName: 'handleOAuthCallback',
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: 'OAuth sign in failed - device binding could not be established',
+                metadata: { provider, reason: 'DPOP_BINDING_FAILED', proofReason: binding.reason },
+                errorCode: binding.errorCode
+            });
+            return { error: true, errorCode: binding.errorCode };
         }
 
         const accessToken = await generateAccessToken(
@@ -287,7 +328,9 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             `PROVIDER-${provider.trim().toUpperCase()}`,
             'USER',
             parameters.ip,
-            parameters.userAgent
+            parameters.userAgent,
+            null,
+            binding.jkt
         );
 
         if (accessToken.error) {
@@ -302,7 +345,10 @@ const handleOAuthCallback = async (code, state, flowSecret, fingerprint, ip, use
             'USER',
             parameters.ip,
             parameters.userAgent,
-            accessToken.accessTokenLinkCode
+            accessToken.accessTokenLinkCode,
+            0,
+            null,
+            binding.jkt
         );
 
         if (refreshToken.error) {

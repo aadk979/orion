@@ -9,6 +9,7 @@ const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventL
 const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'SystemsControl.js');
 const circuitBreakerSystemModule = new SafeModuleHandler('CircuitBreakerSystem', 'circuitBreakerSystem', 'SystemsControl.js');
 const abuseDetectionSystemModule = new SafeModuleHandler('AbuseDetectionSystem', 'abuseDetectionSystem', 'SystemsControl.js');
+const batchMailerSystemModule = new SafeModuleHandler('BatchMailerSystem', 'batchMailerSystem', 'SystemsControl.js');
 
 const SAFE_MODE_OVERRIDE_INFO = '(Only system config can perform this change and requires a restart of the application)';
 
@@ -146,13 +147,24 @@ class OrionSystemsControl {
 
     // ── Abuse detection ────────────────────────────────────────────────────────────
 
-    unblockActor(actorId) {
+    /**
+     * Lifts an abuse block. Async because the block may live in Redis so it
+     * applies cluster-wide — reporting success before that write lands would
+     * tell the orchestrator the actor is unblocked while it is still blocked
+     * on every node.
+     *
+     * @returns {Promise<boolean>}
+     */
+    async unblockActor(actorId) {
         if (this.safeMode) {
             logger.warn(`SystemsControl: Cannot unblock actor — safe mode enabled. ${SAFE_MODE_OVERRIDE_INFO}`);
             return false;
         }
-        abuseDetectionSystemModule.probeModule()?.unblock(actorId);
-        return true;
+
+        const abuseDetection = abuseDetectionSystemModule.probeModule();
+        if (!abuseDetection) return false;
+
+        return (await abuseDetection.unblock(actorId)) === true;
     }
 
     // ── Event loop monitor ─────────────────────────────────────────────────────────
@@ -179,7 +191,10 @@ class OrionSystemsControl {
             abuseDetection: abuseDetectionSystemModule.probeModule()?.getStats() || null,
             errorTracker: errorTrackerSystem.getInsightSummary(),
             memoryMonitor: memoryMonitoringSystemModule.probeModule()?.getMemoryStats() || null,
-            eventLoop: eventLoopMonitorModule.probeModule()?.getStats() || null
+            eventLoop: eventLoopMonitorModule.probeModule()?.getStats() || null,
+            // Rides the normal status report, so the orchestrator sees a node's
+            // send throughput on the same cadence as everything else about it.
+            batchMailer: batchMailerSystemModule.probeModule()?.getStats() || null
         };
     }
 }

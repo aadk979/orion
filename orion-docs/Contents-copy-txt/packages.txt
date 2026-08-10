@@ -1,0 +1,127 @@
+---
+title: The four packages
+description: What Orion-core, Orion-Orchestrator, R_Sync, and the browser SDK each own.
+---
+
+Orion is four packages with clean seams between them. You can use the first one
+alone; the rest are additive.
+
+| Layer | Package | Role |
+| --- | --- | --- |
+| Auth framework | `@aadharsh/orion-alpine-x934x` (Orion-core) | Everything a single node does: identity, sessions, tokens, defense, audit |
+| Control plane | `orion-orch` | Fleet registry, health, consensus, commands, PBAC admin plane |
+| Transport | `r-sync` | Encrypted, authenticated, replay-protected M2M event delivery |
+| Client | `@aadharsh/orion-client` | Browser SDK — the `Orion` class and its flow handling |
+
+## Orion-core
+
+The only package your application imports directly. `initiateServer()` builds an
+Express app with the whole pipeline mounted and returns it to you.
+
+```js
+import {
+    initiateServer,   // build the auth server
+    logger,           // structured logger, configured from your config
+    userControl,      // server-side account administration
+    requestContext,   // AsyncLocalStorage store of per-request metadata
+    tokens,           // generateResourceToken
+    oras,             // S3UrlBuilder, presignS3Url
+    cookies, fileIO, cron, sanitizer, validators, ipUtils,
+    encodersAndDecoders, dateAndTime, valueGenerators, orionCrypto,
+    globalAccessPoint, orionInfo
+} from '@aadharsh/orion-alpine-x934x';
+```
+
+Internally it is organised as:
+
+- `lib/Server/` — `initiateServer`, `onStartConfigurations`, the endpoint
+  registry, and the middleware chain.
+- `lib/Utils/Core/` — the feature domains: `AccountManagment`,
+  `SecurityManagment`, `TokenManagement`, `OAuth`, `ResourceAccessManagment`.
+- `lib/Utils/Systems/` — the long-lived subsystems: audit trail, cluster link,
+  rate limiter, abuse detection, circuit breaker, load shedding, event-loop
+  monitor, memory monitor, database janitor, graceful shutdown, secrets
+  managers, snapshotter, error tracker.
+- `lib/Utils/Databases/` — Postgres and Redis managers, the models, the DDL and
+  the numbered migrations.
+- `lib/Errors/` — the error registry, keyed by error code.
+- `lib/General/` — the frozen rate-limit policy and cookie policy tables.
+
+<Callout type="info" title="The `alpine` namespace">
+Every built-in route is mounted under `/alpine/api/v1/…`. `alpine` is Orion's
+internal codename and the value the SDK sets automatically. `api.slug` prefixes
+*your* custom endpoints, not the core ones.
+</Callout>
+
+## Orion-Orchestrator
+
+One process per cluster. It never sits in the request path of a sign-in — if it
+dies, authentication keeps working.
+
+Subsystems:
+
+| Module | Responsibility |
+| --- | --- |
+| `NodeRegistry` + `RegistryStore` | Which nodes exist, their last status, crash-safe persistence to `orion_orch.internal.registry.json` |
+| `ClusterHealth` | The `FORMING → HEALTHY → DEGRADED → INCIDENT` state machine |
+| `ConsensusEngine` | Fleet quorum votes over each node's *local* view |
+| `PolicyEngine` | Declarative alert → reaction rules with per-(rule, node) cooldowns |
+| `EscalationHub` | Pluggable notification channels plus history |
+| `CommandDispatcher` | Request/response correlation over one-way events, with timeouts |
+| `protocol.js` | The shared wire contract, imported by both sides so they cannot drift |
+| `SystemAdmin/` | The PBAC plane: Postgres-backed admins, policies, groups, sessions, audit, HTTP API, and the static panel |
+
+It also ships `bin/orionctl.js`, a zero-dependency CLI.
+
+## R_Sync
+
+The transport. It knows nothing about authentication — it moves signed,
+encrypted events between one `ORCHESTRATOR` and N `WORKER`s.
+
+- Registration derives a shared AES-256 key by ECDH (P-256/384/521) plus HKDF
+  with a per-session salt.
+- Each worker holds a **persistent Ed25519 identity key** created on first boot.
+  Reconnecting with a known `workerId` signed by a different identity key is
+  rejected with `403 IDENTITY_MISMATCH`.
+- Session encryption and signature keys are regenerated on every boot.
+- Payloads are AES-256-GCM encrypted and Ed25519 signed; recipients check the
+  event's embedded id and timestamp against a replay cache.
+- LokiJS provides an in-memory document store with file persistence.
+
+<Warning title="`system:flush` is destructive">
+R_Sync exposes a localhost-only `/flush` endpoint on the orchestrator that wipes
+tunnel state on every node **and exits their processes**. With embedded workers
+that means killing your Orion-core services. Do not use it on a live cluster.
+</Warning>
+
+## The browser SDK
+
+Built with esbuild + terser to a single ES module, `dist/orion.beta.sdk.js`. It
+bundles its own copies of DOMPurify, a fingerprinting library, and a WebAuthn
+helper, so it has no runtime dependencies.
+
+Beyond wrapping the HTTP API it owns three things you would otherwise write
+yourself:
+
+- **Device authorization and step-up flows** — full ceremony drivers that render
+  their own prompts and transparently retry the interrupted call.
+- **The captcha / no-auth-token bootstrap** — solved and refreshed automatically.
+- **DPoP key management** — a non-extractable `CryptoKey` pair held in IndexedDB,
+  with per-request proof minting.
+
+## How they depend on each other
+
+```text
+your app  ──imports──▶  Orion-core  ──imports──▶  orion-orch/protocol
+                             │                          (wire contract only)
+                             └──embeds──▶  r-sync (WORKER role)
+
+orchestrator process ──imports──▶ orion-orch ──embeds──▶ r-sync (ORCHESTRATOR)
+                                       │
+                                       └──imports──▶ pg, nodemailer, otplib, qrcode
+
+browser ──imports──▶ orion.beta.sdk.js ──HTTP──▶ Orion-core node
+```
+
+Orion-core lists both `orion-orch` and `r-sync` as `file:` dependencies, so
+installing Orion-core pulls in the whole server side.

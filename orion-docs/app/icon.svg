@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<style>
+.n{stroke:#14120E} .a{stroke:#BA7517}
+@media (prefers-color-scheme:dark){.n{stroke:#EDEAE3} .a{stroke:#F0A02A}}
+</style>
+<g fill="none" stroke-width="9" stroke-linecap="round">
+<path class="n" d="M53.0387 38.4322 A22 22 0 0 1 38.4322 53.0387"/>
+<path class="n" d="M25.5678 53.0387 A22 22 0 0 1 10.9613 38.4322"/>
+<path class="n" d="M10.9613 25.5678 A22 22 0 0 1 25.5678 10.9613"/>
+<path class="a" d="M38.4322 10.9613 A22 22 0 0 1 53.0387 25.5678"/>
+</g>
+</svg>

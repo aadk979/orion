@@ -26,3 +26,7 @@ r_sync.internal.*
 orion_orch.internal.*
 
 .env.*
+
+# Internal-only reports, never committed
+PROJECT_CITADEL_INTERNAL_ENGINEERING_REPORT.md
+PROJECT_HAIL_MARY_INTERNAL_ARCHITECTURE_REPORT.md

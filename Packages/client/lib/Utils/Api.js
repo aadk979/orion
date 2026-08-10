@@ -1,7 +1,7 @@
 import { renderDeviceAuthorizationUI } from '../Flows/DeviceAuthorizationFlow.js';
 import { renderStepUpAuthUI } from '../Flows/StepUpAuthFlow.js';
 import { getDeviceFingerprint } from './DevicePrint.js';
-import { createProof } from './DpopKey.js';
+import { createProofIfEnabled, setBindingEnabled } from './DpopKey.js';
 
 const ORION_FLOW_TYPES = {
     'FLOW-DEVICE-AUTHORIZATION': { fn: renderDeviceAuthorizationUI, params: ['baseUrl', 'nameSpace', 'slug'] },
@@ -17,7 +17,14 @@ class ApiInterface {
         // Attach a DPoP proof to every request. Must match the server's
         // tokens.binding setting: proofs sent to a server that does not bind are
         // simply ignored, but a bound server rejects requests that omit them.
-        this.useDpop = options.useDpop === true;
+        //
+        // The flag lives in DpopKey so the secondary interface used by the flow
+        // overlays makes the same choice; passing it here promotes it globally
+        // rather than enabling it for this instance alone, which is what kept
+        // those flows unbound while the main interface was signing.
+        if (options.useDpop === true) {
+            setBindingEnabled(true);
+        }
 
         // Set by the Orion root: invoked whenever the server flags a response
         // with orion-session-logout, i.e. the session on this device is dead
@@ -34,17 +41,8 @@ class ApiInterface {
 
         // Proof of possession, when the deployment binds tokens to a device key.
         // The proof is per-request (method + URI + a one-time jti), so it cannot
-        // be lifted onto another call. Failure is non-fatal: an unbound session
-        // never needs it, and the server rejects a bound one that arrives without.
-        let dpopProof = null;
-
-        if (this.useDpop) {
-            try {
-                dpopProof = await createProof(method, url);
-            } catch (e) {
-                console.warn('[Orion] Could not create a device proof for this request:', e?.message);
-            }
-        }
+        // be lifted onto another call.
+        const dpopProof = await createProofIfEnabled(method, url);
 
         const response = await fetch(url, {
             method: method,

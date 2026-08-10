@@ -1,0 +1,124 @@
+---
+title: Cookie policy
+description: Every cookie Orion sets, its lifespan, and why the policy cannot be overridden from a handler.
+---
+
+Every cookie is declared in one frozen table in `lib/General/CookiePolicy.js`.
+The managed helpers — `setManagedCookie` and `clearManagedCookie` — take **no
+options argument**. A caller names the cookie and gives a value; everything else
+is decided by the policy.
+
+## Base attributes
+
+Applied to every cookie:
+
+```js
+{ httpOnly: true, secure: true, sameSite: 'None', path: '/' }
+```
+
+`sameSite: 'None'` is correct for cross-origin auth, and browsers only accept it
+with `secure: true`. That is why **HTTPS is mandatory anywhere but localhost**.
+
+## The table
+
+### Session tokens
+
+| Cookie | Lifespan |
+| --- | --- |
+| `ACCESS_TOKEN` | `tokens.lifespans.accessTokens`, resolved from live config at request time |
+| `REFRESH_TOKEN` | `tokens.lifespans.refreshTokens` |
+
+### Anti-automation
+
+| Cookie | Lifespan |
+| --- | --- |
+| `NO_AUTH_TOKEN` | 1 day |
+
+### OAuth
+
+| Cookie | Lifespan |
+| --- | --- |
+| `oAuthFlowSecret` | 2 minutes |
+
+### Step-up auth
+
+| Cookie | Lifespan |
+| --- | --- |
+| `STEP_UP_TOKEN` | 5 hours |
+| `stepUpEmailReqId` | 10 minutes |
+| `stepUpFlowSecret` | 10 minutes |
+| `stepUpContext` | 10 minutes |
+
+### Device authorization
+
+| Cookie | Lifespan |
+| --- | --- |
+| `deviceAuthorizationRequestId` | 15 minutes |
+| `deviceAuthEmailOffset` | 15 minutes |
+| `deviceAuthFlowSecret` | 15 minutes |
+| `authorizedDeviceId` | 7 days |
+| `authorizedDeviceCode` | 7 days |
+
+### Recovery and 2FA
+
+| Cookie | Lifespan |
+| --- | --- |
+| `passwordResetRequestId` | 15 minutes |
+| `twoFARemovalRequestId` | 15 minutes |
+
+### Passkey ceremony scratch
+
+| Cookie | Lifespan |
+| --- | --- |
+| `PASSKEY-REGISTRATION-INFO-STEP-1` | 30 seconds |
+| `PASSKEY-AUTHENTICATION-INFO-STEP-1` | 30 seconds |
+| `PASSKEY-SIGN-UP-INFO-STEP-1` | 60 seconds |
+
+## Lifespan sources
+
+Each entry declares **exactly one** of:
+
+- `maxAge` — a duration string (`'5h'`, `'15m'`, `'30s'`, `'1d'`) or a number of
+  milliseconds;
+- `maxAgeFrom` — a dot-path into `systemConfig`, resolved at request time. Used
+  for the token cookies, whose TTL is operator-configured rather than hard-coded.
+
+Declaring both, or neither, fails the boot.
+
+## Clearing
+
+Browsers only drop a cookie when the clearing attributes match those it was set
+with. `resolveClearOptions()` reuses the identical policy attributes and only
+forces `maxAge: 0`.
+
+This is not theoretical tidiness — it is the bug the policy exists to prevent.
+Before it, some passkey clean-up paths used `secure: false` and some clears
+omitted `path`, so the browser silently kept the cookie.
+
+## Boot validation
+
+`validateCookiePolicy()` runs before the server accepts traffic and enforces:
+
+- exactly one lifespan source per entry;
+- a static `maxAge` that is a positive number or a parseable duration;
+- never `sameSite: 'None'` with `secure: false`, which browsers reject outright.
+
+A violation throws and the boot fails.
+
+## The escape hatch
+
+Calling `response.cookie(...)` directly still works. The policy is a safeguard,
+not a jail — but that direct path is what historically drifted. Route new cookies
+through the managed helpers so they inherit the policy by default.
+
+To add a cookie, add an entry to the table. `resolveCookieOptions()` throws for an
+unregistered name:
+
+```text
+CookiePolicy: no policy registered for cookie "X". Add it to General/CookiePolicy.js.
+```
+
+<Callout type="info" title="No runtime knob">
+There is intentionally no configuration key that bypasses this. To change how an
+endpoint's cookie behaves, edit its entry.
+</Callout>

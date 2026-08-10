@@ -18,7 +18,11 @@ const OrchestratorConfigSchema = {
      * When true, use x-r_sync-ip for callback address (NAT / advertised IP).
      * When false (default), use the TCP peer address only — avoids trivial IP spoofing.
      */
-    trustAdvertisedWorkerIp: { type: 'boolean', required: false, default: false }
+    trustAdvertisedWorkerIp: { type: 'boolean', required: false, default: false },
+    // Transition switch for the pre-RFC 9421 worker signature format. Default
+    // off: workers sign with HTTP Message Signatures, and anything else is
+    // refused. Turn on only while a rolling upgrade is in flight.
+    acceptLegacySignatures: { type: 'boolean', required: false, default: false }
 };
 
 const WorkerConfigSchema = {

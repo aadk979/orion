@@ -62,6 +62,36 @@ const orchestrator = new OrionOrchestrator({
     //         password: 'app-password',
     //         appName: 'Orion Orchestrator'
     //     }
+    // },
+
+    // Optional: the batch mailing plane — spreadsheet-driven mail blasts run by
+    // the fleet. Requires systemAdmin (it shares that database connection and
+    // is driven from the same panel and CLI).
+    //
+    // Each NODE also needs `utilities.batchMailer` configured with its own bulk
+    // SMTP credentials, and the mailing grants from sql/worker-grants.example.sql
+    // applied — nodes retire their own recipient rows as they send, which is
+    // what keeps a large blast off the control plane.
+    // mailing: {
+    //     enabled: true,
+    //     // Ceiling on one group. The group is the unit a node claims, sends and
+    //     // reports on, so this bounds both the hand-off size and how much work
+    //     // is re-done if that node dies mid-group. At the send budget below, a
+    //     // 300-recipient group occupies a node for roughly 40 minutes.
+    //     maxPerGroup: 300,
+    //     // Quiet period after a job finishes, before the next queued one starts.
+    //     cooldownSeconds: 3600,
+    //     // The send budget handed to each node with its assignment.
+    //     nodeRateLimit: { perWindow: 15, windowMs: 120000 },
+    //     // Per-recipient delivery attempts before the address is dead-lettered.
+    //     maxAttempts: 3,
+    //     // No progress for this long → probe the node, then reclaim the group.
+    //     groupStallSeconds: 1800,
+    //     // Total silence for this long → full recovery sweep of the job.
+    //     groupSilentTimeoutSeconds: 86400,
+    //     // How long per-recipient delivery records are kept.
+    //     archiveTtlDays: 90,
+    //     emailSubmitterOnCompletion: true
     // }
 });
 

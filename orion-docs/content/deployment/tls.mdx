@@ -1,0 +1,138 @@
+---
+title: TLS & reverse proxies
+description: Why HTTPS is mandatory, how to terminate it, and the proxy settings that must match.
+---
+
+Orion's session cookies are always `Secure` + `SameSite=None`. Browsers reject
+that combination over plain HTTP, with one exception: `localhost`.
+
+So: **any deployment that is not on localhost needs real TLS on both the client
+origin and the API.** This is not a recommendation you can defer.
+
+## Three options
+
+<Tabs items={["Reverse proxy", "Direct TLS", "Quick tunnel"]}>
+  <Tab label="Reverse proxy">
+Recommended for production. Terminate TLS at nginx, Caddy, or a cloud load
+balancer in front of each node's API and in front of the admin panel.
+
+```nginx filename="/etc/nginx/sites-available/orion" copy
+server {
+    listen 443 ssl http2;
+    server_name auth.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/auth.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/auth.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3900;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Origin            $http_origin;
+    }
+}
+```
+
+Then set `server.trustProxy: 1` in the node config.
+  </Tab>
+  <Tab label="Direct TLS">
+The node serves HTTPS itself.
+
+```js filename="index.js" copy
+import https from 'https';
+import fs from 'fs/promises';
+
+const [cert, key] = await Promise.all([
+    fs.readFile('./server.cert'),
+    fs.readFile('./server.key')
+]);
+
+const server = await initiateServer(undefined, configuration);
+https.createServer({ cert, key }, server.app).listen(configuration.app.port);
+```
+
+Leave `server.trustProxy` at its default `false` — there is no proxy, so
+`X-Forwarded-For` must not be trusted.
+  </Tab>
+  <Tab label="Quick tunnel">
+For demos only.
+
+```bash filename="terminal"
+cloudflared tunnel --url http://localhost:3900
+```
+
+Instant HTTPS with no account. The URL is **ephemeral** — it changes on every
+restart, so you must re-sync `client.urls`, `server.urls`, `selfUrl`, and
+`systemAdmin.baseUrl` each time. Use a named tunnel or a real domain for anything
+that has to last.
+  </Tab>
+</Tabs>
+
+## trustProxy must match reality
+
+`server.trustProxy` decides what `req.ip` resolves to, and therefore what every
+IP-bound control is actually bound to: token tiers 2 and 4, step-up binding,
+password-reset IP matching, device authorization, rate limiting, and abuse
+detection.
+
+| Setting | Use when |
+| --- | --- |
+| `false` (default) | The node is directly exposed. `X-Forwarded-For` is ignored, so it cannot be spoofed |
+| `1` | Exactly one reverse proxy in front |
+| `2` | A CDN in front of a load balancer in front of the node |
+| `['10.0.0.0/8']` | Trust only these proxy addresses |
+
+Getting it wrong in the permissive direction makes the client IP forgeable, which
+is why it is opt-in rather than assumed.
+
+At boot Orion tells you which mode it is in:
+
+```text
+Trust proxy: disabled — client IP is the socket peer and X-Forwarded-For is ignored.
+If this service sits behind a reverse proxy or load balancer, set server.trustProxy (e.g. 1)
+or every request will be attributed to the proxy IP.
+```
+
+<Warning title="Every request attributed to one IP is a silent failure">
+It does not error. Rate limiting collapses onto a single bucket, tier-2 tokens
+bind to the proxy's range, and password-reset IP matching becomes meaningless.
+Check the boot log line.
+</Warning>
+
+## Origin must survive the proxy
+
+The origin verifier requires an `Origin` header matching `client.urls` exactly.
+Make sure your proxy forwards it — most do by default, but a proxy that strips or
+rewrites it will produce `GENERAL::UNKNOWN-ORIGIN::A::p` on every request.
+
+## enforceHTTPS
+
+```js
+client: { enforceHTTPS: true }
+```
+
+Rejects insecure origins with `GENERAL::INVALID-PROTOCOL::A::p`. Sensible in
+production; leave it off for local HTTP development.
+
+## The admin panel
+
+Same requirements. Set `systemAdmin.http.trustProxy: true` behind a proxy so
+forwarded client IPs reach the audit trail, keep `secureCookies: true`, and make
+`systemAdmin.baseUrl` the panel's real public URL — that is what magic links
+point at.
+
+## What does not need TLS
+
+The M2M ports (55321 / 55322). R_Sync provides its own encryption — ECDH-derived
+AES-256-GCM with Ed25519 signatures — and those ports should be on a private
+subnet regardless.
+
+## DPoP behind a proxy
+
+If you enable `tokens.binding: 'dpop'`, the proof's `htu` claim must match the
+URI the server sees. A proxy that rewrites paths or changes the host produces
+`URI_MISMATCH` on every request. Preserve the original path and `Host`.

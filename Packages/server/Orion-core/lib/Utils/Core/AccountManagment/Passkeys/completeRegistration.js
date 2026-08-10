@@ -3,6 +3,7 @@ import { PasskeyModel, UserSecurityModel, WebAuthnCeremonyModel } from '../../..
 import { tryCatch } from '../../../TryCatch.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { parseCookieData, clearManagedCookie } from '../../../CookieUtils.js';
+import { resolveClientContext } from '../../../Parsers.js';
 import { fileURLToPath } from 'url';
 import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
 
@@ -79,12 +80,17 @@ const veryifyAndCompletePasskeyRegistration = async (registrationResponse, cooki
 const routeHandlerVerifyAndCompletePasskeyRegistration = async (request, response) => {
     const cookie = request.cookies['PASSKEY-REGISTRATION-INFO-STEP-1'];
     const email = request.user.email;
-    const clientURL = request.get('Origin') || request.get('Referer');
-    const responseData = request.body.packet.registrationResponse;
+    const responseData = request.body.packet?.registrationResponse;
 
-    const parsedClientURL = clientURL.split('//')[clientURL.split('//').length - 1];
+    // Must match the RP ID that generateRegistrationOptions issued the ceremony
+    // under — see resolveClientContext in Utils/Parsers.js.
+    const clientContext = resolveClientContext(request);
 
-    const callback = await veryifyAndCompletePasskeyRegistration(responseData, cookie, email, clientURL, parsedClientURL);
+    if (!clientContext) {
+        return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
+    }
+
+    const callback = await veryifyAndCompletePasskeyRegistration(responseData, cookie, email, clientContext.origin, clientContext.rpId);
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);

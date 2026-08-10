@@ -14,6 +14,8 @@ import { get, post } from '../lib/api';
 const NAV = [
     { href: '/', label: 'Dashboard' },
     { href: '/operations/', label: 'Operations' },
+    { href: '/mailing/', label: 'Mailing', mailingOnly: true },
+    { href: '/notifications/', label: 'Notifications', mailingOnly: true, badge: 'unread' },
     { href: '/secrets/', label: 'Signing keys' },
     { href: '/observability/', label: 'Observability' },
     { href: '/audit/', label: 'Audit trail' },
@@ -21,11 +23,20 @@ const NAV = [
     { href: '/account/', label: 'Account' }
 ];
 
+/** Unread count refresh — slow, because the badge is ambient, not a live feed. */
+const UNREAD_POLL_MS = 60_000;
+
 export default function Shell({ children }) {
     const router = useRouter();
     const pathname = usePathname();
     const [session, setSession] = useState(null);
     const [checked, setChecked] = useState(false);
+    const [mailingAvailable, setMailingAvailable] = useState(false);
+    const [unread, setUnread] = useState(0);
+    // The delay warning an admin sees on arrival — the whole point of it is to
+    // answer "why has my blast not gone out" before anyone has to ask.
+    const [queueWarning, setQueueWarning] = useState(null);
+    const [warningDismissed, setWarningDismissed] = useState(false);
 
     useEffect(() => {
         get('/api/auth/session')
@@ -39,6 +50,44 @@ export default function Shell({ children }) {
             })
             .catch(() => router.replace('/login/'));
     }, [router]);
+
+    // Mailing is optional. Ask once whether it exists at all, so the nav never
+    // offers a page that can only return 503.
+    useEffect(() => {
+        if (!checked) return;
+        get('/api/meta')
+            .then(meta => setMailingAvailable(meta.mailingAvailable === true))
+            .catch(() => setMailingAvailable(false));
+    }, [checked]);
+
+    useEffect(() => {
+        if (!checked || !mailingAvailable) return undefined;
+
+        const refresh = () => {
+            // Both are PBAC-gated; an admin without the grant simply sees no
+            // badge and no banner rather than an error on every page.
+            get('/api/notifications?limit=1')
+                .then(result => setUnread(result.unread || 0))
+                .catch(() => {});
+
+            get('/api/mailing/queue')
+                .then(({ queue }) => {
+                    if (!queue.blockedReason || queue.queued.length === 0) return setQueueWarning(null);
+
+                    setQueueWarning(
+                        queue.blockedReason === 'cooldown'
+                            ? `${queue.queued.length} mailing job(s) are waiting out the cooldown from the last blast — the next starts in about ` +
+                                  `${Math.ceil((queue.cooldown?.seconds || 0) / 60)} minutes.`
+                            : `${queue.queued.length} mailing job(s) are queued but no node is live to send them.`
+                    );
+                })
+                .catch(() => {});
+        };
+
+        refresh();
+        const timer = setInterval(refresh, UNREAD_POLL_MS);
+        return () => clearInterval(timer);
+    }, [checked, mailingAvailable]);
 
     if (!checked) {
         return (
@@ -65,9 +114,10 @@ export default function Shell({ children }) {
                 <div className="brand">
                     Orion <span>Orch</span> Panel
                 </div>
-                {NAV.filter(item => !item.rootOnly || admin.role === 'root').map(item => (
+                {NAV.filter(item => (!item.rootOnly || admin.role === 'root') && (!item.mailingOnly || mailingAvailable)).map(item => (
                     <Link key={item.href} href={item.href} className={pathname === item.href || pathname === item.href.replace(/\/$/, '') ? 'active' : ''}>
                         {item.label}
+                        {item.badge === 'unread' && unread > 0 && <span className="nav-badge">{unread > 99 ? '99+' : unread}</span>}
                     </Link>
                 ))}
                 <div className="spacer" />
@@ -83,7 +133,17 @@ export default function Shell({ children }) {
                     </div>
                 </div>
             </nav>
-            <main className="main">{children}</main>
+            <main className="main">
+                {queueWarning && !warningDismissed && (
+                    <div className="msg warn banner">
+                        <span>{queueWarning}</span>
+                        <button className="ghost small" onClick={() => setWarningDismissed(true)}>
+                            Dismiss
+                        </button>
+                    </div>
+                )}
+                {children}
+            </main>
             {/* Workbench-style status strip. CSS hides it in the modern theme. */}
             <div className="statusbar">
                 <span>Orion Orch Panel</span>

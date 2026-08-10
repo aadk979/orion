@@ -1,0 +1,117 @@
+---
+title: TOTP two-factor
+description: Enrolling an authenticator app, verifying codes, and removing the method.
+---
+
+TOTP is a second factor only. It never authenticates a user on its own — it
+satisfies device authorization and step-up challenges.
+
+<Warning title="TOTP needs SMTP">
+Without a `mail` block, `authMethods.totp` is force-disabled at boot. Removing a
+TOTP secret requires an emailed OTP.
+</Warning>
+
+## Enroll
+
+Two calls. The first generates a secret and a QR code; the second proves the user
+scanned it.
+
+```js
+// 1. Generate — returns a data-URI QR code and the raw secret for manual entry
+const setup = await orion.setupTOTP();
+if (setup.error) return showError(setup.errorCode);
+
+renderQr(setup.qrCode);
+showManualEntry(setup.secret);
+
+// 2. Verify a 6-digit code from the authenticator app
+const verified = await orion.verifyAndEnableTOTP(code);
+if (verified.error) return showError(verified.errorCode);
+```
+
+Both endpoints require an authenticated session. The code must be exactly 6
+characters — the server schema rejects anything else before the handler runs.
+
+Until step 2 succeeds the secret sits in `user_totp.pending_secret` and the
+method is not usable. That is what stops a half-finished enrollment from locking
+someone out.
+
+## Encryption at rest
+
+`user_totp.secret` and `pending_secret` are sealed with AES-256-GCM under a data
+encryption key that Orion stores **wrapped** by a key encryption key held in your
+vault. Stored values carry an `enc.v2.<dekVersion>.` prefix.
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    dataEncryption: {
+        // Single instance: a key in config is a supported choice.
+        provider: 'INLINE_KEY',
+        key: 'a-long-random-string-you-generated-once'   // ≥32 chars
+
+        // Cluster: a vault is required.
+        // provider: 'AWS_KMS', region: 'eu-west-1', keyId: 'arn:…'
+    }
+}
+```
+
+Nine vault providers are supported — AWS KMS, Cloud KMS, Azure Key Vault,
+HashiCorp Vault, HCP Vault, HCP Vault Secrets, OpenBao, Akeyless and Infisical.
+See [Key vaults & field encryption](/versions/alpine/docs/security/key-vaults) for the full reference,
+rotation, and recovery.
+
+<Callout type="warning" title="Secrets are never written in plaintext">
+If encryption is unavailable, enrollment is **refused** rather than falling back
+to plaintext. Earlier releases stored plaintext with a warning; that silent
+downgrade of at-rest protection is gone.
+</Callout>
+
+### If the vault goes away
+
+Enrolled users are **not locked out**. TOTP is dropped from their offered methods
+and they complete device authorization or step-up with the emailed one-time code
+— still two factors. Stored secrets are untouched, so TOTP resumes the moment the
+vault is reachable. Removal stays available so nobody is trapped with a dead
+factor, and affected users get an in-product
+[notification](/versions/alpine/docs/guides/notifications).
+
+Rows sealed by earlier releases carry an `enc.v1.` prefix and remain readable
+when the original key is supplied as `legacyKey`; a DEK rotation re-seals them.
+
+## Using TOTP
+
+Once enrolled, TOTP appears in the available methods for both interrupted flows:
+
+```js
+// Device authorization
+POST /alpine/api/v1/action/authorize-device-with-totp   { packet: { totpCode } }
+
+// Step-up
+POST /alpine/api/v1/action/verify-step-up-totp
+```
+
+The SDK's flow drivers offer it automatically when the user has it enrolled —
+`request/available-2fa-methods` and `request/step-up-methods` report what is
+available for a given account.
+
+## Remove
+
+```js
+await orion.initiate2FAMethodRemoval('totp');   // emails a 6-digit code
+await orion.complete2FAMethodRemoval(code);
+```
+
+`complete2FAMethodRemoval` returns `{ error: false, complete: true, method }`.
+The removal request has an attempt ceiling; exceeding it destroys the request, so
+a guessed code cannot be retried. The rate limiter charges cost 5 to the
+completion endpoint and cost 3 to the initiation.
+
+## Configuration summary
+
+| Key | Effect |
+| --- | --- |
+| `authMethods.totp` | Master switch. Force-set to `false` when `mail` is absent |
+| `utilities.dataEncryption.provider` | Where the key encryption key lives. Required — TOTP deactivates without it |
+| `utilities.dataEncryption.key` | `INLINE_KEY` only, single instance only |
+| `utilities.dataEncryption.legacyKey` | The pre-vault key, so `enc.v1.` rows stay readable during migration |
+| `mail` | Required — removal sends an OTP, and it is the fallback second factor |

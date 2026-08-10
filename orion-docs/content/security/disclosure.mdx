@@ -1,0 +1,101 @@
+---
+title: Reporting a vulnerability
+description: Learn how to report a suspected Orion vulnerability privately, what to include in a useful report, and the project's current disclosure boundaries.
+---
+
+Please report suspected vulnerabilities **privately**. Do not open a public issue
+or pull request describing an exploitable flaw.
+
+## How to report
+
+Contact the maintainer directly. Until the public repository exists there is no
+issue tracker and no private security advisory channel to use, so reach the
+maintainer listed as `author` in each package's `package.json` (Kalivaradhan
+Aadharsh). Once the repository is public, its private security advisory feature
+becomes the preferred route and this page will say so.
+
+<Callout type="info" title="No dedicated security mailbox is published yet">
+Edition 001 has not been issued and the source is not public, so the reporting
+channels described here are documented rather than staffed. If you are deploying
+Orion in your own organisation, establish a disclosure contact with whoever
+maintains your copy and document it here in place of this note.
+</Callout>
+
+## What to include
+
+<Steps>
+  <Step title="Affected component and version">
+    Orion-core, Orion-Orchestrator, R_Sync, or the browser SDK, with the version
+    from its `package.json`.
+  </Step>
+  <Step title="Configuration that matters">
+    Security tier, whether token binding is on, which access controls are enabled,
+    cluster or single node. Many findings depend on these.
+  </Step>
+  <Step title="Reproduction">
+    Concrete steps, request/response pairs where relevant, and the error codes
+    involved.
+  </Step>
+  <Step title="Impact">
+    What an attacker gains, and what they need to start — network position,
+    a valid account, an operator session.
+  </Step>
+</Steps>
+
+## What is in scope
+
+- Authentication bypass or privilege escalation in Orion-core.
+- Token forgery, replay that should have been detected, or binding bypass.
+- Ceremony flaws — WebAuthn, device authorization, step-up, password reset.
+- Control-plane issues: node impersonation, command allowlist bypass, safe-mode
+  bypass.
+- PBAC evaluation errors, or audit-chain tampering that verification does not
+  detect.
+- Cryptographic misuse in any of the four packages.
+
+## What is out of scope
+
+These are documented design boundaries, not oversights — see the
+[threat model](/versions/alpine/docs/security/threat-model):
+
+- XSS in an application that embeds Orion.
+- DDoS against a deployment without a mitigation layer in front.
+- Application-level authorization decisions your code makes.
+- Attacks requiring direct database access, or local access to the orchestrator
+  box (note that R_Sync's localhost-only `/flush` is documented as destructive).
+- Findings that require a misconfiguration the documentation explicitly warns
+  against — for example running without TLS, or `trustProxy` set wrongly.
+- Root's PBAC bypass. It is intentional and documented.
+
+## Known gaps already documented
+
+Reporting these is welcome but they are not new findings:
+
+- The committed browser SDK bundle predates the DPoP implementation, and the
+  `Orion` constructor does not pass `useDpop` through to the transport layer.
+  See [Building the SDK](/versions/alpine/docs/sdk/building-the-sdk).
+- Abuse-detection counters are per-node in-process state, so thresholds are
+  effectively per-node on a cluster.
+- The tier-1 `jti` denylist falls back to per-node memory when Redis is absent.
+- Configuration keys for the decommissioned Data Integrity Protocol
+  (`utilities.dataIntegrity.dip`) are inert and no longer read.
+
+## Handling
+
+There is no published SLA. Expect an acknowledgement, a discussion of severity
+and scope, a fix, and coordination on disclosure timing before anything is made
+public.
+
+## Deploying your own fork
+
+If you run Orion in production, decide in advance:
+
+- who receives reports, and through what channel;
+- how you communicate a forced session invalidation to users, since key
+  revocation signs everyone out;
+- who holds the root admin credentials and the TOTP recovery path;
+- where your field-encryption KEK and `tokens.fingerprintDigestKey` are
+  escrowed. Neither is in any Orion database. Losing the KEK is recoverable only
+  by wiping every enrollment and having users re-enroll
+  ([key vaults](/versions/alpine/docs/security/key-vaults)); losing the fingerprint key silently
+  breaks digest matching.

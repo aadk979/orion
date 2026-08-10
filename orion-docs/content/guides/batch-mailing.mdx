@@ -1,0 +1,432 @@
+---
+title: Batch mailing
+description: Spreadsheet-driven mail blasts executed by the whole fleet, with per-group leases, rate budgets, dead-lettering and a 24h watchdog.
+---
+
+Orion's transactional mail — password resets, device authorization — sends one
+message at a time, from whichever node handled the request. Batch mailing is the
+opposite shape of problem: a hundred thousand messages that nobody is waiting on,
+which must not be sent twice, and must not be lost when a node dies halfway
+through.
+
+You point the orchestrator at a spreadsheet. It plans the work into groups,
+hands one group to each live node, and the nodes do the sending. The whole thing
+is driven from the orch panel or `orionctl`.
+
+<Callout type="info" title="Two planes, one database">
+The mailing plane is part of the **orchestrator**, and it requires the
+[system-admin plane](/versions/alpine/docs/configuration/system-admin) — it shares that
+database connection and is governed by the same PBAC policies. Nodes need
+`utilities.batchMailer` configured *and* the mailing grants applied before they
+can send anything.
+</Callout>
+
+## The sheet
+
+An `.xlsx` or `.csv` with a header row. Three columns are required:
+
+| Column | Required | Meaning |
+| --- | --- | --- |
+| `recipient` | **yes** | Destination address |
+| `subject` | **yes** | Mail subject |
+| `content` | **yes** | The mail body, verbatim |
+| `mailing_job_id` | no | Exactly 32 characters. Blank on every row → one is generated |
+| `mailing_job_name` | no | Human label for the blast |
+| `priority` | no | `1`–`9`, lower is more urgent. Also accepts `urgent` / `high` / `normal` / `low` / `bulk` |
+| `content_type` | no | `text` (default) or `html` |
+
+The last four are properties of the **job**, so they must be identical on every
+row. A file carrying two different job ids is rejected rather than silently split
+into two jobs.
+
+Header names are matched case- and punctuation-insensitively, so `Mailing Job ID`,
+`mailing_job_id` and `mailingJobId` are the same column. Common aliases work too:
+`email`, `to` and `address` all mean `recipient`; `body`, `message` and
+`mailing content` all mean `content`.
+
+### Anything else becomes a token
+
+A column the parser does not recognise is not an error — it is kept and offered
+to the mail as a `<COLUMN_NAME>` substitution in both the subject and the body.
+
+```text filename="a row"
+recipient     : ada@example.com
+subject       : <first_name>, your <account_tier> plan renews soon
+content       : Hi <first_name>, your plan renews on <renewal_date>.
+first_name    : Ada
+account_tier  : Gold
+renewal_date  : 2026-10-14
+```
+
+```text filename="what is sent"
+Subject: Ada, your Gold plan renews soon
+Hi Ada, your plan renews on 2026-10-14.
+```
+
+This is the extension point. A new nullable field needs no migration and no code
+change, because unrecognised columns are treated as data rather than as a schema
+violation. Six tokens are always available on top of your own columns:
+`<RECIPIENT>`, `<EMAIL>`, `<JOBNAME>`, `<JOBID>`, `<APPNAME>`, `<DATE>`. Your own
+column wins if it shares a name with one of them.
+
+A token with no matching column is left **visible** in the delivered mail rather
+than blanked. A stray `<FIRSTNAME>` in a sent message is a bug you can see; a
+silently empty greeting is one you find out about from a customer.
+
+A ready-made template lives at
+`Packages/server/Orion-Orchestrator/examples/mailing-job.example.xlsx`, with a
+second worksheet documenting every column. Regenerate it with
+`node examples/make-mailing-sheet.mjs`.
+
+### Validation is all-or-nothing
+
+A file with any bad row is rejected in full, with **every** problem listed at
+once — nothing is queued. A half-loaded blast is worse than a rejected one,
+because you have no way to tell which half made it in.
+
+```text filename="terminal"
+orionctl: MAILING::SHEET-INVALID: The sheet has 3 problems and was not accepted — nothing was queued
+  - row 4: "not-an-email" is not a valid email address
+  - row 9: content is empty
+  - row 12: "ada@example.com" is already listed on row 4
+```
+
+Duplicate recipients are rejected for the same reason — the same address twice
+in one file means two identical mails, which is almost always a paste accident
+and expensive to discover after sending.
+
+## How the work is divided
+
+The orchestrator cuts the job into **groups**. A group is the unit a node claims,
+sends, and reports on. Two forces set its size:
+
+1. spread the work evenly — the ideal share is `ceil(total / liveNodes)`;
+2. keep any single hand-off small — `maxPerGroup` caps it.
+
+The size is the smaller of the two, and then *everything* is chunked at that
+size, including the overflow. That is what produces more groups than nodes when
+the cap binds:
+
+```text
+100 recipients, 5 live nodes, maxPerGroup 15
+
+  ideal share  = ceil(100 / 5)  = 20
+  capped at    = min(20, 15)    = 15
+  groups       = ceil(100 / 15) = 7   →  15 15 15 15 15 15 10
+```
+
+The first round gives one group to each of the five nodes (75 mails). Groups 6
+and 7 wait, and go to whichever nodes report back first. **A node never holds
+more than one group at a time**, so there is no per-node backlog to rebalance —
+the fleet just keeps cycling until the queue table is empty.
+
+Planning happens once, at submit time, and the layout is then fixed for the life
+of the job. Re-planning later would let a node's group change underneath it
+mid-send, and it buys nothing: a job with more groups than nodes already spreads
+across however many nodes are alive when each group is handed out.
+
+<Callout type="tip" title="Sizing maxPerGroup">
+`maxPerGroup` defaults to `300`. Bigger groups mean fewer hand-offs and less
+control-plane chatter; smaller groups mean less re-work when a node dies
+mid-group and more even spread across a small fleet. At the default send budget
+of 15 mails per 2 minutes, a 300-recipient group occupies a node for about 40
+minutes.
+</Callout>
+
+## One job at a time
+
+Exactly one mailing job runs cluster-wide. Everything else waits.
+
+The queue is ordered by **priority first, arrival second** — a more urgent job
+submitted later starts before a queued routine one. It never *interrupts* the
+running job; nothing preempts work already in flight.
+
+When a job finishes, a **cooldown** runs before the next one starts (default one
+hour). Cancelling is the exception: it sets the cooldown to zero, because
+stopping a job you did not want should not also cost the next one an hour it
+never earned.
+
+Both rules are enforced in the database, not in application code — a partial
+unique index permits exactly one row with `status = 'running'`, and the claim is
+a single statement. Two orchestrator processes racing, or one restarting
+mid-dispatch, cannot produce two concurrent blasts.
+
+### The delay warning
+
+If a job cannot start immediately, that is said plainly at submit time rather
+than left to be discovered:
+
+> **"October newsletter" is queued and will not start yet** — 40,000 recipients
+> accepted. Only one mailing job runs at a time, and this one is waiting because
+> "Renewal notice" is currently running, and a 47min cooldown is in effect. It
+> starts automatically once the cluster is free.
+
+The same warning appears as a banner on the panel when you sign in, and the
+notification feed keeps the full history. See
+[Notifications](#notifications-in-the-panel) below.
+
+## Sending, on the node
+
+A node that accepts a group reads its recipients **straight from the shared
+database** and retires each row itself as it sends.
+
+This is the central design decision. The obvious alternative — report every send
+upstream and let the orchestrator do the writes — turns a 200,000-recipient
+blast into 200,000 control-plane messages converging on one process, purely to
+record work that already happened. Instead the node owns its group outright, and
+reports **once per group**. A progress heartbeat carries counts every 30 seconds,
+which is how the orchestrator tells a slow node from a wedged one.
+
+### The rate budget
+
+Default **15 mails per 2 minutes**, as a sliding window rather than a fixed
+bucket. The window follows the sends: a node that has been idle can send its
+next 15 immediately, and one that has just burst waits exactly as long as it
+must. Providers throttle on a rolling basis, so this matches what is actually
+being enforced upstream.
+
+The orchestrator ships the budget with each assignment, so the cluster-wide
+setting governs and a node cannot quietly grant itself a larger one.
+
+### Separate credentials, on purpose
+
+`utilities.batchMailer.mail` is deliberately **not** `systemConfig.mail`. Bulk
+mail and password-reset mail should never share a sender reputation, a provider
+quota, or a throttle — a blast that gets the account rate limited must not be
+able to stop users signing in.
+
+<Warning title="Enabled without credentials stays off">
+If `batchMailer.enabled` is true but no `service`, `host` or `email` is
+configured, the node logs an error and stays **off** rather than accepting groups
+it cannot send. The orchestrator treats a refused assignment as "give this group
+to someone else", which is the correct outcome for a node that was never meant
+to send bulk mail.
+</Warning>
+
+### When delivery fails
+
+Three different failures, deliberately not conflated:
+
+| Failure | Example | What happens |
+| --- | --- | --- |
+| **Permanent** | `550 User unknown` | Dead-lettered immediately. No number of retries fixes a nonexistent mailbox |
+| **Transient** | timeout, `ECONNRESET` | Retried up to `maxAttempts` (default 3) with exponential backoff, then dead-lettered |
+| **Throttle** | `421 too many messages` | Charged to the *rate budget*, not the retry budget. Being told to slow down says nothing about the address |
+
+A **dead-lettered** recipient is archived as `failed` and removed from the queue.
+This matters more than it looks: leaving it in place would have the watchdog
+reassign the same poison address forever and the job would never finish.
+
+Attempt counts are persisted before each backoff, so a node that dies mid-retry
+does not hand the next node a fresh budget for an address that has already burned
+two attempts.
+
+Separately, if enough recipients fail *consecutively* for transport reasons
+(default 10), the node concludes the mail server is broken rather than the
+addresses, stops, and hands the group back unsent with a reason. There is nothing
+to gain from burning through 300 recipients against a dead SMTP server. A run of
+bad addresses does **not** trip this — only transport-level failures count.
+
+## When a node stops answering
+
+Three layers, at deliberately different timescales. All three end in the same
+place — release the lease, let the normal dispatch loop pick the group up again —
+so there is no separate recovery mode to get wrong.
+
+<Steps>
+  <Step title="Node loss — seconds">
+    The cluster already knows when a node says goodbye or goes stale (default
+    120s). Its groups are released at once and handed to someone else. Waiting a
+    day to discover a crashed node helps nobody.
+  </Step>
+  <Step title="Stall detection — minutes">
+    A node that is *online but wedged* still holds its lease. If no progress
+    report arrives within `groupStallSeconds` (default 30 minutes) the
+    orchestrator probes it with `mailing:status`. A node that confirms it is
+    still working keeps its group — a slow node is not a dead node. One that does
+    not answer loses it.
+  </Step>
+  <Step title="The 24h watchdog — the backstop">
+    After `groupSilentTimeoutSeconds` (default 24 hours) with no completion
+    report, the orchestrator asks the node directly, counts what is actually left
+    in the table for that job, and if work is outstanding it rebuilds every
+    outstanding group and puts the fleet back on it. Nothing is lost, but a
+    critical notification is raised — a job that needed this almost certainly hit
+    an error worth looking at.
+  </Step>
+</Steps>
+
+An orchestrator restart is handled the same way: on boot, every assignment still
+marked live is probed, and the ones that cannot be confirmed are reclaimed.
+
+### The lease is a fencing token
+
+Every row a node touches is scoped by `locked_by = <its own worker id>`. If the
+orchestrator concluded a node was gone and reassigned its group, that node's
+writes stop matching — its retire affects zero rows, and it stops immediately
+rather than duplicating the new holder's mail. The stale node reports the group
+as cancelled, which is correct: nothing went wrong, and the work is in hand
+elsewhere.
+
+The reverse direction is guarded too. A late completion report from a node whose
+group was already reclaimed is recognised as stale and ignored, so it cannot
+strip the lease from whoever is doing the work now.
+
+## Cancelling
+
+Cancellation is graceful. Assigned nodes are told to stop, and each finishes the
+mail already handed to its transport before stopping — a mail must never go out
+with its queue row left behind, because that is the one outcome that produces a
+duplicate on the next assignment.
+
+The unsent remainder is **archived as `cancelled`**, not deleted. "Who did we not
+reach" is the first question anyone asks after stopping a blast, and a `DELETE`
+makes it unanswerable.
+
+## What survives a send
+
+The queue table holds only work that is *not yet done* — "done" is represented by
+absence, which is what makes "how much is left" a `COUNT` rather than a scan over
+completed work. The delivery record moves to an archive table in the same
+statement as the delete, so a recipient is never in both tables and never in
+neither.
+
+The archive is what answers "did Ada get the mail?": recipient, outcome,
+attempts, failure reason, which node sent it, and when. It carries a TTL
+(`archiveTtlDays`, default 90) and is reaped by the orchestrator.
+
+## Notifications in the panel
+
+The mailing plane publishes to a general-purpose orchestrator notification feed:
+
+| Type | Raised when |
+| --- | --- |
+| `mailing:job-queued` | A job was accepted and starts immediately |
+| `mailing:job-delayed` | A job was accepted but is waiting — names what it is waiting on |
+| `mailing:job-started` · `job-completed` · `job-cancelled` · `job-failed` | Lifecycle |
+| `mailing:group-reassigned` | A group moved between nodes, with the reason |
+| `mailing:dead-letters` | A finished job had undeliverable addresses |
+| `mailing:watchdog-recovered` | The 24h backstop fired |
+| `mailing:no-nodes` | A job was accepted with no live node to send it |
+
+Read state is **per admin**. A notification is a fact about the cluster, not a
+message addressed to one person, so two admins each see it and each dismisses it
+for themselves. The sidebar carries an unread badge; the queue-delay banner
+appears on sign-in.
+
+If `emailSubmitterOnCompletion` is on (the default), whoever submitted the job
+also gets a summary mail when it finishes.
+
+## Driving it
+
+### The panel
+
+**Mailing** in the sidebar: upload a sheet, watch the queue, follow the running
+job group by group — which node holds what, sent and failed counts per group, how
+many times a group has been reassigned — and inspect the undeliverable
+addresses. Cancel is on each queued or running job.
+
+### The CLI
+
+```bash filename="terminal" copy
+orionctl mailing submit ./october-newsletter.xlsx   # mailing:ops:submit
+orionctl mailing queue                              # what is running, waiting, and why
+orionctl mailing list --status queued
+orionctl mailing status <jobId>                     # per-group progress across the fleet
+orionctl mailing dead-letters <jobId>
+orionctl mailing cancel <jobId> --reason "wrong list"
+```
+
+The CLI does not parse the sheet — it reads the bytes and posts them to the same
+endpoint the panel uses, so "what a valid sheet looks like" has exactly one
+definition on the server. It also means `orionctl` stays dependency-free.
+
+### Permissions
+
+`mailing:*` is its own PBAC namespace, separate from `cluster:*`. Submitting a
+blast sends mail from your own domain to an arbitrary list — closer to a
+publishing right than an operational one — so a broad cluster grant must not
+imply it.
+
+| Action | Grants |
+| --- | --- |
+| `mailing:read:jobs` | List jobs, job detail, dead letters, archive |
+| `mailing:read:queue` | The queue state and delay reason |
+| `mailing:ops:submit` | Queue a new blast |
+| `mailing:ops:cancel` | Stop a queued or running job |
+| `notifications:read` | The notification feed |
+
+Job routes are scoped to the resource `job:<id>`, so a policy can allow reading
+every job while denying cancellation of a specific one.
+
+```json filename="mailing-operator.json"
+{
+  "version": 1,
+  "statements": [
+    { "sid": "see-mail",   "effect": "allow", "actions": ["mailing:read:*", "notifications:read"], "resources": ["*"] },
+    { "sid": "send-mail",  "effect": "allow", "actions": ["mailing:ops:submit"], "resources": ["mailing"] },
+    { "sid": "no-cancel",  "effect": "deny",  "actions": ["mailing:ops:cancel"], "resources": ["*"] }
+  ]
+}
+```
+
+## Turning it on
+
+<Steps>
+  <Step title="Enable the plane on the orchestrator">
+    ```js filename="orchestrator.js"
+    mailing: {
+        enabled: true,
+        maxPerGroup: 300,
+        cooldownSeconds: 3600,
+        nodeRateLimit: { perWindow: 15, windowMs: 120_000 },
+        maxAttempts: 3
+    }
+    ```
+    Requires `systemAdmin.enabled`. Full option table in
+    [Orchestrator configuration](/versions/alpine/docs/configuration/orchestrator#batch-mailing).
+  </Step>
+  <Step title="Give every sending node its own bulk credentials">
+    ```js filename="orion.config.js"
+    utilities: {
+        batchMailer: {
+            enabled: true,
+            mail: {
+                service: 'sendgrid',
+                email: process.env.BULK_MAIL_USER,
+                password: process.env.BULK_MAIL_PASSWORD,
+                from: 'Acme <news@acme.example>'
+            }
+        }
+    }
+    ```
+    A node with this off simply declines assignments; the orchestrator gives the
+    group to someone else.
+  </Step>
+  <Step title="Apply the mailing grants">
+    ```bash filename="terminal"
+    psql -d orion -f Packages/server/Orion-Orchestrator/sql/worker-grants.example.sql
+    ```
+    Nodes write their own delivery records, so they need DML on the two mailing
+    tables. Without this, sending fails at the first retire.
+  </Step>
+  <Step title="Submit a small job first">
+    Send to a handful of internal addresses and watch it move through the panel
+    before pointing it at a real list.
+  </Step>
+</Steps>
+
+<Warning title="The grants are a real deployment step">
+The mailing plane is the one place a worker writes to an `orch_*` table. If
+`sql/worker-grants.example.sql` has not been applied since you enabled batch
+mailing, nodes will accept groups and then fail to retire rows — mail may be sent
+without its queue row being cleared. Apply the grants before the first job.
+</Warning>
+
+## See also
+
+- [Orchestrator configuration](/versions/alpine/docs/configuration/orchestrator#batch-mailing) — every option
+- [Control plane](/versions/alpine/docs/architecture/control-plane#batch-mailing) — the wire protocol
+- [Data model](/versions/alpine/docs/architecture/data-model#the-orchestrators-tables) — the tables
+- [Admin API](/versions/alpine/docs/api-reference/admin-api#batch-mailing--apimailing) — the HTTP surface
+- [orionctl](/versions/alpine/docs/cli#batch-mailing) — the CLI

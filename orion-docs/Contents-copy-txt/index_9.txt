@@ -1,0 +1,85 @@
+---
+title: Getting Started
+description: What you are about to build, and the shortest path from an empty machine to a working Orion sign-in.
+---
+
+By the end of this section you will have one `Orion-core` node running against a
+Postgres database, and a browser page that signs a user up, signs them in, and
+holds the session across a reload.
+
+That is the whole first milestone. Clustering, the orchestrator, the admin
+plane, and TLS all come later — none of them are needed to get auth working.
+
+<Steps>
+  <Step title="Prerequisites">
+    Node.js 18.18+ (20 LTS recommended) and a Postgres database. SMTP
+    credentials if you want
+    passkeys, TOTP, device authorization, or password reset — Orion-core
+    force-disables those methods when `mail` is absent.
+    [Read the full list →](/versions/alpine/docs/getting-started/prerequisites)
+  </Step>
+  <Step title="Run your first node">
+    Copy the annotated config template, fill in your Postgres credentials, and
+    call `initiateServer()`. Schema migration runs automatically on boot.
+    [Walkthrough →](/versions/alpine/docs/getting-started/first-node)
+  </Step>
+  <Step title="Your first sign-in">
+    Point the browser SDK at the node, call `signUpUser` and `signInUser`, and
+    subscribe to `onAuthStateChanged`.
+    [Walkthrough →](/versions/alpine/docs/getting-started/first-sign-in)
+  </Step>
+</Steps>
+
+Once that milestone is done, [Next steps](/versions/alpine/docs/getting-started/next-steps) lays
+out the order most deployments take from there.
+
+<Callout type="tip" title="There is a working app in the repo">
+`Packages/apps/Todos-App` is a complete integration — Express API on Orion-core
+with custom `/todos` routes, a static HTML/JS client using the SDK, and an
+orchestrator process. If you would rather read working code than a tutorial,
+start there. See [Examples](/versions/alpine/docs/examples).
+</Callout>
+
+## What Orion gives your app
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle>Endpoints, not scaffolding</CardTitle>
+    <CardDescription className="mt-2">
+      Thirty-five auth endpoints are registered for you under
+      <code>/alpine/api/v1/…</code> the moment the server boots. You add your own
+      routes alongside them through <code>api.customEndpoints</code>.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Its own schema</CardTitle>
+    <CardDescription className="mt-2">
+      Versioned, checksummed, advisory-locked migrations create and upgrade the
+      auth tables on boot. Safe to run concurrently across a fleet.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Defense in the pipeline</CardTitle>
+    <CardDescription className="mt-2">
+      Flood guard, per-actor rate limiting, origin verification, load shedding,
+      abuse detection, and a circuit breaker sit in front of every handler.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>An audit trail that resists edits</CardTitle>
+    <CardDescription className="mt-2">
+      Hash-chained events written to MySQL and mirrored to a signed local
+      write-ahead log.
+    </CardDescription>
+  </Card>
+</Grid>
+
+## What it does not do
+
+- It is **not** a hosted identity provider. There is no Orion cloud to sign up for.
+- It is **not** an OAuth *provider*. Orion consumes OAuth from Google, GitHub and
+  friends; it does not issue OAuth tokens to third parties.
+- It does **not** ship a UI. The SDK gives you the calls; the screens are yours.
+- Sessions are **not** replicated node-to-node by R_Sync. Session state lives in
+  Postgres; signing keys are shared through Redis. R_Sync carries control-plane
+  traffic only.

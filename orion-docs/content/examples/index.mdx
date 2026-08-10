@@ -1,0 +1,169 @@
+---
+title: Examples
+description: The Todos reference application — a complete Orion integration you can run.
+---
+
+## Todos-App
+
+`Packages/apps/Todos-App` is the worked example. It exercises the whole stack for
+real: a static HTML/CSS/JS client on the browser SDK, an Express API on
+Orion-core with custom `/todos` routes backed by Postgres, and an orchestrator
+process proving the control plane actually syncs.
+
+```text
+Packages/apps/Todos-App/
+├── server/
+│   ├── index.js                     boots Orion-core, migrates todos, serves HTTP or HTTPS
+│   ├── orion.config.example.js      the annotated full-surface config template
+│   ├── gipsy.orion.config.js        your real config (git-ignored)
+│   └── todos/
+│       ├── TodosModel.js            table migration
+│       └── TodosHandlers.js         the four route handlers
+├── client/
+│   ├── index.html · auth.html · dashboard.html
+│   ├── config.js                    SERVER_URL — the one line to change per deployment
+│   ├── orion-client.js              constructs and exports the Orion singleton
+│   ├── orion.beta.sdk.js            vendored SDK build
+│   ├── app.js · account.js
+│   └── styles.css
+└── orchestrator/
+    └── dashboard/                   a dependency-free observability + command UI
+```
+
+<Callout type="warning" title="The orchestrator entry point is not committed">
+This app's README tells you to run `orchestrator/start.js`. That file is **not in
+the repository** — only the `dashboard/` directory is. Write your own entry point
+from `Packages/server/Orion-Orchestrator/examples/orchestrator.example.js`, and
+call `startDashboard(orch, { port, username, password })` from
+`orchestrator/dashboard/server.js` if you want the dashboard.
+</Callout>
+
+## Running it locally
+
+<Steps>
+  <Step title="Provision Postgres">
+    Any local install or container. Development was verified against:
+    ```bash
+    docker run -d -e POSTGRES_PASSWORD=<pw> -e POSTGRES_DB=todos_orion -p 5433:5432 postgres:16-alpine
+    ```
+  </Step>
+  <Step title="Configure">
+    ```bash
+    cd Packages/apps/Todos-App/server
+    cp orion.config.example.js gipsy.orion.config.js
+    ```
+    Fill in every `CHANGE_ME`. The template runs the **full** security surface —
+    audit trail on MySQL, shared Redis, device auth, passkeys, TOTP — so trim it
+    down if you only have Postgres.
+  </Step>
+  <Step title="Start the API">
+    ```bash
+    cd server && node index.js
+    ```
+    It runs its own `todos` table migration on boot, against the same Postgres
+    database Orion's auth tables live in.
+  </Step>
+  <Step title="Start the client">
+    ```bash
+    cd ../client && python -m http.server 8080
+    ```
+    Open `http://localhost:8080`. If you change the API port or host, update
+    `client/config.js` and add the client's **exact** origin to `client.urls`,
+    then restart the API.
+  </Step>
+</Steps>
+
+With an orchestrator running you should see `[hello]` in its terminal as the API
+joins, then `[health] FORMING -> HEALTHY` once the cluster settles.
+
+## What the config template demonstrates
+
+- Custom endpoints with a parameterized path (`/todos/:id`).
+- `utilities.auditTrailSystem` against MySQL.
+- `utilities.ephemeralDB` on Redis for true multi-node signing-key sharing.
+- `utilities.clusterLink` joining an orchestrator with
+  `requireOrchestrator: false`.
+- `utilities.dataEncryption` sealing TOTP secrets — a key vault provider once
+  `ephemeralDB` is on Redis, since `INLINE_KEY` is refused in cluster mode.
+- Device authorization and captcha both enabled, with SMTP wired up.
+- Security tier 4 and the flood guard.
+
+It is the most complete configuration example in the repository — read it
+alongside [Configuration](/versions/alpine/docs/configuration).
+
+## What the client demonstrates
+
+`client/app.js` is the most instructive file. It shows the pattern for calling
+your own endpoints correctly:
+
+```js
+// Use the SDK's own fingerprint so todos requests carry the EXACT fingerprint
+// the SDK used at sign-in — otherwise (tier 4) a mismatch adds risk and can
+// force step-up. Computed once, reused per request.
+const deviceFingerprint = await getDeviceFingerprint();
+```
+
+and the auth-state subscription that drives navigation:
+
+```js
+orion.onAuthStateChanged(async state => {
+    if (state.status === 'UNAUTHENTICATED') location.href = './auth.html';
+    else if (state.status === 'AUTHENTICATED') { /* render */ }
+    else if (state.status === 'ERROR') { /* show */ }
+});
+```
+
+`client/account.js` covers the account-management surface: TOTP enrollment,
+passkey registration, 2FA removal, and session listing and revocation.
+
+## The bundled dashboard
+
+`orchestrator/dashboard/` is a dependency-free single-page UI over the
+orchestrator's read methods and command surface, using Node's built-in `http`.
+
+<Warning title="HTTP Basic auth only">
+It is protected by Basic auth with a timing-safe comparison — adequate for a
+local demo, not for production. The real governed surface is the system-admin
+plane: panel, API, and `orionctl`, all behind PBAC with an audit trail. Use that
+instead.
+</Warning>
+
+## Deploying it on EC2
+
+The app's README carries a full runbook: Ubuntu 22.04, t3.small, ports 22/3900/8080
+open (55321 and 55322 deliberately closed, since orchestrator and API share the
+box and talk over `127.0.0.1`), Node 20 from NodeSource, Postgres from apt, rsync
+the repo excluding `node_modules`, and tmux panes for the three processes.
+
+The root `DEPLOYMENT.md` narrates a larger four-box topology: one orchestrator
+box hosting Postgres, Redis, and MySQL, plus three auth nodes.
+
+<Callout type="info" title="Bugs this app found">
+Building it surfaced four real Orion-core bugs the unit suite had never
+exercised — a wrong `authMethods` check in signup, a bad user-record path in
+sign-in token generation, an `iss` claim built from a string instead of an array,
+and exact-string matching that broke parameterized custom routes. All four are
+fixed. It is a good argument for keeping a real integration in the repo.
+</Callout>
+
+## The test suite
+
+```bash filename="terminal" copy
+cd Testing
+npm test                # whole suite
+npm run test:server     # Orion-core suites
+npm run test:client     # browser SDK suites
+npm run test:crypto     # cryptography suites
+npm run test:coverage   # + V8 coverage
+```
+
+No install step — it uses Node's built-in test runner and requires Node ≥ 20.
+`Testing/integration/` holds a smoke test with its own config template, and
+`Testing/COVERAGE-MAP.md` tracks what is covered.
+
+Package-local suites also exist:
+
+```bash filename="terminal"
+cd Packages/server/Orion-core && npm test    # security + binding remediation tests
+cd Packages/server/R_sync     && npm test    # crypto, config schemas, middleware, hardening
+```

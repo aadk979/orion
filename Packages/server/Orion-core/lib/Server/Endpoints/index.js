@@ -40,6 +40,11 @@ import {
 } from '../../Utils/Core/SecurityManagment/StepUpAuth.js';
 import { routeHandlerInitiatePasswordReset, routeHandlerCompletePasswordReset } from '../../Utils/Core/AccountManagment/PasswordReset.js';
 import { routeHandlerGetUserProfile } from '../../Utils/Core/AccountManagment/GetUserProfile.js';
+import {
+    routeHandlerGetNotifications,
+    routeHandlerMarkNotificationsShown,
+    routeHandlerAcknowledgeNotifications
+} from '../../Utils/Core/Notifications/NotificationService.js';
 import { globalAccessPoint } from '../../Utils/GlobalAccessPoint.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
@@ -255,6 +260,24 @@ const defaultServerRoutes = {
             requireAuth: false,
             method: 'POST',
             callback: routeHandlerCompletePasskeySignUp
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/request/notifications`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerGetNotifications
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/mark-notifications-shown`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerMarkNotificationsShown
+        },
+        {
+            path: `/${NAME_SPACE}/api/v1/action/acknowledge-notifications`,
+            requireAuth: true,
+            method: 'POST',
+            callback: routeHandlerAcknowledgeNotifications
         }
     ]
 };

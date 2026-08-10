@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../Validator.js';
 import { generateAccessToken } from '../TokenManagement/AccessTokens.js';
 import { generateRefreshToken } from '../TokenManagement/RefreshTokens.js';
+import { resolveIssuanceBinding } from '../TokenManagement/internals/dpopBinding.js';
 import { setManagedCookie } from '../../CookieUtils.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { userControl } from './UserControl.js';
@@ -186,6 +187,31 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
         // Successful authentication clears the backoff.
         await UserModel.clearFailedLogins(user.uid);
 
+        // Proof-of-possession binding. Resolved BEFORE any token is minted so a
+        // deployment that requires binding never issues an unbound session as a
+        // side effect of a client that could not produce a proof.
+        const binding = await resolveIssuanceBinding();
+
+        if (binding.error) {
+            auditTrail.record({
+                user: { email: parameters.email, uid: user.uid },
+                device: {
+                    fingerprint: parameters.fingerprint,
+                    userAgent: parameters.userAgent
+                },
+                action: 'SIGN_IN_ATTEMPT',
+                status: 'FAILED',
+                source: 'SignIn.js',
+                functionName: 'signInWithPassword',
+                requestId: requestMetadata?.requestId,
+                ipAddress: parameters.ip,
+                impact: 'Sign in failed - device binding could not be established',
+                metadata: { reason: 'DPOP_BINDING_FAILED', proofReason: binding.reason },
+                errorCode: binding.errorCode
+            });
+            return { error: true, errorCode: binding.errorCode };
+        }
+
         const accessToken = await generateAccessToken(
             user.uid,
             sanitizedEmail,
@@ -193,7 +219,9 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             'PASSWORD',
             'USER',
             parameters.ip,
-            parameters.userAgent
+            parameters.userAgent,
+            null,
+            binding.jkt
         );
 
         if (accessToken.error) {
@@ -224,7 +252,10 @@ const signInWithPassword = async (email, password, fingerprint, ip, userAgent) =
             'USER',
             parameters.ip,
             parameters.userAgent,
-            accessToken.accessTokenLinkCode
+            accessToken.accessTokenLinkCode,
+            0,
+            null,
+            binding.jkt
         );
 
         if (refreshToken.error) {

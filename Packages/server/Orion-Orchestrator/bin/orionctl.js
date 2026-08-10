@@ -13,11 +13,19 @@
 
 import { readFileSync, writeFileSync, existsSync, chmodSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { join, basename } from 'path';
 import readline from 'readline';
 import process from 'process';
+import { createRequire } from 'node:module';
 
 const CONFIG_PATH = join(homedir(), '.orionctl.json');
+
+/**
+ * Must match OrionOrchestrator and ClusterLinkSystem exactly. Duplicated rather
+ * than imported because orionctl is a zero-dependency script that talks to the
+ * API over HTTP and never loads the orchestrator itself.
+ */
+const WIPE_CONFIRMATION_PHRASE = 'WIPE ENCRYPTED FIELDS';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -108,10 +116,60 @@ const parseJsonFlag = (value, name) => {
 
 // ── API client ───────────────────────────────────────────────────────────────
 
+/**
+ * Builds an undici Agent carrying the operator's client certificate, when one
+ * is configured.
+ *
+ * Returns null when no certificate is set, so a deployment that has not enabled
+ * mTLS keeps working exactly as before. `ca` is optional: against a private CA
+ * it verifies the orchestrator, and its absence only affects how WE verify the
+ * SERVER — the binding of our session to this certificate is enforced by the
+ * orchestrator either way.
+ */
+const buildMtlsDispatcher = config => {
+    const certPath = config.clientCert || process.env.ORIONCTL_CLIENT_CERT;
+    const keyPath = config.clientKey || process.env.ORIONCTL_CLIENT_KEY;
+
+    if (!certPath || !keyPath) return null;
+
+    // `fetch`'s dispatcher option comes from undici, which is Node's own fetch
+    // implementation. createRequire is used because this is an ESM module and
+    // the lookup has to be synchronous inside a constructor.
+    let Agent;
+    try {
+        ({ Agent } = createRequire(import.meta.url)('undici'));
+    } catch {
+        die('client certificates require the "undici" package — run: npm install undici');
+    }
+
+    const caPath = config.clientCa || process.env.ORIONCTL_CLIENT_CA;
+
+    try {
+        return new Agent({
+            connect: {
+                cert: readFileSync(certPath),
+                key: readFileSync(keyPath),
+                ...(caPath ? { ca: readFileSync(caPath) } : {})
+            }
+        });
+    } catch (err) {
+        die(`cannot load client certificate — ${err.message}`);
+    }
+};
+
+
 class ApiClient {
     constructor(config) {
         this.url = config.url ? String(config.url).replace(/\/$/, '') : null;
         this.token = config.token || null;
+
+        // Client certificate for RFC 8705 certificate-bound sessions.
+        //
+        // The session token below is stored on disk, which is precisely why the
+        // orchestrator can be configured to bind it to this certificate: without
+        // the matching private key the token is inert, so a copied config file
+        // is no longer a working system-admin credential.
+        this.dispatcher = buildMtlsDispatcher(config);
     }
 
     async request(method, path, body = undefined, { auth = true } = {}) {
@@ -125,6 +183,7 @@ class ApiClient {
             response = await fetch(this.url + path, {
                 method,
                 headers,
+                ...(this.dispatcher ? { dispatcher: this.dispatcher } : {}),
                 body: body === undefined ? undefined : JSON.stringify(body)
             });
         } catch (err) {
@@ -160,6 +219,63 @@ class ApiClient {
     }
     delete(path) {
         return this.request('DELETE', path);
+    }
+
+    /**
+     * Uploads a spreadsheet as a raw body.
+     *
+     * The CLI deliberately does NOT parse the sheet — it reads the bytes and
+     * posts them to the same endpoint the panel uses, so "what a valid sheet
+     * looks like" has one definition on the server rather than two that can
+     * drift. It also means the CLI needs no spreadsheet dependency, which is
+     * what keeps it a zero-dependency script.
+     */
+    async uploadSheet(path, filePath) {
+        if (!this.url) die('no orchestrator URL configured — run: orionctl login <email> --url <https://orch-host:55330>');
+        if (!existsSync(filePath)) die(`no such file: ${filePath}`);
+
+        const body = readFileSync(filePath);
+        const name = basename(filePath);
+        const contentType = /\.csv$/i.test(name) ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+        let response;
+        try {
+            response = await fetch(`${this.url}${path}?filename=${encodeURIComponent(name)}`, {
+                method: 'POST',
+                headers: {
+                    'content-type': contentType,
+                    ...(this.token ? { authorization: `Bearer ${this.token}` } : {})
+                },
+                ...(this.dispatcher ? { dispatcher: this.dispatcher } : {}),
+                body
+            });
+        } catch (err) {
+            die(`cannot reach ${this.url} — ${err.message}`);
+        }
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (_) {
+            /* non-JSON error body */
+        }
+
+        if (!response.ok || payload?.error) {
+            const code = payload?.code || `HTTP-${response.status}`;
+            if (response.status === 401) {
+                die(`${code}: ${payload?.message || 'unauthorized'} — session may have expired; run: orionctl login <email>`);
+            }
+            // Sheet validation returns every problem at once. Printing them all
+            // is the difference between one more upload and ten.
+            if (Array.isArray(payload?.details) && payload.details.length > 0) {
+                console.error(`orionctl: ${code}: ${payload.message}`);
+                for (const issue of payload.details) console.error(`  - ${issue}`);
+                process.exit(1);
+            }
+            die(`${code}: ${payload?.message || response.statusText}`);
+        }
+
+        return payload;
     }
 }
 
@@ -244,6 +360,33 @@ Cluster (governed by YOUR attached PBAC policy)
   secrets keys                            active signing/verification kids per node
   secrets revoke <kid1,kid2,...>          broadcast immediate kid revocation to the fleet
   secrets rotate-node <workerId>          decommission ALL of a node's signing keys
+
+Field encryption (key vault)
+  keyvault status                         provider, health, key ledger and sealed-row counts per node
+  keyvault check                          ask the fleet whether encryption is unrecoverable everywhere
+  keyvault rotate-kek [--node ID]         rotate the vault key and re-wrap the data key (data untouched)
+  keyvault rotate-dek [--node ID] [--batch N] [--no-reencrypt]
+                                          new data key + re-encrypt every sealed row
+  keyvault wipe --reason TEXT [--fields a,b] [--admins] [--include-root] [--override-consensus]
+                                          (root) DESTROY unreadable encrypted data; users re-enroll.
+                                          Prompts for the confirmation phrase.
+
+Batch mailing
+  mailing submit <file.xlsx|file.csv>     queue a mail blast from a spreadsheet
+  mailing list [--status S] [--limit N]   every job, running/queued first
+  mailing queue                           what is running, what is waiting, and why
+  mailing status <jobId>                  per-group progress across the fleet
+  mailing dead-letters <jobId>            addresses that exhausted their delivery attempts
+  mailing cancel <jobId> [--reason TEXT]  stop a job; unsent recipients recorded as cancelled
+
+  Sheet columns — required: recipient, subject, content.
+  Optional: mailing_job_id (32 chars, generated if blank), mailing_job_name,
+  priority (1-9, lower is more urgent), content_type (text|html).
+  Any other column becomes a <COLUMN_NAME> token usable in subject and content.
+
+Notifications
+  notifications [--unread] [--limit N]    control-plane feed
+  notifications read <id> | notifications read-all
 
 Audit
   audit [--limit N] [--action PREFIX] [--admin ID]
@@ -400,6 +543,122 @@ const main = async () => {
                     die('usage: orionctl secrets <keys|revoke|rotate-node>');
             }
             return;
+        }
+
+        case 'keyvault': {
+            const sub = positional[0];
+
+            switch (sub) {
+                case 'status':
+                    return printJson((await api.get('/api/cluster/keyvault/status')).nodes);
+
+                case 'check':
+                    return printJson((await api.post('/api/cluster/keyvault/confirm-unrecoverable', {})).consensus);
+
+                case 'rotate-kek':
+                    return printJson((await api.post('/api/cluster/keyvault/rotate-kek', { workerId: flags.node || null })).result);
+
+                case 'rotate-dek':
+                    return printJson(
+                        (
+                            await api.post('/api/cluster/keyvault/rotate-dek', {
+                                workerId: flags.node || null,
+                                batchSize: flags.batch ? Number(flags.batch) : null,
+                                reencrypt: flags['no-reencrypt'] !== true
+                            })
+                        ).result
+                    );
+
+                case 'wipe': {
+                    const reason = flags.reason;
+                    if (!reason || String(reason).trim().length < 10) {
+                        die('usage: orionctl keyvault wipe --reason "<at least 10 characters>" — the reason is recorded in the audit trail');
+                    }
+
+                    // The phrase is typed interactively rather than passed as a
+                    // flag: a destructive, irreversible command should not be
+                    // something a shell history or a copied one-liner can repeat.
+                    console.log('\nThis DESTROYS encrypted field data that can no longer be decrypted.');
+                    console.log('Every affected user loses their authenticator enrollment and must set it up again.');
+                    console.log('It cannot be undone.\n');
+
+                    const typed = await prompt(`Type ${WIPE_CONFIRMATION_PHRASE} to proceed: `);
+
+                    if (typed.trim() !== WIPE_CONFIRMATION_PHRASE) {
+                        die('confirmation phrase did not match — nothing was changed');
+                    }
+
+                    const body = {
+                        confirmation: typed.trim(),
+                        reason: String(reason).trim(),
+                        fields: flags.fields ? String(flags.fields).split(',').map(f => f.trim()).filter(Boolean) : null,
+                        includeAdmins: flags.admins === true,
+                        includeRootAdmin: flags['include-root'] === true,
+                        overrideConsensus: flags['override-consensus'] === true
+                    };
+
+                    return printJson((await api.post('/api/cluster/keyvault/wipe', body)).result);
+                }
+
+                default:
+                    die('usage: orionctl keyvault <status|check|rotate-kek|rotate-dek|wipe>');
+            }
+            return;
+        }
+
+        // ── Batch mailing ───────────────────────────────────────────────────
+        case 'mailing': {
+            const sub = positional[0];
+            switch (sub) {
+                case 'submit': {
+                    const file = positional[1] || die('usage: orionctl mailing submit <file.xlsx|file.csv>');
+                    return printJson(await api.uploadSheet('/api/mailing/jobs', file));
+                }
+                case 'list': {
+                    const params = new URLSearchParams();
+                    if (flags.status) params.set('status', flags.status);
+                    if (flags.limit) params.set('limit', flags.limit);
+                    const qs = params.toString();
+                    return printJson((await api.get(`/api/mailing/jobs${qs ? '?' + qs : ''}`)).jobs);
+                }
+                case 'queue':
+                    return printJson((await api.get('/api/mailing/queue')).queue);
+                case 'status': {
+                    const jobId = positional[1] || die('usage: orionctl mailing status <jobId>');
+                    return printJson(await api.get(`/api/mailing/jobs/${encodeURIComponent(jobId)}`));
+                }
+                case 'dead-letters': {
+                    const jobId = positional[1] || die('usage: orionctl mailing dead-letters <jobId>');
+                    const limit = flags.limit ? `?limit=${encodeURIComponent(flags.limit)}` : '';
+                    return printJson((await api.get(`/api/mailing/jobs/${encodeURIComponent(jobId)}/dead-letters${limit}`)).deadLetters);
+                }
+                case 'cancel': {
+                    const jobId = positional[1] || die('usage: orionctl mailing cancel <jobId> [--reason TEXT]');
+                    return printJson(await api.post(`/api/mailing/jobs/${encodeURIComponent(jobId)}/cancel`, { reason: flags.reason || null }));
+                }
+                default:
+                    die('usage: orionctl mailing <submit|list|queue|status|dead-letters|cancel>');
+            }
+            return;
+        }
+
+        // ── Notifications ───────────────────────────────────────────────────
+        case 'notifications': {
+            const sub = positional[0];
+
+            if (sub === 'read') {
+                const id = positional[1] || die('usage: orionctl notifications read <id>');
+                return printJson(await api.post(`/api/notifications/${encodeURIComponent(id)}/read`));
+            }
+            if (sub === 'read-all') {
+                return printJson(await api.post('/api/notifications/read-all'));
+            }
+
+            const params = new URLSearchParams();
+            if (flags.limit) params.set('limit', flags.limit);
+            if (flags.unread) params.set('unread', 'true');
+            const qs = params.toString();
+            return printJson(await api.get(`/api/notifications${qs ? '?' + qs : ''}`));
         }
 
         // ── Audit ───────────────────────────────────────────────────────────

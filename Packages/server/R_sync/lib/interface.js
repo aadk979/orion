@@ -25,7 +25,7 @@ import { waitForDb } from './utils/lokidb.js';
 import { registerEventHandler, setTunnelState, getTunnelState, setReregisterHandler } from './core/controllers/workerController.js';
 import { registerOrchestratorEventHandler } from './core/controllers/orchestratorController.js';
 import { validateConfig, OrchestratorConfigSchema, WorkerConfigSchema } from './utils/configSchemas.js';
-import { buildRequestSignaturePayload } from './utils/requestSignature.js';
+import { signRequest } from './utils/httpSignature.js';
 
 class R_Sync {
     static #ROLES = Object.freeze(['ORCHESTRATOR', 'WORKER']);
@@ -63,6 +63,7 @@ class R_Sync {
             this.encryptionAlg = validated.encryptionAlg;
             this.cluster = validated.cluster;
             this.trustAdvertisedWorkerIp = validated.trustAdvertisedWorkerIp === true;
+            this.acceptLegacySignatures = validated.acceptLegacySignatures === true;
         }
 
         if (this.role === R_Sync.#ROLES[1]) {
@@ -140,6 +141,22 @@ class R_Sync {
         // Store cluster name for validation
         globalAccessPoint.setValue('cluster', this.cluster);
         globalAccessPoint.setValue('trustAdvertisedWorkerIp', this.trustAdvertisedWorkerIp === true);
+
+        // Workers sign with RFC 9421 HTTP Message Signatures. The proprietary
+        // header scheme that preceded it is refused by default; enable this only
+        // for the duration of a rolling upgrade, while some workers still run the
+        // old build, and turn it off once the fleet has caught up.
+        //
+        // Both schemes use the same Ed25519 identity key, so accepting the old
+        // one is not a cryptographic downgrade — it is an interoperability
+        // window, and leaving it open indefinitely just keeps a second format
+        // alive with no one speaking it.
+        const acceptLegacy = this.acceptLegacySignatures === true;
+        globalAccessPoint.setValue('R_SYNC_ACCEPT_LEGACY_SIGNATURES', acceptLegacy);
+
+        if (acceptLegacy) {
+            logger.warn('R_sync: legacy (pre-RFC 9421) worker signatures are being accepted — disable acceptLegacySignatures once every worker is upgraded.');
+        }
 
         // Create and configure server
         this.app = createServer();
@@ -455,15 +472,18 @@ class R_Sync {
                 // request. Body must match what is sent below, byte for byte.
                 const requestBody = { payload: encrypted, signature: payloadSignature, timestamp: timestamp };
 
-                const authPayload = buildRequestSignaturePayload({
+                // RFC 9421 HTTP Message Signatures. `@target-uri` binds the
+                // signature to this exact host, port and path, and the RFC 9530
+                // Content-Digest binds it to this exact body.
+                const httpSig = signRequest({
                     method: 'POST',
-                    path: new URL(EVENT_URL).pathname,
+                    url: EVENT_URL,
                     body: requestBody,
                     workerId: this.workerId,
-                    timestamp,
-                    nonce
+                    privateJwk: tunnelState.mySignatureKeyPair.privateKey,
+                    nonce,
+                    created: timestamp
                 });
-                const authSignature = generateSignature(authPayload, tunnelState.mySignatureKeyPair.privateKey);
 
                 logger.info(`Emitting "${eventName}" to orchestrator (attempt ${attempt}/${MAX_RETRIES})...`);
 
@@ -473,9 +493,9 @@ class R_Sync {
                         'Content-Type': 'application/json',
                         'x-r_sync-worker-id': this.workerId,
                         'x-r_sync-cluster': this.cluster,
-                        'x-r_sync-timestamp': timestamp.toString(),
-                        'x-r_sync-nonce': nonce,
-                        'x-r_sync-signature': authSignature
+                        'Content-Digest': httpSig.contentDigest,
+                        'Signature-Input': httpSig.signatureInput,
+                        Signature: httpSig.signature
                     },
                     // Same object the signature was computed over.
                     body: JSON.stringify(requestBody)
@@ -559,17 +579,17 @@ class R_Sync {
 
                 const nonce = generateRandomNumber(36);
 
-                // Heartbeat sends no body; Express canonicalizes that to `{}` on
-                // the verifying side, so sign `{}` here to match.
-                const signaturePayload = buildRequestSignaturePayload({
+                // Heartbeat sends no body; both sides canonicalize that to `{}`
+                // inside contentDigest, so the digests agree.
+                const httpSig = signRequest({
                     method: 'POST',
-                    path: new URL(HEARTBEAT_URL).pathname,
+                    url: HEARTBEAT_URL,
                     body: {},
                     workerId: this.workerId,
-                    timestamp,
-                    nonce
+                    privateJwk: tunnelState.mySignatureKeyPair.privateKey,
+                    nonce,
+                    created: timestamp
                 });
-                const signature = generateSignature(signaturePayload, tunnelState.mySignatureKeyPair.privateKey);
 
                 const response = await fetch(HEARTBEAT_URL, {
                     method: 'POST',
@@ -577,9 +597,9 @@ class R_Sync {
                         'Content-Type': 'application/json',
                         'x-r_sync-worker-id': this.workerId,
                         'x-r_sync-cluster': this.cluster,
-                        'x-r_sync-timestamp': timestamp.toString(),
-                        'x-r_sync-nonce': nonce,
-                        'x-r_sync-signature': signature
+                        'Content-Digest': httpSig.contentDigest,
+                        'Signature-Input': httpSig.signatureInput,
+                        Signature: httpSig.signature
                     }
                 });
 

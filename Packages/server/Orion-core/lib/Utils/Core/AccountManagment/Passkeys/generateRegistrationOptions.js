@@ -7,6 +7,7 @@ import { tryCatch } from '../../../TryCatch.js';
 import { isValidEmail } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { setManagedCookie } from '../../../CookieUtils.js';
+import { resolveClientContext } from '../../../Parsers.js';
 import { fileURLToPath } from 'url';
 import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
 
@@ -93,11 +94,16 @@ const generatePasskeyRegistrationOptionsExistingUser = async (email, clientURL) 
 
 const routeHandlerGeneratePasskeyRegistrationOptionsExistingUser = async (request, response) => {
     const email = request.user.email;
-    const clientURL = request.get('Origin') || request.get('Referer');
+    // Registration MUST derive the RP ID exactly as authentication does — a
+    // credential registered under one RP ID can never be asserted against
+    // another. See resolveClientContext in Utils/Parsers.js.
+    const clientContext = resolveClientContext(request);
 
-    const parsedClientURL = clientURL.split('//')[clientURL.split('//').length - 1];
+    if (!clientContext) {
+        return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
+    }
 
-    const callback = await generatePasskeyRegistrationOptionsExistingUser(email, parsedClientURL);
+    const callback = await generatePasskeyRegistrationOptionsExistingUser(email, clientContext.rpId);
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);

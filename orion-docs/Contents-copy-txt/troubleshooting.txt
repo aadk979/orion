@@ -1,0 +1,172 @@
+---
+title: Troubleshooting
+description: Diagnose common Orion deployment failures with the symptoms, likely causes, and corrective steps for nodes, backing services, and the control plane.
+---
+
+## Boot failures
+
+| Message | Cause and fix |
+| --- | --- |
+| `Configuration error: allowed client urls must be given…` | `client.urls` is missing or empty. It is mandatory |
+| `Configuration conflict: persistent updates for client urls cannot be enabled while run time client url updates are disabled` | Set `client.runTimeUpdateAllowed: true` as well |
+| `Unable to certify database as operational, pass rate for db check test: N%` | The 15-round write/read/delete check did not reach 100%. Check connectivity, permissions, and that the user can `CREATE TABLE` |
+| `Configuration conflict: Device authorization is enabled but no mail credentials are configured` | Add a `mail` block, or set `accessControl.deviceAuthorization: 'DISABLED'` |
+| `Configuration conflict: Cannot mix wildcard '*' with specific domains` | `allowedEmailDomains` must be `['*']` **or** a list of domains |
+| `Invalid domain format: …` | A domain entry has no dot, or contains a space |
+| `Configuration error: tokens.binding must be "none" or "dpop"` | Only those two values exist |
+| `Configuration error: allowed custom user roles must be a valid array of roles` | `utilities.userRoles.allowedUserRoles` must be a non-empty array |
+| `Configuration error: Ephemeral database object present but missing 'provider' or 'credentials'` | A non-`LOCAL_DB` provider needs credentials |
+| `AuditTrailSystem integrity test failed after N attempts` | MySQL unreachable, or the user cannot write to `audit_trail` |
+| `CookiePolicy: cookie "X" must declare exactly one of maxAge / maxAgeFrom` | The cookie policy table was edited incorrectly |
+| `RateLimitPolicy: invalid cost N on route "…"` | Costs must be one of 1, 2, 3, 5, 10 |
+| `Missing server/gipsy.orion.config.js` | Reference app only — copy `orion.config.example.js` and fill it in |
+
+## Everything returns 400 `GENERAL::HEADERS-INVALID::A::p`
+
+One of the three mandatory headers is missing or empty:
+
+```http
+orion-fingerprint: …
+orion-user-agent: …
+orion-api-system-version: …
+```
+
+The SDK sends all three. A hand-rolled `fetch` must too.
+
+## Everything returns 401 `GENERAL::UNKNOWN-ORIGIN::A::p`
+
+The `Origin` header is not in `client.urls`. Matching is exact on scheme, host,
+and port — `http://localhost:8080` does not authorize `http://127.0.0.1:8080`.
+
+Also check that your reverse proxy forwards `Origin` unchanged, and remember a
+non-browser client must send it itself; the SDK deliberately does not, because
+browsers overwrite script-supplied values.
+
+## Signup, 2FA, or passkeys silently unavailable
+
+No `mail` credentials. TOTP and passkeys are force-disabled at boot with a
+warning in the log. Add SMTP credentials and restart.
+
+## Tokens from node A rejected on node B
+
+Redis is not shared, or one node is still on `LOCAL_DB`. Multi-node requires the
+same `ephemeralDB` on every node. Second most likely: a node's URL is missing from
+a peer's `server.urls`, so `iss` validation fails.
+
+## Users pushed into step-up constantly
+
+Three usual causes:
+
+1. `tokens.fingerprintDigestKey` differs between nodes — digests stop matching.
+2. Your own `fetch` calls compute a different fingerprint than the SDK. Use
+   `getDeviceFingerprint()` and reuse the value.
+3. `server.trustProxy` is wrong, so `req.ip` is the proxy and IP-range binding is
+   meaningless.
+
+## Every request attributed to one IP
+
+`server.trustProxy` is `false` behind a proxy. Check the boot log:
+
+```text
+Trust proxy: disabled — client IP is the socket peer and X-Forwarded-For is ignored.
+```
+
+Set a hop count or a trusted-proxy list.
+
+## Cookies not being set or not being sent
+
+Session cookies are `Secure` + `SameSite=None`. Browsers require HTTPS for that
+combination everywhere except `localhost`. Also confirm the client sends
+`credentials: 'include'`.
+
+## `403 IDENTITY_MISMATCH` when a node registers
+
+Two nodes are sharing an `r_sync.internal.worker_config.json`, which holds the
+persistent identity key proving a `workerId` belongs to that worker. Give each
+node its own working directory. If you deliberately want a fresh identity, delete
+that node's config file — it will register as a new worker.
+
+## Nodes never appear in the orchestrator
+
+- Cluster name mismatch between `clusterLink.cluster` and the orchestrator's
+  `cluster`.
+- `encryptionAlg` differs between the two sides.
+- The M2M port is firewalled.
+- `orchestratorIp` points somewhere unreachable.
+
+With `requireOrchestrator: false` this fails quietly — the node keeps serving and
+retries with backoff. Check the node's log for registration attempts.
+
+## Orchestrator cannot reach nodes after a restart
+
+Usually benign. The registry rehydrates with everything marked offline, then an
+identify sweep rebuilds state. Health returns within roughly 30–60 seconds.
+
+## Panel returns 401 / `AUTH::TOTP-REQUIRED`
+
+Expected until the login ladder is complete: first factor → `pending_totp`
+session → TOTP code → full session. A `pending_totp` session can reach only the
+TOTP endpoints.
+
+## Panel magic links point at the wrong URL
+
+`systemAdmin.baseUrl` is stale. If you are on an ephemeral quick tunnel, the URL
+changed on restart — re-sync `baseUrl` along with `client.urls` and
+`server.urls`, or move to a named tunnel or real domain.
+
+## Audit chain reports BROKEN
+
+The row set was altered outside the application. `orch_admin_audit` blocks
+`UPDATE` and `DELETE` via trigger, so this means direct database access.
+Investigate as a compromise.
+
+## `CREATE TABLE` denied at boot
+
+The database user lacks DDL rights. Grant them, or make the user the database
+owner.
+
+## A remote command reports `{ applied: false }`
+
+Safe mode refused it. That is the designed behaviour for the gated actions —
+clearing an ETS lockdown, deactivating a security system, pausing audit,
+resetting a circuit, changing the in-flight ceiling, unblocking an actor. Lifting
+it requires editing the node's config and restarting.
+
+## A command is rejected with `REMOTE_CONTROL_DISABLED`
+
+The node booted with `clusterLink.allowRemoteControl: false`.
+
+## `UNKNOWN_COMMAND`
+
+The action is not on the allowlist. Run `orionctl commands` for the real
+vocabulary.
+
+## 429 `GENERAL::RATE-LIMIT-EXCEEDED::A::p`
+
+A token bucket is exhausted. Buckets are per actor — IP, fingerprint, account —
+and shared across routes, so a burst on an expensive endpoint also throttles cheap
+ones. Legitimate traffic hitting this means the actor bucket sizes in
+`lib/General/index.js` need adjusting for your load.
+
+## 503 `GENERAL::SERVER-LOCKDOWN::A::i`
+
+The node is locked — from `orionctl lock`, `server:lock`, or an operator in the
+panel. `orionctl unlock` restores it.
+
+## 503 `GENERAL::SERVER-INITIALIZING::A::i`
+
+Still booting. First boot does migrations, 15 rounds of database certification,
+and the audit round trip, so it is not instant.
+
+## Node self-terminated
+
+The memory monitor kills the process at 85% system memory usage, deliberately, so
+a node dies cleanly and restarts rather than dragging the box down. Look for the
+warning at 30% headroom that precedes it.
+
+## Reading the logs
+
+Set `utilities.logToFile: true` to mirror to `logs/`. Every subsystem is reached
+through a `SafeModuleHandler`, so an uninitialized or deactivated module logs a
+warning at the call site instead of throwing — if a feature seems inert, search
+the log for its module name before assuming a code bug.

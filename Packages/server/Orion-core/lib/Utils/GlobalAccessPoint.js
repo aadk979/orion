@@ -1,5 +1,4 @@
 import { getFutureUnixTime, isUnixExpired } from './Date&Time.js';
-import { logger } from './logger.js';
 
 class GlobalAccessPoint {
     static instance;
@@ -18,6 +17,31 @@ class GlobalAccessPoint {
         GlobalAccessPoint.instance = this;
     }
 
+    /**
+     * Reports a critical access violation.
+     *
+     * The logger is resolved through our own value map rather than an import, on
+     * purpose. GlobalAccessPoint is the root primitive of the tree: importing a
+     * consumer created a cycle with logger.js, whose module body registers itself
+     * here at top level. Entering that cycle at GlobalAccessPoint left its
+     * binding in TDZ and threw `Cannot access 'globalAccessPoint' before
+     * initialization` — so merely importing this file first crashed the process.
+     * Moving the registration into this file only mirrors the failure to the
+     * opposite entry order; removing the edge is what actually fixes it.
+     *
+     * Falls back to console for the window before logger.js registers itself.
+     */
+    #critical(message) {
+        const registered = this._values.logger;
+
+        if (registered && typeof registered.error === 'function') {
+            registered.error(message);
+            return;
+        }
+
+        console.error(message);
+    }
+
     setValue(name, value) {
         let lockOverride = false;
 
@@ -26,7 +50,7 @@ class GlobalAccessPoint {
         }
 
         if (this._lockedKeys.has(name) && this._values[name] !== undefined && !lockOverride) {
-            logger.error(`CRITICAL: Locked value for key ${name} cannot be overwritten.`);
+            this.#critical(`CRITICAL: Locked value for key ${name} cannot be overwritten.`);
             return false;
         }
 
@@ -36,7 +60,7 @@ class GlobalAccessPoint {
 
     getValue(name) {
         if (!(name in this._values) && this._lockedKeys.has(name)) {
-            logger.error(`CRITICAL: Requested value for key ${name} does not exist.`);
+            this.#critical(`CRITICAL: Requested value for key ${name} does not exist.`);
             const error = new Error(`GlobalAccessPoint: Missing value for key ${name}`);
             error.keyName = name;
             error.code = 'GAP:$:VALUE_NOT_FOUND';
@@ -48,7 +72,7 @@ class GlobalAccessPoint {
 
     removeValue(name) {
         if (this._lockedKeys.has(name)) {
-            logger.error(`CRITICAL: Locked value for key ${name} cannot be removed.`);
+            this.#critical(`CRITICAL: Locked value for key ${name} cannot be removed.`);
             return false;
         }
 
@@ -97,6 +121,24 @@ class GlobalAccessPoint {
      */
     auditTrailSystem() {
         return this.getValue('auditTrailSystem');
+    }
+
+    /**
+     * @returns {import('./Core/KeyVault/KeyVaultManager.js').KeyVaultManager | undefined}
+     */
+    keyVaultManager() {
+        return this.getValue('keyVaultManager');
+    }
+
+    /**
+     * Field encryption at rest. Undefined (or `available === false`) means the
+     * node has no usable key vault, in which case every encryptable field is
+     * deactivated — see Core/KeyVault/EncryptedFieldRegistry.js.
+     *
+     * @returns {import('./Core/KeyVault/EncryptionKeyManager.js').EncryptionKeyManager | undefined}
+     */
+    encryptionKeyManager() {
+        return this.getValue('encryptionKeyManager');
     }
 
     /**
@@ -279,6 +321,14 @@ class GlobalAccessPoint {
      */
     databaseJanitor() {
         return this.getValue('databaseJanitor');
+    }
+
+    /**
+     * This node's batch mailer — undefined unless utilities.batchMailer.enabled.
+     * @returns {import('./Systems/BatchMailer/index.js').BatchMailerSystem | undefined}
+     */
+    batchMailerSystem() {
+        return this.getValue('batchMailerSystem');
     }
 
     /**

@@ -35,6 +35,38 @@ const AdminActions = Object.freeze({
     // ── Node commands — dynamic tail: cluster:command:<node action> ─────────
     COMMAND_PREFIX: 'cluster:command',
 
+    // ── Field encryption / key vault ─────────────────────────────────────────
+    // Split from the cluster:command:* vocabulary because the blast radii are
+    // wildly different: reading vault status is as safe as any other status
+    // read, KEK rotation is routine hygiene, DEK rotation rewrites every
+    // encrypted row, and the wipe destroys user enrollments outright. A policy
+    // must be able to grant the first without implying the last.
+    // Named KEYVAULT_* rather than READ_*/OPS_* because those key prefixes mean
+    // "in the cluster: namespace" throughout this vocabulary and its contract test.
+    KEYVAULT_READ_STATUS: 'keyvault:read:status',
+    KEYVAULT_ROTATE_KEK: 'keyvault:ops:rotate-kek',
+    KEYVAULT_ROTATE_DEK: 'keyvault:ops:rotate-dek',
+    /**
+     * Root-only in addition to this action — see AdminServer. PBAC alone is
+     * never sufficient to authorize destroying every user's second factor.
+     */
+    KEYVAULT_WIPE: 'keyvault:ops:wipe-encrypted',
+
+    // ── Batch mailing ────────────────────────────────────────────────────────
+    // Its own namespace for the same reason keyvault:* is: the capabilities are
+    // graded and a cluster grant should not imply any of them. Reading which
+    // blasts ran is an observability concern; submitting one sends mail from
+    // the organisation's own domain to an arbitrary list, which is closer to a
+    // publishing right than an operational one — so it is separately grantable,
+    // and separately deniable.
+    MAILING_READ_JOBS: 'mailing:read:jobs',
+    MAILING_READ_QUEUE: 'mailing:read:queue',
+    MAILING_SUBMIT: 'mailing:ops:submit',
+    MAILING_CANCEL: 'mailing:ops:cancel',
+
+    // ── Orchestrator notifications ───────────────────────────────────────────
+    NOTIFICATIONS_READ: 'notifications:read',
+
     // ── Audit ────────────────────────────────────────────────────────────────
     READ_AUDIT: 'audit:read',
 
@@ -50,6 +82,14 @@ const commandAction = nodeAction => `${AdminActions.COMMAND_PREFIX}:${nodeAction
 /** PBAC resource name for a specific node. */
 const nodeResource = workerId => `node:${workerId}`;
 
-const CLUSTER_RESOURCE = 'cluster';
+/**
+ * PBAC resource name for a specific mailing job, so a policy can scope a grant
+ * to one blast (`job:<id>`) rather than to mailing as a whole.
+ */
+const mailingJobResource = jobId => `job:${jobId}`;
 
-export { AdminActions, commandAction, nodeResource, CLUSTER_RESOURCE };
+const CLUSTER_RESOURCE = 'cluster';
+const MAILING_RESOURCE = 'mailing';
+const NOTIFICATIONS_RESOURCE = 'notifications';
+
+export { AdminActions, commandAction, nodeResource, mailingJobResource, CLUSTER_RESOURCE, MAILING_RESOURCE, NOTIFICATIONS_RESOURCE };

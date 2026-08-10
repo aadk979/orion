@@ -34,6 +34,21 @@ const KIND = {
     label: 'refresh'
 };
 
+/**
+ * How long after a rotation a replay of the retired token is read as a benign
+ * retry rather than as reuse. See the note at the reuse-detection branch below.
+ */
+const ROTATION_GRACE_SECONDS = 30;
+
+const isWithinRotationGrace = consumedAt => {
+    if (!consumedAt) return false;
+
+    const consumedMs = new Date(consumedAt).getTime();
+    if (!Number.isFinite(consumedMs)) return false;
+
+    return Date.now() - consumedMs <= ROTATION_GRACE_SECONDS * 1000;
+};
+
 async function generateRefreshToken(
     uid,
     email,
@@ -83,7 +98,7 @@ async function generateRefreshToken(
     return result;
 }
 
-async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
+async function validateRefreshToken(token, fingerprint, ip, clientUrl, dpopProof = null) {
     const result = await validateSessionToken({
         names: { ...KIND, functionName: 'validateRefreshToken' },
         modules: MODULES,
@@ -110,6 +125,25 @@ async function validateRefreshToken(token, fingerprint, ip, clientUrl) {
 
         if (replayedId) {
             const consumed = await ConsumedRefreshTokenModel.find(replayedId);
+
+            // Rotation grace. Two entirely benign situations produce a byte-for-byte
+            // identical signal to theft: a client retrying after a rotation whose
+            // response it never received, and two in-flight requests racing the same
+            // rotation. Tearing down the session family for either is a self-inflicted
+            // outage plus a false security incident in the audit trail.
+            //
+            // Age is what separates them. A legitimate retry lands within seconds of
+            // the rotation; an attacker replaying a captured token is, in any realistic
+            // capture-and-reuse chain, far outside this window. Inside it the caller is
+            // told to retry — no logout, no revocation — and the successor tokens the
+            // winning request already delivered are what it picks up.
+            if (consumed && isWithinRotationGrace(consumed.consumed_at)) {
+                logger.warn(
+                    `RefreshTokens: retired token ${replayedId} presented ${ROTATION_GRACE_SECONDS}s-fresh (uid ${consumed.user_uid}) — treating as a concurrent/retried rotation, not reuse`
+                );
+
+                return { error: true, errorCode: 'TOKEN-REFRESH::ROTATION-IN-PROGRESS::A::p' };
+            }
 
             if (consumed) {
                 logger.error(
@@ -177,4 +211,4 @@ async function retireRefreshToken(validatedRefreshPayload) {
     }
 }
 
-export { generateRefreshToken, validateRefreshToken, retireRefreshToken };
+export { generateRefreshToken, validateRefreshToken, retireRefreshToken, isWithinRotationGrace, ROTATION_GRACE_SECONDS };

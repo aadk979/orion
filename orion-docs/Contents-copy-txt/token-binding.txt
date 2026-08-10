@@ -1,0 +1,118 @@
+---
+title: Token binding (DPoP)
+description: Turning on proof-of-possession, and rolling it out without invalidating live sessions.
+---
+
+`tokens.binding` has exactly two legal values, `'none'` (default) and `'dpop'`.
+Anything else fails the boot.
+
+```js filename="gipsy.orion.config.js"
+tokens: {
+    binding: 'dpop'
+}
+```
+
+On boot you will see:
+
+```text
+Token binding: DPoP enabled — tokens are bound to a client-held key and proofs are required on every request.
+```
+
+## Why it exists
+
+Security tiers 2–4 bind a token to the client's IP range and device fingerprint.
+Both arrive as ordinary request values, which means an attacker who steals the
+token also holds everything needed to satisfy the binding — those values were
+transmitted alongside it and are echoed back by choice.
+
+**A binding the bearer can reproduce from the token alone is not a binding.**
+
+DPoP binds to a key instead. The browser generates a keypair with
+`extractable: false`, so script can ask it to sign but cannot read it out. A token
+lifted from storage, a log, or a backup becomes inert.
+
+<Callout type="info" title="What it does not solve">
+An attacker executing inside the live page can still ask the key to sign. DPoP
+converts permanent, portable token theft into use-while-resident. That is the
+difference that matters operationally, but it is not immunity to XSS.
+</Callout>
+
+## What the client does
+
+The SDK source handles this. Its `DpopKey` utility creates and stores the
+non-extractable keypair, and mints a proof per request — a JWT with
+`typ: dpop+jwt`, the public JWK in its header, and claims `htm`, `htu`, `iat`,
+`jti`, and `ath`. It travels in a `DPoP` header.
+
+<Warning title="The committed SDK bundle has no DPoP support">
+`Packages/client/dist/orion.beta.sdk.js` as committed contains no `createProof`
+and never sends a `DPoP` header, and the `Orion` constructor does not pass
+`useDpop` through to `ApiInterface`. You must rebuild the SDK from `lib/` and
+wire that option through before enabling binding — see
+[Building the SDK](/versions/alpine/docs/sdk/building-the-sdk).
+</Warning>
+
+If you are writing a custom client you must implement RFC 9449 proof generation
+yourself.
+
+## What the server verifies
+
+| Check | Rejection reason |
+| --- | --- |
+| Signature verifies against the embedded JWK | `BAD_SIGNATURE` |
+| `typ` is `dpop+jwt` and a JWK is present | `MALFORMED_PROOF` |
+| Key type is `EC` or `RSA`; algorithm is an allowed ES/RS/PS variant | `UNSUPPORTED_ALGORITHM` |
+| The JWK contains no private `d` member | `PRIVATE_KEY_IN_PROOF` |
+| `htm` matches the request method | `METHOD_MISMATCH` |
+| `htu` matches the request URI | `URI_MISMATCH` |
+| `iat` is within ±60 seconds | `PROOF_EXPIRED` |
+| `jti` is present and unseen | `MISSING_JTI` / `PROOF_REPLAYED` |
+| `ath` equals SHA-256 of the presented access token | `TOKEN_HASH_MISMATCH` |
+| RFC 7638 thumbprint equals the token's `cnf.jkt` | `KEY_BINDING_MISMATCH` |
+
+The `jti` is recorded **only after every other check passes**, so a bogus proof
+cannot burn an id the legitimate client still needs.
+
+## Rollout is incremental by design
+
+`tokens.dpop_jkt` is nullable. `NULL` means an unbound token, and unbound tokens
+stay valid.
+
+That means enabling binding does **not** invalidate live sessions. Existing
+sessions continue unbound; new sign-ins are bound; and a refresh carries the
+binding forward, so a rotation can never silently downgrade a bound session to an
+unbound one.
+
+Suggested sequence:
+
+<Steps>
+  <Step title="Ship the SDK update first">
+    Rebuild the SDK from source and wire `useDpop` through, then deploy it. Every
+    client must be capable of minting proofs before the server starts expecting
+    them, or bound sessions will be unusable.
+  </Step>
+  <Step title="Enable tokens.binding: 'dpop' and restart">
+    New sessions bind. Old ones keep working.
+  </Step>
+  <Step title="Watch the DPoP rejection reasons">
+    `URI_MISMATCH` in particular usually means a proxy is rewriting the request
+    URI, or `htu` is being built with a query string. Fix that before continuing.
+  </Step>
+  <Step title="Retire unbound sessions when you are ready">
+    Move `sessions_valid_from` forward for all users, or simply let refresh
+    lifetimes expire naturally.
+  </Step>
+</Steps>
+
+## Behind a proxy
+
+`htu` must match the URI the server sees. If your reverse proxy rewrites paths or
+changes the host, the proof will fail with `URI_MISMATCH`. Set `server.trustProxy`
+correctly and make sure the proxy preserves the original path and `Host`.
+
+## Combine with a security tier
+
+Tiers and DPoP are complementary, not alternatives: tiers bind to values the
+client transmits and produce a risk score; DPoP binds to a key the client cannot
+export and produces a hard failure. Tier 4 plus DPoP is the strongest
+configuration Orion offers.

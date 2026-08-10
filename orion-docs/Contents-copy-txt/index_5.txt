@@ -1,0 +1,185 @@
+---
+title: Contributing
+description: Local setup, the test suite, repository conventions, and what a good pull request looks like.
+---
+
+## Repository layout
+
+```text
+orion/
+├── DEPLOYMENT.md                  end-to-end deployment narrative
+├── Packages/
+│   ├── server/
+│   │   ├── Orion-core/            the auth framework
+│   │   ├── Orion-Orchestrator/    control plane + system-admin plane
+│   │   │   ├── bin/orionctl.js
+│   │   │   ├── gui/               Next.js panel (static export in gui/out, committed)
+│   │   │   ├── lib/SystemAdmin/
+│   │   │   └── sql/worker-grants.example.sql
+│   │   └── R_sync/                encrypted M2M transport
+│   ├── client/                    browser SDK
+│   └── apps/Todos-App/            the worked example
+├── Testing/                       node:test suite, no install step
+└── orion-docs/                    this documentation site
+```
+
+## Local setup
+
+```bash filename="terminal" copy
+git clone <repo-url> orion
+cd orion
+
+cd Packages/server/Orion-core        && npm install
+cd ../Orion-Orchestrator             && npm install
+cd ../R_sync                         && npm install
+cd ../../client                      && npm install
+```
+
+There is no root workspace — dependencies are per package. Orion-core pulls in
+`orion-orch` and `r-sync` through `file:` links.
+
+You need Node ≥ 18.18 to run the packages and ≥ 20 to run the test suite.
+
+## Tests
+
+```bash filename="terminal" copy
+cd Testing
+npm test                # whole suite
+npm run test:watch
+npm run test:server     # Orion-core suites
+npm run test:client     # browser SDK suites
+npm run test:crypto     # CryptoFunctions, dedicatedCrypto, SecretsCrypto
+npm run test:coverage   # + V8 coverage
+```
+
+Package-local suites:
+
+```bash filename="terminal"
+cd Packages/server/Orion-core && npm test   # security + binding remediation
+cd Packages/server/R_sync     && npm test   # crypto, config schemas, middleware, hardening
+```
+
+`Testing/COVERAGE-MAP.md` tracks what is covered. `Testing/integration/` holds a
+smoke test with its own config template.
+
+## Conventions
+
+<Accordion allowMultiple>
+  <AccordionItem title="The gipsy. prefix">
+    Any file named `gipsy.*` is git-ignored repo-wide. Use it for real configs,
+    credentials, keys, logs, deploy artifacts, and throwaway scripts. Committed
+    templates carry a `.example.` name instead.
+  </AccordionItem>
+  <AccordionItem title="Comments explain why, not what">
+    The codebase is unusually well commented, and the comments carry the
+    reasoning behind a decision — often the bug that motivated it. Match that
+    register. A comment restating the code is noise; a comment explaining why the
+    obvious approach was wrong is the most valuable thing in the file.
+  </AccordionItem>
+  <AccordionItem title="Error codes are contract">
+    Result shapes and error-code strings are consumed positionally and by exact
+    string by the authentication middleware and the sign-in flows. Adding a code
+    means adding it to the registry in `lib/Errors/`; changing one is a breaking
+    change.
+  </AccordionItem>
+  <AccordionItem title="Policy tables are frozen and validated">
+    The rate-limit policy and cookie policy are deep-frozen module constants with
+    boot-time validators. Adding a cookie means adding an entry — the managed
+    helpers throw for an unregistered name. Adding a route cost means using one
+    of the five legal values.
+  </AccordionItem>
+  <AccordionItem title="Migrations are append-only">
+    Never edit a shipped migration — they are checksummed. Add a new numbered
+    file. Write it to be safe against both a fresh database and an existing one:
+    `IF NOT EXISTS`, nullable columns, and defaults chosen so pre-existing rows
+    stay valid.
+  </AccordionItem>
+  <AccordionItem title="Subsystems go through SafeModuleHandler">
+    Never import a live subsystem instance directly. Wrap it so an uninitialized
+    or deactivated module degrades to a warning at the call site instead of
+    throwing deep inside a request.
+  </AccordionItem>
+  <AccordionItem title="Formatting">
+    Prettier config is at the repo root. 4-space indentation in the server
+    packages, single quotes, and a wide print width.
+  </AccordionItem>
+</Accordion>
+
+## Making a change
+
+<Steps>
+  <Step title="Understand the failure mode first">
+    Most of the security surface exists because something specific went wrong.
+    Read the surrounding comments and the relevant migration header before
+    changing behaviour.
+  </Step>
+  <Step title="Keep the blast radius small">
+    The four bugs the Todos app surfaced were each one-file, narrowly-scoped
+    fixes. That is the shape to aim for.
+  </Step>
+  <Step title="Add a test">
+    `Testing/suites/` for framework behaviour; package-local `test/` directories
+    for remediation-specific cases.
+  </Step>
+  <Step title="Verify against a real flow">
+    Unit tests did not catch any of those four bugs. Run signup → sign-in → an
+    authenticated call end to end.
+  </Step>
+  <Step title="Update the docs in the same change">
+    Configuration keys, endpoints, and error codes are all documented here.
+    Documentation that drifts from the code is worse than none.
+  </Step>
+</Steps>
+
+## Working on the docs site
+
+```bash filename="terminal" copy
+cd orion-docs
+npm install
+npm run dev        # http://localhost:3000
+npm run build
+npm run typecheck
+npm run lint
+```
+
+Content is MDX under `content/`, routed by Nextra. Docs are versioned by
+edition, so `contentDirBasePath` is not a bare `/docs` — it is derived in
+`next.config.ts` from the current edition in `lib/versions.ts`, which is why
+every page here lives under `/versions/alpine/docs`. Cross-links in MDX are
+written out in full against that base; `/docs/*` still resolves, but only via a
+permanent redirect, so don't author new links against it. Section ordering
+comes from `_meta.ts` files. Custom MDX components are registered in
+`mdx-components.tsx` — `Callout`, `Grid`, `Card`, `Tabs`, `Steps`, `Accordion`,
+`Timeline`, `Terminal`, `MetricCard`, plus the diagram components.
+
+<Callout type="warning" title="Write only what you have verified">
+This site was rebuilt because its previous content described a system that did
+not exist — endpoints that were never registered, a CLI that was never written,
+session replication that never happened. Every claim here should be traceable to
+code you have read. If you are unsure, read the source or leave it out.
+</Callout>
+
+## Working on the panel
+
+```bash filename="terminal"
+cd Packages/server/Orion-Orchestrator && npm run build:gui
+# then commit gui/out
+```
+
+`gui/out` is committed so consumers get a working panel with no build tooling.
+Rebuild only when you change the GUI source, and commit the output.
+
+## Working on the SDK
+
+```bash filename="terminal"
+cd Packages/client && npm run build
+```
+
+esbuild bundles, terser compresses with `mangle: false` so parameter names
+survive. Copy `dist/orion.beta.sdk.js` wherever it is vendored — including
+`Packages/apps/Todos-App/client/`.
+
+## Security issues
+
+Do not open a public issue. See
+[Reporting a vulnerability](/versions/alpine/docs/security/disclosure).

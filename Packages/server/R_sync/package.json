@@ -9,7 +9,7 @@
     "scripts": {
         "start:orchestrator": "cd examples && node orchestrator.example.js",
         "start:worker": "cd examples && node worker.example.js",
-        "test": "node --import ./test/set-env.mjs --test ./test/crypto.test.js ./test/configSchemas.test.js ./test/securityMiddleware.test.js ./test/hardening.test.js"
+        "test": "node --import ./test/set-env.mjs --test ./test/crypto.test.js ./test/configSchemas.test.js ./test/securityMiddleware.test.js ./test/hardening.test.js ./test/httpSignature.test.js"
     },
     "engines": {
         "node": ">=18.18.0"

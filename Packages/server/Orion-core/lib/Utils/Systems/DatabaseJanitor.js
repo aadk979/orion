@@ -26,7 +26,11 @@ const SWEEP_TARGETS = [
     // outlive the token itself; past that they are pure noise.
     { table: 'consumed_refresh_tokens', column: 'expires_at' },
     // Consumed and abandoned WebAuthn ceremonies alike — neither has value past expiry.
-    { table: 'webauthn_ceremonies', column: 'expires_at' }
+    { table: 'webauthn_ceremonies', column: 'expires_at' },
+    // Expired notifications. Receipts cascade with the parent row, so this one
+    // sweep clears both sides. Notifications with a NULL expires_at are
+    // permanent until explicitly withdrawn and are left alone.
+    { table: 'orion_notifications', column: 'expires_at' }
 ];
 
 /**

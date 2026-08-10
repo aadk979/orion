@@ -2,6 +2,7 @@ import { hashString } from '../../CryptoFunctions.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel } from '../../Databases/models/index.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { emitRoleChange, emitAccountDisabled, emitCredentialChange, CredentialTypes, ChangeTypes } from '../SharedSignals/emitters.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'UserControl.js');
 
@@ -158,6 +159,10 @@ class OrionUserControl {
             const user = await UserModel.getUserByUid(uid);
             await UserModel.setDisabled(uid, true);
 
+            // Disabling ends every session. Receivers must hear that, or a
+            // disabled account keeps working downstream until its tokens age out.
+            emitAccountDisabled({ uid, reason: 'account disabled' });
+
             auditTrail.record({
                 user: { email: user?.email, uid: uid },
                 device: {},
@@ -202,6 +207,10 @@ class OrionUserControl {
 
             const uid = await UserModel.getUidByEmail(email);
             await UserModel.setDisabled(uid, true);
+
+            // Same reasoning as the byUid path above — both entry points reach
+            // the same state and must transmit the same fact.
+            emitAccountDisabled({ uid, reason: 'account disabled' });
 
             auditTrail.record({
                 user: { email: email, uid },
@@ -621,6 +630,12 @@ class OrionUserControl {
         const previousRole = user.role;
         await UserModel.updateRole(uid, role.toUpperCase());
 
+        // Tell receivers the claim changed. Without this a downstream service
+        // keeps authorizing on the role baked into a token it already holds,
+        // for as long as that token lives — a demotion that does not take
+        // effect anywhere but here.
+        emitRoleChange({ uid, role: role.toUpperCase(), reason: `role changed from ${previousRole}` });
+
         auditTrail.record({
             user: { email: user.email, uid: uid },
             device: {},
@@ -701,6 +716,13 @@ class OrionUserControl {
 
         const newPasswordHash = await hashString(newPassword);
         await UserModel.updatePassword(uid, newPasswordHash);
+
+        emitCredentialChange({
+            uid,
+            credentialType: CredentialTypes.PASSWORD,
+            changeType: ChangeTypes.UPDATE,
+            reason: 'password changed'
+        });
 
         auditTrail.record({
             user: { email: user.email, uid: uid },

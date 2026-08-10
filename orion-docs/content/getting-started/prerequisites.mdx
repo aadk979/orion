@@ -1,0 +1,135 @@
+---
+title: Prerequisites
+description: Runtime, backing services, and credentials Orion needs before a node will boot.
+---
+
+## Runtime
+
+| Requirement | Version | Notes |
+| --- | --- | --- |
+| Node.js | ≥ 18.18, 20 LTS recommended | Orion-core, `orion-orch`, and `r-sync` all declare `engines.node >= 18.18.0`. The test suite requires ≥ 20. |
+| Build toolchain | `build-essential` / Xcode CLT | Only if no prebuilt binary matches your platform for `bcrypt` or `canvas`. |
+
+You do not need Docker, a bundler, or global npm tooling. The orchestrator's
+admin panel ships pre-built (`gui/out` is committed), so no Next.js build step is
+required to run it.
+
+## Backing services
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="accent">Required</Badge></CardHeader>
+    <CardTitle>PostgreSQL 13+</CardTitle>
+    <CardDescription className="mt-2">
+      Users, credentials, tokens, devices, passkeys, TOTP, and every in-flight
+      auth ceremony. Also hosts the orchestrator's <code>orch_*</code> admin
+      tables when the system-admin plane is enabled.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="warning">Multi-node only</Badge></CardHeader>
+    <CardTitle>Redis 6+</CardTitle>
+    <CardDescription className="mt-2">
+      Shares JWT signing keys across nodes. Without it each node signs with its
+      own keys and a token minted on node A will not validate on node B.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge>Optional</Badge></CardHeader>
+    <CardTitle>MySQL 8+</CardTitle>
+    <CardDescription className="mt-2">
+      Only when <code>utilities.auditTrailSystem.enabled</code> is true. Orion
+      builds the tamper-evident <code>audit_trail</code> schema itself.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="warning">Effectively required</Badge></CardHeader>
+    <CardTitle>SMTP credentials</CardTitle>
+    <CardDescription className="mt-2">
+      Device authorization, TOTP, passkeys, step-up, and password reset all send
+      an email one-time code.
+    </CardDescription>
+  </Card>
+</Grid>
+
+### The mail dependency is enforced at boot
+
+This trips people up, so it is worth stating plainly. `handleMailCredentialConflicts()`
+runs during on-start configuration and inspects `systemConfig.mail`:
+
+- If device authorization is enabled and mail credentials are missing, **the node
+  refuses to boot**.
+- If mail credentials are missing, **TOTP is force-disabled** (`authMethods.totp`
+  is set to `false`) with a warning.
+- If mail credentials are missing, **passkeys are force-disabled** with a warning.
+
+The reason is consistency, not paranoia: removing a TOTP secret or a passkey
+requires an emailed OTP, so allowing enrollment without a removal path would
+strand accounts in a half-functioning state.
+
+<Callout type="tip" title="Minimum viable local setup">
+Postgres alone. Set `utilities.accessControl.deviceAuthorization: 'DISABLED'`,
+omit `mail`, and email/password signup and sign-in work with no other service.
+</Callout>
+
+## Provisioning Postgres
+
+```bash filename="terminal" copy
+sudo -u postgres createuser orion_app -P     # prompts for a password
+sudo -u postgres createdb   orion -O orion_app
+```
+
+The database user must be able to `CREATE TABLE` in its database. Orion-core runs
+its own migrations on the first pool connection — versioned, checksummed, and
+serialized cluster-wide under a Postgres advisory lock, so it is safe for every
+node in a fleet to boot at once.
+
+## Provisioning Redis
+
+Any Redis 6+ reachable from every node, with a password. It is consumed by the
+`TokenSecretsManager` and `SignatureSecretsManager` for signing-key fan-out.
+
+<Warning title="Redis is not optional past one node">
+A single node may omit `utilities.ephemeralDB` entirely and fall back to
+in-process key storage. The moment you run a second node, cross-node token
+validation fails without a shared Redis.
+</Warning>
+
+## Provisioning MySQL (audit trail)
+
+Create a database and a user with write access. When
+`utilities.auditTrailSystem.enabled` is `true`, `host`, `user`, and `password` are
+**required** — the node refuses to boot on missing credentials rather than
+silently degrading. It also runs a live integrity check at boot: it writes, flushes,
+reads back, and deletes a `SYSTEM-AUDIT-TEST` row, and fails startup if that
+round trip does not succeed.
+
+## Install
+
+Dependencies are per-package; there is no root workspace. Installing Orion-core
+pulls in `orion-orch` and `r-sync` automatically through their `file:` links.
+
+```bash filename="terminal" copy
+git clone <your-repo-url> orion
+cd orion
+
+# The auth framework
+cd Packages/server/Orion-core && npm install
+
+# Control plane — only if you will run it
+cd ../Orion-Orchestrator && npm install
+```
+
+Use `npm install --omit=dev` on servers.
+
+## The `gipsy.*` convention
+
+Every file whose name starts with `gipsy.` is git-ignored repo-wide. That is the
+convention for anything that must never be committed: real configs, credentials,
+keys, logs, deploy artifacts, scratch scripts.
+
+- Committed template: `orion.config.example.js`
+- Your real config: `gipsy.orion.config.js`
+
+The Todos reference server refuses to boot without `gipsy.orion.config.js` and
+tells you to copy the template.

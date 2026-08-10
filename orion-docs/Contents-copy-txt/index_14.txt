@@ -1,0 +1,96 @@
+---
+title: Security
+description: What Orion defends against, what it does not, and what you must do before going live.
+---
+
+<Warning title="Read the hardening checklist before accepting real traffic">
+Several controls are off or permissive by default — deliberately, because the
+safe default for one deployment is the wrong default for another. Work through
+[the checklist](/versions/alpine/docs/security/hardening) explicitly.
+</Warning>
+
+## The posture in one paragraph
+
+Orion assumes the network is hostile and the client is untrusted. Sessions are
+`HttpOnly` cookies bound to client context by a configurable security tier, and
+optionally to a non-extractable browser key by DPoP. Every failed authentication
+is charged to the calling actor. Every human who touches the control plane is
+behind policy, two factors, and a hash-chained audit trail. Remote control of a
+node is gated three times over, and a node's own safe mode always has the last
+word.
+
+## What the layers do
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle>Anti-automation</CardTitle>
+    <CardDescription className="mt-2">
+      Captcha-gated no-auth tokens on pre-auth routes, a coarse per-IP flood
+      guard ahead of body parsing, and a per-actor token-bucket limiter with
+      per-route costs.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Credential protection</CardTitle>
+    <CardDescription className="mt-2">
+      bcrypt passwords with zxcvbn scoring, one public failure code for every
+      bad-credential case, per-account exponential backoff that escalates rather
+      than locks out, and attempt ceilings that destroy a challenge record.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Session integrity</CardTitle>
+    <CardDescription className="mt-2">
+      Tier binding, refresh rotation with reuse detection, a session watermark
+      that invalidates in one comparison, a <code>jti</code> denylist for
+      stateless tokens, and optional DPoP proof-of-possession.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Governance</CardTitle>
+    <CardDescription className="mt-2">
+      PBAC with default deny and deny-overrides, magic link plus mandatory TOTP,
+      root-only governance enforced by role, and an audit table the database
+      itself refuses to let you edit.
+    </CardDescription>
+  </Card>
+</Grid>
+
+## Defaults you should know about
+
+| Setting | Default | Why it matters |
+| --- | --- | --- |
+| `server.trustProxy` | `false` | Safe when directly exposed; silently breaks every IP-bound control behind a proxy |
+| `tokens.securityTier` | `4` in the template | Strongest binding, escalates to step-up rather than rejecting |
+| `tokens.binding` | `'none'` | DPoP is opt-in |
+| `utilities.dataEncryption.provider` | unset | TOTP deactivates until a key vault is configured — secrets are never written in plaintext, and enrolled users fall back to emailed codes |
+| `utilities.auditTrailSystem.enabled` | off unless configured | Without it, events go only to the local WAL |
+| `utilities.safeMode` | `'ENABLED'` in the template | Blocks remote weakening of a node's defenses |
+| `authMethods.allowedEmailDomains` | `['*']` | Anyone can register |
+| `systemAdmin.enabled` | `false` | The orchestrator's power is ungoverned until you turn it on |
+
+## Read next
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/security/threat-model">Threat model</a></CardTitle>
+    <CardDescription className="mt-2">What each control stops, and — just as important — what it does not.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/security/hardening">Hardening checklist</a></CardTitle>
+    <CardDescription className="mt-2">The list to work through before real traffic.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/security/audit-trail">Audit trail</a></CardTitle>
+    <CardDescription className="mt-2">Hash chaining, the write-ahead log, and verification.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/security/cryptography">Cryptography</a></CardTitle>
+    <CardDescription className="mt-2">Every primitive in use and where.</CardDescription>
+  </Card>
+</Grid>
+
+## Reporting a vulnerability
+
+Report privately rather than opening a public issue. See
+[Reporting a vulnerability](/versions/alpine/docs/security/disclosure).

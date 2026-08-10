@@ -1,0 +1,93 @@
+---
+title: Deployment
+description: Deploy Orion from one local authentication node to a production-ready cluster with the backing services, TLS, and operational controls it needs.
+---
+
+Deployment is layered. Each stage works on its own, and you stop wherever your
+requirements are met.
+
+<Steps>
+  <Step title="Backing services">
+    Postgres always; Redis for more than one node; MySQL for the audit trail;
+    SMTP for anything that emails a code.
+    [→ Backing services](/versions/alpine/docs/deployment/backing-services)
+  </Step>
+  <Step title="One node">
+    A single Orion-core process behind TLS. Complete, working authentication.
+    [→ Single node](/versions/alpine/docs/deployment/single-node)
+  </Step>
+  <Step title="Several nodes">
+    Add Redis, list every node's URL in every config, put a load balancer in
+    front. [→ Multi-node cluster](/versions/alpine/docs/deployment/multi-node)
+  </Step>
+  <Step title="The control plane">
+    One orchestrator for fleet health, consensus, and remote commands, plus the
+    PBAC admin plane for humans.
+    [→ Control plane](/versions/alpine/docs/deployment/control-plane)
+  </Step>
+</Steps>
+
+Once it is running, the rest of this section is about keeping it that way:
+
+- [TLS & reverse proxies](/versions/alpine/docs/deployment/tls) — terminating HTTPS and matching `trustProxy` to reality.
+- [Day-2 operations](/versions/alpine/docs/deployment/operations) — monitoring, incidents, key rotation, emergency controls.
+- [Upgrades & redeploys](/versions/alpine/docs/deployment/upgrades) — rolling out code and schema without dropping sessions.
+- [Troubleshooting](/versions/alpine/docs/deployment/troubleshooting) — symptoms, causes, and fixes.
+
+## Topology
+
+<Architecture />
+
+| Role | Runs | Listens |
+| --- | --- | --- |
+| Auth node ×N | Your app on Orion-core | API port (e.g. 3900) + M2M callback 55322 |
+| Orchestrator ×1 | `orion-orch` | M2M 55321 + admin panel 55330 |
+| Backing services | Postgres, Redis, MySQL | Their own ports, private only |
+
+## Port exposure
+
+| Port | Exposure |
+| --- | --- |
+| API port | Public, behind TLS |
+| 55321 (orchestrator M2M) | **Private subnet only** |
+| 55322 (node M2M callback) | **Private subnet only** |
+| 55330 (admin panel) | Behind TLS, restricted to operators |
+| Postgres / Redis / MySQL | Private subnet only, firewalled to your nodes |
+
+The M2M ports never need public exposure.
+
+## What you do not need
+
+No Docker, no bundler, no global npm tooling, no Kubernetes operator, no service
+mesh. The admin panel ships pre-built (`gui/out` is committed), so there is no
+front-end build step on the server.
+
+## The secrets convention
+
+Every file named `gipsy.*` is git-ignored repo-wide. Keep real configs,
+credentials, keys, and launch scripts behind that prefix and you cannot
+accidentally commit one.
+
+```text
+server/orion.config.example.js     ← committed template
+server/gipsy.orion.config.js       ← your real config, git-ignored
+gipsy.launch-orch.sh               ← env exports for the orchestrator, git-ignored
+```
+
+## Before you go live
+
+Work through the [hardening checklist](/versions/alpine/docs/security/hardening). It is short and
+every item has a concrete failure mode behind it.
+
+## Reference deployment
+
+The repository's `Packages/apps/Todos-App` is a complete worked example, and the
+root `DEPLOYMENT.md` narrates a four-box AWS deployment: one orchestrator box
+also hosting Postgres/Redis/MySQL, plus three auth nodes. See
+[Examples](/versions/alpine/docs/examples).
+
+<Callout type="info" title="Where `DEPLOYMENT.md` and these pages differ">
+`DEPLOYMENT.md` is a single end-to-end narrative; these pages are the reference.
+Where the two disagree, take these pages as authoritative — they are the ones
+kept in step with the code.
+</Callout>

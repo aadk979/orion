@@ -1,0 +1,141 @@
+---
+title: R_Sync configuration
+description: The transport's own options, files, and direct API — for when you use it outside Orion.
+---
+
+You normally never configure R_Sync directly: Orion-core's `clusterLink` block
+and the orchestrator's constructor both build an `R_Sync` instance for you. This
+page is for using it standalone, or for understanding what those blocks produce.
+
+## Orchestrator role
+
+| Key | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `role` | string | yes | — | Must be `"ORCHESTRATOR"` |
+| `cluster` | string | yes | — | Workers must match it to register |
+| `publicIp` | string | no | `"127.0.0.1"` | Address workers connect to |
+| `port` | number | no | `55321` | HTTP server port |
+| `encryptionAlg` | string | no | `"ECC_256"` | `ECC_256` \| `ECC_384` \| `ECC_521` |
+| `trustAdvertisedWorkerIp` | boolean | no | `false` | Use `x-r_sync-ip` instead of the TCP peer address |
+
+## Worker role
+
+| Key | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `role` | string | yes | — | Must be `"WORKER"` |
+| `cluster` | string | yes | — | Must match the orchestrator |
+| `publicIp` | string | no | `"127.0.0.1"` | Sent as `x-r_sync-ip`; used only when the orchestrator trusts it |
+| `port` | number | no | `55322` | Local server port for receiving events |
+| `orchestratorIp` | string | no | `"127.0.0.1"` | |
+| `orchestratorPort` | number | no | `55321` | |
+| `encryptionAlg` | string | no | `"ECC_256"` | Must match the orchestrator |
+| `heartbeatIntervalMs` | number | no | `30000` | Minimum `1000` |
+| `exitOnBootFailure` | boolean | no | `true` | See below |
+
+<Callout type="info" title="exitOnBootFailure and embedded workers">
+`true` gives standalone-worker semantics: a worker that cannot register crashes
+the process. Orion-core sets it to `false` because its worker is **embedded** —
+`startWorker()` then throws instead of exiting, so the host can retry
+registration on its own schedule. That is what makes
+`requireOrchestrator: false` possible.
+</Callout>
+
+## Curves
+
+| Value | Curve | Security level |
+| --- | --- | --- |
+| `ECC_256` | NIST P-256 | 128-bit |
+| `ECC_384` | NIST P-384 | 192-bit |
+| `ECC_521` | NIST P-521 | 256-bit |
+
+## Files it writes
+
+R_Sync persists next to the process's working directory. These are all
+git-ignored by the repo's `r_sync.internal.*` rule.
+
+| File | Contents |
+| --- | --- |
+| `r_sync.internal.orchestrator_config.json` | Orchestrator identity and keys |
+| `r_sync.internal.worker_config.json` | Worker id and the **persistent Ed25519 identity key** |
+| `r_sync.local_db.db` | LokiJS store — workers, keys, events |
+| `r_sync.internal.audit_wal.log` | Signed audit write-ahead log |
+| `r_sync.internal.audit_keys/` | Audit signing key store |
+
+<Warning title="Two nodes must never share a worker config">
+`r_sync.internal.worker_config.json` holds the identity that proves a `workerId`
+belongs to this worker. If two nodes run from the same directory, the second
+registration is rejected with `403 IDENTITY_MISMATCH`. Give every node its own
+working directory.
+</Warning>
+
+## Direct API
+
+```js
+import { R_Sync } from 'r-sync';
+
+const node = new R_Sync(config);   // singleton — a second construction throws
+```
+
+| Method | Role | Purpose |
+| --- | --- | --- |
+| `startOrchestrator()` | orchestrator | Init DB, generate keys, mount routes, listen |
+| `startWorker()` | worker | Init DB, generate keys, register (ECDH), listen, heartbeat |
+| `stop()` | both | Stop the server and clear the heartbeat |
+| `broadcast(name, data)` | orchestrator | Send to all active workers in parallel |
+| `sendTo(workerId, name, data)` | orchestrator | Send to one worker |
+| `emitToOrchestrator(name, data)` | worker | Send upstream |
+| `onEvent(cb)` | worker | Receive broadcasts and targeted events |
+| `onWorkerEvent(cb)` | orchestrator | Receive worker events — `(workerId, event)` |
+| `getRole()` | both | Current role |
+| `getSupportedEncryptionAlgorithms()` | both | The three curve names |
+| `R_Sync.getInstance()` | static | The singleton, or `null` |
+
+## HTTP endpoints
+
+Orchestrator:
+
+```text
+POST /discover-me      worker registration
+POST /worker-event     receive an event from a worker
+POST /broadcast        send to all workers      (localhost only)
+POST /send-to          send to one worker       (localhost only)
+POST /heartbeat        worker heartbeat
+GET  /workers          list registered workers  (localhost only)
+GET  /status           orchestrator health      (localhost only)
+POST /flush            wipe everything          (localhost only)
+```
+
+Worker:
+
+```text
+POST /event            receive an event
+GET  /status           worker health
+```
+
+<Warning title="/flush exits worker processes">
+It wipes tunnel state on all nodes **and terminates their processes**. With
+embedded workers that means killing your Orion-core services. It is localhost-only
+for a reason.
+</Warning>
+
+## Exported utilities
+
+```js
+import {
+    R_Sync,
+    cryptoExports,          // hashing, AES, RSA, ECDH, Ed25519, HMAC, key utils
+    dateTimeExports,
+    valueGeneratorExports,
+    waitForDb, getAllWorkers, getWorkerById,
+    logger,
+    __Version__, __Status__, __PackageType__
+} from 'r-sync';
+```
+
+## Running the bundled examples
+
+```bash filename="terminal"
+cd Packages/server/R_sync
+npm run start:orchestrator   # terminal 1
+npm run start:worker         # terminal 2
+```

@@ -1,0 +1,97 @@
+---
+title: Session endpoints
+description: List a signed-in user's active sessions and revoke one session, one token, or every session through the authenticated API.
+---
+
+Three endpoints, all requiring an authenticated session. Paths are relative to
+`{serverUrl}/alpine/api/v1/`.
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `request/active-sessions` | `ACCESS_BEARER` | 1 | `{}` |
+| `action/revoke-session` | `ACCESS_BEARER` | 1 | `{ tokenId }` **or** `{ linkCode }` |
+| `action/revoke-all-sessions` | `ACCESS_BEARER` | 1 | `{ keepCurrent }` — boolean, default `true` |
+
+## List active sessions
+
+```http
+POST /alpine/api/v1/request/active-sessions
+Authorization: ACCESS_BEARER
+{ "packet": {} }
+```
+
+```json filename="response"
+{
+  "error": false,
+  "data": {
+    "sessions": [
+      { "linkCode": "AT_LINK_…", "current": true,  "...": "..." },
+      { "linkCode": "AT_LINK_…", "current": false, "...": "..." }
+    ]
+  }
+}
+```
+
+Entries are grouped by `accessTokenLinkCode` — one per access/refresh pair, not
+one per token. `current: true` marks the session making the call.
+
+## Revoke one session or token
+
+```http
+POST /alpine/api/v1/action/revoke-session
+{ "packet": { "linkCode": "AT_LINK_…" } }
+```
+
+The schema is an exclusive-or:
+
+```js
+Joi.object({ tokenId: Joi.string().min(1), linkCode: Joi.string().min(1) })
+   .xor('tokenId', 'linkCode')
+```
+
+Supplying both or neither fails validation with
+`DATA-VALIDATION::INVALID-DATA::A::p`.
+
+```json filename="response"
+{ "error": false, "data": { "revokedCount": 2, "currentSessionRevoked": false } }
+```
+
+When `currentSessionRevoked` is `true` the server has already cleared the session
+cookies and set `orion-session-logout: true`, so the client should drop local auth
+state immediately rather than waiting for the next failed request.
+
+## Revoke all sessions
+
+```http
+POST /alpine/api/v1/action/revoke-all-sessions
+{ "packet": { "keepCurrent": true } }
+```
+
+`keepCurrent: true` (the default) is "sign out everywhere else"; `false` signs
+this device out too. Same response shape.
+
+## What revocation does under the hood
+
+| Situation | Mechanism |
+| --- | --- |
+| Tiers 2–4, targeted | Delete the token rows |
+| Tier 1, targeted | Record the `jti` in a short-lived denylist — Redis-backed when available, in-process otherwise |
+| All sessions for a user | Move `sessions_valid_from` forward, which also covers stateless tokens |
+
+<Warning title="Tier-1 revocation is per-node without Redis">
+The `jti` denylist falls back to an in-process map when no ephemeral store is
+configured. On a cluster that means a revocation only applies to the node that
+handled it.
+</Warning>
+
+## Related failure codes
+
+| Code | Meaning |
+| --- | --- |
+| `AUTH::REFRESH-LIMIT-HIT::A::p` | The refresh token hit `maxRefreshes`; the session is over |
+| `TOKEN-REFRESH::EXPIRED::A::p` | The refresh token expired |
+| `AUTH::MISSING-TOKEN::A::p` | No usable token was presented |
+| `STEP-UP::REQUIRED::A::p` | Binding risk demands re-verification before the request proceeds |
+
+All of the first three are `logout`-flagged, so the response clears both session
+cookies and sets `orion-session-logout: true`.

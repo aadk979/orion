@@ -1,6 +1,7 @@
 import { AccessTokens } from './Authentication/accessTokens.js';
 import { StepUpAuth } from './Security/stepUpAuth.js';
 import { RefreshTokens } from './Authentication/refreshTokens.js';
+import { TokenBinding } from './Authentication/tokenBinding.js';
 import { AuthenticationMiddleware } from './Authentication/authenticationMiddleware.js';
 import { ResourceTokens } from './Authentication/resourceTokens.js';
 import { TokenRevocation } from './Authentication/tokenRevocation.js';
@@ -21,11 +22,13 @@ import { Database } from './System/database.js';
 import { FileOperations } from './System/fileOperations.js';
 import { System } from './System/system.js';
 import { ResourceAccessS3 } from './System/resourceAccessS3.js';
+import { Notifications } from './Account/notifications.js';
 
 const internalErrors = {
     ...AccessTokens,
     ...StepUpAuth,
     ...RefreshTokens,
+    ...TokenBinding,
     ...AuthenticationMiddleware,
     ...ResourceTokens,
     ...TokenRevocation,
@@ -45,7 +48,8 @@ const internalErrors = {
     ...Database,
     ...FileOperations,
     ...System,
-    ...ResourceAccessS3
+    ...ResourceAccessS3,
+    ...Notifications
 };
 
 export { internalErrors };

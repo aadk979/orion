@@ -84,6 +84,16 @@ const StepUpAuth = {
         errorCode: 'STEP-UP::INVALID-TOTP::A::p',
         fault: 'CLIENT',
         solutions: ['Check the code in your authenticator app and try again']
+    },
+    // Per-account second-factor ceiling. Refuses the TOTP factor only — the
+    // emailed one-time code stays available, so this can never lock an owner
+    // out, which is what lets the ceiling be strict.
+    'STEP-UP::TOTP-THROTTLED::A::p': {
+        status: 429,
+        context: 'Too many incorrect authenticator codes were submitted; try a different verification method',
+        errorCode: 'STEP-UP::TOTP-THROTTLED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Verify with an emailed code instead', 'Try the authenticator again later']
     }
 };
 

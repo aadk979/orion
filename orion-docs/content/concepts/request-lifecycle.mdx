@@ -1,0 +1,168 @@
+---
+title: Request lifecycle
+description: The middleware chain every request traverses, in order, and what each stage rejects.
+---
+
+`buildMiddlewarePipeline()` mounts a fixed chain on the Express app. Order is
+deliberate: cheap rejections happen before expensive work, and body parsing
+happens after the flood guard so a volumetric attack never allocates.
+
+## The chain, in order
+
+<Steps>
+  <Step title="Global flood guard">
+    A coarse per-IP breaker, mounted first — ahead of body parsing. Defaults to
+    1000 requests per IP per 60s rolling window. Configured under
+    `utilities.rateLimiter.floodGuard`; set `enabled: false` to remove it. It
+    trips only on gross volume, and it is the pre-parse complement to the deeper
+    policy-driven limiter further down.
+  </Step>
+  <Step title="Static assets (optional)">
+    When `api.static.enabled` is true, files under `api.static.directory` are
+    served here — before the auth/header stack, so ordinary browser fetches need
+    no `orion-*` headers. Returns nothing when disabled or the directory is
+    absent.
+  </Step>
+  <Step title="Body parsing and HTTP hardening">
+    `express.json` (limit `api.maxPayloadSize`, default `10mb`),
+    `express.urlencoded`, `cors` (origin decided by the origin verifier),
+    `helmet`, `hpp`, `cookie-parser`, and `compression` above 1 KB.
+  </Step>
+  <Step title="Server utilities and request metadata">
+    Populates the per-request `AsyncLocalStorage` store — IP, fingerprint, user
+    agent, request id — that later stages and the audit trail read from. Exported
+    to your code as `requestContext`.
+  </Step>
+  <Step title="Rate limiter — edge pass">
+    The first point at which the IP and fingerprint actors are resolved, and
+    ahead of every expensive downstream check. Token-bucket, per actor, with a
+    per-route cost. See [Rate limits](/versions/alpine/docs/configuration/rate-limits).
+  </Step>
+  <Step title="Server status">
+    Rejects everything while the node is locked (`server:lock` from the
+    orchestrator, or an emergency `lockCluster()`).
+  </Step>
+  <Step title="Load shedding">
+    Refuses new work when in-flight requests exceed `maxInFlight` (default 500),
+    or `degradedMaxInFlight` (default 100) while the event-loop monitor reports
+    degradation.
+  </Step>
+  <Step title="Resource access (ORAS)">
+    Intercepts any path containing `resource-access-oras` and serves it by
+    access type — `public`, `secure-0`, or `s3-0`. Non-ORAS paths fall through
+    untouched. See [Resource access](/versions/alpine/docs/guides/resource-access).
+  </Step>
+  <Step title="Origin verifier">
+    Checks the request origin against `client.urls`. Exact match on scheme, host,
+    and port. When `client.enforceHTTPS` is set, insecure origins are refused.
+  </Step>
+  <Step title="Header parser">
+    Requires `orion-fingerprint`, `orion-user-agent`, and
+    `orion-api-system-version` to be present and non-empty. Missing any of them
+    is `GENERAL::HEADERS-INVALID::A::p`.
+  </Step>
+  <Step title="Abuse check">
+    Consults the abuse detection system, which is fed by every authentication
+    failure recorded in the response layer. Blocked actors are cut off here.
+  </Step>
+  <Step title="Authentication">
+    The largest stage. Resolves the endpoint, decides the required credential
+    class, validates the token, silently rotates an expired access token using
+    the refresh token, and populates `req.user`. Detailed below.
+  </Step>
+  <Step title="Rate limiter — account pass">
+    Authentication has now populated `req.user`, so the account actor can be
+    charged. A no-op for unauthenticated requests.
+  </Step>
+  <Step title="Data validator">
+    Schema validation of the request payload.
+  </Step>
+  <Step title="Device scanner">
+    Evaluates whether this device is recognized and, when device authorization is
+    enabled and it is not, triggers `FLOW-DEVICE-AUTHORIZATION`.
+  </Step>
+</Steps>
+
+Only then does your route handler run.
+
+## Inside the authentication stage
+
+The `Authorization` header names a **credential class**, not a credential:
+
+| Class | Meaning | Reachable routes |
+| --- | --- | --- |
+| `ACCESS_BEARER` | A signed-in session, presented as the `ACCESS_TOKEN` cookie | Everything |
+| `NO_AUTH_BEARER` | An anonymous browser holding a valid `NO_AUTH_TOKEN` | A fixed allowlist of pre-auth routes, plus your `requireAuth: false` custom routes |
+| `NO_BEARER` | No credential at all | Only the three no-auth-token bootstrap routes |
+
+The endpoint's own `requireAuth` flag is evaluated **first** and cannot be
+bypassed by a disabled subsystem. Turning captcha off relaxes anti-automation
+only; it never relaxes the authentication decision for a route that declared
+`requireAuth: true`.
+
+### Silent token rotation
+
+When the access token is expired but a refresh token is present, the middleware
+performs a full rotation inline:
+
+1. Validate the refresh token (binding, tier, DPoP proof).
+2. Enforce the self-contained refresh ceiling — `AUTH::REFRESH-LIMIT-HIT::A::p`
+   when `refreshCount >= maxRefreshes`.
+3. **Re-read the user from the database.** Role and disabled status are never
+   carried forward from the presented token, so a role change or an account
+   disable takes effect on the next refresh instead of propagating stale
+   privilege indefinitely.
+4. Mint a new access token and a new refresh token, carrying any `cnf.jkt`
+   binding forward so a refresh cannot silently downgrade a bound session.
+5. Retire the old refresh token — delete its row and remember its id, so a later
+   replay is recognised as reuse rather than as an unknown token.
+6. Set both cookies and continue.
+
+### The virtual auth-state endpoint
+
+`/alpine/api/v1/action/get-current-auth-state` is not in the route registry. The
+authentication middleware special-cases it and answers directly with
+`{ authed, user: { uid, email, jti } }`. It is what the SDK's `initialize()`
+calls on page load.
+
+## The response layer
+
+Both success and failure go through a single response module.
+
+```json filename="success"
+{ "error": false, "data": { } }
+```
+
+```json filename="failure"
+{
+  "error": true,
+  "errorData": {
+    "status": 401,
+    "context": "The email or password is incorrect",
+    "errorCode": "ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p",
+    "fault": "CLIENT",
+    "solutions": ["Check the email and password", "Reset the password if it has been forgotten"]
+  },
+  "errorTrigger": "ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p"
+}
+```
+
+Three behaviours are centralised there:
+
+- **Error obfuscation.** An internal code with a `clientSafeErrorCode` is swapped
+  for the safe one before it leaves the process. That is how "no such account",
+  "this account has no password", and "wrong password" all surface as one
+  `INVALID-CREDENTIALS` result — the audit trail still records which actually
+  occurred. `errorTrigger` carries the raw code and is a development aid.
+- **Abuse accounting.** Any error code classified as an authentication failure is
+  charged to the calling actor automatically, so no failure site has to remember
+  to do it.
+- **Session teardown.** A `logout`-flagged error clears `ACCESS_TOKEN` and
+  `REFRESH_TOKEN` and sets `orion-session-logout: true`, which the SDK watches to
+  drop local auth state without parsing bodies.
+
+### Response headers
+
+The same module sets the five `orion-*` response headers, all of which are listed
+in `Access-Control-Expose-Headers` so browsers can read them cross-origin. They
+are tabulated in [API conventions](/versions/alpine/docs/api-reference#response-headers).

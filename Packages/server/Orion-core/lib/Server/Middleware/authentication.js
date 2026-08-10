@@ -101,11 +101,23 @@ const handleIsAuthStateCheck = parameters => {
 
 const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     const requestPath = slugParser(parameters.request.path);
-    const endpoint = defaultServerRoutes.endpoints.find(item => pathMatchesPattern(item.path, requestPath));
-    const endpointBackUp = systemConfigModule.getModule().api.customEndpoints.find(item => pathMatchesPattern(item.path, requestPath));
+    const requestMethod = (parameters.request.method || '').toUpperCase();
+
+    // Method participates in the match. Resolving on path alone meant that when
+    // two routes shared a path under different verbs, whichever was registered
+    // first decided `requireAuth` for both — so a public GET could hand its
+    // authRequired:false to the protected POST that Express actually dispatched.
+    // A route that declares no method still matches any, preserving the loose
+    // form some custom endpoints use.
+    const methodMatches = item => !item.method || item.method.toUpperCase() === requestMethod;
+
+    const endpoint = defaultServerRoutes.endpoints.find(item => methodMatches(item) && pathMatchesPattern(item.path, requestPath));
+    const endpointBackUp = systemConfigModule
+        .getModule()
+        .api.customEndpoints.find(item => methodMatches(item) && pathMatchesPattern(item.path, requestPath));
 
     if (!endpoint && !endpointBackUp && !reqIsAuthStateCheck) {
-        return { error: true, errorCode: 'UNKOWN-API-ROUTE' };
+        return { error: true, errorCode: 'GENERAL::UNKNOWN-API-ROUTE::A::p' };
     }
 
     if (endpoint) {
@@ -126,7 +138,7 @@ const handleValidateEndpoint = (parameters, reqIsAuthStateCheck) => {
     // Every branch above returns. Falling through would hand the caller
     // `undefined`, which it immediately dereferences — so an unresolved path
     // fails closed here rather than as a TypeError.
-    return { error: true, errorCode: 'UNKOWN-API-ROUTE' };
+    return { error: true, errorCode: 'GENERAL::UNKNOWN-API-ROUTE::A::p' };
 };
 
 const handleValidateTokenTypeAndpresence = (parameters, tokenType, noAuthTokenEnabled) => {
@@ -204,8 +216,17 @@ const authenticationMiddleware = async (request, response, next) => {
                             return parameters.next();
                         }
 
-                        // Set a signed step-up context cookie so flow routes can identify the user
+                        // Set a signed step-up context cookie so flow routes can identify the user.
+                        // It can fail to mint (no signing key, or proof-of-possession is
+                        // required and this request carried no usable proof); a non-string
+                        // result must never be written into the cookie, or the flow routes
+                        // receive "[object Object]" and report a bare session-expired.
                         const stepUpContextToken = await generateStepUpContextToken(uid);
+
+                        if (typeof stepUpContextToken !== 'string') {
+                            return respondWithError(parameters.response, stepUpContextToken?.errorCode || 'STEP-UP::SESSION-EXPIRED::A::p');
+                        }
+
                         setManagedCookie(parameters.response, 'stepUpContext', stepUpContextToken);
 
                         return respondWithError(parameters.response, 'STEP-UP::REQUIRED::A::p');
@@ -236,6 +257,11 @@ const authenticationMiddleware = async (request, response, next) => {
                                 }
 
                                 const stepUpContextToken = await generateStepUpContextToken(uid);
+
+                                if (typeof stepUpContextToken !== 'string') {
+                                    return respondWithError(parameters.response, stepUpContextToken?.errorCode || 'STEP-UP::SESSION-EXPIRED::A::p');
+                                }
+
                                 setManagedCookie(parameters.response, 'stepUpContext', stepUpContextToken);
 
                                 return respondWithError(parameters.response, 'STEP-UP::REQUIRED::A::p');
@@ -312,13 +338,6 @@ const authenticationMiddleware = async (request, response, next) => {
                             return respondWithError(parameters.response, newRefreshToken.errorCode);
                         }
 
-                        // Retire the token we just rotated away: delete its row so it
-                        // stops validating, and remember its id so a later replay is
-                        // recognised as reuse rather than as an unknown token. Only
-                        // after the replacement exists, so a failure here cannot strand
-                        // the session without a usable refresh token.
-                        await retireRefreshToken(refreshVerification.data);
-
                         verification = await validateAccessToken(newAccessToken.token, fingerprint, ip, clientUrl, dpopProof);
 
                         if (verification.error || !verification.valid) {
@@ -328,6 +347,22 @@ const authenticationMiddleware = async (request, response, next) => {
                         setManagedCookie(parameters.response, 'ACCESS_TOKEN', newAccessToken.token);
 
                         setManagedCookie(parameters.response, 'REFRESH_TOKEN', newRefreshToken.token);
+
+                        // Retire the token we just rotated away: delete its row so it
+                        // stops validating, and remember its id so a later replay is
+                        // recognised as reuse rather than as an unknown token.
+                        //
+                        // LAST, after the successors are on the response. Retiring
+                        // before that point meant any failure in between — a transient
+                        // database error in the re-validation above, a dropped
+                        // connection — left the client holding a refresh token whose
+                        // row was already gone. Its next attempt then landed in the
+                        // consumed set and was read as theft: forced logout for the
+                        // user, and a fabricated reuse incident in the audit trail, for
+                        // what was actually a server-side hiccup. The grace window in
+                        // RefreshTokens.js covers the residual case where the response
+                        // itself never reaches the client.
+                        await retireRefreshToken(refreshVerification.data);
                     }
                 }
 

@@ -1,0 +1,142 @@
+---
+title: Backing services
+description: Provisioning Postgres, Redis, MySQL, and SMTP for an Orion deployment.
+---
+
+Every node must reach every service it uses. Whether they live on one box or on
+managed infrastructure is your call.
+
+## PostgreSQL — required
+
+```bash filename="terminal" copy
+sudo -u postgres createuser orion_app -P
+sudo -u postgres createdb   orion -O orion_app
+```
+
+The user needs `CREATE TABLE` in its database — Orion runs its own versioned,
+checksummed, advisory-locked migrations on the first pool connection.
+
+```js filename="gipsy.orion.config.js"
+db: {
+    provider: 'POSTGRES',
+    credentials: {
+        host: '10.0.0.5',
+        database: 'orion',
+        user: 'orion_app',
+        password: process.env.PG_PASSWORD,
+        poolMax: 20,
+        statementTimeoutMs: 30000,
+        ssl: { rejectUnauthorized: true }
+    }
+}
+```
+
+<Warning title="Size the pool against max_connections">
+`poolMax` is per node. Ten nodes at 20 is 200 connections before the orchestrator
+or anything else. Check `SHOW max_connections;` and leave headroom.
+</Warning>
+
+If you enable the system-admin plane, its `orch_*` tables live in the same
+database by default, with a separate migration ledger and advisory lock. Apply
+`Packages/server/Orion-Orchestrator/sql/worker-grants.example.sql` (adjust role
+names first) so workers are `SELECT`-only on that data.
+
+## Redis — required past one node
+
+Any Redis 6+ with a password, reachable from every node.
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    ephemeralDB: {
+        provider: 'REDIS',
+        credentials: { host: '10.0.0.5', port: 6379, password: process.env.REDIS_PASSWORD }
+    }
+}
+```
+
+It carries three things: JWT signing-key fan-out, rate-limit buckets, and the
+revoked-`jti` denylist. Losing it means new tokens still mint but cross-node
+validation degrades — treat it as a production incident, not a soft dependency.
+
+A single node may omit the block entirely (`LOCAL_DB`), and keys stay in-process.
+
+## MySQL — optional, audit trail
+
+Only when `utilities.auditTrailSystem.enabled` is true.
+
+```sql filename="mysql" copy
+CREATE DATABASE orion_audit;
+CREATE USER 'orion_audit'@'%' IDENTIFIED BY '…';
+GRANT ALL PRIVILEGES ON orion_audit.* TO 'orion_audit'@'%';
+```
+
+Orion builds the `audit_trail` schema itself and converges it at boot.
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    auditTrailSystem: {
+        enabled: true,
+        host: '10.0.0.5',
+        user: 'orion_audit',
+        password: process.env.MYSQL_PASSWORD,
+        database: 'orion_audit'
+    }
+}
+```
+
+<Callout type="warning" title="Enabled means credentials are mandatory">
+`host`, `user`, and `password` are required when enabled — the node refuses to
+boot on missing values rather than silently degrading. It also runs a live
+round-trip integrity test at boot (write, flush, read, delete) and fails startup
+if it does not pass.
+</Callout>
+
+Omitting the block disables MySQL mirroring; events still append to the local
+signed write-ahead log.
+
+## SMTP — required for most methods
+
+Device authorization, TOTP, passkeys, step-up email, password reset, 2FA removal,
+and the orchestrator's magic links all send email.
+
+```js filename="gipsy.orion.config.js"
+mail: {
+    email: 'auth@example.com',
+    password: process.env.SMTP_PASSWORD,
+    service: 'gmail'
+}
+```
+
+A Gmail account with an App Password and `service: 'gmail'` works out of the box.
+Explicit host/port configuration is also supported through nodemailer.
+
+Recall the boot-time consequences: device authorization enabled without mail is a
+**boot failure**; TOTP and passkeys are **force-disabled** without mail.
+
+## Network policy
+
+| From | To | Port |
+| --- | --- | --- |
+| Auth nodes | Postgres | 5432 |
+| Auth nodes | Redis | 6379 |
+| Auth nodes | MySQL | 3306 |
+| Auth nodes | SMTP | 465 / 587 |
+| Auth nodes ↔ Orchestrator | M2M | 55321 / 55322 |
+| Operators | Admin panel | 55330, behind TLS |
+| Internet | Auth API | Your API port, behind TLS |
+
+Databases should accept connections only from your nodes. The M2M ports stay on
+the private subnet.
+
+## Verifying before you boot Orion
+
+```bash filename="terminal" copy
+psql "postgresql://orion_app@10.0.0.5/orion" -c 'SELECT 1'
+redis-cli -h 10.0.0.5 -a "$REDIS_PASSWORD" PING
+mysql -h 10.0.0.5 -u orion_audit -p -e 'SELECT 1'
+```
+
+Orion's own boot checks are strict — 15 rounds of database write/read/delete that
+must all pass, plus a full audit round trip — so a service that is only
+intermittently reachable will fail startup rather than run degraded. Confirm
+connectivity first.

@@ -1,0 +1,164 @@
+---
+title: Resilience & defense
+description: The subsystems that keep a node standing under abuse, overload, and dependency failure.
+---
+
+Nine long-lived subsystems run alongside the request pipeline. Most need no
+configuration; all of them are visible to the control plane.
+
+## Rate limiting — two passes
+
+Orion charges requests twice, at two different points, against three actor
+classes.
+
+<Grid columns={3} className="my-6">
+  <MetricCard label="IP bucket" value="100" hint="capacity · refill 10/s" />
+  <MetricCard label="Fingerprint bucket" value="50" hint="capacity · refill 5/s" />
+  <MetricCard label="Account bucket" value="150" hint="capacity · refill 15/s" />
+</Grid>
+
+Each actor gets exactly **one** canonical token bucket, keyed
+`rl:<type>:<hash>` — there is no per-route key suffix. What changes per route is
+the **cost** deducted. Costs are drawn from a frozen policy table with only five
+legal values: 1 (standard), 2 (moderate), 3 (heavy — crypto, DB writes, external
+calls), 5 (critical — auth attempts and abuse-prone surfaces), and 10 (extreme).
+
+The edge pass runs early, as soon as IP and fingerprint are resolved and before
+any expensive check. The account pass runs after authentication has populated
+`req.user`, and no-ops for unauthenticated requests.
+
+The unmatched-route fallback is cost 1 and is never allowed to be zero, so no
+route can accidentally become unlimited. The table is validated at boot — an
+invalid cost fails the boot rather than silently mis-throttling.
+
+See [Rate limits](/versions/alpine/docs/configuration/rate-limits) for the per-route table.
+
+### Flood guard
+
+A separate, coarser breaker mounted first in the chain, ahead of body parsing:
+1000 requests per IP per 60s by default. It exists so that gross volume is
+rejected before `express.json` allocates anything.
+
+## Abuse detection
+
+Fed automatically from the response layer — any error code classified as an
+authentication failure is charged to the calling actor, so no failure site has to
+remember to report it.
+
+| Signal | Threshold |
+| --- | --- |
+| Auth failures per IP, 60s window | 5 → soft threshold logged; 10 → IP blocked |
+| Block duration | 15 minutes |
+| Fingerprint churn per IP, 60s window | 10 distinct fingerprints |
+
+Blocked IPs and fingerprints are cut off at the `abuseCheckMiddleware` stage. An
+operator can clear one with the `abuse:unblock-actor` command (safe-mode gated),
+and the fleet can vote on `abuse-high` to establish whether an attack is
+cluster-wide.
+
+<Callout type="info" title="State is per-node">
+Abuse counters live in process memory, not Redis. On a cluster each node builds
+its own view. That is usually acceptable — an attacker hitting one node hard
+trips that node — but it does mean thresholds are effectively per-node.
+</Callout>
+
+## Circuit breaker
+
+Per-dependency breakers with the classic three states.
+
+| State | Meaning |
+| --- | --- |
+| `CLOSED` | Normal operation |
+| `OPEN` | Failing fast; the dependency is not called |
+| `HALF_OPEN` | Trial period after the reset timeout |
+
+Defaults: open after **5** failures inside a **60s** window; after **30s** move to
+half-open; close again after **2** consecutive successes. Configurable per
+dependency at runtime, and forcible from the control plane with `circuit:open`
+and `circuit:reset` (reset is safe-mode gated).
+
+## Load shedding
+
+Refuses new work rather than queueing it into collapse.
+
+| Limit | Default | Applies |
+| --- | --- | --- |
+| `maxInFlight` | 500 | Normal operation |
+| `degradedMaxInFlight` | 100 | While the event-loop monitor reports degradation |
+
+`load:set-max-in-flight` adjusts the ceiling remotely (safe-mode gated).
+
+## Event-loop monitor
+
+Samples `perf_hooks.monitorEventLoopDelay` plus CPU usage.
+
+| Setting | Default |
+| --- | --- |
+| `intervalMs` | 10 000 |
+| `resolutionMs` | 20 |
+| `lagWarningMs` | 100 |
+| `lagCriticalMs` | 500 |
+
+Crossing into degradation flips a flag that load shedding reads, raises the
+`elm:degraded` alert to the orchestrator within the 2-second watcher window, and
+makes the node vote `false` on `node-healthy`.
+
+## Memory monitoring
+
+Two hard-coded rules: a warning when free system memory falls below **30%**
+headroom, and **self-termination at 85%** system usage — deliberately, so a node
+dies cleanly and is restarted rather than dragging the box down.
+
+It also performs a one-time job at boot: `purgeSystemConfigPostSetup()` strips
+secrets out of the retained config object once every subsystem has consumed what
+it needs.
+
+`memoryPressureThresholdPercent` (default 80) on the cluster link controls when
+the node *reports* pressure to the orchestrator, which is a separate, lower
+threshold than self-termination.
+
+## Error tracker and ETS lockdown
+
+The Error Tracker System watches error rates and can put a node into **ETS
+lockdown**, a protective state that surfaces as an alert, a consensus topic, and
+a health input. Lifting it is `ets:clear-lockdown` — safe-mode gated, so it
+cannot be cleared remotely on a node running in safe mode.
+
+## Graceful shutdown
+
+Registered last at boot, so every subsystem is already reachable.
+
+- Handles `SIGTERM` and `SIGINT` with exit code 0, and `uncaughtException` with
+  exit code 1.
+- `unhandledRejection` is logged and recorded but deliberately **not** fatal.
+- Drains in-flight requests for up to **30 seconds**, polling every 500 ms.
+- Sends `orion:node:goodbye` so the orchestrator marks the node offline instantly
+  rather than waiting for the stale sweep.
+- Flushes the audit trail, stops the janitor, monitors, and cluster link, and
+  closes the database pool.
+
+## Database janitor
+
+A global TTL sweep of expired tokens, stale devices, and abandoned auth-flow rows.
+
+| Setting | Default |
+| --- | --- |
+| `enabled` | `true` |
+| `intervalMs` | 900 000 (15 min) |
+| `batchSize` | 5000 rows per statement — bounds lock time |
+
+Advisory-locked, so exactly one node in the fleet sweeps per cycle.
+
+## Safe module handling
+
+Every subsystem is reached through a `SafeModuleHandler` rather than a direct
+import of a live instance. A module that is not yet initialized, or that was
+deactivated, degrades to a warning at the call site instead of throwing a
+`TypeError` deep inside a request. This is why disabling the audit trail or
+running before the cluster link is up does not produce cascading failures.
+
+## Snapshotter
+
+`Snapshotter` captures periodic system-state snapshots. These feed the status
+payload the node reports to the orchestrator, which is what `status:get` and the
+panel's node view display.

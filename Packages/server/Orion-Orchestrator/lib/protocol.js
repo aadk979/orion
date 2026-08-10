@@ -11,10 +11,11 @@
  * shapes. Bump PROTOCOL_VERSION on any breaking change to an envelope.
  */
 
-const PROTOCOL_VERSION = 2;
+const PROTOCOL_VERSION = 3;
 
 // ── Event names ────────────────────────────────────────────────────────────────
-// Worker → Orchestrator: NODE_HELLO, NODE_STATUS, NODE_ALERT, NODE_GOODBYE, COMMAND_RESULT
+// Worker → Orchestrator: NODE_HELLO, NODE_STATUS, NODE_ALERT, NODE_GOODBYE,
+//                        COMMAND_RESULT, MAILING_PROGRESS, MAILING_GROUP_DONE
 // Orchestrator → Worker: COMMAND, CLUSTER_STATE
 const ClusterEvents = Object.freeze({
     /** Sent by a node right after it registers (and on re-identify) — identity metadata */
@@ -30,7 +31,20 @@ const ClusterEvents = Object.freeze({
     /** Node's reply to a COMMAND, correlated via commandId */
     COMMAND_RESULT: 'orion:command:result',
     /** Orchestrator → all nodes: cluster health state broadcast (nodes stay in the loop) */
-    CLUSTER_STATE: 'orion:cluster:state'
+    CLUSTER_STATE: 'orion:cluster:state',
+    /**
+     * Batch mailing heartbeat while a group is being sent — counts only, on a
+     * timer, NOT one message per mail. Per-mail completion is written straight
+     * to the shared database by the sending node; this event exists so the
+     * orchestrator can tell "working" from "wedged" without polling.
+     */
+    MAILING_PROGRESS: 'orion:mailing:progress',
+    /**
+     * A node has finished (or given up on) the group it was assigned. This is
+     * the message the orchestrator waits for before handing that node its next
+     * group — and the one whose 24h absence trips the watchdog.
+     */
+    MAILING_GROUP_DONE: 'orion:mailing:group-done'
 });
 
 // ── Remote command actions ─────────────────────────────────────────────────────
@@ -93,6 +107,55 @@ const ClusterCommands = Object.freeze({
      * fresh pools — args: { kind?, domain? } to narrow to one manager family.
      */
     SECRETS_FORCE_ROTATE: 'secrets:force-rotate',
+    /**
+     * Field-encryption status: which key vault this node resolved, whether its
+     * wrap/unwrap round trip passes, the data-encryption-key ledger, and a
+     * per-field count of sealed vs. stale rows. Never returns key material.
+     */
+    KEYVAULT_STATUS: 'keyvault:status',
+    /**
+     * Rotate the key encryption key inside the vault and re-wrap the data
+     * encryption key under it. Stored field data is untouched, so this is fast
+     * and safe to run routinely.
+     */
+    KEYVAULT_ROTATE_KEK: 'keyvault:rotate-kek',
+    /**
+     * Rotate the data encryption key and re-encrypt every registered encrypted
+     * column under it — args: { batchSize?, reencrypt? }. Retired DEKs are kept
+     * so nothing is stranded by a partial run. Run on ONE node: the work is
+     * against shared database state, not node-local state.
+     */
+    KEYVAULT_ROTATE_DEK: 'keyvault:rotate-dek',
+    /**
+     * DESTRUCTIVE. Clear encrypted field data that can no longer be decrypted —
+     * args: { fields?, confirmation }. The recovery path when a KEK is lost:
+     * every affected user re-enrolls. Gated at the orchestrator by root role,
+     * a typed confirmation phrase, and a fleet-wide consensus vote.
+     */
+    KEYVAULT_WIPE_ENCRYPTED: 'keyvault:wipe-encrypted',
+    /**
+     * Assign one batch-mailing group to this node — args:
+     * { jobId, jobName, groupNumber, recipientCount, rateLimit?, maxAttempts? }.
+     *
+     * Returns as soon as the node has accepted the group; the sending itself
+     * runs in the background and can take hours. The recipients are NOT carried
+     * in this envelope — the node reads them from the shared database, which is
+     * also where it retires each one. Completion arrives later as
+     * MAILING_GROUP_DONE.
+     */
+    MAILING_ASSIGN: 'mailing:assign',
+    /**
+     * What is this node doing about mailing right now — args: { jobId? }.
+     * The direct probe the watchdog uses after 24h of silence, before it
+     * concludes the group was orphaned and reassigns it.
+     */
+    MAILING_STATUS: 'mailing:status',
+    /**
+     * Stop sending — args: { jobId, groupNumber? }. Graceful: the mail already
+     * handed to the transport is allowed to finish so it cannot be sent without
+     * its row being retired, then the node stops and reports back.
+     */
+    MAILING_CANCEL: 'mailing:cancel',
     /** Start the memory monitoring system */
     START_MEMORY_MONITOR: 'memory-monitor:start',
     /** Stop the memory monitoring system */
@@ -142,7 +205,18 @@ const ConsensusTopics = Object.freeze({
     /** true = this node is under memory pressure (params: { thresholdPercent }) */
     MEMORY_PRESSURE: 'memory-pressure',
     /** true = this node's abuse detection is tracking at least params.minBlocked blocked actors */
-    ABUSE_HIGH: 'abuse-high'
+    ABUSE_HIGH: 'abuse-high',
+    /**
+     * true = this node CANNOT read its encrypted fields (no vault, unreachable
+     * vault, or a key that no longer unwraps).
+     *
+     * This is the vote that gates the destructive wipe. A wipe is only ever the
+     * right answer when the whole fleet agrees the data is unrecoverable — if
+     * even one node can still decrypt, the correct action is to fix the others,
+     * not to destroy every user's second factor. Requiring unanimity here turns
+     * "I think the key is gone" into a fact established by the cluster.
+     */
+    ENCRYPTION_UNAVAILABLE: 'encryption-unavailable'
 });
 
 // ── Cluster health states ──────────────────────────────────────────────────────
@@ -210,6 +284,44 @@ const buildVote = (topic, vote, details = {}) => ({
     details
 });
 
+/**
+ * Node → orchestrator batch-mailing progress heartbeat.
+ *
+ * Counts, not recipients: the authoritative per-recipient record is already in
+ * the shared database by the time this is sent. `remaining` is the node's own
+ * count of rows left in its group, which is what makes a stalled group visible
+ * as "progress timestamp moving but remaining unchanged".
+ */
+const buildMailingProgress = (jobId, groupNumber, { sent = 0, failed = 0, remaining = null } = {}) => ({
+    protocolVersion: PROTOCOL_VERSION,
+    jobId,
+    groupNumber,
+    sent,
+    failed,
+    remaining,
+    at: Math.floor(Date.now() / 1000)
+});
+
+/**
+ * Node → orchestrator: this group is finished.
+ *
+ * `outcome` is 'completed' when the node drained the group (every recipient
+ * either sent or dead-lettered), 'failed' when it gave up — a dead transport,
+ * not a bad address — and 'cancelled' when it stopped on request. Only
+ * 'completed' means the group needs no further attention.
+ */
+const buildMailingGroupDone = (jobId, groupNumber, outcome, { sent = 0, failed = 0, remaining = 0, error = null } = {}) => ({
+    protocolVersion: PROTOCOL_VERSION,
+    jobId,
+    groupNumber,
+    outcome: ['completed', 'failed', 'cancelled'].includes(outcome) ? outcome : 'failed',
+    sent,
+    failed,
+    remaining,
+    error,
+    at: Math.floor(Date.now() / 1000)
+});
+
 /** Orchestrator → nodes cluster state broadcast payload */
 const buildClusterState = (state, previousState, summary = {}) => ({
     protocolVersion: PROTOCOL_VERSION,
@@ -235,6 +347,8 @@ export {
     buildAlert,
     buildVote,
     buildClusterState,
+    buildMailingProgress,
+    buildMailingGroupDone,
     isKnownCommand,
     isKnownTopic
 };

@@ -9,6 +9,7 @@ const eventLoopMonitorModule = new SafeModuleHandler('EventLoopMonitor', 'eventL
 const loadSheddingSystemModule = new SafeModuleHandler('LoadSheddingSystem', 'loadSheddingSystem', 'GracefulShutdownSystem.js');
 const clusterLinkSystemModule = new SafeModuleHandler('ClusterLinkSystem', 'clusterLinkSystem', 'GracefulShutdownSystem.js');
 const databaseJanitorModule = new SafeModuleHandler('DatabaseJanitor', 'databaseJanitor', 'GracefulShutdownSystem.js');
+const batchMailerSystemModule = new SafeModuleHandler('BatchMailerSystem', 'batchMailerSystem', 'GracefulShutdownSystem.js');
 
 const DRAIN_TIMEOUT_MS = 30_000;
 const DRAIN_POLL_MS = 500;
@@ -57,6 +58,20 @@ class GracefulShutdownSystem {
             if (ls) await this._waitForDrain(ls);
         } catch (err) {
             logger.warn(`GracefulShutdown: Drain wait failed — ${err.message}`);
+        }
+
+        // 2b. Stop batch mailing BEFORE detaching from the cluster. In-flight
+        //     groups stop between recipients and report back over the link that
+        //     is still up — reversing these two would silence that report and
+        //     leave the orchestrator's watchdog to rediscover the group.
+        try {
+            const bm = batchMailerSystemModule.probeModule();
+            if (bm?.enabled) {
+                await bm.stop();
+                logger.info('GracefulShutdown: Batch mailer stopped');
+            }
+        } catch (err) {
+            logger.warn(`GracefulShutdown: Batch mailer stop failed — ${err.message}`);
         }
 
         // 3. Detach from the cluster — sends a best-effort goodbye so the

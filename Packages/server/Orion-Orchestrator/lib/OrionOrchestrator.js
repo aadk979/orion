@@ -42,6 +42,19 @@ const isActiveWorker = w => String(w?.status).toUpperCase() === 'ACTIVE';
 
 const COMMAND_LOG_LIMIT = 200;
 
+/**
+ * Key-vault operations walk user data in batches and talk to a remote vault,
+ * so they get a far longer ceiling than the 10s status/control commands.
+ */
+const KEYVAULT_LONG_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * Typed by an administrator to authorize the irreversible wipe of encrypted
+ * field data. Verified here AND independently on the executing node, so no
+ * single component can destroy user enrollments on its own.
+ */
+const WIPE_CONFIRMATION_PHRASE = 'WIPE ENCRYPTED FIELDS';
+
 const defaultConfig = Object.freeze({
     publicIp: '127.0.0.1',
     port: 55321,
@@ -75,7 +88,19 @@ const defaultConfig = Object.freeze({
      *     baseUrl: 'https://orch.example.com',                  // magic-link target
      *     mail: { service|host, email, password, from } }       // omit for console-mode links (dev)
      */
-    systemAdmin: { enabled: false }
+    systemAdmin: { enabled: false },
+    /**
+     * Batch mailing plane — spreadsheet-driven mail blasts executed by the
+     * fleet. See lib/Mailing/. Requires systemAdmin (it shares that database
+     * connection and the panel/CLI it is driven from):
+     *   { enabled: true,
+     *     maxPerGroup: 15,             // ceiling on one group's size
+     *     cooldownSeconds: 3600,       // quiet period between jobs
+     *     nodeRateLimit: { perWindow: 15, windowMs: 120000 },
+     *     maxAttempts: 3,              // per-recipient before dead-lettering
+     *     groupSilentTimeoutSeconds: 86400 }
+     */
+    mailing: { enabled: false }
 });
 
 class OrionOrchestrator {
@@ -100,6 +125,8 @@ class OrionOrchestrator {
         this._adminDb = null;
         this._systemAdmin = null;
         this._adminServer = null;
+        // Batch mailing plane (created alongside it when mailing.enabled)
+        this._mailing = null;
 
         // ── Subsystems ────────────────────────────────────────────────────────
         this._escalations = new EscalationHub(this.config.escalations);
@@ -204,6 +231,15 @@ class OrionOrchestrator {
         await this._systemAdmin.bootstrapRoot(saConfig.rootAdmin || {});
         this._systemAdmin.start();
 
+        // Batch mailing shares the admin database and is driven from the same
+        // panel and CLI, so it is started here rather than as an independent
+        // plane — and it is only reachable when the admin plane exists at all.
+        if (this.config.mailing?.enabled === true) {
+            const { BatchMailingService } = await import('./Mailing/BatchMailingService.js');
+            this._mailing = new BatchMailingService(this._adminDb, this, this.config.mailing, { mailer: this._systemAdmin.mailer });
+            this._mailing.start();
+        }
+
         this._adminServer = new AdminServer(this, this._systemAdmin, saConfig.http || {});
         await this._adminServer.start();
     }
@@ -213,7 +249,16 @@ class OrionOrchestrator {
         return this._systemAdmin || null;
     }
 
+    /** The BatchMailingService when the mailing plane is enabled, else null. */
+    getMailingService() {
+        return this._mailing || null;
+    }
+
     async stop() {
+        if (this._mailing) {
+            this._mailing.stop();
+            this._mailing = null;
+        }
         if (this._adminServer) {
             try {
                 await this._adminServer.stop();
@@ -295,21 +340,25 @@ class OrionOrchestrator {
         const now = getCurrentUnixTime();
 
         try {
-            const wasOffline = this._registry.getNode(workerId)?.online === false;
+            const previous = this._registry.getNode(workerId);
+            const wasOffline = previous?.online === false;
+            // Captured up front: recordHello/recordStatus below call touch(),
+            // which clears offlineReason before the recovery alert can read it.
+            const offlineReason = previous?.offlineReason || null;
 
             switch (event.name) {
                 case ClusterEvents.NODE_HELLO: {
                     const node = this._registry.recordHello(workerId, event.data, now);
                     logger.info(`Cluster node online: ${workerId} (${event.data?.appName || 'unnamed'} / ${event.data?.serviceID || 'no service id'})`);
                     this._invokeHooks('hello', workerId, event.data, node);
-                    if (wasOffline) await this._raiseRecovery(workerId, node);
+                    if (wasOffline) await this._raiseRecovery(workerId, node, offlineReason);
                     this._persist();
                     break;
                 }
                 case ClusterEvents.NODE_STATUS: {
                     const node = this._registry.recordStatus(workerId, event.data, now);
                     this._invokeHooks('status', workerId, event.data, node);
-                    if (wasOffline) await this._raiseRecovery(workerId, node);
+                    if (wasOffline) await this._raiseRecovery(workerId, node, offlineReason);
                     this._persist();
                     break;
                 }
@@ -325,7 +374,20 @@ class OrionOrchestrator {
                     const node = this._registry.markOffline(workerId, event.data?.reason || 'graceful-shutdown');
                     logger.info(`Cluster node leaving: ${workerId} (${event.data?.reason || 'graceful-shutdown'})`);
                     this._invokeHooks('goodbye', workerId, event.data, node);
+                    // A departing node's mailing groups have not been sent —
+                    // hand them to someone else now rather than at watchdog time.
+                    await this._mailing?.handleNodeLost(workerId, `left the cluster (${event.data?.reason || 'graceful-shutdown'})`);
                     this._persist();
+                    break;
+                }
+                case ClusterEvents.MAILING_PROGRESS: {
+                    this._registry.touch(workerId, now);
+                    await this._mailing?.handleProgress(workerId, event.data || {});
+                    break;
+                }
+                case ClusterEvents.MAILING_GROUP_DONE: {
+                    this._registry.touch(workerId, now);
+                    await this._mailing?.handleGroupDone(workerId, event.data || {});
                     break;
                 }
                 case ClusterEvents.COMMAND_RESULT: {
@@ -347,10 +409,10 @@ class OrionOrchestrator {
         }
     }
 
-    async _raiseRecovery(workerId, node) {
+    async _raiseRecovery(workerId, node, offlineReason = null) {
         const alert = buildAlert(ClusterAlerts.NODE_RECOVERED, 'info', {
             workerId,
-            offlineReason: node.offlineReason
+            offlineReason
         });
         this._registry.recordAlert(workerId, alert, getCurrentUnixTime());
         this._invokeHooks('alert', workerId, alert, node);
@@ -375,9 +437,13 @@ class OrionOrchestrator {
                 workerId: node.workerId,
                 lastSeen: node.lastSeen
             });
-            this._registry.recordAlert(node.workerId, alert, getCurrentUnixTime());
+            // appendAlert, not recordAlert: this is our own observation about a
+            // silent node, so it must not be taken as proof the node is alive.
+            this._registry.appendAlert(node.workerId, alert, getCurrentUnixTime());
             this._invokeHooks('alert', node.workerId, alert, node);
             await this._policies.handleAlert(node.workerId, alert, node);
+            // A node that stopped reporting is not sending mail either.
+            await this._mailing?.handleNodeLost(node.workerId, `went stale after ${this.config.nodeStaleAfterSeconds}s without contact`);
         }
         if (flipped.length > 0) this._persist();
     }
@@ -674,6 +740,138 @@ class OrionOrchestrator {
         return { workerId, kids, results: await this.revokeSigningKids(kids, issuedBy) };
     }
 
+    // ── Field-encryption (key vault) plane ────────────────────────────────────
+
+    /**
+     * Per-node field-encryption status. Deliberately fleet-wide even though the
+     * key ledger is shared: the interesting failure is DIVERGENCE — one node
+     * that cannot reach the vault while the rest can is invisible in a
+     * single-node query and is exactly what turns into a partial outage.
+     */
+    async getClusterKeyVaultStatus(issuedBy = null) {
+        const results = await this.commandAll(ClusterCommands.KEYVAULT_STATUS, {}, this.config.commandTimeoutMs, issuedBy);
+
+        return results.map(result => ({
+            workerId: result.workerId,
+            ok: result.ok === true,
+            ...(result.ok === true ? { status: result.result || null } : { error: result.error || null })
+        }));
+    }
+
+    /**
+     * Rotates the key encryption key in the vault and re-wraps the data
+     * encryption key under it.
+     *
+     * Issued to ONE node: the DEK ledger is shared database state, so a
+     * broadcast would have every node re-wrapping the same row concurrently.
+     * Every other node keeps using the DEK it already holds — the key material
+     * never changed, only its wrapper — so no restart or coordination is needed.
+     */
+    async rotateEncryptionKek(workerId = null, issuedBy = null) {
+        const target = workerId || (await this._firstActiveWorkerId());
+
+        return { workerId: target, outcome: await this.command(target, ClusterCommands.KEYVAULT_ROTATE_KEK, {}, KEYVAULT_LONG_TIMEOUT_MS, issuedBy) };
+    }
+
+    /**
+     * Rotates the data encryption key and re-encrypts every registered
+     * encrypted column under it. Single node, for the same reason as above,
+     * and with a long timeout because it walks user data in batches.
+     */
+    async rotateEncryptionDek({ workerId = null, batchSize = null, reencrypt = true } = {}, issuedBy = null) {
+        const target = workerId || (await this._firstActiveWorkerId());
+
+        const outcome = await this.command(
+            target,
+            ClusterCommands.KEYVAULT_ROTATE_DEK,
+            { ...(batchSize ? { batchSize } : {}), reencrypt },
+            KEYVAULT_LONG_TIMEOUT_MS,
+            issuedBy
+        );
+
+        return { workerId: target, outcome };
+    }
+
+    /**
+     * Asks the fleet whether field encryption is unavailable EVERYWHERE.
+     *
+     * This is the gate on the destructive wipe. If a single node can still
+     * decrypt, the data is not lost and the correct action is to repair the
+     * other nodes — so acceptance requires unanimity (`quorumRatio: 1`) and
+     * every node must answer. A partitioned or partially-unreachable fleet
+     * yields `decided: false`, which reads as "unknown" and blocks the wipe.
+     */
+    async confirmEncryptionUnrecoverable(issuedBy = null) {
+        return this.proposeConsensus(ConsensusTopics.ENCRYPTION_UNAVAILABLE, {}, { quorumRatio: 1, minVoters: 1, timeoutMs: 10_000 });
+    }
+
+    /**
+     * DESTRUCTIVE, IRREVERSIBLE: clears encrypted field data fleet-wide so
+     * affected users can re-enroll. Four independent gates must all pass:
+     *
+     *   1. the caller is root (enforced at the route);
+     *   2. the PBAC action is allowed (enforced at the route);
+     *   3. the exact confirmation phrase was typed — re-checked by the node;
+     *   4. the fleet unanimously agrees encryption is unrecoverable, unless an
+     *      operator deliberately overrides that finding.
+     *
+     * Gate 4 is the one that matters most in practice. "The key is gone" is a
+     * belief until the cluster confirms it; wiping on a belief destroys every
+     * user's second factor for what may be a single misconfigured node.
+     */
+    async wipeEncryptedFields({ confirmation, fields = null, reason = null, overrideConsensus = false } = {}, issuedBy = null) {
+        if (confirmation !== WIPE_CONFIRMATION_PHRASE) {
+            throw new Error(`Refusing to wipe encrypted fields: the confirmation phrase must be exactly "${WIPE_CONFIRMATION_PHRASE}"`);
+        }
+
+        const consensus = await this.confirmEncryptionUnrecoverable(issuedBy);
+
+        if (!consensus.accepted && overrideConsensus !== true) {
+            const detail = !consensus.decided
+                ? `only ${consensus.responded}/${consensus.eligible} nodes answered, so the fleet's state is unknown`
+                : `${consensus.eligible - consensus.yes} of ${consensus.eligible} node(s) can still decrypt`;
+
+            const error = new Error(
+                `Refusing to wipe encrypted fields: ${detail}. Repair those nodes instead — wiping destroys every affected user's enrollment. ` +
+                    'Pass overrideConsensus to proceed anyway, and record why.'
+            );
+            error.consensus = consensus;
+            error.code = 'KEYVAULT::CONSENSUS-REFUSED';
+            throw error;
+        }
+
+        // Executed on ONE node: the wipe is a statement against shared database
+        // state, and running it fleet-wide would be N identical destructive
+        // passes rather than one.
+        const target = await this._firstActiveWorkerId();
+
+        const outcome = await this.command(
+            target,
+            ClusterCommands.KEYVAULT_WIPE_ENCRYPTED,
+            {
+                confirmation,
+                ...(Array.isArray(fields) && fields.length > 0 ? { fields } : {}),
+                reason,
+                actorEmail: issuedBy?.email || null
+            },
+            KEYVAULT_LONG_TIMEOUT_MS,
+            issuedBy
+        );
+
+        return { workerId: target, consensus, consensusOverridden: !consensus.accepted, outcome };
+    }
+
+    /** The node that shared-state key-vault work is issued to. */
+    async _firstActiveWorkerId() {
+        const workers = (await getAllWorkers()).filter(isActiveWorker);
+
+        if (workers.length === 0) {
+            throw new Error('No active node is available to run the key-vault operation');
+        }
+
+        return workers[0].id;
+    }
+
     // ── Observability ─────────────────────────────────────────────────────────
 
     getNode(workerId) {
@@ -778,4 +976,4 @@ class OrionOrchestrator {
     }
 }
 
-export { OrionOrchestrator };
+export { OrionOrchestrator, WIPE_CONFIRMATION_PHRASE };

@@ -1,0 +1,123 @@
+---
+title: Cryptography
+description: Review the cryptographic primitives Orion uses for tokens, passwords, second factors, transport, key management, and tamper-evident audit trails.
+---
+
+Orion uses Node's built-in `crypto` plus a small number of well-established
+libraries. There is no home-grown cipher.
+
+## Tokens
+
+| Purpose | Primitive |
+| --- | --- |
+| JWT signing (access, refresh, resource) | **ES256** (ECDSA P-256 + SHA-256) |
+| Internal artifact signing | **ES256**, separate `SignatureSecretsManager` domain |
+| Key pools | 2 key pairs per domain, rotated by the secrets managers |
+| Key distribution | Redis fan-out in cluster mode; in-process otherwise |
+
+Each token kind gets its own manager domain — `access`, `refresh`, `resource` —
+so a compromise in one does not extend to the others. Every JWT carries a key id
+so validation selects the right public key.
+
+## Proof-of-possession (DPoP)
+
+| Element | Detail |
+| --- | --- |
+| Standard | RFC 9449 |
+| Key thumbprint | RFC 7638, SHA-256, base64url |
+| Accepted key types | `EC`, `RSA` only |
+| Accepted algorithms | ES256/384/512, RS256/384/512, PS256/384/512 |
+| Proof freshness | ±60 seconds, two-sided |
+| Replay defence | `jti` cache, recorded only after every other check passes |
+| Token binding | `ath` = SHA-256 of the presented access token; `cnf.jkt` on the token |
+
+A JWK containing a private `d` member is rejected outright.
+
+## Passwords and secrets at rest
+
+| Purpose | Primitive |
+| --- | --- |
+| User passwords | **bcrypt** |
+| Password strength scoring | **zxcvbn** |
+| TOTP secrets | **AES-256-GCM** under a data encryption key, itself wrapped by a KEK in your [key vault](/versions/alpine/docs/security/key-vaults). Stored as `enc.v2.<dekVersion>.…`; the version is AAD-bound |
+| Device fingerprints | **Keyed HMAC** with `tokens.fingerprintDigestKey` |
+| Root admin password (orchestrator) | **salted scrypt** |
+| Magic-link and admin session tokens | **SHA-256** hashes — never stored raw |
+
+<Callout type="info" title="Why HMAC and not bcrypt for fingerprints">
+A fingerprint is already high-entropy, so the property needed is not slow
+hashing — it is that a database reader cannot correlate a stored digest back to a
+device. A keyed HMAC gives exactly that, at a fraction of the cost on the auth
+path.
+</Callout>
+
+## Second factors
+
+| Purpose | Primitive |
+| --- | --- |
+| TOTP | **otplib** (RFC 6238) |
+| QR codes | **qrcode** |
+| Passkeys | **WebAuthn** via `@simplewebauthn/server` |
+
+## R_Sync transport
+
+| Purpose | Primitive |
+| --- | --- |
+| Key agreement | **ECDH** over P-256 / P-384 / P-521 (`ECC_256` / `384` / `521`) |
+| Key derivation | **HKDF**, per-session salt = SHA-256 of both parties' raw public keys |
+| Payload encryption | **AES-256-GCM** |
+| Message signatures | **Ed25519** |
+| Worker identity | Persistent **Ed25519** keypair, created on first boot |
+| Session keys | Fresh ECDH + Ed25519 pairs on every boot — forward secrecy |
+| Registration signature | Ed25519 over `timestamp:workerId:nonce:sha256(encryptionPublicKey)` |
+
+The per-session salt means no two tunnels share a derived key even with the same
+long-term material. R_Sync also exposes SHA-256/512, BLAKE2b/2s, bcrypt, PBKDF2,
+scrypt, RSA, and HMAC through `cryptoExports` for advanced use.
+
+## Audit chains
+
+| Trail | Primitive |
+| --- | --- |
+| Orion-core `audit_trail` | SHA-256 chain, `hash` linked to `prevHash`, covering all audited fields |
+| Local audit WAL | Signed, with the public key published as `orion.internal.audit_wal.pub.pem` |
+| Orchestrator `orch_admin_audit` | `hash = sha256(row + prev_hash)`, plus a database trigger blocking `UPDATE`/`DELETE` |
+
+## Randomness
+
+All key material, token ids, challenge codes, nonces, and flow secrets come from
+Node's CSPRNG through `crypto`. The `VolatileSecretsManager` maintains a pool of
+20 secrets at 32 bytes each for ephemeral use.
+
+## Constant-time comparison
+
+`crypto.timingSafeEqual` is used where a comparison result is attacker-visible —
+for example the orchestrator dashboard's HTTP Basic check compares both username
+and password that way, with an explicit length check first.
+
+## Transport encryption
+
+TLS 1.3 for all client traffic. Two earlier subsystems — the Data Integrity
+Protocol and a hybrid transport-encryption layer — were **decommissioned in
+favour of TLS**. Request payloads now travel as plain JSON. The `orion-dip-*` and
+`orion-encryption-*` headers no longer exist.
+
+<Callout type="warning" title="Which means TLS is not optional">
+There is no longer an application-layer confidentiality mechanism underneath.
+Deploy behind real TLS — see [TLS &amp; reverse proxies](/versions/alpine/docs/deployment/tls).
+</Callout>
+
+## Key management summary
+
+| Key | Where it lives | Rotation | If lost |
+| --- | --- | --- | --- |
+| Token signing pools | Redis / in-process | Automatic, plus `secrets:force-rotate` | Sessions invalidated |
+| Field encryption KEK | Your key vault (KMS, Key Vault, transit, …) | `orionctl keyvault rotate-kek` — data untouched | TOTP deactivates; users fall back to emailed codes. Recover with `keyvault wipe` + re-enrollment |
+| Field encryption DEK | `orion_encryption_keys`, stored wrapped | `orionctl keyvault rotate-dek` — re-encrypts every sealed row | Retired versions are kept, so rotation never strands data |
+| `tokens.fingerprintDigestKey` | Your config | Manual — breaks existing digests | Fingerprint matching breaks |
+| R_Sync worker identity | `r_sync.internal.worker_config.json` | Delete the file to re-register | Node registers as new |
+| Audit WAL signing key | Next to the node | — | Past WAL entries unverifiable |
+| Root admin password | scrypt in Postgres | Forced on first login | Recovery requires database access |
+
+The middle two and the audit key are not in any database. Back them up
+separately.

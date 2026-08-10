@@ -16,10 +16,12 @@ import { getUserProfile } from './API-Handlers/Auth/GetUserProfile.js';
 import { listActiveSessions, revokeSession, revokeAllSessions } from './API-Handlers/Auth/SessionManagement.js';
 import { globalAccessPoint } from './Utils/GlobalAccessPoint.js';
 import { getDeviceFingerprint } from './Utils/DevicePrint.js';
+import { renderNotificationsUI } from './Flows/NotificationsFlow.js';
 
 class Orion {
     #authState = { status: 'IDLE' };
     #authListeners = new Set();
+    #notificationsInFlight = false;
 
     static initialized = false;
     static initPromise = null;
@@ -41,7 +43,16 @@ class Orion {
 
         globalAccessPoint.setValue('systemConfig', systemConfig);
 
-        this.Api = new ApiInterface(systemConfig.serverUrl, systemConfig.nameSpace, systemConfig?.slug || '');
+        // Proof-of-possession binding. Must match the server's `tokens.binding`:
+        // a bound server refuses requests without a proof, and an unbound one
+        // ignores proofs it is sent. Accepts the explicit `tokens.binding`
+        // string so client and server config read identically, or the shorter
+        // `useDpop` boolean.
+        const bindingEnabled = systemConfig?.tokens?.binding === 'dpop' || systemConfig?.useDpop === true;
+
+        this.Api = new ApiInterface(systemConfig.serverUrl, systemConfig.nameSpace, systemConfig?.slug || '', {
+            useDpop: bindingEnabled
+        });
 
         // Whenever the server flags a response with orion-session-logout (any
         // logout-flagged token/auth error, or a revocation of this session),
@@ -82,9 +93,53 @@ class Orion {
     setUserSignedInState(signedIn, userData = null) {
         if (signedIn) {
             this.#emitAuthState({ status: 'AUTHENTICATED', user: userData });
+            this.#checkNotifications();
         } else {
             this.#emitAuthState({ status: 'UNAUTHENTICATED' });
         }
+    }
+
+    /**
+     * Orion-owned account notices. Runs on every transition into an
+     * authenticated state — which covers both a fresh sign-in and a page reload
+     * that restores a session — and the SERVER decides whether anything is
+     * actually raised. There is no opt-out: these are security facts about the
+     * user's own account (a second factor that stopped working, a fleet-wide
+     * 2FA reset) that a host application must not be able to hide.
+     *
+     * Deliberately fire-and-forget: it must never delay or fail the auth state
+     * the application is waiting on.
+     */
+    #checkNotifications() {
+        if (this.#notificationsInFlight) return;
+        if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+        this.#notificationsInFlight = true;
+
+        renderNotificationsUI(this.systemConfig.serverUrl, this.systemConfig.nameSpace, this.systemConfig?.slug || '', this.systemConfig?.notificationStyles || {})
+            .catch(() => {
+                /* advisory surface — never surfaced as an auth error */
+            })
+            .finally(() => {
+                this.#notificationsInFlight = false;
+            });
+    }
+
+    /**
+     * Manual trigger for hosts that want to surface pending notices from their
+     * own UI (a bell icon, a settings page). The server still decides what is
+     * shown; this only asks earlier than the automatic check would.
+     */
+    async showNotifications() {
+        await this.initialize();
+        if (this.#authState.status !== 'AUTHENTICATED') return { error: true, errorCode: 'CLIENT-AUTH-NO-AUTHED-USER-PRESENT' };
+
+        return await renderNotificationsUI(
+            this.systemConfig.serverUrl,
+            this.systemConfig.nameSpace,
+            this.systemConfig?.slug || '',
+            this.systemConfig?.notificationStyles || {}
+        );
     }
 
     async initialize() {

@@ -1,0 +1,126 @@
+---
+title: Interruption flows
+description: How the SDK handles a mid-request ceremony demand, and what a custom client must implement.
+---
+
+Two server-side conditions interrupt an otherwise valid call. Both are signalled
+by the `orion-flow-activation` response header, and both are fully handled by the
+SDK.
+
+| Header value | Driver | Cause |
+| --- | --- | --- |
+| `FLOW-DEVICE-AUTHORIZATION` | `DeviceAuthorizationFlow` | Sign-in from an unrecognized device |
+| `FLOW-STEP-UP-AUTH` | `StepUpAuthFlow` | Risk score ≥ 50, login backoff, or a sensitive operation |
+
+## The mechanism
+
+Every response passes through the SDK's `ApiInterface.fetch`, which inspects the
+header before returning:
+
+<Steps>
+  <Step title="Detect">
+    A recognised `orion-flow-activation` value maps to a driver. An unrecognised
+    value throws <code>Orion header flow triggered, invalid flow type!</code>
+  </Step>
+  <Step title="Run the ceremony">
+    The driver renders its own UI, queries the available methods, and drives the
+    endpoints to completion. It resolves only when the user has finished.
+  </Step>
+  <Step title="Signal a retry">
+    `fetch` then throws an error carrying
+    <code>_orionDeviceAuthCompleted: true</code>. The original response is stale —
+    it carried the flow header, not a real result — so it must not be returned.
+  </Step>
+  <Step title="Retry at the call site">
+    `signInUser`, `signInWithPasskey`, and `handleOAuthCallback` catch that marker
+    and re-run themselves with the same arguments.
+  </Step>
+</Steps>
+
+## Why each retry differs
+
+| Method | Retry behaviour | Why |
+| --- | --- | --- |
+| `signInUser` | Re-runs identically | Email and password are reusable |
+| `signInWithPasskey` | Re-runs, which fetches a **fresh challenge** | A WebAuthn challenge is single-use |
+| `handleOAuthCallback` | Starts a **new redirect** for the saved provider | An authorization code is single-use and already spent |
+
+For the OAuth case the provider name is read from `sessionStorage`
+(`orion_oauth_provider`), written just before the initial redirect. With no saved
+provider the SDK navigates to `postAuthRedirect` and returns
+`{ error: false, signedIn: false }`.
+
+## Methods that do not auto-retry
+
+Only the three sign-in paths catch the marker. Any other call that triggers a
+flow — for instance an authenticated action that demands step-up — propagates the
+throw to your code. Handle it:
+
+```js copy
+try {
+    await orion.getUserProfile();
+} catch (e) {
+    if (e._orionDeviceAuthCompleted) {
+        // The ceremony finished. Retry.
+        await orion.getUserProfile();
+    } else {
+        throw e;
+    }
+}
+```
+
+## Implementing a custom client
+
+If you are not using the SDK you must drive these yourself.
+
+### Device authorization
+
+```http
+POST /alpine/api/v1/request/available-2fa-methods       { packet: {} }
+POST /alpine/api/v1/action/send-device-authorization-email   { packet: {} }
+POST /alpine/api/v1/action/authorize-me                 { packet: { authorizationCode } }
+POST /alpine/api/v1/action/authorize-device-with-passkey { packet: { authenticationResponse } }
+POST /alpine/api/v1/action/authorize-device-with-totp   { packet: { totpCode } }
+```
+
+All reachable with a `NO_AUTH_BEARER`. Flow state is carried by the
+`deviceAuthorizationRequestId`, `deviceAuthEmailOffset`, and
+`deviceAuthFlowSecret` cookies, so send `credentials: 'include'`.
+
+### Step-up auth
+
+```http
+POST /alpine/api/v1/request/step-up-methods
+POST /alpine/api/v1/action/initiate-step-up-email
+POST /alpine/api/v1/action/verify-step-up-email
+POST /alpine/api/v1/action/generate-step-up-passkey-options
+POST /alpine/api/v1/action/verify-step-up-passkey
+POST /alpine/api/v1/action/verify-step-up-totp
+```
+
+These six routes **bypass the no-auth-token gate** — they authenticate through
+the signed `stepUpContext` cookie the server set when it raised the flow. Do not
+try to attach a session token; there is not a usable one at that moment.
+
+### After completion
+
+Retry the original request. Do not assume the interrupted response body means
+anything.
+
+## The captcha bootstrap
+
+Not a flow header, but the same category of thing: something that must happen
+before your first call succeeds.
+
+When `utilities.accessControl.captcha` is enabled, unauthenticated endpoints
+require a `NO_AUTH_TOKEN` cookie. The SDK's `initialize()` handles it:
+
+```http
+POST /alpine/api/v1/request/have-no-auth-token                { packet: {} }
+POST /alpine/api/v1/action/generate-no-auth-token-transaction { packet: { captchaQuestionsHash } }
+POST /alpine/api/v1/action/generate-no-auth-token             { packet: { transactionId, recaptchaResponse, captchaSystemVersion } }
+```
+
+These are the only three routes reachable with `Authorization: NO_BEARER`.
+`captchaSystemVersion` must be exactly `[orion:v1]-[1.0.0]-[BETA]`, and
+`captchaQuestionsHash` a 64-character hex digest.

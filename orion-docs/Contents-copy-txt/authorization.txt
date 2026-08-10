@@ -1,0 +1,214 @@
+---
+title: Authorization
+description: End-user roles, resource grants, and the PBAC model that governs operators of the control plane.
+---
+
+Orion answers two different authorization questions with two different systems.
+
+<Callout type="info" title="Two audiences, two mechanisms">
+**Your end users** get an identity and a role from Orion; what they may do inside
+your application is your code's decision. **Operators** — the humans who touch
+Orion-Orchestrator — are governed by PBAC, which is Orion's own concern and is
+enforced identically across the panel, the API, and the CLI.
+</Callout>
+
+## End-user roles
+
+Every user row carries a `role`. The standard values are `USER` and `ADMIN`. You
+can widen the set with `utilities.userRoles.allowedUserRoles`, an array that is
+uppercased and trimmed at boot; supplying a non-array or an empty array fails the
+boot.
+
+Roles are changed server-side through the exported `userControl` API:
+
+```js
+import { userControl } from '@aadharsh/orion-alpine-x934x';
+
+await userControl.updateUserRole(uid, 'ADMIN', /* customRolesAllowed */ false);
+```
+
+<Callout type="warning" title="A role change is not free-floating">
+Role is re-read from the database on every token refresh and never copied
+forward from the presented token, and a role change moves the user's
+`sessions_valid_from` watermark. That is what makes a demotion take effect
+instead of propagating stale privilege for as long as the session keeps
+refreshing.
+</Callout>
+
+### The `userControl` surface
+
+| Method | Purpose |
+| --- | --- |
+| `checkUserExist().byEmail(email)` / `.byUid(uid)` | Existence check |
+| `getUserUidByEmail(email)` / `getUserEmailByUid(uid)` | Identifier lookup |
+| `disableUserAccount()` / `enableUserAccount()` | Suspend or restore an account |
+| `getUserAccountState()` | Current account status |
+| `updateUserRole(uid, role, customRolesAllowed)` | Change role |
+| `updateUserPassword(uid, newPassword)` | Administrative password set |
+
+Every call writes to the audit trail, including the failure paths. A disabled
+account is refused at sign-in with `ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p` and
+its live sessions are invalidated on the next refresh.
+
+## Resource authorization (ORAS)
+
+Separate from user roles: ORAS gates delivery of files rather than routes. Any
+request path containing `resource-access-oras` is intercepted before the auth
+stack and dispatched by its `accessType` query parameter.
+
+| Access type | Gate |
+| --- | --- |
+| `public` | None — path traversal is blocked by a safe-path resolver, nothing else |
+| `secure-0` | A valid resource token; delivered as base64 through a registered callback |
+| `s3-0` | A valid resource token; the callback returns a presigned S3 URL |
+
+A resource token carries its own allowlist of callback paths, a retrieval budget,
+and optional custom data. Callbacks are declared in
+`api.resourceAccessConfig` and validated at boot — an entry with a non-string
+`callbackPath`, an unsupported `accessType`, or a non-function `callback` is
+refused registration with a warning rather than failing the boot.
+
+See [Resource access](/versions/alpine/docs/guides/resource-access).
+
+## PBAC — governing the control plane
+
+Without the system-admin plane, anyone who can reach the orchestrator process has
+total, unaudited governance. Enabling `systemAdmin` puts every operator behind
+policy, two-factor auth, and an immutable audit trail.
+
+```text
+            magic link + TOTP                    PBAC evaluation
+  operator ───────────────────▶  session  ───────────────────────▶ orch action
+  (root: password + TOTP)        (2-stage)   deny-overrides,          │
+                                             default deny             ▼
+                                                          immutable audit row
+                                                          (orch) + node-side
+                                                          audit row (worker)
+```
+
+### Roles and lifecycle
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="warning">Root</Badge></CardHeader>
+    <CardTitle>One account, total governance</CardTitle>
+    <CardDescription className="mt-2">
+      Created from <code>systemAdmin.rootAdmin</code> on the <strong>first boot
+      only</strong>. The only account with a password. First login forces a
+      password rotation and TOTP enrollment before the account becomes active.
+      Root bypasses PBAC entirely and is the only principal that can create,
+      suspend, or delete admins and manage policies, groups, and attachments.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge>System admin</Badge></CardHeader>
+    <CardTitle>Passwordless, policy-bound</CardTitle>
+    <CardDescription className="mt-2">
+      Sign-in is a single-use, short-lived emailed magic link <em>plus</em> a
+      required TOTP layer. The account stays <code>pending</code> and cannot act
+      until enrollment completes. It governs the cluster strictly within the
+      policies attached to it, directly or through a group.
+    </CardDescription>
+  </Card>
+</Grid>
+
+Sessions are two-stage: the first factor yields a short `pending_totp` session
+that can only reach the TOTP endpoints, and the authenticator code upgrades it.
+Suspending an admin revokes every live session instantly. Default lifetimes:
+magic link 10 minutes, pending session 15 minutes, full session 12 hours.
+
+### Policy documents
+
+IAM-flavored JSON, validated on write:
+
+```json filename="ops-policy.json"
+{
+  "version": 1,
+  "statements": [
+    { "sid": "observe", "effect": "allow", "actions": ["cluster:read:*", "audit:read"], "resources": ["*"] },
+    { "sid": "ops",     "effect": "allow", "actions": ["cluster:ops:lock", "cluster:ops:unlock"], "resources": ["*"] },
+    { "sid": "no-prod", "effect": "deny",  "actions": ["cluster:command:*"], "resources": ["node:WKR-prod-1"] }
+  ]
+}
+```
+
+Semantics: **default deny**, **deny overrides**, and effective policy = the union
+of direct attachments and group attachments. Patterns are `:`-segment globs —
+`*` matches one segment, a trailing `*` matches the rest.
+
+### The action vocabulary
+
+| Action | Grants |
+| --- | --- |
+| `cluster:read:status` · `nodes` · `health` · `escalations` · `consensus` · `policy-rules` · `policy-outcomes` · `command-log` | The matching read surface |
+| `cluster:ops:lock` · `unlock` · `incident-declare` · `incident-resolve` · `consensus-propose` · `client-urls-add` | The matching cluster operation |
+| `cluster:command:<node action>` | Executing one specific allowlisted node command, e.g. `cluster:command:server:lock` |
+| `keyvault:read:status` · `keyvault:ops:rotate-kek` · `rotate-dek` · `wipe-encrypted` | Field encryption, graded from a safe read to the irreversible wipe |
+| `mailing:read:jobs` · `mailing:read:queue` · `mailing:ops:submit` · `mailing:ops:cancel` | Batch mailing |
+| `notifications:read` | The orchestrator notification feed |
+| `audit:read` | Reading the orchestrator audit trail |
+| `governance:admins` · `governance:policies` · `governance:groups` | Listed for audit labelling only — **role**-enforced, never policy-grantable |
+
+Node commands are individually grantable and can be scoped by resource, so a
+policy can allow `cluster:command:node:ping` on `*` while denying
+`cluster:command:ets:clear-lockdown` on `node:WKR-prod-1`.
+
+`keyvault:*` and `mailing:*` sit outside `cluster:*` on purpose. Both hold
+capabilities whose blast radius has nothing to do with ordinary cluster
+operations — destroying every user's second factor, or sending mail from your own
+domain to an arbitrary list — so a broad `cluster:*` grant must not silently
+confer either. Mailing job routes are scoped to the resource `job:<id>`, key-vault
+and cluster routes to `cluster` or `node:<workerId>`.
+
+A managed built-in policy, `default-read-only` (`POL_DEFAULT_READ_ONLY`), ships
+with the migration and is attached automatically when an admin is created with no
+explicit policy or group.
+
+### Storage and the worker read-only rule
+
+The plane owns eight Postgres tables — `orch_system_admins`,
+`orch_admin_policies`, `orch_admin_groups`, `orch_admin_group_members`,
+`orch_admin_policy_attachments`, `orch_admin_magic_links`, `orch_admin_sessions`,
+and `orch_admin_audit` — created by its own versioned migrations recorded in
+`_orch_migrations` under advisory lock `761003002`.
+
+Point `systemAdmin.database` at the same Postgres the workers use, but with the
+**orchestrator's** credentials. Only the orchestrator writes system-admin data;
+workers may at most `SELECT`. Enforce it at the database with
+`sql/worker-grants.example.sql` — credential tables are excluded from worker
+grants entirely.
+
+#### The one exception
+
+The [batch mailing](/versions/alpine/docs/guides/batch-mailing) tables are **dual-write**,
+and deliberately so. A node that has been assigned a group archives and deletes
+its own recipient rows as it sends them; reporting every individual send upstream
+would turn a large blast into a sustained flood of control-plane traffic for no
+gain.
+
+The exception is kept narrow. Workers get DML on exactly two tables —
+`orch_mailing_recipients` and `orch_mailing_archive` — and nothing else: no write
+on `orch_mailing_jobs` or `orch_mailing_assignments` (a node reports its group
+outcome over the cluster tunnel and never edits the control plane's own
+bookkeeping), and no change whatsoever to the `orch_admin_*` rules above. Within
+those two tables a node only ever touches rows stamped with its own worker id.
+
+The same grants file covers it; apply it again after enabling batch mailing.
+
+Secrets never persist raw: magic-link and session tokens are stored as SHA-256
+hashes, and the root password as salted scrypt.
+
+### Audit on both sides
+
+- **Orchestrator** — every authenticated API request, PBAC denials included, plus
+  every auth and governance event, lands in `orch_admin_audit` scoped to the
+  acting admin. Rows are hash-chained (`hash = sha256(row + prev_hash)`) and the
+  table rejects `UPDATE` and `DELETE` at the database level via trigger.
+  `GET /api/audit/verify` (root only) re-walks the entire chain.
+- **Worker** — every command envelope carries `issuedBy`: `{ type: 'system' }` for
+  orchestrator automation, or `{ type: 'admin', id, email }` for a human acting
+  through the panel or CLI. The receiving node records it in its own audit trail
+  as `CLUSTER_COMMAND_RECEIVED`, scoped to that principal.
+
+The result is that a remote action is attributable end to end, on both sides of
+the wire, and neither side's record can be edited through the application.

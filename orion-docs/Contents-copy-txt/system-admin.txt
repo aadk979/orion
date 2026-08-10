@@ -1,0 +1,127 @@
+---
+title: System-admin plane configuration
+description: The systemAdmin block — database, root admin, HTTP, mail, and session lifetimes.
+---
+
+Passed to `OrionOrchestrator` as `systemAdmin`. Everything is inert until
+`enabled: true`.
+
+## Options
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | Master switch |
+| `database` | object | — **required** | `{ host, port, database, user, password, poolMax?, statementTimeoutMs? }` — the **orchestrator's** read-write credentials |
+| `rootAdmin` | object | required on first boot | `{ email, initialPassword }`. Password minimum 12 characters. Consumed only when no root exists yet |
+| `http` | object | `{}` | See below |
+| `baseUrl` | string | `null` | This panel's own public URL, used to build magic links |
+| `mail` | object | `{}` | `{ service \| host/port/secure, email, password, from, appName }`. Omit for console-mode links — development only |
+| `magicLinkTtlMinutes` | number | `10` | Single-use regardless of TTL |
+| `pendingSessionTtlMinutes` | number | `15` | Lifetime of the between-factors session |
+| `sessionTtlHours` | number | `12` | Lifetime of a fully authenticated session |
+| `totpIssuer` | string | `'Orion Orchestrator'` | Issuer shown in authenticator apps |
+
+### `http`
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `host` | `'0.0.0.0'` | |
+| `port` | `55330` | Serves both `/api/*` and the static panel |
+| `secureCookies` | `true` | Leave on. Off is for local HTTP development only |
+| `trustProxy` | `false` | Set `true` behind a reverse proxy so forwarded client IPs reach the audit trail |
+| `authRateLimit` | `{ max: 10, windowMs: 300000 }` | Applies to the `/api/auth` group |
+| `theme` | `'modern'` | `'modern'` or `'classic'`. Overrides the `ORION_GUI_THEME` env var |
+
+## Root admin bootstrap
+
+`rootAdmin` is consumed **on the first boot only** — once a root row exists the
+block is ignored. First login forces a password rotation and TOTP enrollment
+before the account becomes active.
+
+Root holds total governance, bypasses PBAC entirely, and is the only account with
+a password. It is also the only principal that can create, suspend, or delete
+admins and manage policies, groups, and attachments.
+
+<Warning title="Rotate the initial password immediately">
+It is in your launch configuration in plaintext. The forced rotation on first
+login exists for exactly this reason — complete it, then remove the value from
+your environment.
+</Warning>
+
+## Database placement
+
+Point `systemAdmin.database` at the **same** Postgres your workers use, but with
+the orchestrator's own credentials. The plane creates eight `orch_*` tables
+tracked in its own `_orch_migrations` ledger under advisory lock `761003002`, so
+it never collides with Orion-core's migrations. Enabling
+[batch mailing](/versions/alpine/docs/guides/batch-mailing) adds six more through the
+same ledger.
+
+Then enforce the read-only rule at the database:
+
+```bash filename="terminal" copy
+psql -d orion -f Packages/server/Orion-Orchestrator/sql/worker-grants.example.sql
+```
+
+Adjust the role names first. Credential tables — magic links and sessions — are
+excluded from worker grants entirely.
+
+## Panel themes
+
+Two complete visual themes are compiled into the same shipped CSS bundle.
+
+| Theme | Look |
+| --- | --- |
+| `modern` (default) | Light, Apple-style: white/parchment surfaces, Action Blue `#0066cc`, pill buttons, roomy spacing |
+| `classic` | Dense MySQL Workbench-style: gray native chrome, sharp rectangles, 11px Segoe/Consolas, zebra grids, status bar |
+
+```bash filename="terminal"
+ORION_GUI_THEME=classic node orchestrator.js
+```
+
+```js
+systemAdmin: { http: { theme: 'classic' } }   // config wins over the env var
+```
+
+`AdminServer` stamps `data-theme` onto `<html>` as each document is served, so
+switching is a **process restart, never a GUI rebuild**. An unrecognised name logs
+a warning and falls back to `modern`. The active theme is reported at startup and
+on `GET /api/meta` as `guiTheme`.
+
+## Mail
+
+Without a `mail` block, magic links are printed to the console. That is a
+development convenience — in production it means anyone with log access can sign
+in as any admin.
+
+## First run
+
+<Steps>
+  <Step title="Start the orchestrator with systemAdmin enabled">
+    Migrations run and the root row is created from `rootAdmin`.
+  </Step>
+  <Step title="Open the panel">
+    `http://<host>:55330` → the **Root** tab.
+  </Step>
+  <Step title="Sign in with the configured email and initial password">
+    You land in a `pending_totp` session that can reach only the TOTP endpoints.
+  </Step>
+  <Step title="Enroll TOTP">
+    Scan the QR code and submit a code. The session upgrades.
+  </Step>
+  <Step title="Rotate the password">
+    Forced before the account is considered active.
+  </Step>
+  <Step title="Invite admins from Governance">
+    Create accounts, author policies, and build groups. New admins with no
+    explicit policy get the managed `default-read-only` policy automatically.
+  </Step>
+</Steps>
+
+The same ladder works from the CLI:
+
+```bash filename="terminal" copy
+orionctl login root@example.com --root --url https://orch.example.com
+orionctl change-password
+orionctl admins create dev@example.com --policy POL_DEFAULT_READ_ONLY
+```

@@ -1,0 +1,179 @@
+---
+title: Deploying the control plane
+description: Deploy Orion-Orchestrator and its PBAC-governed admin plane in production, including storage, operator access, and worker connectivity.
+---
+
+One orchestrator process per cluster. It is never in the request path of a
+sign-in, so its availability requirements are lower than a node's — but it holds
+governance, so its *security* requirements are higher.
+
+## The process
+
+```js filename="orchestrator.js" copy
+import { OrionOrchestrator } from 'orion-orch';
+
+const orch = new OrionOrchestrator({
+    cluster: 'orion-prod',
+    publicIp: '10.0.0.5',
+    port: 55321,
+
+    nodeStaleAfterSeconds: 120,
+    healthEvaluationIntervalMs: 15_000,
+    confirmIncidentViaConsensus: true,
+    persistence: { enabled: true },
+
+    escalations: { webhook: { url: process.env.OPS_WEBHOOK } },
+
+    systemAdmin: {
+        enabled: true,
+        database: {
+            host: process.env.SA_DB_HOST,
+            port: 5432,
+            database: process.env.SA_DB_NAME,
+            user: process.env.SA_DB_USER,
+            password: process.env.SA_DB_PASSWORD
+        },
+        rootAdmin: {
+            email: process.env.SA_ROOT_EMAIL,
+            initialPassword: process.env.SA_ROOT_PASSWORD
+        },
+        http: {
+            host: '0.0.0.0',
+            port: 55330,
+            secureCookies: true,
+            trustProxy: true,
+            theme: 'modern'
+        },
+        baseUrl: process.env.SA_BASE_URL,
+        mail: {
+            service: 'gmail',
+            email: process.env.SA_MAIL_EMAIL,
+            password: process.env.SA_MAIL_PASSWORD,
+            from: process.env.SA_MAIL_EMAIL,
+            appName: 'Orion Orchestrator'
+        }
+    }
+});
+
+orch.onNodeHello((id, hello) => console.log(`[hello] ${id} → ${hello?.appName}`));
+orch.onNodeAlert((id, a) => console.log(`[ALERT:${a?.severity}] ${id} → ${a?.type}`));
+orch.onClusterStateChange((s, p) => console.log(`[health] ${p} → ${s}`));
+
+await orch.start();
+```
+
+Keep every secret in the environment, exported from a git-ignored
+`gipsy.launch-orch.sh` or a systemd `EnvironmentFile`.
+
+## systemd
+
+```ini filename="/etc/systemd/system/orion-orch.service" copy
+[Unit]
+Description=Orion orchestrator
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=orion
+WorkingDirectory=/opt/orion/orchestrator
+EnvironmentFile=/opt/orion/gipsy.orch.env
+ExecStart=/usr/bin/node orchestrator.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+The working directory matters — the registry persists to
+`orion_orch.internal.registry.json` and R_Sync writes its own state files there.
+
+## Database
+
+Point `systemAdmin.database` at the same Postgres the nodes use, with the
+orchestrator's own read-write credentials. It creates eight `orch_*` tables under
+its own migration ledger and advisory lock, plus six more if you enable
+[batch mailing](/versions/alpine/docs/guides/batch-mailing).
+
+Then enforce the read-only rule:
+
+```bash filename="terminal" copy
+psql -d orion -f Packages/server/Orion-Orchestrator/sql/worker-grants.example.sql
+```
+
+Adjust the role names first. Credential tables — magic links and sessions — are
+excluded from worker grants entirely.
+
+Re-run this file after enabling batch mailing. It is the one plane where workers
+write to an `orch_*` table: a sending node retires its own recipient rows, so it
+needs DML on `orch_mailing_recipients` and `orch_mailing_archive`. Nodes that lack
+those grants accept groups and then fail at the first retire.
+
+## First-run ladder
+
+<Steps>
+  <Step title="Start with systemAdmin enabled">
+    Migrations run; the root row is created from `rootAdmin`. That block is
+    consumed on the **first boot only**.
+  </Step>
+  <Step title="Sign in as root">
+    Open the panel at `https://orch.example.com` → Root tab, or
+    `orionctl login root@example.com --root --url https://orch.example.com`.
+  </Step>
+  <Step title="Enroll TOTP and rotate the password">
+    Both are forced before the account becomes active.
+  </Step>
+  <Step title="Remove the initial password from your environment">
+    It has served its purpose and is now a liability.
+  </Step>
+  <Step title="Create admins and policies">
+    From Governance in the panel, or `orionctl admins create` /
+    `orionctl policies create`. Grant the minimum each operator needs.
+  </Step>
+</Steps>
+
+## Exposure
+
+| Port | Who reaches it |
+| --- | --- |
+| 55321 | Auth nodes only, private subnet |
+| 55330 | Operators, behind TLS, ideally IP-restricted or VPN-only |
+
+The panel must be behind TLS: sessions ride an `HttpOnly` cookie and
+`secureCookies: true` is the default for good reason. Set
+`http.trustProxy: true` behind a reverse proxy so real client IPs land in the
+audit trail.
+
+`baseUrl` must be the panel's real public URL — it is what magic links point at.
+
+## Restart behaviour
+
+On restart the registry rehydrates from disk with every node marked offline, then
+an identify sweep over still-live tunnels rebuilds current state within seconds.
+Nodes that were unreachable re-register on their next attempt. Health returns to
+`HEALTHY` within roughly 30–60 seconds.
+
+<Callout type="info" title="Losing the orchestrator does not stop authentication">
+Nodes with `requireOrchestrator: false` (the default) keep serving and retry
+registration with exponential backoff, 5s → 5m. You lose fleet visibility and
+remote control, not sign-ins.
+</Callout>
+
+## Panel theme
+
+```bash filename="terminal"
+ORION_GUI_THEME=classic node orchestrator.js     # or systemAdmin.http.theme
+```
+
+Both themes are compiled into the shipped bundle and the attribute is stamped per
+request, so switching is a restart — never a GUI rebuild.
+
+## Verify
+
+```bash filename="terminal" copy
+orionctl status
+orionctl nodes
+orionctl audit verify        # root only — proves the chain is intact
+```
+
+Or in the panel: the dashboard should show `HEALTHY N/N online`.

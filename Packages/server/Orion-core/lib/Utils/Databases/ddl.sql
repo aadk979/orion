@@ -124,8 +124,12 @@ CREATE INDEX IF NOT EXISTS idx_passkey_transports_cred
     ON user_passkey_transports (passkey_credential_id);
 
 -- ─── TOTP Configuration (1:1 with users) ────────────────────────────────────
--- secret / pending_secret are sealed (AES-256-GCM, 'enc.v1.' prefix) by
--- TOTPModel when utilities.dataEncryption.key is configured.
+-- secret / pending_secret are sealed by TOTPModel via the key vault subsystem:
+-- AES-256-GCM under a data encryption key from orion_encryption_keys, stored as
+-- 'enc.v2.<dekVersion>.<iv>.<tag>.<ciphertext>'. Rows written by earlier
+-- releases carry the 'enc.v1.' inline-key format and are re-sealed on the next
+-- write or DEK rotation. Without a usable key vault, writes are REFUSED (never
+-- plaintext) and TOTP deactivates in favour of the emailed one-time code.
 
 CREATE TABLE IF NOT EXISTS user_totp (
     user_uid        TEXT PRIMARY KEY REFERENCES users(uid) ON DELETE CASCADE,
@@ -313,6 +317,65 @@ CREATE TABLE IF NOT EXISTS _orion_health_check (
     id                  TEXT PRIMARY KEY,
     data                TEXT
 );
+
+-- ─── Data Encryption Keys (envelope encryption) ─────────────────────────────
+-- Orion generates a DEK and stores it WRAPPED by a key encryption key held in a
+-- vault (utilities.dataEncryption.provider). No row here is usable on its own.
+-- Retired versions are retained so older envelopes stay readable — a rotation
+-- must never strand data.
+
+CREATE TABLE IF NOT EXISTS orion_encryption_keys (
+    version       INTEGER PRIMARY KEY,
+    wrapped_key   TEXT        NOT NULL,       -- provider-opaque ciphertext
+    provider      TEXT        NOT NULL,       -- AWS_KMS, GCP_KMS, HASHICORP_VAULT, …
+    key_ref       TEXT        NOT NULL,
+    kek_version   TEXT,                       -- provider key version, where exposed
+    algorithm     TEXT        NOT NULL,
+    state         TEXT        NOT NULL DEFAULT 'active',   -- 'active' | 'retired'
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    retired_at    TIMESTAMPTZ,
+    rewrapped_at  TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orion_encryption_keys_active
+    ON orion_encryption_keys (state) WHERE state = 'active';
+
+-- ─── Notifications ──────────────────────────────────────────────────────────
+-- Orion-owned, in-product delivery of account-security facts. Receipts are
+-- materialized lazily, so a broadcast costs one row here rather than one per
+-- account. Every timestamp that drives prompting is server-side by design.
+
+CREATE TABLE IF NOT EXISTS orion_notifications (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    notification_key TEXT,                                   -- collapses duplicate cluster-wide announcements
+    user_uid         TEXT REFERENCES users(uid) ON DELETE CASCADE,   -- NULL = audience-addressed
+    audience         TEXT        NOT NULL DEFAULT 'all',     -- 'all' | 'totp-enrolled'
+    severity         TEXT        NOT NULL DEFAULT 'info',    -- 'info' | 'important' | 'urgent'
+    title            TEXT        NOT NULL,
+    body             TEXT        NOT NULL,
+    action_label     TEXT,
+    action_url       TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at       TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orion_notifications_key
+    ON orion_notifications (notification_key) WHERE notification_key IS NOT NULL AND user_uid IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_orion_notifications_user ON orion_notifications (user_uid);
+CREATE INDEX IF NOT EXISTS idx_orion_notifications_expires ON orion_notifications (expires_at);
+
+CREATE TABLE IF NOT EXISTS orion_notification_receipts (
+    notification_id BIGINT      NOT NULL REFERENCES orion_notifications(id) ON DELETE CASCADE,
+    user_uid        TEXT        NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    state           TEXT        NOT NULL DEFAULT 'pending',  -- 'pending' | 'shown' | 'viewed'
+    shown_at        TIMESTAMPTZ,
+    viewed_at       TIMESTAMPTZ,
+    PRIMARY KEY (notification_id, user_uid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_orion_notification_receipts_user
+    ON orion_notification_receipts (user_uid, state);
 
 -- ============================================================================
 -- Appendix: consumer-owned tables (NOT part of Orion-core)

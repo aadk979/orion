@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Orion">
+<g fill="none" stroke-width="9" stroke-linecap="round">
+<path d="M53.0387 38.4322 A22 22 0 0 1 38.4322 53.0387" stroke="#14120E"/>
+<path d="M25.5678 53.0387 A22 22 0 0 1 10.9613 38.4322" stroke="#14120E"/>
+<path d="M10.9613 25.5678 A22 22 0 0 1 25.5678 10.9613" stroke="#14120E"/>
+<path d="M38.4322 10.9613 A22 22 0 0 1 53.0387 25.5678" stroke="#BA7517"/>
+</g></svg>

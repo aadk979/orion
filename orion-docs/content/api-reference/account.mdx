@@ -1,0 +1,78 @@
+---
+title: Account & 2FA endpoints
+description: Use Orion's account endpoints to read profiles, enroll TOTP, remove a second factor, and complete password resets safely.
+---
+
+All paths are relative to `{serverUrl}/alpine/api/v1/`. All are `POST` with a
+`{ packet: … }` body.
+
+## Profile
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `action/get-user-profile` | `ACCESS_BEARER` | 1 | `{}` |
+
+Returns the profile document assembled from `users`, `user_profile_fields`, and
+`user_custom_data`.
+
+## TOTP enrollment
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `action/generate-totp-secret` | `ACCESS_BEARER` | 3 | `{}` |
+| `action/verify-and-enable-totp` | `ACCESS_BEARER` | 3 | `{ totpCode }` — exactly 6 chars |
+
+`generate-totp-secret` returns `{ qrCode, secret }` — `qrCode` is a data URI,
+`secret` is for manual entry. Until `verify-and-enable-totp` succeeds the value
+lives in `user_totp.pending_secret` and the method is unusable, so an abandoned
+enrollment cannot lock anyone out.
+
+Secrets are sealed with AES-256-GCM under a data encryption key wrapped by your
+[key vault](/versions/alpine/docs/security/key-vaults), and stored with an `enc.v2.<version>.` prefix.
+When encryption is unavailable, enrollment is refused rather than falling back to
+plaintext, and enrolled users are offered the emailed one-time code instead.
+
+## 2FA method removal
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `action/initiate-2fa-method-removal` | `ACCESS_BEARER` | 3 | `{ method }` |
+| `action/complete-2fa-method-removal` | `ACCESS_BEARER` | 5 | `{ code }` |
+
+Initiation emails a 6-digit code and sets a `twoFARemovalRequestId` cookie (15
+minutes). Completion returns `{ method }` — the method that was removed.
+
+`two_fa_removal_requests` carries `attempts` and `max_attempts`; exceeding the
+ceiling destroys the request rather than merely rejecting the code.
+
+<Callout type="info" title="Why removal always needs email">
+This is the reason TOTP and passkeys are force-disabled when no `mail` block is
+configured: without a way to send the removal OTP, an enrolled method could never
+be removed, and accounts would be stranded in a half-functioning state.
+</Callout>
+
+## Password reset
+
+| Path | Auth | Cost |
+| --- | --- | --- |
+| `action/initiate-password-reset` | `NO_AUTH_BEARER` | 5 |
+| `action/complete-password-reset` | `NO_AUTH_BEARER` | 5 |
+
+Initiation creates a `password_reset_requests` row recording the requesting IP
+and a real expiry, emails a 6-digit code, and sets `passwordResetRequestId` (15
+minutes).
+
+| Failure | Code |
+| --- | --- |
+| Completed from a different network | `ACCOUNT-SIGNIN::PASSWORD-RESET-IP-MISMATCH::A::p` |
+| Too many wrong codes — request cancelled | `ACC-PASSWORD-RESET-ATTEMPTS-EXCEEDED` (429) |
+
+A successful reset moves the user's `sessions_valid_from` watermark, ending every
+live session including stateless tier-1 tokens.
+
+## Account administration
+
+There is **no HTTP endpoint** for disabling accounts, changing roles, or setting
+passwords administratively. Those operations are the in-process `userControl`
+API, so you build and gate the admin surface yourself. See
+[User administration](/versions/alpine/docs/guides/user-administration).

@@ -27,6 +27,7 @@ import { AuditLog } from './AuditLog.js';
 import { AdminMailer } from './AdminMailer.js';
 import { hashPassword, verifyPassword, generateToken, hashToken } from './authCrypto.js';
 import { evaluate, validatePolicyDocument } from './PBACEngine.js';
+import { evaluateCertBinding } from './certBinding.js';
 
 const DEFAULT_READ_ONLY_POLICY_ID = 'POL_DEFAULT_READ_ONLY';
 const MIN_PASSWORD_LENGTH = 12;
@@ -214,7 +215,7 @@ class SystemAdminService {
     }
 
     /** First factor complete → short pending session; TOTP is always required next. */
-    async verifyMagicLink(code, ip = null, userAgent = null) {
+    async verifyMagicLink(code, ip = null, userAgent = null, certThumbprint = null) {
         const link = code ? await this.magicLinks.consume(hashToken(code)) : null;
         if (!link) {
             this.audit.writeSafe({
@@ -232,12 +233,12 @@ class SystemAdminService {
             throw new AdminError('AUTH::ACCOUNT-UNAVAILABLE', 'This account cannot sign in', 403);
         }
 
-        return this._openPendingSession(admin, ip, userAgent, 'magic-link');
+        return this._openPendingSession(admin, ip, userAgent, 'magic-link', certThumbprint);
     }
 
     // ── Authentication: root password ─────────────────────────────────────────
 
-    async rootLogin(email, password, ip = null, userAgent = null) {
+    async rootLogin(email, password, ip = null, userAgent = null, certThumbprint = null) {
         const admin = email ? await this.admins.findByEmail(email) : null;
         const valid = admin && admin.role === 'root' && admin.status !== 'suspended' && (await verifyPassword(password || '', admin.password_hash));
 
@@ -253,12 +254,12 @@ class SystemAdminService {
             throw new AdminError('AUTH::INVALID-CREDENTIALS', 'Invalid credentials', 401);
         }
 
-        return this._openPendingSession(admin, ip, userAgent, 'root-password');
+        return this._openPendingSession(admin, ip, userAgent, 'root-password', certThumbprint);
     }
 
-    async _openPendingSession(admin, ip, userAgent, method) {
+    async _openPendingSession(admin, ip, userAgent, method, certThumbprint = null) {
         const { raw, hash } = generateToken('OAS');
-        await this.sessions.create(admin.id, hash, 'pending_totp', this.config.pendingSessionTtlMinutes * 60, ip, userAgent);
+        await this.sessions.create(admin.id, hash, 'pending_totp', this.config.pendingSessionTtlMinutes * 60, ip, userAgent, certThumbprint);
 
         this.audit.writeSafe({
             adminId: admin.id,
@@ -290,10 +291,12 @@ class SystemAdminService {
      *
      * @returns {{ token: string }} the raw token to hand back to the caller
      */
-    async _rotateSessionOnElevation(session, adminId, ip = null) {
+    async _rotateSessionOnElevation(session, adminId, ip = null, certThumbprint = null) {
         const { raw, hash } = generateToken('OAS');
 
-        await this.sessions.create(adminId, hash, 'active', this.config.sessionTtlHours * 3600, ip, session.userAgent || null);
+        // Bound to the certificate on the connection that completed the second
+        // factor, falling back to whatever the pending session carried.
+        await this.sessions.create(adminId, hash, 'active', this.config.sessionTtlHours * 3600, ip, session.userAgent || null, certThumbprint || session.certThumbprint || null);
         await this.sessions.revoke(session.sessionId);
 
         this.audit.writeSafe({
@@ -310,15 +313,46 @@ class SystemAdminService {
 
     // ── Session resolution (used by API middleware and the CLI) ──────────────
 
-    async resolveSession(rawToken) {
+    /**
+     * @param {string} rawToken
+     * @param {object} [binding] RFC 8705 certificate binding for this request.
+     * @param {boolean} [binding.required]  mTLS binding enabled for this deployment
+     * @param {string|null} [binding.presentedThumbprint] x5t#S256 from the TLS connection
+     * @returns {Promise<object|null>} null when there is no usable session —
+     *   including when the token is valid but was issued to a different client
+     *   certificate, which is the whole point of the binding.
+     */
+    async resolveSession(rawToken, binding = null) {
         if (!rawToken) return null;
         const row = await this.sessions.findLive(hashToken(rawToken));
         if (!row) return null;
+
+        if (binding?.required) {
+            const verdict = evaluateCertBinding({
+                bindingRequired: true,
+                sessionThumbprint: row.cert_thumbprint || null,
+                presentedThumbprint: binding.presentedThumbprint || null
+            });
+
+            if (!verdict.ok) {
+                this.audit.writeSafe({
+                    adminId: row.id,
+                    adminEmail: row.email,
+                    ip: null,
+                    action: 'auth:cert-binding-rejected',
+                    resource: 'auth',
+                    decision: 'deny',
+                    details: { reason: verdict.reason, sessionId: row.session_id }
+                });
+                return null;
+            }
+        }
 
         return {
             sessionId: row.session_id,
             stage: row.stage,
             expiresAt: row.expires_at,
+            certThumbprint: row.cert_thumbprint || null,
             admin: {
                 id: row.id,
                 email: row.email,
@@ -384,7 +418,7 @@ class SystemAdminService {
     }
 
     /** Completes enrollment; upgrades the session and activates the account when done. */
-    async totpActivate(session, token, ip = null) {
+    async totpActivate(session, token, ip = null, certThumbprint = null) {
         const admin = await this.admins.findById(session.admin.id);
         if (!admin?.totp_pending_secret) {
             throw new AdminError('TOTP::NO-PENDING-ENROLLMENT', 'No TOTP enrollment in progress', 409);
@@ -412,7 +446,7 @@ class SystemAdminService {
         // BEFORE the second factor — for non-root admins it arrives via a magic
         // link through email — so promoting that same value to a fully
         // privileged session hands the elevated session to anyone who saw it.
-        const elevated = await this._rotateSessionOnElevation(session, admin.id, ip);
+        const elevated = await this._rotateSessionOnElevation(session, admin.id, ip, certThumbprint);
         await this.admins.markLogin(admin.id);
 
         const fresh = await this.admins.findById(admin.id);
@@ -430,7 +464,7 @@ class SystemAdminService {
     }
 
     /** Second factor for every subsequent login. */
-    async totpVerify(session, token, ip = null) {
+    async totpVerify(session, token, ip = null, certThumbprint = null) {
         const admin = session.admin;
         if (!admin.totp_enabled || !admin.totp_secret) {
             throw new AdminError('TOTP::NOT-ENROLLED', 'TOTP enrollment is required first', 409);
@@ -440,9 +474,9 @@ class SystemAdminService {
 
         // A code that verifies but has already been spent is rejected exactly
         // like an invalid one — same audit action, same error, no oracle.
-        const fresh = result?.valid ? this._claimTotpCode(admin.id, String(token || '')) : false;
+        const codeClaimed = result?.valid ? this._claimTotpCode(admin.id, String(token || '')) : false;
 
-        if (!result?.valid || !fresh) {
+        if (!result?.valid || !codeClaimed) {
             this.audit.writeSafe({
                 adminId: admin.id,
                 adminEmail: admin.email,
@@ -460,7 +494,7 @@ class SystemAdminService {
         // BEFORE the second factor — for non-root admins it arrives via a magic
         // link through email — so promoting that same value to a fully
         // privileged session hands the elevated session to anyone who saw it.
-        const elevated = await this._rotateSessionOnElevation(session, admin.id, ip);
+        const elevated = await this._rotateSessionOnElevation(session, admin.id, ip, certThumbprint);
         await this.admins.markLogin(admin.id);
 
         this.audit.writeSafe({
@@ -648,6 +682,52 @@ class SystemAdminService {
         });
 
         return { deleted: true };
+    }
+
+    /**
+     * Clears TOTP enrollment for system admins as part of a fleet-wide 2FA
+     * reset, and revokes their sessions so the reset takes effect immediately
+     * rather than whenever their current session happens to expire.
+     *
+     * Orchestrator admin secrets live in the orch's OWN database and are not
+     * sealed by the Orion-core key vault, so a lost KEK does not actually make
+     * them unreadable. They are included anyway because "reset every
+     * authenticator on this system" that quietly skips the administrators is a
+     * half-done reset, and because the operator asking for one is usually
+     * responding to an incident where uniformity is the point.
+     *
+     * Root is excluded unless explicitly named: root has no magic-link fallback,
+     * so wiping its authenticator can strand the control plane.
+     */
+    async wipeAdminTotpEnrollments(actor, { includeRoot = false, reason = null } = {}, ip = null) {
+        this._assertRoot(actor);
+
+        const affected = await this.admins.wipeTotpEnrollments({ includeRoot });
+
+        for (const admin of affected) {
+            await this.sessions.revokeAllForAdmin(admin.id);
+        }
+
+        await this.audit.write({
+            adminId: actor.id,
+            adminEmail: actor.email,
+            ip,
+            action: 'governance:admin-totp-wiped',
+            resource: 'system',
+            decision: 'allow',
+            details: {
+                reason,
+                includeRoot,
+                affected: affected.map(admin => ({ id: admin.id, email: admin.email, role: admin.role }))
+            }
+        });
+
+        logger.warn(
+            `SystemAdminService: TOTP enrollment cleared for ${affected.length} admin(s)${includeRoot ? ' (root included)' : ' (root spared)'} — ` +
+                'each must re-enroll on their next sign-in'
+        );
+
+        return { wiped: affected.length, includeRoot, admins: affected.map(admin => ({ email: admin.email, role: admin.role })) };
     }
 
     // ── Governance: policies (root only) ─────────────────────────────────────

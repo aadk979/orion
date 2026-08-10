@@ -1,0 +1,132 @@
+---
+title: OAuth providers
+description: Configuring social sign-in, the fixed provider registry, and handling the callback.
+---
+
+Orion is an OAuth **client**. It consumes identity from external providers using
+the authorization-code flow. It does not issue OAuth tokens to third parties.
+
+## The provider registry is fixed
+
+You cannot define a custom provider in configuration. Eleven providers ship in
+the registry, split into two groups.
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="accent">Enabled by default</Badge></CardHeader>
+    <CardTitle>google · github · discord · slack · microsoft</CardTitle>
+    <CardDescription className="mt-2">
+      Configure credentials and they work.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="warning">Requires explicitAllow</Badge></CardHeader>
+    <CardTitle>facebook · amazon · twitter · linkedin · reddit · spotify</CardTitle>
+    <CardDescription className="mt-2">
+      Present in the registry but outside the default allowlist. Add
+      <code>explicitAllow: true</code> to that provider's config to enable it.
+    </CardDescription>
+  </Card>
+</Grid>
+
+Apple is **not** supported — its `form_post` callback and JWT client secret do
+not fit the standard code flow.
+
+## Configure
+
+```js filename="gipsy.orion.config.js"
+authMethods: {
+    OAuth: {
+        google: {
+            clientId:     process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            redirectUri:  'https://app.example.com/oauth/callback'
+        },
+        github: {
+            clientId:     process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            redirectUri:  'https://app.example.com/oauth/callback'
+        },
+        spotify: {
+            clientId:     process.env.SPOTIFY_CLIENT_ID,
+            clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+            redirectUri:  'https://app.example.com/oauth/callback',
+            explicitAllow: true
+        }
+    }
+}
+```
+
+An empty `OAuth: {}` disables OAuth entirely. A provider with an incomplete
+config (missing `clientId`, `clientSecret`, or `redirectUri`) fails
+initialization with `OAUTH::INVALID-PROVIDER-CONFIG::A::i` and is skipped.
+
+The toolkit is a **singleton built once at boot**. Passing a new config later is
+ignored with a warning — changing OAuth configuration requires a restart.
+
+## Provider-specific notes
+
+| Provider | Note |
+| --- | --- |
+| Slack | Uses "Sign in with Slack" (OIDC). Your Slack app needs the `openid email profile` scopes, not the legacy `identity.*` ones |
+| Microsoft | Defaults to the `common` endpoint. Pin a tenant with an `issuer` and Orion switches to full OIDC with `id_token` identity and strict issuer validation |
+| GitHub | Has no JWKS, so identity comes from the userinfo endpoint plus a separate email endpoint |
+
+Per-provider behaviour is driven by four registry flags: `pkce` (S256 code
+challenge), `sendNonce` (binds the `id_token` to the request), `idTokenExpected`
+(fail the exchange when none is returned), and `clientAuth: 'basic'` for
+providers requiring HTTP Basic at the token endpoint.
+
+## Client-side flow
+
+```js filename="auth.js"
+// 1. Start — redirects the browser to the provider
+await orion.generateOAuthRedirectURLAndRedirect('google');
+```
+
+```js filename="oauth-callback.js"
+// 2. On your redirect page
+const result = await orion.handleOAuthCallback();
+
+if (result.error) showError(result.errorCode);
+if (result.signedIn) location.assign('/app');
+```
+
+The SDK stores the provider name in `sessionStorage` under
+`orion_oauth_provider` before redirecting. If the callback is interrupted by
+device authorization, it uses that to restart a **fresh** redirect — an
+authorization code is single-use and cannot be replayed after the interruption.
+
+## Identity is keyed on the provider subject
+
+`user_providers.provider_subject` stores the provider's stable subject id, with a
+partial unique index over `(provider, subject)` so one provider account maps to at
+most one local account.
+
+<Callout type="warning" title="Never key identity on an asserted email">
+An email address a provider asserts is not an identity — providers let users
+change them, and some do not verify them. Rows created before this binding
+existed have `NULL` subject and are treated as unbound: they adopt the subject on
+the next successful sign-in by that provider, rather than being matched
+retroactively by guesswork.
+</Callout>
+
+## Flow state
+
+| Item | Where |
+| --- | --- |
+| PKCE code verifier | `oauth_requests` table, server-side |
+| `state` parameter | `oauth_requests`, matched on callback |
+| `oAuthFlowSecret` cookie | 2 minutes — binds the callback to the browser that started it |
+
+Both endpoints are charged cost 3 by the rate limiter, since each involves an
+external network call.
+
+## Endpoints
+
+```http
+POST /alpine/api/v1/action/get-o-auth-redirect-url    { packet: { providerName } }
+POST /alpine/api/v1/action/handle-o-auth-callback     { packet: { code, state } }
+```
+
+Both are reachable with a `NO_AUTH_BEARER`.

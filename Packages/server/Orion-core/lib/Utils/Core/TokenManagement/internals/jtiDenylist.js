@@ -58,8 +58,20 @@ const revokeJti = async (jti, ttlSeconds) => {
 
     if (store) {
         try {
-            await store.set(`${KEY_PREFIX}${jti}`, '1', Math.ceil(ttlSeconds));
-            return;
+            // RedisService exposes addData/getData, NOT set/get, and its ttl
+            // argument is an ABSOLUTE unix timestamp rather than a duration.
+            // Calling the node-redis shape here threw a TypeError on every
+            // revocation, was swallowed by the catch, and silently degraded to
+            // the local map — so on a cluster a revocation never left the node
+            // that performed it, and isJtiRevoked() on every other node
+            // answered "not revoked". A tier-1 sign-out looked like it worked
+            // and did nothing.
+            const expiresAt = Math.floor(Date.now() / 1000) + Math.ceil(ttlSeconds);
+            const result = await store.addData(`${KEY_PREFIX}${jti}`, 1, expiresAt);
+
+            if (!result?.error) return;
+
+            logger.warn('jtiDenylist: Redis write reported an error, falling back to local store');
         } catch (e) {
             logger.warn(`jtiDenylist: Redis write failed, falling back to local store — ${e.message}`);
         }
@@ -80,7 +92,14 @@ const isJtiRevoked = async jti => {
 
     if (store) {
         try {
-            return (await store.get(`${KEY_PREFIX}${jti}`)) !== null;
+            // See the note in revokeJti: getData, not get, and it returns a
+            // result envelope rather than the raw value.
+            const result = await store.getData(`${KEY_PREFIX}${jti}`);
+
+            if (!result?.error) return result?.data !== undefined;
+
+            logger.warn('jtiDenylist: Redis read reported an error, treating as not revoked');
+            return false;
         } catch (e) {
             // Fail OPEN on a cache outage: a Redis failure must not lock every
             // user out. The window is bounded by the access-token lifetime, and

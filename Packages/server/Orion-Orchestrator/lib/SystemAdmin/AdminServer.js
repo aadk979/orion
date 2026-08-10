@@ -20,8 +20,11 @@ import { fileURLToPath } from 'url';
 import { dirname, join, normalize, sep } from 'path';
 import { logger } from 'r-sync';
 import { AdminError } from './SystemAdminService.js';
-import { AdminActions, commandAction, nodeResource, CLUSTER_RESOURCE } from './adminActions.js';
+import { AdminActions, commandAction, nodeResource, mailingJobResource, CLUSTER_RESOURCE, MAILING_RESOURCE, NOTIFICATIONS_RESOURCE } from './adminActions.js';
 import { isKnownCommand, ClusterCommands, ConsensusTopics, isKnownTopic } from '../protocol.js';
+import http from 'http';
+import https from 'https';
+import { thumbprintFromSocket } from './certBinding.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GUI_DIR = join(__dirname, '..', '..', 'gui', 'out');
@@ -129,13 +132,16 @@ class AdminServer {
 
         this._mountAuthRoutes();
         this._mountClusterRoutes();
+        this._mountMailingRoutes();
+        this._mountNotificationRoutes();
         this._mountGovernanceRoutes();
         this._mountAuditRoutes();
         this._mountGui();
         this._mountErrorHandler();
 
         await new Promise((resolve, reject) => {
-            this.httpServer = this.app.listen(this.config.port, this.config.host, resolve);
+            this.httpServer = this._createTransport();
+            this.httpServer.listen(this.config.port, this.config.host, resolve);
             this.httpServer.once('error', reject);
         });
 
@@ -154,6 +160,56 @@ class AdminServer {
     }
 
     // ── Shared helpers ────────────────────────────────────────────────────────
+
+    /**
+     * Builds the listening server.
+     *
+     * With `mtls` configured this is an HTTPS server that REQUESTS a client
+     * certificate. `rejectUnauthorized` follows the configured CA: with one, the
+     * TLS layer refuses anything it does not chain to; without one, self-signed
+     * client certificates are accepted at the TLS layer and the RFC 8705
+     * thumbprint match is what actually authenticates them — which is the point
+     * of x5t#S256 covering the whole certificate rather than just its subject.
+     *
+     * Without `mtls` this stays plain HTTP, unchanged, so an existing deployment
+     * is not broken by upgrading.
+     */
+    _createTransport() {
+        const mtls = this.config.mtls;
+
+        if (!mtls?.enabled) {
+            return http.createServer(this.app);
+        }
+
+        if (!mtls.key || !mtls.cert) {
+            throw new Error('AdminServer: systemAdmin.http.mtls.enabled requires mtls.key and mtls.cert (PEM paths or contents)');
+        }
+
+        const read = value => (typeof value === 'string' && value.includes('-----BEGIN') ? value : readFileSync(value));
+
+        const options = {
+            key: read(mtls.key),
+            cert: read(mtls.cert),
+            requestCert: true,
+            rejectUnauthorized: Boolean(mtls.ca)
+        };
+
+        if (mtls.ca) options.ca = read(mtls.ca);
+
+        logger.info(`AdminServer: mTLS enabled — admin sessions are bound to client certificates (RFC 8705)${mtls.ca ? ' with CA verification' : ' (self-signed clients permitted; binding enforced by thumbprint)'}`);
+
+        return https.createServer(options, this.app);
+    }
+
+    /** True when this deployment binds admin sessions to client certificates. */
+    _certBindingRequired() {
+        return this.config.mtls?.enabled === true;
+    }
+
+    /** RFC 8705 x5t#S256 for the certificate on this request's connection. */
+    _certThumbprint(req) {
+        return thumbprintFromSocket(req.socket);
+    }
 
     _ip(req) {
         return req.ip || req.socket?.remoteAddress || null;
@@ -192,7 +248,10 @@ class AdminServer {
     /** Resolves the session; 401 without one. Stage/account gating included. */
     _requireSession() {
         return this._h(async (req, res, next) => {
-            const session = await this.service.resolveSession(this._sessionToken(req));
+            const session = await this.service.resolveSession(this._sessionToken(req), {
+                required: this._certBindingRequired(),
+                presentedThumbprint: this._certThumbprint(req)
+            });
             if (!session) {
                 return res.status(401).json({ error: true, code: 'AUTH::NO-SESSION', message: 'Authentication required' });
             }
@@ -299,7 +358,7 @@ class AdminServer {
             '/magic-link/verify',
             limited,
             this._h(async (req, res) => {
-                const result = await this.service.verifyMagicLink(req.body?.code, this._ip(req), req.headers['user-agent']);
+                const result = await this.service.verifyMagicLink(req.body?.code, this._ip(req), req.headers['user-agent'], this._certThumbprint(req));
                 this._setSessionCookie(res, result.token, this.service.config.pendingSessionTtlMinutes * 60);
                 res.json({ error: false, ...result });
             })
@@ -309,7 +368,7 @@ class AdminServer {
             '/root/login',
             limited,
             this._h(async (req, res) => {
-                const result = await this.service.rootLogin(req.body?.email, req.body?.password, this._ip(req), req.headers['user-agent']);
+                const result = await this.service.rootLogin(req.body?.email, req.body?.password, this._ip(req), req.headers['user-agent'], this._certThumbprint(req));
                 this._setSessionCookie(res, result.token, this.service.config.pendingSessionTtlMinutes * 60);
                 res.json({ error: false, ...result });
             })
@@ -328,7 +387,7 @@ class AdminServer {
             limited,
             this._requireSession(),
             this._h(async (req, res) => {
-                const result = await this.service.totpActivate(req.adminSession, req.body?.token, this._ip(req));
+                const result = await this.service.totpActivate(req.adminSession, req.body?.token, this._ip(req), this._certThumbprint(req));
                 // Elevation issues a fresh credential — the pending one is revoked.
                 this._setSessionCookie(res, result.token, this.service.config.sessionTtlHours * 3600);
                 res.json({ error: false, ...result });
@@ -340,7 +399,7 @@ class AdminServer {
             limited,
             this._requireSession(),
             this._h(async (req, res) => {
-                const result = await this.service.totpVerify(req.adminSession, req.body?.token, this._ip(req));
+                const result = await this.service.totpVerify(req.adminSession, req.body?.token, this._ip(req), this._certThumbprint(req));
                 // Elevation issues a fresh credential — the pending one is revoked.
                 this._setSessionCookie(res, result.token, this.service.config.sessionTtlHours * 3600);
                 res.json({ error: false, ...result });
@@ -593,7 +652,334 @@ class AdminServer {
             })
         );
 
+        // ── Field encryption (key vault) plane ────────────────────────────────
+        // Four graded capabilities. The read is as safe as any status read; KEK
+        // rotation is routine; DEK rotation rewrites every encrypted row; the
+        // wipe destroys user enrollments. They are separate PBAC actions so a
+        // policy can grant the safe ones without implying the destructive one.
+
+        router.get(
+            '/keyvault/status',
+            this._gate(AdminActions.KEYVAULT_READ_STATUS),
+            this._h(async (req, res) => {
+                res.json({ error: false, nodes: await this.orch.getClusterKeyVaultStatus(this._actor(req)) });
+            })
+        );
+
+        router.post(
+            '/keyvault/rotate-kek',
+            this._gate(AdminActions.KEYVAULT_ROTATE_KEK),
+            this._h(async (req, res) => {
+                const workerId = req.body?.workerId ? String(req.body.workerId) : null;
+                res.json({ error: false, result: await this.orch.rotateEncryptionKek(workerId, this._actor(req)) });
+            })
+        );
+
+        router.post(
+            '/keyvault/rotate-dek',
+            this._gate(AdminActions.KEYVAULT_ROTATE_DEK),
+            this._h(async (req, res) => {
+                const { workerId, batchSize, reencrypt } = req.body || {};
+
+                res.json({
+                    error: false,
+                    result: await this.orch.rotateEncryptionDek(
+                        {
+                            workerId: workerId ? String(workerId) : null,
+                            batchSize: Number(batchSize) > 0 ? Number(batchSize) : null,
+                            reencrypt: reencrypt !== false
+                        },
+                        this._actor(req)
+                    )
+                });
+            })
+        );
+
+        // Read-only preview of the consensus that gates the wipe, so an operator
+        // can see whether the fleet actually agrees the data is unrecoverable
+        // BEFORE reaching for the destructive endpoint.
+        router.post(
+            '/keyvault/confirm-unrecoverable',
+            this._gate(AdminActions.KEYVAULT_READ_STATUS),
+            this._h(async (req, res) => {
+                res.json({ error: false, consensus: await this.orch.confirmEncryptionUnrecoverable(this._actor(req)) });
+            })
+        );
+
+        // DESTRUCTIVE. Root-only ON TOP of the PBAC action: a policy grant alone
+        // must never be enough to destroy every user's second factor.
+        router.post(
+            '/keyvault/wipe',
+            this._requireRoot(),
+            this._gate(AdminActions.KEYVAULT_WIPE),
+            this._h(async (req, res) => {
+                const { confirmation, fields, reason, overrideConsensus, includeAdmins, includeRootAdmin } = req.body || {};
+
+                if (!reason || String(reason).trim().length < 10) {
+                    return res.status(400).json({
+                        error: true,
+                        code: 'KEYVAULT::REASON-REQUIRED',
+                        message: 'A reason of at least 10 characters is required — this action is irreversible and is recorded in the audit trail'
+                    });
+                }
+
+                try {
+                    const result = await this.orch.wipeEncryptedFields(
+                        {
+                            confirmation,
+                            fields: Array.isArray(fields) ? fields.map(String) : null,
+                            reason: String(reason).trim(),
+                            overrideConsensus: overrideConsensus === true
+                        },
+                        this._actor(req)
+                    );
+
+                    // Opt-in second half of the reset: the orchestrator's own
+                    // administrators. Their secrets are not sealed by the core
+                    // key vault, so this is a governance choice rather than a
+                    // recovery necessity — hence explicit rather than implied.
+                    const admins = includeAdmins
+                        ? await this.service.wipeAdminTotpEnrollments(
+                              req.adminSession.admin,
+                              { includeRoot: includeRootAdmin === true, reason: String(reason).trim() },
+                              this._ip(req)
+                          )
+                        : null;
+
+                    await this.service.audit.write({
+                        adminId: req.adminSession.admin.id,
+                        adminEmail: req.adminSession.admin.email,
+                        ip: req.ip,
+                        action: 'keyvault:encrypted-fields-wiped',
+                        resource: CLUSTER_RESOURCE,
+                        decision: 'allow',
+                        details: {
+                            reason: String(reason).trim(),
+                            fields: Array.isArray(fields) ? fields : 'all',
+                            consensusOverridden: result.consensusOverridden === true,
+                            consensus: result.consensus,
+                            workerId: result.workerId,
+                            adminsWiped: admins?.wiped ?? 0,
+                            rootAdminIncluded: includeRootAdmin === true
+                        }
+                    });
+
+                    res.json({ error: false, result: { ...result, admins } });
+                } catch (error) {
+                    if (error.code === 'KEYVAULT::CONSENSUS-REFUSED') {
+                        return res.status(409).json({ error: true, code: error.code, message: error.message, consensus: error.consensus });
+                    }
+                    throw error;
+                }
+            })
+        );
+
         this.app.use('/api/cluster', router);
+    }
+
+    // ── Batch mailing routes (PBAC-governed) ──────────────────────────────────
+
+    /**
+     * The mailing plane is optional, so every route here first checks that it
+     * is actually running. A 503 naming the config key is far more useful than
+     * a 404 that looks like a typo in the URL.
+     */
+    _mailing() {
+        const service = this.orch.getMailingService?.();
+        if (!service) {
+            throw new AdminError('MAILING::DISABLED', 'The batch mailing plane is not enabled on this orchestrator (mailing.enabled)', 503);
+        }
+        return service;
+    }
+
+    _mountMailingRoutes() {
+        const router = express.Router();
+        router.use(this._requireSession());
+
+        // Sheet upload. The bytes arrive as a raw body rather than multipart:
+        // there is exactly one file and no other fields, so a parser dependency
+        // would buy nothing. The 50MB ceiling is well clear of a large sheet
+        // (a 250k-row xlsx is a few MB) while still bounding what one request
+        // can make the orchestrator hold in memory.
+        router.post(
+            '/jobs',
+            express.raw({
+                type: [
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.ms-excel',
+                    'text/csv',
+                    'application/octet-stream'
+                ],
+                limit: '50mb'
+            }),
+            this._gate(AdminActions.MAILING_SUBMIT, MAILING_RESOURCE),
+            this._h(async (req, res) => {
+                const service = this._mailing();
+
+                if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+                    return res.status(400).json({
+                        error: true,
+                        code: 'MAILING::NO-FILE',
+                        message: 'Send the .xlsx or .csv file as the raw request body with its content-type set'
+                    });
+                }
+
+                const filename = String(req.query.filename || req.headers['x-filename'] || '').slice(0, 255);
+                const { parseMailingSheet, SheetParseError } = await import('../Mailing/SheetParser.js');
+
+                let parsed;
+                try {
+                    parsed = await parseMailingSheet(req.body, { filename });
+                } catch (err) {
+                    if (err instanceof SheetParseError || err.code === 'MAILING::SHEET-INVALID') {
+                        // Every problem at once: an operator fixing a sheet one
+                        // error per upload is an operator uploading ten times.
+                        return res.status(400).json({ error: true, code: err.code, message: err.message, details: err.details || [] });
+                    }
+                    return res.status(400).json({ error: true, code: 'MAILING::UNREADABLE', message: `The file could not be read as a spreadsheet: ${err.message}` });
+                }
+
+                const { job, plan } = await service.submitJob(parsed, this._actor(req));
+
+                // The submission itself is audited beyond the route-level row:
+                // this is the record of who authorised mail going out under the
+                // organisation's name, and to how many people.
+                await this.service.audit.write({
+                    adminId: req.adminSession.admin.id,
+                    adminEmail: req.adminSession.admin.email,
+                    ip: this._ip(req),
+                    action: 'mailing:job-submitted',
+                    resource: mailingJobResource(job.id),
+                    decision: 'allow',
+                    details: {
+                        jobId: job.id,
+                        jobName: job.name,
+                        priority: job.priority,
+                        recipients: plan.totalRecipients,
+                        groups: plan.groupCount,
+                        groupSize: plan.groupSize,
+                        sourceFilename: parsed.filename,
+                        generatedJobId: parsed.generatedJobId,
+                        extraColumns: parsed.extraColumns
+                    }
+                });
+
+                res.status(201).json({ error: false, job, plan, extraColumns: parsed.extraColumns, generatedJobId: parsed.generatedJobId });
+            })
+        );
+
+        router.get(
+            '/jobs',
+            this._gate(AdminActions.MAILING_READ_JOBS, MAILING_RESOURCE),
+            this._h(async (req, res) => {
+                const jobs = await this._mailing().listJobs({ status: req.query.status || null, limit: req.query.limit, offset: req.query.offset });
+                res.json({ error: false, jobs });
+            })
+        );
+
+        router.get(
+            '/queue',
+            this._gate(AdminActions.MAILING_READ_QUEUE, MAILING_RESOURCE),
+            this._h(async (req, res) => {
+                res.json({ error: false, queue: await this._mailing().getQueueState() });
+            })
+        );
+
+        router.get(
+            '/jobs/:jobId',
+            this._gate(AdminActions.MAILING_READ_JOBS, req => mailingJobResource(req.params.jobId)),
+            this._h(async (req, res) => {
+                res.json({ error: false, ...(await this._mailing().getJobDetail(req.params.jobId)) });
+            })
+        );
+
+        router.get(
+            '/jobs/:jobId/dead-letters',
+            this._gate(AdminActions.MAILING_READ_JOBS, req => mailingJobResource(req.params.jobId)),
+            this._h(async (req, res) => {
+                const deadLetters = await this._mailing().listDeadLetters(req.params.jobId, { limit: req.query.limit, offset: req.query.offset });
+                res.json({ error: false, deadLetters });
+            })
+        );
+
+        router.get(
+            '/jobs/:jobId/archive',
+            this._gate(AdminActions.MAILING_READ_JOBS, req => mailingJobResource(req.params.jobId)),
+            this._h(async (req, res) => {
+                const archive = await this._mailing().archive.list(req.params.jobId, {
+                    outcome: req.query.outcome || null,
+                    limit: req.query.limit,
+                    offset: req.query.offset
+                });
+                res.json({ error: false, archive });
+            })
+        );
+
+        router.post(
+            '/jobs/:jobId/cancel',
+            this._gate(AdminActions.MAILING_CANCEL, req => mailingJobResource(req.params.jobId)),
+            this._h(async (req, res) => {
+                const reason = req.body?.reason ? String(req.body.reason).slice(0, 500) : null;
+                const result = await this._mailing().cancelJob(req.params.jobId, this._actor(req), reason);
+
+                await this.service.audit.write({
+                    adminId: req.adminSession.admin.id,
+                    adminEmail: req.adminSession.admin.email,
+                    ip: this._ip(req),
+                    action: 'mailing:job-cancelled',
+                    resource: mailingJobResource(req.params.jobId),
+                    decision: 'allow',
+                    details: { ...result, reason }
+                });
+
+                res.json({ error: false, ...result });
+            })
+        );
+
+        this.app.use('/api/mailing', router);
+    }
+
+    // ── Notification routes ───────────────────────────────────────────────────
+
+    _mountNotificationRoutes() {
+        const router = express.Router();
+        router.use(this._requireSession());
+
+        router.get(
+            '/',
+            this._gate(AdminActions.NOTIFICATIONS_READ, NOTIFICATIONS_RESOURCE),
+            this._h(async (req, res) => {
+                const adminId = req.adminSession.admin.id;
+                const notifications = this._mailing().notifications;
+
+                const [items, unread] = await Promise.all([
+                    notifications.listFor(adminId, { limit: req.query.limit, offset: req.query.offset, unreadOnly: req.query.unread === 'true' }),
+                    notifications.unreadCount(adminId)
+                ]);
+
+                res.json({ error: false, notifications: items, unread });
+            })
+        );
+
+        router.post(
+            '/:id/read',
+            this._gate(AdminActions.NOTIFICATIONS_READ, NOTIFICATIONS_RESOURCE),
+            this._h(async (req, res) => {
+                await this._mailing().notifications.markRead(req.params.id, req.adminSession.admin.id);
+                res.json({ error: false, read: true });
+            })
+        );
+
+        router.post(
+            '/read-all',
+            this._gate(AdminActions.NOTIFICATIONS_READ, NOTIFICATIONS_RESOURCE),
+            this._h(async (req, res) => {
+                const marked = await this._mailing().notifications.markAllRead(req.adminSession.admin.id);
+                res.json({ error: false, marked });
+            })
+        );
+
+        this.app.use('/api/notifications', router);
     }
 
     // ── Governance routes (root only) ─────────────────────────────────────────
@@ -784,7 +1170,10 @@ class AdminServer {
                 cluster: this.orch.cluster,
                 panel: true,
                 guiAvailable: existsSync(GUI_DIR),
-                guiTheme: this.guiTheme
+                guiTheme: this.guiTheme,
+                // Lets the panel hide the Mailing nav entirely rather than
+                // offering a page that can only ever return 503.
+                mailingAvailable: !!this.orch.getMailingService?.()
             });
         });
 
@@ -852,7 +1241,16 @@ class AdminServer {
             if (err instanceof AdminError) {
                 return res.status(err.status).json({ error: true, code: err.code, message: err.message });
             }
-            if (err?.type === 'entity.parse.failed' || err?.type === 'entity.too.large') {
+            // MailingError carries the same shape without importing the mailing
+            // plane here — it is optional, and the error handler must work
+            // whether or not it was loaded.
+            if (err?.code?.startsWith?.('MAILING::') && Number.isInteger(err.status)) {
+                return res.status(err.status).json({ error: true, code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) });
+            }
+            if (err?.type === 'entity.too.large') {
+                return res.status(413).json({ error: true, code: 'API::BODY-TOO-LARGE', message: 'The uploaded body exceeds the size limit for this endpoint' });
+            }
+            if (err?.type === 'entity.parse.failed') {
                 return res.status(400).json({ error: true, code: 'API::BAD-BODY', message: 'Malformed request body' });
             }
             logger.error(`AdminServer: unhandled error on ${req.method} ${req.originalUrl} — ${err.message}`);

@@ -1,0 +1,141 @@
+---
+title: Error codes
+description: How Orion's error registry is structured, and the codes you are most likely to handle.
+---
+
+Errors come from a single registry keyed by code. Each entry declares its HTTP
+status, human context, fault attribution, suggested solutions, and optional
+behavioural flags.
+
+## Anatomy of a code
+
+```text
+DOMAIN::SPECIFIC-CONDITION::A::p
+│      │                    │  └── fault surface: p = public/client, i = internal/server
+│      │                    └───── registry generation marker
+│      └────────────────────────── the condition
+└───────────────────────────────── the domain
+```
+
+Not every code follows it — a handful are plain identifiers such as
+`ACC-PASSWORD-RESET-ATTEMPTS-EXCEEDED`. Match on the exact string, not on the
+pattern.
+
+## Entry flags
+
+| Flag | Effect |
+| --- | --- |
+| `status` | HTTP status returned |
+| `fault` | `CLIENT` or `SERVER` |
+| `solutions` | Suggested remedies, surfaced to the client |
+| `clientSafeErrorCode` | The code substituted before the response leaves the process |
+| `logout` | Clears both session cookies and sets `orion-session-logout: true` |
+| `flow` | Sets `orion-flow-activation` |
+| `refresh` | Sets `orion-response-refresh` |
+
+## Obfuscation
+
+An entry with `clientSafeErrorCode` is swapped for the safe code on the way out.
+The raw code is still logged and audited, and echoed as `errorTrigger` in the
+body for development.
+
+| Internal code | Client sees |
+| --- | --- |
+| `ACCOUNT-SIGNIN::ACCOUNT-NOT-FOUND::A::p` | `ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p` |
+| `ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p` | `ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p` |
+| `ACCOUNT-SIGNIN::NO-PASSWORD-SETUP::A::p` | `ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p` |
+
+The purpose is to prevent account enumeration and to hide which accounts are
+OAuth-only.
+
+## General
+
+| Code | Status | Meaning |
+| --- | --- | --- |
+| `GENERAL::HEADERS-INVALID::A::p` | 400 | A required `orion-*` header is missing or empty |
+| `GENERAL::MISSING-FINGERPRINT::A::p` | 400 | No `orion-fingerprint` header |
+| `GENERAL::INVALID-FINGERPRINT::A::p` | 400 | Fingerprint is not a valid 64-character value |
+| `GENERAL::MISSING-USER-AGENT::A::p` | 400 | No user-agent header |
+| `GENERAL::UNRESOLVABLE-CLIENT-IP::A::p` | 400 | Client IP could not be determined |
+| `GENERAL::INVALID-PROTOCOL::A::p` | 400 | Not HTTPS, with `client.enforceHTTPS` on |
+| `GENERAL::UNKNOWN-ORIGIN::A::p` | 401 | Origin is not in `client.urls` |
+| `GENERAL::PATH-TRAVERSAL::A::p` | 403 | Traversal attempt detected |
+| `GENERAL::UNKNOWN-API-ROUTE::A::p` | 404 | No such route |
+| `GENERAL::RATE-LIMIT-EXCEEDED::A::p` | 429 | Token bucket exhausted |
+| `GENERAL::SERVER-LOCKDOWN::A::i` | 503 | Node is locked (`server:lock` or `lockCluster()`) |
+| `GENERAL::SERVER-INITIALIZING::A::i` | 503 | Node is still booting |
+| `GENERAL::UNKNOWN-ERROR::A::i` | 500 | Unclassified internal failure |
+
+## Authentication middleware
+
+| Code | Status | Logout | Meaning |
+| --- | --- | --- | --- |
+| `AUTH::MISSING-TOKEN::A::p` | 401 | yes | No authentication token found |
+| `AUTH::MISSING-SESSION-CREDENTIALS::A::p` | 401 | yes | Session id or HMAC missing |
+| `AUTH::INVALID-SESSION::A::p` | 401 | yes | Session id or HMAC invalid or tampered |
+| `AUTH::REFRESH-LIMIT-HIT::A::p` | 401 | yes | Refresh token hit `maxRefreshes` |
+| `AUTH::INVALID-TOKEN-TYPE::A::p` | 401 | no | Unsupported `Authorization` class |
+| `AUTH::BEARER-MISMATCH::A::p` | 401 | no | This class cannot reach this route |
+| `AUTH::INSUFFICIENT-PRIVILEGE::A::p` | 401 | no | Route requires a session |
+
+## Sign-in and registration
+
+| Code | Status | Meaning |
+| --- | --- | --- |
+| `ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p` | 401 | The single public failure for any bad-credential case |
+| `ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p` | 401 | Correct credentials during backoff — sets `flow: FLOW-STEP-UP-AUTH` |
+| `ACCOUNT-SIGNIN::INVALID-EMAIL::A::p` | 400 | Email is malformed |
+| `ACCOUNT-SIGNIN::EMAIL-PASSWORD-DISABLED::A::p` | 400 | Method disabled in config (`authMethods.emailPassword: false`) |
+| `ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p` | 403 | Disabled by an administrator |
+| `ACCOUNT-SIGNIN::PASSWORD-RESET-IP-MISMATCH::A::p` | 401 | Reset completed from a different network |
+| `ACC-PASSWORD-RESET-ATTEMPTS-EXCEEDED` | 429 | Too many wrong codes; the request was cancelled |
+
+## Tokens
+
+| Code | Meaning |
+| --- | --- |
+| `TOKEN-ACCESS::EXPIRED::A::p` | Access token expired — triggers silent rotation if a refresh token is present |
+| `TOKEN-REFRESH::EXPIRED::A::p` | Refresh token expired |
+| `TOKEN-RESOURCE::EXPIRED::A::p` | Resource token expired |
+| `TOKEN-RESOURCE::INVALID::A::p` | Resource token rejected |
+| `TOKEN-RESOURCE::INVALID-CALLBACKS-ARRAY::A::p` | `accessibleCallbacks` was empty or not an array |
+| `TOKEN-RESOURCE::INVALID-VIEW-TYPE::A::p` | Unsupported view type |
+| `TOKEN-RESOURCE::VIEW-TYPE-NOT-ACCEPTABLE::A::p` | `PUBLIC` requested for a token grant |
+
+## Flows
+
+| Code | Effect |
+| --- | --- |
+| `STEP-UP::REQUIRED::A::p` | Sets `orion-flow-activation: FLOW-STEP-UP-AUTH` and a signed `stepUpContext` cookie |
+
+Device authorization signals through `orion-flow-activation:
+FLOW-DEVICE-AUTHORIZATION` on its domain-specific codes.
+
+## Registry layout
+
+Codes are grouped by domain in `lib/Errors/`:
+
+```text
+Errors/
+├── internal-errors.js          the merged registry
+├── authFailureCodes.js         which codes count as auth failures for abuse detection
+├── Account/                    registration, signIn, passkeys, totp, userControl
+├── Authentication/             accessTokens, refreshTokens, resourceTokens,
+│                               tokenRevocation, authenticationMiddleware
+├── Security/                   captcha, deviceAuthorization, stepUpAuth,
+│                               twoFARemoval, noAuthToken, dataValidation, general
+├── OAuth/                      oauth
+├── Communication/              mail
+└── System/                     database, fileOperations, system, resourceAccessS3
+```
+
+`authFailureCodes.js` is what makes abuse accounting automatic: any code listed
+there is charged to the calling actor by the response layer, so no individual
+failure site has to remember to report it.
+
+## Unrecognised codes
+
+Responding with a code not in the registry logs
+`Unrecognised error code: <code>` and falls back to
+`GENERAL::UNKNOWN-ERROR::A::i`. If you see that in your logs, a handler is
+returning a code that was never registered.

@@ -1,0 +1,145 @@
+---
+title: Orion Notifications
+description: The in-product channel Orion owns for account-security facts, and how its prompting schedule is enforced server-side.
+---
+
+Some things a user **must** be told about their own account: their authenticator
+stopped working because the deployment lost its key vault, an administrator reset
+every two-factor enrollment, their second factor needs setting up again.
+
+Email is the wrong instrument for that. It is slow and expensive to send at fleet
+scale, it lands in spam, and it is unavailable during exactly the incidents worth
+announcing. So Orion delivers these where the user already is: your application,
+through an overlay it controls.
+
+<Callout type="info" title="This surface cannot be disabled">
+These are facts about the user's own account, not product messaging. A host
+application cannot suppress them. What you *can* do is style them — the overlay
+accepts the same CSS variables as the step-up and device-authorization prompts.
+</Callout>
+
+## How it renders
+
+The SDK checks on every transition into an authenticated state — a fresh sign-in
+and a page reload that restores a session both qualify — and the **server**
+decides whether anything is raised.
+
+```js
+// Nothing to wire up. Root.js runs this whenever auth state becomes AUTHENTICATED.
+```
+
+To surface pending notices from your own UI as well (a bell icon, a settings
+page):
+
+```js
+const result = await orion.showNotifications();
+// { shown: boolean, acknowledged: number, pending: number }
+```
+
+Styling goes in the client config:
+
+```js
+new Orion({
+    serverUrl: 'https://auth.example.com',
+    notificationStyles: {
+        modalBg: '#0b0b0c',
+        headingColor: '#f4f4f5',
+        urgentColor: '#f43f5e',
+        primaryBtnBg: '#f4f4f5',
+        primaryBtnText: '#0b0b0c'
+    }
+});
+```
+
+The check is fire-and-forget. It never delays or fails the auth state your
+application is waiting on, and a network failure while fetching notices is
+swallowed rather than surfaced as an auth error.
+
+## The prompting schedule
+
+Every scheduling decision is taken in Postgres, never in the browser.
+
+| Condition | Behaviour |
+| --- | --- |
+| Something has never been shown | Prompts on the next authenticated page load |
+| It has been shown | Stays quiet |
+| Shown but never acknowledged | Raised again **24h after it was last shown** |
+| Acknowledged | Never offered again |
+
+The 24-hour window is measured against `NOW()` on the **database** clock. A
+client that clears its storage, lies about the time, or simply never calls back
+cannot suppress or re-trigger a security notice.
+
+<Callout type="info" title="Returning a notice is not the same as showing it">
+The client reports back through `mark-notifications-shown` only when the overlay
+has actually rendered. A prefetch, a background poll, or a page that navigated
+away before paint does not burn the one-time display — the notice simply prompts
+again next load.
+</Callout>
+
+Closing the overlay without acknowledging is allowed and harmless. "Remind me
+later" leaves the notice unread, so it returns on the next login and again 24h
+later.
+
+## Data model
+
+Two tables. Receipts are materialized **lazily**, so a broadcast to a million
+accounts costs one `INSERT`, not a million.
+
+| Table | Holds |
+| --- | --- |
+| `orion_notifications` | The notice itself — audience, severity, title, body, optional action, expiry |
+| `orion_notification_receipts` | Per-user delivery state: `pending` → `shown` → `viewed`, with server-side timestamps |
+
+A user's receipts appear the first time they check. Audience is evaluated at that
+moment against live state, so `totp-enrolled` means *whoever has it enabled when
+they next load the app* — not a snapshot taken when the notice was raised.
+
+`notification_key` makes system announcements idempotent across a cluster: every
+node booting into the same degraded state produces the same key, so the fleet
+raises one notice rather than one per node. Refreshing an existing key
+deliberately does **not** reset receipts — a user who already dismissed a notice
+should not be re-prompted every time a node restarts.
+
+Expired notifications are swept by the `databaseJanitor`; receipts cascade with
+the parent row.
+
+## Severities
+
+| Severity | Badge | Used for |
+| --- | --- | --- |
+| `info` | Notice | Informational |
+| `important` | Important | Needs attention soon |
+| `urgent` | Action required | Something is broken or has changed for them now |
+
+Urgent notices sort first in the overlay.
+
+## Endpoints
+
+All three require an authenticated session.
+
+```
+POST /alpine/api/v1/request/notifications             → { prompt, pending, unread, nextPromptAt, notifications }
+POST /alpine/api/v1/action/mark-notifications-shown   { packet: { ids } }
+POST /alpine/api/v1/action/acknowledge-notifications  { packet: { ids } }
+```
+
+Ids sent by a client are coerced to positive integers, filtered, and capped at
+100 per call.
+
+## What Orion raises today
+
+| Trigger | Audience | Severity |
+| --- | --- | --- |
+| Field encryption unavailable at boot | `totp-enrolled` | `urgent` |
+| Every TOTP enrollment wiped by an administrator | `all` | `urgent` |
+
+Both come from the [key vault subsystem](/versions/alpine/docs/security/key-vaults). The first is
+withdrawn automatically once encryption is healthy again.
+
+## Safety of the rendered content
+
+Notification bodies are inserted with `textContent`, never `innerHTML`. Action
+links are parsed with the `URL` constructor and only rendered for `http:` and
+`https:` destinations, with `rel="noopener noreferrer"` — a notification body
+cannot become an injection vector into the host page.

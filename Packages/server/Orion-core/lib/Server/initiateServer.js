@@ -11,6 +11,7 @@ import { headerParser } from './Middleware/headerParser.js';
 import { PersistantDatabaseManager } from '../Utils/Databases/PersitantDatabases/index.js';
 import { globalAccessPoint } from '../Utils/GlobalAccessPoint.js';
 import { defaultServerRoutes } from './Endpoints/index.js';
+import { buildSharedSignalsRouter } from '../Utils/Core/SharedSignals/router.js';
 import { dataValidator } from './Middleware/dataValidator.js';
 import { authenticationMiddleware } from './Middleware/authentication.js';
 import { VolatileSecretsManager } from '../Utils/Systems/VolatileSecretsManager.js';
@@ -35,6 +36,7 @@ import { loadSheddingMiddleware } from './Middleware/loadSheddingMiddleware.js';
 import { abuseCheckMiddleware } from './Middleware/abuseCheckMiddleware.js';
 import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
 import { ClusterLinkSystem } from '../Utils/Systems/ClusterLinkSystem.js';
+import { BatchMailerSystem } from '../Utils/Systems/BatchMailer/index.js';
 import { DynamicGlobalRateLimiter } from '../Utils/Systems/DynamicGlobalRateLimiter.js';
 import { rateLimitPolicy, validateRateLimitPolicy } from '../General/index.js';
 import { validateCookiePolicy } from '../General/CookiePolicy.js';
@@ -64,9 +66,17 @@ const buildMiddlewarePipeline = (systemConfig, rateLimiter) => {
     // Returns null when disabled or the directory is absent.
     const staticServer = buildStaticAssetServer(systemConfig?.api?.static || {});
 
+    // Shared Signals (SSF/CAEP) endpoints. Mounted here, ahead of the
+    // orion-header stack, because peer services delivering Security Event
+    // Tokens send none of the browser headers requestMetadataMiddleware
+    // requires — they authenticate with the SET signature or the management
+    // token instead. Null when the feature is off, so nothing is mounted.
+    const sharedSignalsRouter = buildSharedSignalsRouter();
+
     return [
         floodGuard,
         ...(staticServer ? [staticServer] : []),
+        ...(sharedSignalsRouter ? [sharedSignalsRouter] : []),
         express.json({ limit: systemConfig.api?.maxPayloadSize || '10mb' }),
         express.urlencoded({ extended: true }),
         cors({ origin: OriginVerifier.corsVerifier, credentials: true }),
@@ -227,6 +237,15 @@ const initiateServer = async (startConfig = defaultStartConfig, systemConfig) =>
         // unreachable orchestrator only fails the boot when
         // clusterLink.requireOrchestrator is true; otherwise registration retries
         // in the background while the node serves normally.
+        // Init the batch mailer BEFORE the cluster link: the link starts
+        // accepting orchestrator commands the moment it registers, and
+        // mailing:assign is one of them. Registering the mailer second would
+        // leave a window where an assignment arrives and is refused by a node
+        // that is in fact configured to send.
+        const batchMailerSystem = new BatchMailerSystem(mergedConfig?.utilities?.batchMailer || {});
+        globalAccessPoint.setValue('batchMailerSystem', batchMailerSystem);
+        await batchMailerSystem.start();
+
         const clusterLinkSystem = new ClusterLinkSystem(mergedConfig?.utilities?.clusterLink || {});
         globalAccessPoint.setValue('clusterLinkSystem', clusterLinkSystem);
         await clusterLinkSystem.start();

@@ -1,0 +1,178 @@
+---
+title: Sessions & tokens
+description: The four token kinds, how they are stored, rotated, bound, and revoked.
+---
+
+Orion issues four kinds of token. Only one of them is what most people mean by
+"a session".
+
+| Kind | Cookie | Default lifespan | Purpose |
+| --- | --- | --- | --- |
+| Access | `ACCESS_TOKEN` | `tokens.lifespans.accessTokens` (`15m`) | Authenticates ordinary requests |
+| Refresh | `REFRESH_TOKEN` | `tokens.lifespans.refreshTokens` (`7d`) | Mints a new access token when one expires |
+| Resource | — (query param) | `tokens.lifespans.resourceTokens` (`1h`) | Single-purpose grant for ORAS file delivery |
+| No-auth | `NO_AUTH_TOKEN` | 1 day (fixed) | Proves a browser solved the captcha; gates pre-auth routes |
+
+## Signing
+
+Access, refresh, and resource tokens each get their **own** `TokenSecretsManager`
+domain, initialized at boot with **ES256** and a pool of 2 key pairs. A separate
+`SignatureSecretsManager` domain (`internal`) signs non-token artifacts such as
+the audit write-ahead log.
+
+Each JWT carries a key id, so validation selects the right public key from the
+pool. In cluster mode the managers fan keys out through Redis, which is exactly
+why a shared Redis is mandatory past one node: without it, node B has never seen
+the key node A signed with.
+
+Payloads are compressed through a short-field map (`toShortPayload` /
+`toVerbosePayload`) and issuer URL lists are run through a URL compressor, to keep
+cookies small.
+
+## Sessions are pairs, not objects
+
+A sign-in mints an access token and a refresh token sharing an
+`accessTokenLinkCode`. That link code *is* the session identity. `listActiveSessions()`
+groups tokens by it and marks the calling session with `current: true`;
+`revokeSession({ linkCode })` kills the pair.
+
+For tiers 2–4 both tokens are also rows in the `tokens` table, which is what makes
+targeted revocation possible. Tier 1 is stateless and has no row — see below.
+
+## Rotation and reuse detection
+
+Refresh is not a read-only operation. Every successful refresh:
+
+1. Mints a new access token **and** a new refresh token.
+2. Re-reads the user from the database, so `role` and `disabled` are always
+   current rather than copied forward from the presented token.
+3. Carries any DPoP binding (`cnf.jkt`) forward, so a refresh cannot silently
+   downgrade a bound session to an unbound one.
+4. **Retires** the old refresh token — deletes its row and records its id in
+   `consumed_refresh_tokens`.
+
+Step 4 is what makes reuse detectable. Presenting a retired refresh token means
+it was captured and replayed after the legitimate holder already rotated it;
+Orion treats that as a compromise signal rather than as an unknown token.
+
+There is also a self-contained ceiling: a refresh token carries `refreshCount`
+and an optional `maxRefreshes`, and hitting the limit clears the session with
+`AUTH::REFRESH-LIMIT-HIT::A::p`.
+
+## Revocation
+
+Three mechanisms, covering three different situations.
+
+<Accordion allowMultiple>
+  <AccordionItem title="Delete the row — stateful tiers">
+    Tiers 2–4 persist a row per token. Revoking a session or a single token
+    deletes it, and the next validation fails to find it.
+  </AccordionItem>
+  <AccordionItem title="The jti denylist — stateless tier 1">
+    A tier-1 token has no row to delete, so "sign out this one device" had nothing
+    to act on. Tier-1 tokens now carry a `jti` and revoking one records that id in
+    a short-lived denylist. Entries only need to outlive the token, and access
+    tokens are minutes long, so the set stays tiny. It is backed by Redis when the
+    ephemeral store is available, so a revocation propagates fleet-wide; without
+    Redis it falls back to an in-process map — correct on a single node, per-node
+    on a cluster.
+  </AccordionItem>
+  <AccordionItem title="The sessions_valid_from watermark — bulk invalidation">
+    A per-user timestamp on the `users` row: everything issued before this instant
+    is dead. One comparison invalidates every live session, and unlike deleting
+    rows it also covers stateless tier-1 tokens. Password change, role change,
+    account disable, and account delete all move it forward.
+  </AccordionItem>
+</Accordion>
+
+## Cookies
+
+Every cookie Orion sets is declared in one frozen policy table. The managed
+helpers take no options argument, so a controller can name a cookie and give it a
+value but cannot override any attribute.
+
+Base attributes, applied to all cookies:
+
+```js
+{ httpOnly: true, secure: true, sameSite: 'None', path: '/' }
+```
+
+`sameSite: 'None'` is required for cross-origin auth and browsers only accept it
+with `secure: true` — which is why HTTPS is mandatory off localhost. The policy
+is validated at boot and a `sameSite=None` + `secure=false` combination fails the
+boot outright.
+
+Session cookies read their lifespan from `tokens.lifespans.*` at request time;
+every other cookie has a fixed lifespan. See
+[Cookie policy](/versions/alpine/docs/configuration/cookies) for the full table.
+
+## Proof-of-possession (DPoP)
+
+Set `tokens.binding: 'dpop'` to bind tokens to a client-held key (RFC 9449). It
+is opt-in and off by default.
+
+The rationale is worth stating: security tiers 2–4 bind a token to the client's
+IP range and device fingerprint, but both of those arrive as ordinary request
+values, so an attacker holding a stolen token also holds everything needed to
+satisfy the binding. **A binding the bearer can reproduce from the token alone is
+not a binding.**
+
+DPoP binds to a key instead. The browser generates a keypair with
+`extractable: false`, so script can ask it to sign but cannot read it out. A token
+lifted from storage, a log, or a backup becomes inert.
+
+Each request carries a `DPoP` header — a JWT signed by the private key with the
+public JWK in its header. Orion verifies:
+
+- the signature, against the embedded public key;
+- `htm` / `htu` match this request's method and URI, so a proof cannot be lifted
+  onto a different endpoint;
+- `iat` is fresh within ±60 seconds (a far-future `iat` is as suspicious as a
+  stale one) and `jti` is unseen;
+- `ath` equals the SHA-256 of the presented access token, so a proof minted for
+  one token cannot be paired with another;
+- the key's RFC 7638 thumbprint equals the `cnf.jkt` the token was issued
+  against.
+
+Only `EC` and `RSA` key types are accepted, and a JWK containing a private `d`
+member is rejected outright. The `jti` is recorded only *after* everything else
+passes, so a bogus proof cannot burn an id the legitimate client still needs.
+
+<Callout type="info" title="What DPoP does not stop">
+An attacker executing inside the live page can still ask the key to sign. DPoP
+converts permanent, portable token theft into use-while-resident — which is the
+difference that matters, but it is not the same as immunity to XSS.
+</Callout>
+
+## Resource tokens
+
+Different animal. A resource token is a single-purpose grant for the ORAS file
+path: it carries its own allowlist of callbacks, a retrieval budget (capped at 25
+retrievals per hour of token lifetime), and optional custom data. It is not
+tier-aware, is not compressed, and never travels as a cookie — it is passed as a
+`token` query parameter.
+
+A fingerprint hash is stored at issuance but deliberately **not** checked at
+validation, because for a shareable "secure" view the fingerprint is legitimately
+absent at retrieval time.
+
+```js
+import { tokens } from '@aadharsh/orion-alpine-x934x';
+
+const grant = await tokens.generateResourceToken(
+    uid, email, fingerprint, ip, userAgent,
+    'SECURE-0',                 // or 'S3-0'; 'PUBLIC' is rejected here
+    ['invoice-pdf'],            // accessible callback paths
+    false,                      // shareAllowed
+    5,                          // maxRetrievals
+    { invoiceId: 'INV-1' }      // customData
+);
+```
+
+## Housekeeping
+
+The `DatabaseJanitor` sweeps expired tokens, stale devices, and abandoned
+auth-flow rows on an interval (default 15 minutes, 5000 rows per statement). It
+takes a Postgres advisory lock, so exactly one node in the fleet sweeps per cycle.
+Retired refresh-token ids are kept slightly past their natural expiry so reuse
+stays detectable, then dropped.

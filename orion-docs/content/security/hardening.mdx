@@ -1,0 +1,99 @@
+---
+title: Hardening checklist
+description: The list to work through before an Orion deployment accepts real traffic.
+---
+
+Each item has a concrete failure mode behind it. Nothing here is ceremonial.
+
+## Secrets and configuration
+
+- [ ] Every secret is in a `gipsy.*` file or an environment variable. Nothing real is committed.
+- [ ] `utilities.dataEncryption.provider` points at a real [key vault](/versions/alpine/docs/security/key-vaults) — required in cluster mode, where `INLINE_KEY` is refused — and `orionctl keyvault status` reports `available: true` on **every** node, not just one.
+- [ ] The vault's key has a backup and recovery story. Losing the KEK means every enrolled user must set up their authenticator again.
+- [ ] `tokens.fingerprintDigestKey` is set and identical on every node, and backed up.
+- [ ] `app.serviceID` is stable across restarts and unique per node.
+- [ ] The root admin's `initialPassword` has been rotated and removed from your environment.
+
+## Transport
+
+- [ ] All traffic is HTTPS with real certificates — not a quick tunnel. Session cookies are `Secure` + `SameSite=None` and browsers reject them otherwise.
+- [ ] `server.trustProxy` matches your topology. Verify the boot log line; a wrong value silently attributes every request to the proxy.
+- [ ] `client.enforceHTTPS: true` in production.
+- [ ] `client.urls` lists only origins you control, with exact scheme/host/port.
+- [ ] Your proxy forwards `Origin` unchanged.
+
+## Tokens and sessions
+
+- [ ] `tokens.securityTier` chosen deliberately. 4 is strictest; 3 is advisory-only and never trips step-up alone.
+- [ ] `tokens.lifespans` reviewed. The 15m/7d defaults are reasonable; longer access tokens widen the stale-privilege window.
+- [ ] `tokens.binding: 'dpop'` considered. It is the only binding a token thief cannot reproduce — see [Token binding](/versions/alpine/docs/guides/token-binding).
+- [ ] If you enabled DPoP, the SDK has been rebuilt from source and wired to send proofs. The committed bundle predates the feature.
+
+## Authentication surface
+
+- [ ] `authMethods.allowedEmailDomains` restricted if this is not public signup.
+- [ ] `utilities.accessControl.captcha: 'ENABLED'`.
+- [ ] `utilities.accessControl.deviceAuthorization: 'ENABLED'` with working SMTP. It is the main defence against a stolen password used from an attacker's machine.
+- [ ] Unused OAuth providers are not configured. A provider outside the default five needs `explicitAllow: true` — do not add it casually.
+- [ ] `authMethods.emailPassword: false` if you only intend passwordless.
+
+## Data and audit
+
+- [ ] `utilities.auditTrailSystem` enabled and pointed at MySQL, with the boot integrity check passing.
+- [ ] Postgres reachable only from your nodes. Same for Redis and MySQL.
+- [ ] `db.credentials.ssl` configured if the database is not on a trusted private network.
+- [ ] `db.credentials.poolMax` × node count fits inside `max_connections`.
+- [ ] `utilities.databaseJanitor.enabled: true` so expired rows are swept.
+- [ ] Backups cover Postgres, MySQL audit, and the three key files that are *not* in any database.
+
+## Cluster and control plane
+
+- [ ] `utilities.safeMode: 'ENABLED'` so remote commands cannot weaken a node's defenses.
+- [ ] `clusterLink.allowRemoteControl` set intentionally per node.
+- [ ] M2M ports 55321 and 55322 are private-subnet only.
+- [ ] Each node has its own working directory — `r_sync.internal.worker_config.json` is a node identity, not shared state.
+- [ ] The system-admin plane is enabled. Without it, anyone who can reach the orchestrator process has total, unaudited governance.
+- [ ] `sql/worker-grants.example.sql` applied so workers are `SELECT`-only on `orch_*`.
+- [ ] Panel port 55330 behind TLS and restricted — VPN or IP allowlist.
+- [ ] `systemAdmin.http.secureCookies: true` and `trustProxy` correct.
+- [ ] Every operator account has the minimum policy it needs. Deny statements always win.
+- [ ] Root TOTP is enrolled and the recovery path is documented for your team.
+
+## Operational readiness
+
+- [ ] Escalations go somewhere a human sees them — webhook or a custom channel.
+- [ ] `orionctl audit verify` runs on a schedule and someone is alerted on failure.
+- [ ] The process manager allows more than 30 seconds for graceful shutdown.
+- [ ] A load balancer health target exists and reflects lock and load-shed state.
+- [ ] Log retention is configured; `utilities.logToFile` is on if you scrape files.
+- [ ] Someone has rehearsed the emergency lock: `orionctl lock` / `unlock`.
+- [ ] Someone has rehearsed key revocation and understands it signs users out.
+
+## Verify it end to end
+
+<Steps>
+  <Step title="Boot cleanly">
+    No warnings you have not read. The boot log states the trust-proxy mode,
+    whether DPoP binding is on, and whether TOTP or passkeys were force-disabled.
+  </Step>
+  <Step title="Sign up and sign in for real">
+    From a browser, over your production origin.
+  </Step>
+  <Step title="Trigger a device-authorization flow">
+    From a second device. Confirm the email arrives and the flow completes.
+  </Step>
+  <Step title="Confirm cross-node validation">
+    Sign in against node A, then make an authenticated call routed to node B.
+  </Step>
+  <Step title="Verify the audit chain">
+    `orionctl audit verify` should report an intact chain.
+  </Step>
+  <Step title="Confirm PBAC actually denies">
+    Sign in as a read-only admin and attempt a lock. It should be refused — and
+    the denial should appear in the audit trail.
+  </Step>
+</Steps>
+
+<Callout type="warning" title="The last one matters most">
+A policy you have never seen deny anything is a policy you have not tested.
+</Callout>

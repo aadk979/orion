@@ -44,6 +44,13 @@ import { __Version__ } from '../../orion.meta.js';
 const RETRY_BASE_DELAY_MS = 5_000;
 const RETRY_MAX_DELAY_MS = 300_000;
 
+/**
+ * Typed by an administrator to authorize the irreversible wipe of encrypted
+ * field data. Checked at BOTH ends — orchestrator and node — so no single
+ * component can destroy user data on its own.
+ */
+const WIPE_CONFIRMATION_PHRASE = 'WIPE ENCRYPTED FIELDS';
+
 const defaultConfig = Object.freeze({
     enabled: false,
     cluster: null,
@@ -594,7 +601,18 @@ class ClusterLinkSystem {
             // secrets:* commands run against the secrets-manager registry, not SystemsControl
             ClusterCommands.SECRETS_LIST_KIDS,
             ClusterCommands.SECRETS_REVOKE_KIDS,
-            ClusterCommands.SECRETS_FORCE_ROTATE
+            ClusterCommands.SECRETS_FORCE_ROTATE,
+            // keyvault:* commands run against the key vault subsystem and the
+            // shared database, not SystemsControl
+            ClusterCommands.KEYVAULT_STATUS,
+            ClusterCommands.KEYVAULT_ROTATE_KEK,
+            ClusterCommands.KEYVAULT_ROTATE_DEK,
+            ClusterCommands.KEYVAULT_WIPE_ENCRYPTED,
+            // mailing:* commands run against the batch mailer and the shared
+            // mailing tables, not SystemsControl
+            ClusterCommands.MAILING_ASSIGN,
+            ClusterCommands.MAILING_STATUS,
+            ClusterCommands.MAILING_CANCEL
         ];
         if (!systemsControl && !noControlNeeded.includes(action)) {
             throw new Error('OrionSystemsControl unavailable on this node');
@@ -652,7 +670,7 @@ class ClusterLinkSystem {
 
             case ClusterCommands.UNBLOCK_ACTOR:
                 this._requireArg(args, 'actorId');
-                return { applied: systemsControl.unblockActor(args.actorId) === true };
+                return { applied: (await systemsControl.unblockActor(args.actorId)) === true };
 
             case ClusterCommands.ADD_CLIENT_URLS:
                 return this._addClientUrls(args);
@@ -669,6 +687,30 @@ class ClusterLinkSystem {
 
             case ClusterCommands.SECRETS_FORCE_ROTATE:
                 return this._forceRotateSecrets(args);
+
+            case ClusterCommands.KEYVAULT_STATUS:
+                return this._keyVaultStatus();
+
+            case ClusterCommands.KEYVAULT_ROTATE_KEK:
+                return this._rotateKek();
+
+            case ClusterCommands.KEYVAULT_ROTATE_DEK:
+                return this._rotateDek(args);
+
+            case ClusterCommands.KEYVAULT_WIPE_ENCRYPTED:
+                return this._wipeEncryptedFields(args);
+
+            case ClusterCommands.MAILING_ASSIGN:
+                return this._batchMailer('assign').acceptGroup(args);
+
+            case ClusterCommands.MAILING_STATUS:
+                // Answers even when the batch mailer is off — "this node does
+                // not send batch mail" is exactly what the watchdog needs to
+                // hear to stop waiting on it.
+                return globalAccessPoint.getValue('batchMailerSystem')?.getMailingStatus(args) || { enabled: false, active: [] };
+
+            case ClusterCommands.MAILING_CANCEL:
+                return this._batchMailer('cancel').cancelGroup(args);
 
             case ClusterCommands.START_MEMORY_MONITOR:
                 systemsControl.reactivateMemoryMonitoring();
@@ -740,6 +782,22 @@ class ClusterLinkSystem {
                 const blocked = Number(stats.blockedActors ?? stats.currentlyBlocked ?? stats.blocked ?? 0);
                 vote = blocked >= minBlocked;
                 details = { blocked, minBlocked };
+                break;
+            }
+
+            case ConsensusTopics.ENCRYPTION_UNAVAILABLE: {
+                const encryptionKeyManager = globalAccessPoint.getValue('encryptionKeyManager');
+                const keyVault = globalAccessPoint.getValue('keyVaultManager');
+
+                // A node with no key manager at all counts as unavailable: it
+                // certainly cannot read encrypted fields.
+                vote = encryptionKeyManager ? encryptionKeyManager.available !== true : true;
+
+                details = {
+                    provider: keyVault?.providerId || null,
+                    reason: encryptionKeyManager?.unavailableReason || keyVault?.unavailableReason || null,
+                    activeKeyVersion: encryptionKeyManager?.activeVersion ?? null
+                };
                 break;
             }
 
@@ -834,6 +892,125 @@ class ClusterLinkSystem {
         return { results };
     }
 
+    // ── Batch mailing command executors ───────────────────────────────────────
+
+    /**
+     * The node's batch mailer, or a clear refusal.
+     *
+     * A node without one must say so rather than fail vaguely: the orchestrator
+     * treats a refused assignment as "give this group to someone else", which
+     * is the correct outcome for a node that was never configured to send bulk
+     * mail. A generic error would look like a fault instead.
+     */
+    _batchMailer(what) {
+        const mailer = globalAccessPoint.getValue('batchMailerSystem');
+        if (!mailer) {
+            throw new Error(`Cannot ${what} a mailing group: the batch mailer is not enabled on this node (utilities.batchMailer.enabled)`);
+        }
+        return mailer;
+    }
+
+    // ── Key vault command executors ───────────────────────────────────────────
+
+    _keyVaultManagers() {
+        return {
+            vault: globalAccessPoint.getValue('keyVaultManager') || null,
+            keys: globalAccessPoint.getValue('encryptionKeyManager') || null
+        };
+    }
+
+    /**
+     * Field-encryption status. Answers even when the vault is broken — a status
+     * command that fails when things are wrong is useless precisely when it is
+     * needed, so an unreachable vault is REPORTED, not thrown.
+     */
+    async _keyVaultStatus() {
+        const { vault, keys } = this._keyVaultManagers();
+
+        if (!vault) {
+            return { configured: false, available: false, reason: 'This node has no key vault subsystem (it predates the feature or failed before boot completed)' };
+        }
+
+        const health = await vault.checkHealth();
+
+        // Inventory and history need a working DEK, so they are only attempted
+        // when one exists — their absence is itself part of the answer.
+        const [inventory, keyHistory] = keys?.available
+            ? await Promise.all([keys.inventory().catch(err => ({ error: err.message })), keys.keyHistory().catch(err => ({ error: err.message }))])
+            : [null, null];
+
+        return {
+            configured: true,
+            available: keys?.available === true,
+            reason: keys?.unavailableReason || vault.unavailableReason || null,
+            vault: vault.describe(),
+            health,
+            activeKeyVersion: keys?.activeVersion ?? null,
+            inventory,
+            keyHistory
+        };
+    }
+
+    async _rotateKek() {
+        const { keys } = this._keyVaultManagers();
+        if (!keys) throw new Error('Field encryption is not configured on this node');
+
+        return keys.rotateKek();
+    }
+
+    /**
+     * DEK rotation touches SHARED database state, so it is issued to a single
+     * node rather than broadcast — running it fleet-wide would have every node
+     * racing to re-encrypt the same rows.
+     */
+    async _rotateDek(args = {}) {
+        const { keys } = this._keyVaultManagers();
+        if (!keys) throw new Error('Field encryption is not configured on this node');
+
+        const batchSize = Number(args.batchSize);
+
+        return keys.rotateDek({
+            ...(Number.isInteger(batchSize) && batchSize > 0 ? { batchSize: Math.min(batchSize, 5000) } : {}),
+            reencrypt: args.reencrypt !== false
+        });
+    }
+
+    /**
+     * DESTRUCTIVE and irreversible: clears encrypted field data so affected
+     * users can re-enroll.
+     *
+     * The node enforces its own confirmation independently of the orchestrator.
+     * The orchestrator already requires root, a typed phrase and a fleet
+     * consensus vote — but a node must not destroy user data because a single
+     * upstream message said so, so the confirmation is re-checked at the point
+     * of execution. Defence in depth for the one command here that cannot be
+     * undone.
+     */
+    async _wipeEncryptedFields(args = {}) {
+        const { keys } = this._keyVaultManagers();
+        if (!keys) throw new Error('Field encryption is not configured on this node');
+
+        if (args.confirmation !== WIPE_CONFIRMATION_PHRASE) {
+            throw new Error(`Refusing to wipe encrypted fields: the confirmation phrase must be exactly "${WIPE_CONFIRMATION_PHRASE}"`);
+        }
+
+        const fields = Array.isArray(args.fields) && args.fields.length > 0 ? args.fields.map(String) : null;
+        const results = await keys.wipeEncryptedFields(fields);
+
+        // Tell the affected users in-product. Best effort: the wipe itself has
+        // already happened and must be reported as done even if the notice fails.
+        try {
+            const { announceTotpWiped } = await import('../Core/Notifications/NotificationService.js');
+            if (results.some(result => result.deactivates === 'totp')) {
+                await announceTotpWiped({ reason: args.reason || null, actorEmail: args.actorEmail || null });
+            }
+        } catch (err) {
+            logger.warn(`ClusterLink: encrypted-field wipe succeeded but the user notification could not be raised — ${err.message}`);
+        }
+
+        return { wiped: true, results };
+    }
+
     // ── Observability ─────────────────────────────────────────────────────────
 
     getStats() {
@@ -851,4 +1028,4 @@ class ClusterLinkSystem {
     }
 }
 
-export { ClusterLinkSystem };
+export { ClusterLinkSystem, WIPE_CONFIRMATION_PHRASE };

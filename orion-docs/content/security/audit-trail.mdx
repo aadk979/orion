@@ -1,0 +1,153 @@
+---
+title: Audit trail
+description: Hash chaining, the write-ahead log, and how to verify that nothing was altered.
+---
+
+Orion keeps two independent audit trails: Orion-core's application trail, and the
+orchestrator's governance trail. Both are hash-chained and append-only.
+
+## Orion-core's trail
+
+Enabled with:
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    auditTrailSystem: {
+        enabled: true,
+        host: '10.0.0.5',
+        user: 'orion_audit',
+        password: process.env.MYSQL_PASSWORD,
+        database: 'orion_audit',
+        flushIntervalMs: 5000,
+        flushThreshold: 100
+    }
+}
+```
+
+`host`, `user`, and `password` are **required when enabled** — the node refuses to
+boot on missing values rather than silently degrading.
+
+### Two destinations
+
+Records are buffered, then written to MySQL `audit_trail` **and** appended to a
+local signed write-ahead log:
+
+| File | Purpose |
+| --- | --- |
+| `orion.internal.audit_wal.jsonl` | The signed WAL |
+| `orion.internal.audit_wal.pub.pem` | Public key for verifying it |
+
+Schema version: `2.1.0`.
+
+### Tamper evidence
+
+Every row carries a SHA-256 `hash` chained to `prevHash`, and the chain hash
+covers **all** audited fields — including `sessionId`, `environment`, and
+`durationMs` — so a stored row is sufficient to re-verify end to end.
+
+Other design points that matter operationally:
+
+- **`recordId` is unique.** Crash recovery replays the on-disk WAL through
+  `INSERT … ON DUPLICATE KEY UPDATE`, so a crash between the flush commit and the
+  WAL truncation cannot double-insert.
+- **No foreign key to `users`.** The audit database is a separate engine, and
+  audit rows must survive user deletion — which is itself an audited event.
+- **`id` is the ordering authority, not `timestamp`.** Rows in a batch share a
+  timestamp; the chain is ordered by insert order. Read with `ORDER BY id`.
+- **Not partitioned.** Partitioning would require the partition key in every
+  unique key, conflicting with `UNIQUE(recordId)`. Replay idempotency was judged
+  worth more than cheap partition drops.
+
+### Boot verification
+
+Startup runs a live round trip: write a `SYSTEM-AUDIT-TEST` record, force-flush,
+query it back, delete it. Failure after retries fails the boot with
+`AuditTrailSystem integrity test failed`. The audit trail is not allowed to be
+half-working.
+
+### What gets recorded
+
+Token issuance and validation events, every `userControl` call including its
+failure paths, security events across the auth flows, and — on a node in a
+cluster — every remote command received, as `CLUSTER_COMMAND_RECEIVED` scoped to
+the `issuedBy` principal from the envelope.
+
+A record looks like:
+
+```js
+{
+    user: { uid, email },
+    device: { ... },
+    action: 'USER_ROLE_UPDATE_ATTEMPT',
+    status: 'FAILED',
+    source: 'UserControl.js',
+    functionName: 'updateUserRole',
+    requestId, ipAddress,
+    impact: 'User role update failed - no role provided',
+    metadata: { reason: 'NO_ROLE_PROVIDED' },
+    errorCode: 'USER-CONTROL::NO-ROLE-PROVIDED::A::p'
+}
+```
+
+Calls made outside a request carry `requestId: 'LOCAL-SYSTEM'` and
+`ipAddress: 'LOCAL-SYSTEM'`.
+
+### Pausing it
+
+`audit:pause` and `audit:resume` are remote commands — both **safe-mode gated**,
+so a node in safe mode refuses them. Pausing the audit trail is exactly the kind
+of thing an attacker with control-plane access would want to do first.
+
+## The orchestrator's governance trail
+
+`orch_admin_audit` in Postgres, created by the system-admin migration.
+
+Every authenticated API request — including the ones PBAC **denies** — plus every
+auth and governance event lands there, scoped to the acting admin. Rows are
+hash-chained as `hash = sha256(row + prev_hash)`, and the table rejects `UPDATE`
+and `DELETE` **at the database level** via trigger.
+
+```bash filename="terminal" copy
+orionctl audit --limit 100
+orionctl audit --action governance:
+orionctl audit --admin ADM_123
+orionctl audit verify          # root only — re-walks the entire chain
+```
+
+Or `GET /api/audit/verify` from the panel.
+
+<Warning title="A BROKEN chain means direct database access">
+The application cannot produce one — updates and deletes are blocked by trigger.
+If verification fails, someone reached the database outside the application.
+Treat it as a compromise, not a bug.
+</Warning>
+
+## Both sides record the same action
+
+When an admin issues a node command, two independent records are written:
+
+1. The orchestrator writes the request to `orch_admin_audit`, scoped to that
+   admin.
+2. The receiving node writes `CLUSTER_COMMAND_RECEIVED` to its own trail, scoped
+   to the `issuedBy` principal the envelope carried.
+
+Neither side can be edited through the application, and they are in different
+databases. Reconciling them is how you detect tampering on either.
+
+## Retention
+
+`audit_trail` grows without bound. Prune with a batched `DELETE` on
+`idx_audit_timestamp` during low-traffic windows.
+
+<Callout type="warning" title="Deleting rows breaks the chain">
+The chain is ordered by `id`. Truncating from the front is fine as an operational
+choice, but verification can then only cover the retained range. Decide your
+retention window deliberately and, if you have a compliance requirement, archive
+before pruning.
+</Callout>
+
+## Without MySQL
+
+Omit the block and events still append to the local signed WAL. That is per-node,
+unaggregated, and loses the MySQL round-trip verification — acceptable for
+development, not for anything you would need to reconstruct later.

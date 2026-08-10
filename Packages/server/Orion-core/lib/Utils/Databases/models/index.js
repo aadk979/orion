@@ -9,3 +9,4 @@ export { DeviceModel } from './DeviceModel.js';
 export { RequestModel } from './RequestModel.js';
 export { WebAuthnCeremonyModel } from './WebAuthnCeremonyModel.js';
 export { HealthCheckModel } from './HealthCheckModel.js';
+export { NotificationModel } from './NotificationModel.js';

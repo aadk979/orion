@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { isValidEmail, isValidEmailDomain } from '../../../Validator.js';
 import { respondWithError, respondWithSuccess } from '../../../../Server/Response/response.js';
 import { setManagedCookie } from '../../../CookieUtils.js';
+import { resolveClientContext } from '../../../Parsers.js';
 import { SafeModuleHandler } from '../../../UnavailableModuleWrapper.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'generateAuthenticationOptions.js');
@@ -35,7 +36,12 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
             const emailValidation = isValidEmailDomain(globalAccessPoint.allowedEmailDomains(), sanitizedEmail);
 
             if (!emailValidation) {
-                return respondWithError(parameters.response, 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p');
+                // Returns an error result for the route handler to render. This
+                // called respondWithError(parameters.response, …) — but this
+                // inner function never receives a response object, so the branch
+                // threw on `undefined.setHeader` and surfaced as a 500 on every
+                // deployment that restricts email domains.
+                return { error: true, errorCode: 'ACCOUNT-REG::DOMAIN-NOT-ALLOWED::A::p' };
             }
         }
 
@@ -105,12 +111,17 @@ const generatePasskeyAuthenticationOptionsExistingUser = async (email, clientURL
 };
 
 const routeHandlerGeneratePasskeyAuthenticationOptionsExistingUser = async (request, response) => {
-    const email = request.body.packet.email;
-    const clientURL = request.get('Origin') || request.get('Referer');
+    const email = request.body.packet?.email;
 
-    const parsedClientURL = clientURL.split('//')[clientURL.split('//').length - 1];
+    // Was `clientURL.split('//').pop()`, which keeps the port AND, for a Referer,
+    // the whole path — neither of which belongs in an RP ID.
+    const clientContext = resolveClientContext(request);
 
-    const callback = await generatePasskeyAuthenticationOptionsExistingUser(email, parsedClientURL);
+    if (!clientContext) {
+        return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
+    }
+
+    const callback = await generatePasskeyAuthenticationOptionsExistingUser(email, clientContext.rpId);
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);

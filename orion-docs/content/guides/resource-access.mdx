@@ -1,0 +1,164 @@
+---
+title: Static files & ORAS
+description: Plain static hosting versus token-gated resource delivery, including presigned S3 URLs.
+---
+
+Two unrelated mechanisms that both serve files. Pick the right one.
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardHeader><Badge>Ungated</Badge></CardHeader>
+    <CardTitle>Static assets</CardTitle>
+    <CardDescription className="mt-2">
+      <code>api.static</code>. Serves a directory the way a normal web server
+      would. Mounted before the auth stack, so browser fetches need no
+      <code>orion-*</code> headers.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="accent">Token-gated</Badge></CardHeader>
+    <CardTitle>ORAS</CardTitle>
+    <CardDescription className="mt-2">
+      Any path containing <code>resource-access-oras</code>. Delivery is decided
+      by an <code>accessType</code> query parameter and, for secure types, a
+      resource token.
+    </CardDescription>
+  </Card>
+</Grid>
+
+## Static assets
+
+```js filename="gipsy.orion.config.js"
+api: {
+    static: {
+        enabled: true,
+        directory: 'public',      // relative to cwd, or absolute
+        options: {
+            dotfiles: 'ignore',   // never serve .env/.git/etc.
+            index: false,         // no implicit directory index
+            maxAge: '1h'
+        }
+    }
+}
+```
+
+`GET /styles.css` serves `./public/styles.css`. Returns nothing — the middleware
+is not mounted at all — when disabled or when the directory does not exist.
+
+<Warning title="This is genuinely public">
+There is no authentication in front of it. Do not point `directory` at anything
+you would not publish. Keep `dotfiles: 'ignore'` and `index: false`.
+</Warning>
+
+## ORAS
+
+The middleware intercepts any request whose path contains the segment
+`resource-access-oras`, and branches on `?accessType=`.
+
+### `public`
+
+```http
+GET /resource-access-oras?accessType=public&path=logo.png&view=true
+```
+
+No token. The requested path is resolved through a safe-path helper that blocks
+traversal; anything suspicious returns `403 Access denied: Invalid path.`
+Defaults to `default_orion.txt` when no `path` is given. `view=false` forces a
+download rather than an inline render.
+
+### `secure-0`
+
+```http
+GET /resource-access-oras?accessType=secure-0&path=invoice&token=<resource-token>
+```
+
+The resource token is validated (expiry, IP range, issuer). On success the
+request is routed to a registered callback, which returns the file as
+`{ base64File, mimeType }`.
+
+| Failure | Response |
+| --- | --- |
+| Expired | `401` `TOKEN-RESOURCE::EXPIRED::A::p` |
+| Invalid | `401` `TOKEN-RESOURCE::INVALID::A::p` |
+| Validation error | `401` with the underlying code |
+
+### `s3-0`
+
+Identical gating, but the callback returns `{ url, expiresAt? }` — a presigned S3
+URL rather than bytes through your server.
+
+```js
+import { oras } from '@aadharsh/orion-alpine-x934x';
+
+const url = await oras.presignS3Url({ /* … */ });
+```
+
+`S3UrlBuilder` and `presignS3Url` are exported for building those URLs, on top of
+`@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`.
+
+## Registering callbacks
+
+```js filename="gipsy.orion.config.js"
+api: {
+    resourceAccessConfig: [
+        {
+            callbackPath: 'invoice',
+            accessType: 'SECURE-0',
+            callback: async ({ tokenData, customData }) => {
+                const pdf = await renderInvoice(customData.invoiceId, tokenData.uid);
+                return { base64File: pdf.toString('base64'), mimeType: 'application/pdf' };
+            }
+        },
+        {
+            callbackPath: 'avatar',
+            accessType: 'S3-0',
+            callback: async ({ customData }) => ({
+                url: await presignAvatar(customData.userId),
+                expiresAt: Date.now() + 60_000
+            })
+        }
+    ]
+}
+```
+
+Validated at boot. An entry with a non-string `callbackPath`, an unsupported
+`accessType`, or a non-function `callback` is **refused registration with a
+warning** — it does not fail the boot, so check your logs after changing this.
+
+Supported access types are exactly `PUBLIC`, `SECURE-0`, and `S3-0`.
+
+## Issuing a resource token
+
+```js
+import { tokens } from '@aadharsh/orion-alpine-x934x';
+
+const grant = await tokens.generateResourceToken(
+    uid, email, fingerprint, ip, userAgent,
+    'SECURE-0',          // 'PUBLIC' is rejected — it needs no token
+    ['invoice'],         // allowlist of callbackPaths this token may reach
+    false,               // shareAllowed
+    5,                   // maxRetrievals
+    { invoiceId: 'INV-1' }
+);
+```
+
+Constraints:
+
+- `accessibleCallbacks` must be a non-empty array, or
+  `TOKEN-RESOURCE::INVALID-CALLBACKS-ARRAY::A::p`.
+- `viewType` must be a supported type, or
+  `TOKEN-RESOURCE::INVALID-VIEW-TYPE::A::p`.
+- `PUBLIC` is explicitly rejected with
+  `TOKEN-RESOURCE::VIEW-TYPE-NOT-ACCEPTABLE::A::p`.
+- The retrieval budget is capped at 25 retrievals per hour of token lifetime.
+
+<Callout type="info" title="Fingerprint is stored but not checked">
+A fingerprint hash is recorded at issuance and deliberately not verified at
+retrieval. For a shareable "secure" view the fingerprint is legitimately absent —
+the token may be opened outside the issuing browser. Bind with `maxRetrievals`
+and a short lifespan instead, and set `shareAllowed: false` when a link must not
+leave the issuing context.
+</Callout>
+
+Resource tokens are not tier-aware, are not payload-compressed, and never travel
+as cookies. Their lifespan comes from `tokens.lifespans.resourceTokens`.

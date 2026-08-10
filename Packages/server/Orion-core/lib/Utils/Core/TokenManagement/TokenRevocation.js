@@ -31,6 +31,8 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 import { recordTokenEvent } from './internals/tokenAudit.js';
 import { revokeJti } from './internals/jtiDenylist.js';
 import { parseDuration } from '../../Date&Time.js';
+import { ssfTransmitter } from '../SharedSignals/SsfTransmitter.js';
+import { sessionRevoked, CaepEventTypes } from '../SharedSignals/CaepEvents.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'TokenRevocation.js');
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'TokenRevocation.js');
@@ -70,6 +72,15 @@ async function revokeStatelessToken(jti, { ttlSeconds = null, uid = null, reason
 
     await revokeJti(jti, lifespan);
 
+    // Tier 1 has no row and no link code, so the account is the only subject
+    // that can be named — a receiver cannot act on a jti it has never seen.
+    if (uid) {
+        const issuer = globalAccessPoint.getValue('ssfIssuer');
+        if (issuer) {
+            ssfTransmitter.emitDetached(CaepEventTypes.SESSION_REVOKED, sessionRevoked({ issuer, uid, reason }), { txn: `revoke-jti-${jti}` });
+        }
+    }
+
     auditRevocation({
         functionName: 'revokeStatelessToken',
         status: 'SUCCESS',
@@ -81,6 +92,41 @@ async function revokeStatelessToken(jti, { ttlSeconds = null, uid = null, reason
 
     return { error: false, revokedCount: 1, revokedTokens: [{ tokenId: jti, uid, type: 'STATELESS', linkCode: null }] };
 }
+
+/**
+ * Transmits a CAEP session-revoked event for a completed revocation.
+ *
+ * Detached on purpose. A revocation that succeeded locally is a success even if
+ * no receiver could be reached — the session IS dead here, and turning a
+ * delivery problem into a revocation failure would leave the caller believing
+ * the opposite of the truth. Delivery durability is the transmitter's problem
+ * (it retries), not this call site's.
+ *
+ * Emitted per distinct session where the revocation was session-scoped, and
+ * once account-wide otherwise, so a receiver that only tracks whole accounts
+ * and one that tracks individual sessions both get something actionable.
+ */
+const emitRevocationSignal = ({ uid, revokedTokens, reason, accountWide }) => {
+    const issuer = globalAccessPoint.getValue('ssfIssuer');
+    if (!issuer) return;
+
+    if (accountWide && uid) {
+        ssfTransmitter.emitDetached(CaepEventTypes.SESSION_REVOKED, sessionRevoked({ issuer, uid, reason }), { txn: `revoke-all-${uid}` });
+        return;
+    }
+
+    const linkCodes = [...new Set((revokedTokens || []).map(t => t.linkCode).filter(Boolean))];
+
+    for (const linkCode of linkCodes) {
+        ssfTransmitter.emitDetached(CaepEventTypes.SESSION_REVOKED, sessionRevoked({ issuer, linkCode, reason }), { txn: `revoke-${linkCode}` });
+    }
+
+    // A revoked token with no link code cannot be named as a session, so the
+    // account-level statement is the only true thing we can say about it.
+    if (linkCodes.length === 0 && uid) {
+        ssfTransmitter.emitDetached(CaepEventTypes.SESSION_REVOKED, sessionRevoked({ issuer, uid, reason }), { txn: `revoke-${uid}` });
+    }
+};
 
 const auditRevocation = ({ functionName, status, impact, uid, ip, metadata, errorCode }) => {
     const requestMetadata = requestContext.getStore();
@@ -104,7 +150,7 @@ const auditRevocation = ({ functionName, status, impact, uid, ip, metadata, erro
  * `target` is only used for audit/error texts; `requireMatch` controls whether
  * zero deletions is NOT-FOUND (targeted revokes) or a valid no-op (revoke-all).
  */
-async function executeRevocation({ functionName, filters, uid, reason, revokedBy, ip, target, requireMatch }) {
+async function executeRevocation({ functionName, filters, uid, reason, revokedBy, ip, target, requireMatch, accountWide = false }) {
     try {
         const deletedRows = await TokenModel.deleteTokensWhere(filters);
 
@@ -131,6 +177,10 @@ async function executeRevocation({ functionName, filters, uid, reason, revokedBy
             ip,
             metadata: { reason, revokedBy, target, revokedCount: revokedTokens.length, revokedTokenIds: revokedTokens.map(t => t.tokenId) }
         });
+
+        if (revokedTokens.length > 0) {
+            emitRevocationSignal({ uid: uid || revokedTokens[0]?.uid, revokedTokens, reason, accountWide });
+        }
 
         return { error: false, revokedCount: revokedTokens.length, revokedTokens };
     } catch (e) {
@@ -241,7 +291,10 @@ async function revokeAllTokensForUser(
         revokedBy,
         ip,
         target: `all tokens for uid ${uid}`,
-        requireMatch: false
+        requireMatch: false,
+        // One account-wide statement rather than one per session: the fact worth
+        // transmitting is that this user's sessions are over.
+        accountWide: true
     });
 }
 

@@ -79,7 +79,10 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `PersitantDatabases/index.js`         | 🔌                                                                         | selects a live backend                                |
 | `migrations/*.sql`                    | 🔌                                                                         | versioned DDL applied by the runner against a live DB |
 | `models/*`                            | 🔌                                                                         | queries against a live DB                             |
-| `models/TOTPModel.js` sealing         | ✅ (AES-256-GCM round-trip, tamper, legacy plaintext, keyless degradation) | `server/utils/totpSecretSealing.test.js`              |
+| Field encryption (envelope sealing)   | ✅ (seal/open round-trip, AAD-bound DEK version, tamper, enc.v1 legacy compat, plaintext passthrough, refusal when unavailable, DEK + KEK rotation) | `server/utils/totpSecretSealing.test.js`              |
+| `Core/KeyVault/*` providers + gating  | ✅ (registry completeness, normalized contract, explicitAllow gate, cluster refusal of inline keys, wrap/unwrap health round trip, field registry) | `server/utils/keyVaultProviders.test.js`              |
+| `Core/KeyVault/configSchema.js`       | ✅ (per-provider schema drift guard, unknown-key rejection with suggestions, required keys + env fallbacks, either/or groups, fatal gates, absence tolerance) | `server/utils/keyVaultConfigSchema.test.js`           |
+| `models/NotificationModel.js`         | ✅ (audience/severity validation, keyed upsert without receipt reset, lazy materialization, DB-side prompt decision, route id coercion) | `server/general/notifications.test.js`                |
 
 ### Systems (`lib/Utils/Systems`)
 
@@ -96,8 +99,9 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `LoadSheddingSystem.js` / `EventLoopMonitor.js` / `MemoryMonitoringSystem.js` | 🔌                                                                                                        | runtime load signals                            |
 | `GracefulShutdownSystem.js`                                                   | 🔌                                                                                                        | process signal lifecycle                        |
 | `DatabaseJanitor.js`                                                          | 🔌                                                                                                        | advisory-locked TTL sweeps against a live DB    |
-| `AuditTrailSystem.js` / `Tracer.js` / `Snapshotter.js`                        | 🔌                                                                                                        | observability against a store                   |
-| `ClusterLinkSystem.js`                                                        | ✅ (commands, secrets revocation, consensus ballots, alert edges, desync recovery, cluster-state tracking; live transport 🔌) | `server/orchestrator/ClusterLinkSystem.test.js` |
+| `AuditTrailSystem.js` / `Snapshotter.js`                                      | 🔌                                                                                                        | observability against a store                   |
+| `ClusterLinkSystem.js`                                                        | ✅ (commands, secrets revocation, key-vault status/wipe gating, consensus ballots incl. encryption-unavailable, alert edges, desync recovery, cluster-state tracking; live transport 🔌) | `server/orchestrator/ClusterLinkSystem.test.js` |
+| `BatchMailer/*` (system, GroupSender, recipientQueue, reporting, limiter, tokens, failures, transport) | ✅ (sliding rate budget incl. `wait()`, token substitution, archive+delete atomicity, retry/backoff, dead-lettering, permanent-vs-throttle-vs-transport classification, dead-transport abort, one-group-at-a-time, graceful cancel, start/stop lifecycle, unreadable-queue and down-link reporting, progress fan-out; live SMTP 🔌) | `server/orchestrator/BatchMailerSystem.test.js` |
 
 ### Errors (`lib/Errors`)
 
@@ -115,6 +119,7 @@ Run `npm run test:coverage` for line/branch numbers on the ✅ set.
 | `lib/Server/initiateServer.js`                                               | 🔌                      | boots Express + all systems                                                                                 |
 | `lib/Server/Middleware/*`                                                    | 🔌                      | request pipeline (auth, origin, abuse, load-shedding, device scan, header parse, resource access, metadata) |
 | `lib/Server/Endpoints/*`, `Response/response.js`, `onStartConfigurations.js` | 🔌                      | live routing/response                                                                                       |
+| `onStartConfigurations.js` → `handleAllowedUserRolesConfig`                  | ✅ (store value, normalization, boot-failure paths) | `server/general/allowedUserRolesConfig.test.js`                          |
 
 ### Core account/security/token/OAuth/resource logic (`lib/Utils/Core`)
 
@@ -122,11 +127,22 @@ All 🔌 — these read/write users, tokens, devices, passkeys and TOTP through 
 persistence + ephemeral layers, or perform browser ceremonies:
 
 `AccountManagment/*` (CreateAccount, SignIn, SignOut, GetUserProfile,
-PasswordReset, SetupTOTP, TOTP, UserControl, Passkeys/*, DeviceAuthorization),
+PasswordReset, SetupTOTP, TOTP, Passkeys/*, DeviceAuthorization),
 `SecurityManagment/*` (StepUpAuth, Remove2FAMethod, NoAuthToken, CookieReset,
 DeviceAuthorization), `TokenManagement/*` (Access/Refresh/Resource tokens,
 cleanup, field map), `OAuth/*`. The pure pieces of `ResourceAccessManagment/*`
 are unit-tested — see the Resource Access section above.
+
+`AccountManagment/UserControl.js` is partially promoted:
+
+| Area                                    | Status                                                                                                             | Suite                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `updateUserRole`                        | ✅ (all validation gates, custom-role allowlist, uppercasing, the `sessions_valid_from` bump, audit on every path) | `server/general/UserControlRoleGate.test.js` |
+| Remainder (existence, lookups, disable/enable, password set) | 🔌                                                                                            | live users table                             |
+
+`UserModel` reaches Postgres through globalAccessPoint's `db` module, so a
+recording fake exercises the real SQL without a server. What stays 🔌 is whether
+Postgres honours that SQL — not whether UserControl issues it.
 
 > `TokenManagement/tokenFieldMap.js` is a static map and is a good candidate to
 > promote to a ✅ unit test next.
@@ -166,6 +182,41 @@ unit test if the SMTP transport is injectable.
 | `lib/RegistryStore.js`     | ✅ (round trip, debounce, corruption recovery)                                         | `server/orchestrator/RegistryStore.test.js`                                                                   |
 | `lib/OrionOrchestrator.js` | 🔌                                                                                     | binds an R_Sync ORCHESTRATOR HTTP server; full production loop verified live against a ClusterLinkSystem node |
 | `index.js` (package entry) | ⚙️                                                                                     | re-exports evaluated via the suites above                                                                     |
+
+### System-admin plane (`lib/SystemAdmin`)
+
+| Module                  | Status                                                                                                                          | Suite                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `PBACEngine.js`         | ✅ (all four wildcard forms incl. the intra-segment prefix glob, deny-overrides, default deny, document validation)              | `server/orchestrator/PBACEngine.test.js`               |
+| `adminActions.js`       | ✅ (vocabulary pinned as literals, uniqueness, freeze, namespace isolation under the real matcher)                               | `server/orchestrator/adminActions.test.js`             |
+| `SystemAdminService.js` | ✅ (module load, config defaults, TOTP single-use claim, `authorize` root bypass + PBAC path, root-only gate on all 13 governance methods) | `server/orchestrator/SystemAdminService.test.js`        |
+| `authCrypto.js`         | ✅                                                                                                                              | `server/orchestrator/authCrypto.test.js`               |
+| `AuditLog.js`           | ✅                                                                                                                              | `server/orchestrator/AuditLog.test.js`                 |
+| `index.js`              | ✅ (smoke import — guards against a module-level parse error taking the whole plane down)                                        | `server/orchestrator/SystemAdminService.test.js`       |
+| `AdminServer.js`        | 🔌                                                                                                                              | binds Express; session/stage/PBAC gates over live HTTP |
+| `models.js`             | 🔌 (effective-policy SQL asserted indirectly via `authorize`)                                                                    | live `orch_*` tables                                   |
+| `AdminDatabase.js`, `AdminMailer.js` | 🔌                                                                                                                  | Postgres pool / SMTP transport                         |
+| `migrations/*.sql`      | 🔌                                                                                                                              | applied under advisory lock against live Postgres      |
+
+### Batch mailing plane (`lib/Mailing`)
+
+| Module                    | Status                                                                                                                                                                                | Suite                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `GroupPlanner.js`         | ✅ (the specified 100/5/15 → 15×6+10 split, cap-versus-node-count, partition invariants, edges)                                                                                        | `server/orchestrator/GroupPlanner.test.js`            |
+| `SheetParser.js`          | ✅ (real .xlsx fixtures: required/optional columns, unknown columns as tokens, header aliasing, every rejection path, all-or-nothing validation, job-id generation)                    | `server/orchestrator/SheetParser.test.js`             |
+| `BatchMailingService.js` + `Dispatcher.js`, `NodeReports.js`, `MailingWatchdog.js`, `JobCompletion.js`, `JobSubmission.js`, `MailingReads.js`, `leases.js` | ✅ (dispatch fan-out, one-group-per-node, lease rollback on refusal and on duplicate assignment, one-job-at-a-time, cooldown gating, node loss, group completion, stall/24h watchdog, cancellation, submission incl. duplicate-id/load-rollback/empty-fleet/delay warnings, job detail, restart recovery, submitter summary, timer lifecycle, queue reporting — all driven through the service facade) | `server/orchestrator/BatchMailingService.test.js`     |
+| `MailingModels.js`        | 🔌 (SQL asserted indirectly through the service's stubbed models)                                                                                                                      | live `orch_mailing_*` tables                          |
+
+> The single-running-job rule and the single-live-assignment rule are enforced
+> by partial unique indexes, not by application code — the service suite stubs
+> those constraints to prove it reacts correctly when the database rejects a
+> racing write, but the constraints themselves are exercised against live
+> Postgres.
+
+> The `index.js` smoke import is deliberately listed: `SystemAdminService.js`
+> once shipped a duplicate `const` declaration in one scope — a SyntaxError that
+> made the entire plane unimportable. No suite touched the plane, so nothing
+> failed. Keep at least one test importing it.
 
 ---
 

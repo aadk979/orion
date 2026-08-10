@@ -1,0 +1,118 @@
+---
+title: Cluster model
+description: What is actually shared between Orion nodes, and what the control plane adds on top.
+---
+
+Two independent things get called "clustering" in Orion. Keeping them apart makes
+the whole architecture easier to reason about.
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="accent">Data plane</Badge></CardHeader>
+    <CardTitle>Cluster mode</CardTitle>
+    <CardDescription className="mt-2">
+      Turned on by <code>utilities.ephemeralDB.provider: 'REDIS'</code>. Shares
+      JWT signing keys so any node can validate any node's token. Postgres shares
+      everything durable.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge>Control plane</Badge></CardHeader>
+    <CardTitle>The cluster link</CardTitle>
+    <CardDescription className="mt-2">
+      Turned on by <code>utilities.clusterLink.enabled</code>. Registers the node
+      with an orchestrator for health, alerts, consensus, and remote commands.
+      Never in the request path.
+    </CardDescription>
+  </Card>
+</Grid>
+
+You can run either without the other. A production cluster runs both.
+
+## What is shared, and how
+
+| State | Where it lives | Shared by |
+| --- | --- | --- |
+| Users, credentials, passkeys, TOTP | Postgres | The database itself |
+| Token rows, devices, in-flight ceremonies | Postgres | The database itself |
+| JWT signing key pools | Redis | `TokenSecretsManager` / `SignatureSecretsManager` fan-out |
+| Revoked `jti` denylist | Redis (fallback: in-process) | Redis when present |
+| Rate-limit buckets | Redis (fallback: in-process) | Redis when present |
+| Audit trail | MySQL + local signed WAL | The database; the WAL is per-node |
+| Fleet health, alerts, commands | Orchestrator memory + registry file | R_Sync tunnels |
+
+<Warning title="Sessions are not replicated node-to-node">
+There is no session gossip and R_Sync does not carry session state. A session is
+durable because it is a row in the shared Postgres, and portable because the
+signing key is in the shared Redis. If you have seen a claim that R_Sync
+replicates sessions, it is wrong.
+</Warning>
+
+## Rules for a multi-node deployment
+
+<Steps>
+  <Step title="Every node points at the same Redis">
+    Without it, node A signs with keys node B has never seen, and every
+    cross-node request fails token validation.
+  </Step>
+  <Step title="Every node's server.urls lists every node">
+    A token's `iss` claim is validated against the allowlist, so each node must
+    recognise the issuer URL of every other node. `selfUrl` is that node's own
+    URL.
+  </Step>
+  <Step title="Every node gets a unique identity">
+    Distinct `app.serviceID`, distinct `app.appName`, and distinct
+    `clusterLink.publicIp` / `port`.
+  </Step>
+  <Step title="Every node shares the fingerprint digest key">
+    `tokens.fingerprintDigestKey` must be identical fleet-wide or fingerprint
+    risk signals stop matching across nodes.
+  </Step>
+  <Step title="client.urls covers every browser origin">
+    Or push additions at runtime with the orchestrator's `addClientUrls()`.
+  </Step>
+</Steps>
+
+## Migrations across a fleet
+
+Schema migrations are versioned, checksummed, and serialized under a Postgres
+advisory lock. Every node runs them on boot; exactly one actually applies them
+while the others wait and then verify. Booting the whole fleet simultaneously is
+safe.
+
+The same pattern protects the janitor sweep (one node per cycle) and the
+orchestrator's own `orch_*` migrations, which take a different advisory lock so
+the two ledgers never collide.
+
+## The control plane, briefly
+
+<ClusterDiagram />
+
+One orchestrator per cluster. Nodes register over R_Sync and then:
+
+- send `orion:node:hello` on join and re-identify;
+- send `orion:node:status` every `statusReportIntervalMs` (default 60s);
+- send `orion:node:alert` the moment an operational flag flips — the fast watcher
+  runs every `flagWatchIntervalMs` (default 2s), which is the alert latency
+  ceiling;
+- send `orion:node:goodbye` on graceful shutdown.
+
+The orchestrator answers with allowlisted commands and broadcasts every cluster
+health transition, so all nodes share one view of the fleet's state.
+
+### Failure modes
+
+| Situation | Behaviour |
+| --- | --- |
+| Node cannot reach the orchestrator | With `requireOrchestrator: false` (default) it serves auth traffic normally and retries registration with exponential backoff, 5s → 5m |
+| Repeated delivery failures | After `reRegisterAfterFailures` (default 3) the node re-registers the tunnel from scratch under its persistent identity key and raises `tunnel:resynced` |
+| Orchestrator restarts | Registry is rehydrated from disk with nodes marked offline, then an identify sweep over live tunnels rebuilds state within seconds |
+| Fleet partition | Consensus returns *undecided* rather than guessing. An undecided incident-confirmation counts **for** the incident, because a silent fleet is what an incident looks like |
+
+<Callout type="info" title="The orchestrator is not a single point of failure for auth">
+It is a single point of *control*. If it is down you lose fleet visibility and
+remote commands; you do not lose the ability to sign users in.
+</Callout>
+
+See [Distributed systems](/versions/alpine/docs/architecture/distributed-systems) for the health
+state machine, consensus semantics, and the policy engine in detail.

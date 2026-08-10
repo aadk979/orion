@@ -1,0 +1,70 @@
+---
+title: Next steps
+description: Choose the right next Orion milestone after your first node serves sign-ins, from application integration to clustering, operations, and hardening.
+---
+
+A node is up and a user can sign in. Here is the order most deployments take
+from here.
+
+## Harden the single node first
+
+<Steps>
+  <Step title="Add mail credentials">
+    This unlocks device authorization, TOTP, passkeys, and password reset in one
+    move — all four are gated on SMTP being present.
+    [Configuration → mail](/versions/alpine/docs/configuration#mail)
+  </Step>
+  <Step title="Configure field encryption">
+    `utilities.dataEncryption` seals TOTP secrets at rest. A single instance may
+    use `provider: 'INLINE_KEY'` with a key in config; a cluster requires a key
+    vault. Without either, TOTP deactivates — secrets are never written in
+    plaintext, and enrolled users fall back to emailed one-time codes.
+    [Key vaults & field encryption](/versions/alpine/docs/security/key-vaults)
+  </Step>
+  <Step title="Choose a security tier deliberately">
+    Tier 4 is the strictest and the default in the shipped template. Understand
+    what each tier binds before you change it.
+    [Security tiers](/versions/alpine/docs/concepts/security-tiers)
+  </Step>
+  <Step title="Turn on the audit trail">
+    Point `utilities.auditTrailSystem` at MySQL for hash-chained, tamper-evident
+    logging. [Audit trail](/versions/alpine/docs/security/audit-trail)
+  </Step>
+  <Step title="Get behind TLS">
+    Session cookies are `Secure` + `SameSite=None`; nothing works off localhost
+    without HTTPS. [TLS & reverse proxies](/versions/alpine/docs/deployment/tls)
+  </Step>
+</Steps>
+
+## Then scale out
+
+- [Run a cluster](/versions/alpine/docs/guides/running-a-cluster) — add Redis, list every node's
+  URL in every config, and give each node a unique identity.
+- [Stand up the control plane](/versions/alpine/docs/deployment/control-plane) — one orchestrator
+  per cluster for health, consensus, and fleet commands.
+- [Govern operator access](/versions/alpine/docs/architecture/authorization) — the PBAC
+  system-admin plane puts every human behind policy with an immutable audit
+  trail.
+
+## Then go live
+
+Work through the [hardening checklist](/versions/alpine/docs/security/hardening) end to end. It
+is short, and every item on it is something that has a real failure mode behind
+it.
+
+## Reference material
+
+<Grid columns={3} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/configuration">Configuration</a></CardTitle>
+    <CardDescription className="mt-2">Every key, its default, and what happens if you get it wrong.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/api-reference">API Reference</a></CardTitle>
+    <CardDescription className="mt-2">Every endpoint, the header contract, and the error envelope.</CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/cli">orionctl</a></CardTitle>
+    <CardDescription className="mt-2">Operating the cluster from a terminal, under the same PBAC rules as the panel.</CardDescription>
+  </Card>
+</Grid>

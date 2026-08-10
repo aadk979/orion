@@ -27,9 +27,13 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
             return { error: true, errorCode: 'TWO-FA::INVALID-METHOD::A::p' };
         }
 
-        if (parameters.method === 'totp' && globalAccessPoint.getValue('totpSystemDisabled')) {
-            return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
-        }
+        // Removal is deliberately NOT gated on the TOTP subsystem being live.
+        // The case that matters is a user whose enrollment has become
+        // unusable — the key vault is down, or their secret was sealed with a
+        // key this deployment no longer has. Blocking removal there would trap
+        // them with a dead factor they cannot clear. Removal writes no secrets
+        // (it only nulls columns), so it is safe with encryption unavailable,
+        // and it still requires the emailed one-time code below.
 
         if (parameters.method === 'passkey' && !systemConfigModule.getModule()?.authMethods?.passkey) {
             return { error: true, errorCode: 'PASSKEY::SIGN-IN-DISABLED::A::i' };
@@ -119,7 +123,7 @@ const initiate2FAMethodRemoval = async (uid, email, method, fingerprint, ip, use
     return await tryCatch(Function, true, parameters, 'initiate2FAMethodRemoval', functionSource);
 };
 
-const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent) => {
+const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent, callerUid) => {
     const Function = async parameters => {
         const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
@@ -127,6 +131,17 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
         const storedData = await RequestModel.get2FARemovalRequest(parseCookieData(parameters.reqId));
 
         if (!storedData) {
+            return { error: true, errorCode: 'TWO-FA::REQUEST-EXPIRED::A::p' };
+        }
+
+        // Ownership. The challenge record is selected by a cookie value, so
+        // without this the authenticated caller and the account being stripped
+        // of a second factor were never required to be the same person — the
+        // route's requireAuth only established that SOMEONE was signed in.
+        // Every other challenge flow asserts this (see the identical check in
+        // verifyStepUpWithEmailCode); this one, on the most destructive
+        // operation of the set, did not.
+        if (!parameters.callerUid || storedData.user_uid !== parameters.callerUid) {
             return { error: true, errorCode: 'TWO-FA::REQUEST-EXPIRED::A::p' };
         }
 
@@ -230,7 +245,7 @@ const complete2FAMethodRemoval = async (reqId, code, fingerprint, ip, userAgent)
         return { error: false, completed: true, method };
     };
 
-    const parameters = { reqId, code, fingerprint, ip, userAgent };
+    const parameters = { reqId, code, fingerprint, ip, userAgent, callerUid };
     const functionSource = fileURLToPath(import.meta.url);
     return await tryCatch(Function, true, parameters, 'complete2FAMethodRemoval', functionSource);
 };
@@ -270,7 +285,7 @@ const routeHandlerComplete2FAMethodRemoval = async (request, response) => {
         return respondWithError(response, 'TWO-FA::MISSING-REQUEST-ID::A::p');
     }
 
-    const callback = await complete2FAMethodRemoval(reqId, code, fingerprint, ip, userAgent);
+    const callback = await complete2FAMethodRemoval(reqId, code, fingerprint, ip, userAgent, request.user?.uid);
 
     if (callback.error) {
         return respondWithError(response, callback.errorCode);

@@ -175,6 +175,76 @@ export const UserModel = {
         return { throttled: !!until && new Date(until).getTime() > Date.now(), until };
     },
 
+    /**
+     * Records a failed SECOND-FACTOR submission (TOTP) and returns the backoff.
+     *
+     * Separate from the password counter because the two are guessed from
+     * different places and mean different things: a wrong password is a
+     * credential guess, a wrong TOTP is a challenge guess against an account
+     * whose first factor may already be satisfied.
+     *
+     * This is a per-ACCOUNT ceiling on purpose. The per-challenge ceiling in
+     * RequestModel.chargeFailedAttempt is reset by restarting the flow, and the
+     * device-authorization and step-up TOTP paths create no challenge record at
+     * all — so before this existed a 6-digit code accepted unlimited guesses.
+     *
+     * Same one-statement increment/window/deadline shape as recordFailedLogin,
+     * so concurrent submissions cannot race the counter.
+     *
+     * @returns {{ second_factor_failed_count: number, second_factor_locked_until: Date|null }}
+     */
+    async recordFailedSecondFactor(uid, { windowSeconds = 900, threshold = 5, capSeconds = 900 } = {}) {
+        const result = await query(
+            `UPDATE users
+                SET second_factor_window_start =
+                        CASE WHEN second_factor_window_start IS NULL
+                               OR second_factor_window_start < now() - ($2 || ' seconds')::INTERVAL
+                             THEN now() ELSE second_factor_window_start END,
+                    second_factor_failed_count =
+                        CASE WHEN second_factor_window_start IS NULL
+                               OR second_factor_window_start < now() - ($2 || ' seconds')::INTERVAL
+                             THEN 1 ELSE second_factor_failed_count + 1 END,
+                    second_factor_locked_until =
+                        CASE WHEN (CASE WHEN second_factor_window_start IS NULL
+                                          OR second_factor_window_start < now() - ($2 || ' seconds')::INTERVAL
+                                        THEN 1 ELSE second_factor_failed_count + 1 END) > $3
+                             THEN now() + (LEAST(
+                                    POWER(2, LEAST((CASE WHEN second_factor_window_start IS NULL
+                                                          OR second_factor_window_start < now() - ($2 || ' seconds')::INTERVAL
+                                                        THEN 1 ELSE second_factor_failed_count + 1 END) - $3, 20)),
+                                    $4) || ' seconds')::INTERVAL
+                             ELSE second_factor_locked_until END,
+                    updated_at = now()
+              WHERE uid = $1
+          RETURNING second_factor_failed_count, second_factor_locked_until`,
+            [uid, String(windowSeconds), threshold, capSeconds]
+        );
+
+        return result.rows[0] || { second_factor_failed_count: 0, second_factor_locked_until: null };
+    },
+
+    /** Clears second-factor backoff after a successful verification. */
+    async clearFailedSecondFactors(uid) {
+        await query(
+            `UPDATE users
+                SET second_factor_failed_count = 0, second_factor_window_start = NULL, second_factor_locked_until = NULL, updated_at = now()
+              WHERE uid = $1`,
+            [uid]
+        );
+    },
+
+    /**
+     * @returns {{ throttled: boolean, until: Date|null }} current second-factor
+     *   backoff. A `true` here means TOTP submissions are refused; the emailed
+     *   one-time code path stays open so the owner is never locked out.
+     */
+    async getSecondFactorThrottle(uid) {
+        const result = await query('SELECT second_factor_locked_until FROM users WHERE uid = $1', [uid]);
+        const until = result.rows[0]?.second_factor_locked_until || null;
+
+        return { throttled: !!until && new Date(until).getTime() > Date.now(), until };
+    },
+
     async deleteUser(uid) {
         await query('DELETE FROM users WHERE uid = $1', [uid]);
     }

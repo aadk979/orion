@@ -1,0 +1,113 @@
+---
+title: Session management
+description: Listing a user's active sessions and building a "sign out everywhere" screen.
+---
+
+Orion exposes three endpoints for a user to manage their own sessions. All
+require an authenticated session.
+
+## List
+
+```js
+const result = await orion.listActiveSessions();
+// { error: false, sessions: [...] }
+```
+
+Sessions are grouped by `accessTokenLinkCode` — one entry per access/refresh
+pair, not one per token. The entry whose `current` flag is `true` is the session
+making the call, which is what lets you label it in the UI.
+
+```http
+POST /alpine/api/v1/request/active-sessions    { packet: {} }
+```
+
+## Revoke one
+
+Pass exactly one of `linkCode` (the whole session) or `tokenId` (a single token).
+Passing both, or neither, is rejected client-side before a request is made.
+
+```js
+// Sign out one device
+await orion.revokeSession({ linkCode });
+
+// Revoke a single token
+await orion.revokeSession({ tokenId });
+```
+
+Returns `{ error, revokedCount, currentSessionRevoked }`. When
+`currentSessionRevoked` is true the SDK tears down local auth state
+automatically — the server has already cleared the cookies, so the UI flips
+immediately rather than waiting for the next failed request.
+
+The server schema enforces the mutual exclusion too:
+
+```js
+Joi.object({ tokenId: Joi.string().min(1), linkCode: Joi.string().min(1) })
+   .xor('tokenId', 'linkCode')
+```
+
+## Revoke everything
+
+```js
+// "Sign out everywhere else" — spares this device (default)
+await orion.revokeAllSessions();
+
+// Sign out everywhere including here
+await orion.revokeAllSessions({ keepCurrent: false });
+```
+
+## Building the screen
+
+```js filename="sessions.js" copy
+async function renderSessions() {
+    const { error, sessions } = await orion.listActiveSessions();
+    if (error) return showError('Could not load sessions');
+
+    list.replaceChildren(...sessions.map(session => {
+        const row = document.createElement('div');
+        row.textContent = session.current ? 'This device' : describe(session);
+
+        const button = document.createElement('button');
+        button.textContent = 'Sign out';
+        button.onclick = async () => {
+            const result = await orion.revokeSession({ linkCode: session.linkCode });
+            if (!result.error && !result.currentSessionRevoked) renderSessions();
+        };
+
+        row.appendChild(button);
+        return row;
+    }));
+}
+```
+
+## What revocation actually does
+
+Three mechanisms, chosen by tier and scope:
+
+| Situation | Mechanism |
+| --- | --- |
+| Tiers 2–4, one session | Delete the token rows |
+| Tier 1, one session | Record the `jti` in a short-lived denylist — Redis-backed on a cluster, in-process on a single node |
+| Everything for a user | Move `sessions_valid_from` forward, which covers stateless tokens too |
+
+See [Sessions & tokens](/versions/alpine/docs/concepts/sessions-and-tokens#revocation).
+
+<Callout type="warning" title="Tier-1 revocation without Redis is per-node">
+The `jti` denylist falls back to an in-process map when no ephemeral store is
+configured. That is correct for a single node, but on a cluster a revocation only
+applies to the node that processed it. Run Redis.
+</Callout>
+
+## Server-side and operator-side revocation
+
+- **Refresh limits.** A refresh token carries `refreshCount` and an optional
+  `maxRefreshes`; hitting the ceiling ends the session with
+  `AUTH::REFRESH-LIMIT-HIT::A::p`.
+- **Reuse detection.** Presenting a retired refresh token is treated as a
+  compromise signal rather than as an unknown token.
+- **Security events.** Password change, role change, account disable, and account
+  delete all move `sessions_valid_from`.
+- **Key revocation.** From the control plane, `secrets:revoke-kids` invalidates
+  every token signed by a given key across the fleet. That is the blunt
+  instrument for a suspected key compromise — see
+  [Control plane](/versions/alpine/docs/architecture/control-plane#signing-key-operations).

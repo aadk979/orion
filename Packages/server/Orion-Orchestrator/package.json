@@ -34,11 +34,13 @@
     "author": "Kalivaradhan Aadharsh",
     "license": "MIT",
     "dependencies": {
+        "exceljs": "^4.4.0",
         "express": "^5.1.0",
         "nodemailer": "^7.0.6",
         "otplib": "^13.3.0",
         "pg": "^8.16.3",
         "qrcode": "^1.5.4",
-        "r-sync": "file:../R_sync"
+        "r-sync": "file:../R_sync",
+        "undici": "^7.0.0"
     }
 }

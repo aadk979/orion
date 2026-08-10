@@ -1,0 +1,87 @@
+---
+title: Step-up auth
+description: When Orion demands re-verification of an already-identified user, and how it is satisfied.
+---
+
+Step-up is re-authentication of someone who is already identified. It is Orion's
+answer to "this looks slightly wrong, but refusing outright would be worse".
+
+## What triggers it
+
+| Trigger | Where it comes from |
+| --- | --- |
+| Tier 3/4 risk score ≥ 50 | Token binding — fingerprint mismatch (30) plus IP-range mismatch (40) |
+| Correct credentials during login backoff | Repeated failed sign-ins put the account in backoff; a correct password is escalated instead of refused |
+| A sensitive operation | Flows that demand fresh proof regardless of risk |
+
+In every case the response is `STEP-UP::REQUIRED::A::p` with
+`orion-flow-activation: FLOW-STEP-UP-AUTH`.
+
+## Identity during the flow
+
+Before returning the error, the authentication middleware mints a **signed
+step-up context token** and sets it as the `stepUpContext` cookie (10 minutes).
+
+That is what lets the flow endpoints identify the user without an active session
+and without trusting a uid the caller supplied. It is also why the six step-up
+routes bypass the no-auth-token gate: they authenticate through this cookie
+instead.
+
+## The three methods
+
+`POST /alpine/api/v1/request/step-up-methods` reports what this account can use.
+
+<Tabs items={["Email OTP", "Passkey", "TOTP"]}>
+  <Tab label="Email OTP">
+```http
+POST /alpine/api/v1/action/initiate-step-up-email
+POST /alpine/api/v1/action/verify-step-up-email
+```
+Emails a 6-digit code. Initiation costs 3; verification costs 5 and is subject to
+the request's attempt ceiling.
+  </Tab>
+  <Tab label="Passkey">
+```http
+POST /alpine/api/v1/action/generate-step-up-passkey-options
+POST /alpine/api/v1/action/verify-step-up-passkey
+```
+Runs a WebAuthn assertion. The ceremony row is typed `step-up`, so an assertion
+generated for sign-in cannot be replayed here.
+  </Tab>
+  <Tab label="TOTP">
+```http
+POST /alpine/api/v1/action/verify-step-up-totp
+```
+A single call with the current authenticator code.
+  </Tab>
+</Tabs>
+
+## On success
+
+A `STEP_UP_TOKEN` cookie is issued, valid for **5 hours**. Within that window the
+request context carries `stepUpAuthComplete` and `stepUpUid`, and the
+authentication middleware lets matching requests through without re-challenging.
+
+## Failure handling
+
+`step_up_auth_requests` carries `attempts` and `max_attempts`. Exceeding the
+ceiling destroys the request — the user starts a new one. All three verification
+endpoints are charged cost 5 by the rate limiter, the highest non-extreme tier,
+because a 6-digit code against a 10⁶ keyspace is the most valuable guessing
+target in the API.
+
+## Edge case worth knowing
+
+If step-up is already complete for a uid but the access token cannot be
+validated at all — for example the refresh token also demands step-up — Orion
+clears the session and returns `AUTH::MISSING-TOKEN::A::p` rather than looping.
+The user signs in again from scratch. This is intentional: there is no valid
+access token to proceed with, and continuing would mean issuing one on the
+strength of a step-up alone.
+
+## From the client
+
+The SDK's `StepUpAuthFlow` driver handles all of this — it reads the flow header,
+queries available methods, renders the challenge, and retries the original call.
+For a custom client, watch for `orion-flow-activation: FLOW-STEP-UP-AUTH` and
+drive the endpoints above.

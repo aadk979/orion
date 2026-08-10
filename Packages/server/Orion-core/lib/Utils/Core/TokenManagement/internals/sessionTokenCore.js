@@ -23,6 +23,7 @@ import { decodeKeyId, signWithKeyPair, verifyWithKeyPair } from './jwtCodec.js';
 import { buildTierBinding, assessTierRisk } from './tierBinding.js';
 import { isJtiRevoked } from './jtiDenylist.js';
 import { verifyDpopProof } from './dpop.js';
+import { isBindingRequired } from './dpopBinding.js';
 
 const capitalize = word => word.charAt(0).toUpperCase() + word.slice(1);
 
@@ -219,11 +220,27 @@ async function validateSessionToken(spec) {
         validatedToken.aud = decompressURLs(validatedToken.aud);
         validatedToken.iss = decompressURLs(validatedToken.iss);
 
-        // Audience must be carried by the TOKEN. The previous disjunction also
-        // accepted any client in the server-wide allowlist, which every request
-        // reaching this point already satisfies (originVerifier ran first) — so
-        // the token's own aud claim could never decide anything.
-        if (!validatedToken.aud.includes(clientUrl)) {
+        // Audience is checked against the LIVE allowlist, not the copy of it
+        // baked into the token at issuance.
+        //
+        // Be clear about what this check is and is not. `aud` is stamped as the
+        // whole of `allowedClientUrls()` (see issuance below), so it is
+        // deployment-scoped, not client-scoped — it does not, and is not
+        // intended to, tie a session to the one origin it was created at. That
+        // makes it redundant with originVerifier, which already refused any
+        // request whose Origin is outside the list. It is kept as defence in
+        // depth for callers that might one day reach validation without passing
+        // that middleware.
+        //
+        // Reading the live list is what matters here. Comparing against the
+        // token's frozen snapshot meant that ADDING an origin to the allowlist
+        // silently invalidated every session issued before the change the moment
+        // its user arrived via the new origin — INVALID-AUD carries logout:true,
+        // so a routine config addition logged people out. The claim had no
+        // security effect and one availability failure mode; now it has neither.
+        const currentAudience = globalAccessPoint.allowedClientUrls() || [];
+
+        if (!currentAudience.includes(clientUrl)) {
             return { error: true, errorCode: `${errorPrefix}::INVALID-AUD::A::p` };
         }
 
@@ -243,13 +260,26 @@ async function validateSessionToken(spec) {
         // the strongest signal available.
         const boundJkt = validatedToken.cnf?.jkt || null;
 
+        // Downgrade guard. Without this, a deployment that switches binding on
+        // still honours every session minted before the switch — so an attacker
+        // holding a stolen pre-cutover token keeps bearer access indefinitely,
+        // and the setting protects only new sign-ins. Refusing here forces those
+        // sessions to re-authenticate once, after which they are bound.
+        if (!boundJkt && isBindingRequired()) {
+            return { error: true, errorCode: 'TOKEN-BINDING::UNBOUND-SESSION::A::p' };
+        }
+
         if (boundJkt) {
             const proofResult = await verifyDpopProof({
                 proof: dpopProof,
                 method: requestMetadata?.method || 'POST',
                 url: requestMetadata?.requestUri || clientUrl,
                 accessToken: token,
-                expectedJkt: boundJkt
+                expectedJkt: boundJkt,
+                // Session tokens travel as HttpOnly cookies, so the client cannot
+                // read one to hash it. See the `requireAth` note in dpop.js for
+                // why the binding is still sound without the claim.
+                requireAth: false
             });
 
             if (!proofResult.valid) {

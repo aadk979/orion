@@ -1,0 +1,161 @@
+---
+title: Single node
+description: The smallest complete production deployment — one Orion-core process behind TLS.
+---
+
+One node is a legitimate production topology. You give up fleet observability and
+horizontal capacity, not correctness.
+
+## What you need
+
+Postgres and SMTP. Redis is optional (signing keys stay in-process), MySQL is
+optional (audit falls back to the local signed WAL), and no orchestrator is
+required.
+
+## Configure
+
+```js filename="gipsy.orion.config.js" copy
+const configuration = {
+    app: {
+        port: process.env.PORT || 3900,
+        appName: 'My Service',
+        serviceID: process.env.SERVICE_ID
+    },
+    db: {
+        provider: 'POSTGRES',
+        credentials: {
+            host: process.env.PG_HOST,
+            database: 'orion',
+            user: 'orion_app',
+            password: process.env.PG_PASSWORD,
+            poolMax: 20,
+            statementTimeoutMs: 30000
+        }
+    },
+    client:  { urls: ['https://app.example.com'] },
+    server:  {
+        urls: ['https://auth.example.com'],
+        selfUrl: 'https://auth.example.com',
+        trustProxy: 1                     // one reverse proxy in front
+    },
+    mail: {
+        email: process.env.SMTP_USER,
+        password: process.env.SMTP_PASSWORD,
+        service: 'gmail'
+    },
+    tokens: {
+        lifespans: { accessTokens: '15m', refreshTokens: '7d', resourceTokens: '1h' },
+        securityTier: 4,
+        fingerprintDigestKey: process.env.FINGERPRINT_KEY
+    },
+    authMethods: {
+        emailPassword: true,
+        passkey: true,
+        OAuth: {},
+        allowedEmailDomains: ['*']
+    },
+    utilities: {
+        logToFile: true,
+        safeMode: 'ENABLED',
+        accessControl: { deviceAuthorization: 'ENABLED', captcha: 'ENABLED' },
+        // Single instance, so an inline key is a supported choice. A cluster
+        // would need provider: 'AWS_KMS' (or another vault) instead.
+        dataEncryption: { provider: 'INLINE_KEY', key: process.env.DATA_ENCRYPTION_KEY },
+        rateLimiter: { floodGuard: { enabled: true, windowMs: 60_000, max: 1000 } },
+        databaseJanitor: { enabled: true }
+    },
+    api: { customEndpoints: [], customMiddlewares: [], slug: '' }
+};
+
+export { configuration };
+```
+
+## Boot
+
+```js filename="index.js" copy
+import { initiateServer, logger } from '@aadharsh/orion-alpine-x934x';
+import { configuration } from './gipsy.orion.config.js';
+
+const server = await initiateServer(undefined, configuration);
+
+server.app.listen(configuration.app.port, () => {
+    logger.info(`API listening on ${configuration.app.port}`);
+});
+```
+
+For direct TLS instead of a reverse proxy:
+
+```js
+import https from 'https';
+import fs from 'fs/promises';
+
+const [cert, key] = await Promise.all([
+    fs.readFile('./server.cert'),
+    fs.readFile('./server.key')
+]);
+
+https.createServer({ cert, key }, server.app).listen(configuration.app.port);
+```
+
+## Run it as a service
+
+```ini filename="/etc/systemd/system/orion.service" copy
+[Unit]
+Description=Orion auth node
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=orion
+WorkingDirectory=/opt/orion/app
+EnvironmentFile=/opt/orion/gipsy.env
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`TimeoutStopSec` should exceed the 30-second graceful drain window. Orion handles
+`SIGTERM` by draining in-flight requests, flushing the audit trail, stopping the
+subsystems, and closing the pool.
+
+<Warning title="Each node needs its own working directory">
+R_Sync and the secrets managers write state files next to the process —
+`r_sync.internal.worker_config.json`, `orion.internal.token_secrets_manager.*`,
+`orion.internal.signature_secrets_manager.*`. Two processes sharing a directory
+will collide.
+</Warning>
+
+## Serve the client
+
+The browser SDK and your front end are a separate deployment. Any static host
+works; the only Orion-specific requirement is that the client's exact origin is
+listed in `client.urls`.
+
+## Verify
+
+```bash filename="terminal" copy
+curl -i https://auth.example.com/alpine/api/v1/request/have-no-auth-token \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -H 'orion-fingerprint: 0000000000000000000000000000000000000000000000000000000000000000' \
+  -H 'orion-user-agent: curl' \
+  -H 'orion-api-system-version: 1.0.0[BETA]' \
+  -H 'Authorization: NO_BEARER' \
+  -H 'Origin: https://app.example.com' \
+  -d '{"packet":{}}'
+```
+
+A JSON envelope back means the pipeline is intact end to end: TLS, origin
+verification, header parsing, authentication routing, and validation.
+
+Then complete a real signup and sign-in from the browser.
+
+## Growing out of one node
+
+Adding a second node needs Redis, both URLs in both configs, and a load balancer.
+See [Multi-node cluster](/versions/alpine/docs/deployment/multi-node).

@@ -1,0 +1,225 @@
+---
+title: Threat model
+description: Understand the threats Orion's authentication and control-plane defenses address, the assumptions they rely on, and the risks outside their scope.
+---
+
+Controls are only useful if you know their edges. This page pairs each threat
+with the mechanism that addresses it and states the residual risk plainly.
+
+## Credential attacks
+
+<Accordion allowMultiple>
+  <AccordionItem title="Password guessing against one account">
+    **Control.** Per-account exponential backoff (`failed_login_count`,
+    `failed_login_window_start`, `login_throttled_until`), rate-limit cost 5 on
+    sign-in, and abuse detection blocking an IP for 15 minutes after 10 auth
+    failures in 60 seconds.
+
+    **Residual.** Backoff is deliberately not a lockout — a correct credential
+    during backoff is escalated to step-up, not refused. That is the right
+    trade (otherwise knowing an email is a denial-of-service primitive), but it
+    means backoff alone does not stop an attacker who eventually guesses right.
+    Step-up is what stops them.
+  </AccordionItem>
+  <AccordionItem title="Account enumeration">
+    **Control.** "No such account", "no password on this account", and "wrong
+    password" all return `ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p` through the
+    `clientSafeErrorCode` mechanism.
+
+    **Residual.** Timing differences between paths are not equalised. Signup
+    still reveals whether an address is taken. Password reset and magic-link
+    flows are the usual oracles in any system.
+  </AccordionItem>
+  <AccordionItem title="Challenge-code guessing (reset, step-up, device auth, 2FA removal)">
+    **Control.** Every challenge record carries `attempts` / `max_attempts`, and
+    exceeding the ceiling **destroys the record** rather than rejecting the
+    submission. Rate-limit cost 5 on the reset, step-up, and 2FA-removal
+    verification endpoints; cost 3 on the device-authorization ones.
+
+    **Residual.** A 6-digit code is a 10⁶ keyspace. The ceiling is what makes
+    that safe; without it, cost 5 alone would still permit a meaningful guessing
+    budget over time.
+  </AccordionItem>
+</Accordion>
+
+## Token theft
+
+<Accordion allowMultiple>
+  <AccordionItem title="A token stolen from storage, a log, or a backup">
+    **Control.** Tier binding (IP range, fingerprint digest) plus, when enabled,
+    DPoP binding to a non-extractable browser key.
+
+    **Residual.** Tier binding alone is weak against a determined thief: IP and
+    fingerprint both arrive as ordinary request values, so whoever holds the
+    token generally holds what is needed to satisfy them. **A binding the bearer
+    can reproduce from the token alone is not a binding.** DPoP is the control
+    that actually closes this — it is opt-in and off by default.
+  </AccordionItem>
+  <AccordionItem title="A token stolen by script running in the page (XSS)">
+    **Control.** Tokens are `HttpOnly`, so script cannot read them. DPoP keys are
+    non-extractable, so script cannot exfiltrate them.
+
+    **Residual.** Script in the live page can still *use* the session and can
+    still ask the key to sign. DPoP converts permanent, portable theft into
+    use-while-resident. Orion does not solve XSS in your application — content
+    security policy and output encoding are yours.
+  </AccordionItem>
+  <AccordionItem title="A captured refresh token replayed later">
+    **Control.** Rotation retires the presented token — deletes the row and
+    records its id in `consumed_refresh_tokens`. Presenting a retired id is
+    recognised as reuse, not as an unknown token.
+
+    **Residual.** Detection is after the fact. The window between theft and the
+    legitimate holder's next rotation is real.
+  </AccordionItem>
+  <AccordionItem title="A signing key compromised">
+    **Control.** `secrets:revoke-kids` broadcasts revocation fleet-wide; each
+    node decommissions or wipes the kid and removes it from the Redis fan-out.
+    `secrets:force-rotate` regenerates a node's pools.
+
+    **Residual.** Everything signed by that key stops validating, so every
+    affected user is signed out. That is correct but disruptive — it is an
+    incident response, not routine maintenance.
+  </AccordionItem>
+</Accordion>
+
+## Session and privilege
+
+<Accordion allowMultiple>
+  <AccordionItem title="Stale privilege after a role change or account disable">
+    **Control.** Authorization claims are re-read from the database on every
+    refresh and never copied forward from the presented token. Role change,
+    password change, disable, and delete all move `sessions_valid_from`.
+
+    **Residual.** An unexpired access token remains valid until it expires or its
+    session is invalidated. With a 15-minute default that window is small; if you
+    lengthen access-token lifetimes, you lengthen it.
+  </AccordionItem>
+  <AccordionItem title="Revoking a stateless (tier-1) session">
+    **Control.** Tier-1 tokens carry a `jti` and revocation records it in a
+    short-lived denylist.
+
+    **Residual.** The denylist is Redis-backed *when available* and falls back to
+    an in-process map otherwise — which means on a cluster without Redis, a
+    revocation only applies to the node that handled it.
+  </AccordionItem>
+</Accordion>
+
+## Identity federation
+
+<Accordion allowMultiple>
+  <AccordionItem title="OAuth account takeover via an asserted email">
+    **Control.** Identity is keyed on `(provider, provider_subject)` with a
+    partial unique index, never on the email string a provider asserts. Rows predating
+    that binding are treated as unbound and adopt the subject on the next
+    successful sign-in rather than being matched retroactively.
+
+    **Residual.** You still trust the provider's subject. A compromised provider
+    account is a compromised Orion account.
+  </AccordionItem>
+  <AccordionItem title="Authorization code interception">
+    **Control.** PKCE (S256) with the verifier stored server-side in
+    `oauth_requests`, `state` matched on callback, a 2-minute `oAuthFlowSecret`
+    cookie binding the callback to the initiating browser, and `nonce` binding
+    for providers returning an `id_token`.
+
+    **Residual.** Standard OAuth caveats: a misconfigured `redirectUri` at the
+    provider is outside Orion's control.
+  </AccordionItem>
+</Accordion>
+
+## Ceremony integrity
+
+<Accordion allowMultiple>
+  <AccordionItem title="WebAuthn challenge replay or purpose confusion">
+    **Control.** Challenge state is server-side in `webauthn_ceremonies`, typed
+    (`registration` / `authentication` / `sign-up` / `step-up`), consumed
+    atomically on verification, and keyed on an authoritative `user_uid` rather
+    than a caller-supplied one. The browser holds only an opaque ceremony id.
+
+    **Residual.** WebAuthn's own model applies: a credential is bound to a
+    relying-party id, so domain changes invalidate it.
+  </AccordionItem>
+  <AccordionItem title="Device authorization bypass">
+    **Control.** The device scanner runs late in the pipeline, after
+    authentication, and triggers the flow before a session is issued. Recognition
+    requires a completed ceremony recorded in `recognized_devices`.
+
+    **Residual.** Recognition cookies last 7 days. Whoever holds them holds
+    device trust for that period.
+  </AccordionItem>
+</Accordion>
+
+## Control plane
+
+<Accordion allowMultiple>
+  <AccordionItem title="An attacker impersonating a node">
+    **Control.** Registration is signed with a persistent Ed25519 identity key
+    over `timestamp:workerId:nonce:sha256(encryptionPublicKey)`. A known
+    `workerId` signed by a different identity key is rejected with
+    `403 IDENTITY_MISMATCH`. A fresh nonce and the key digest prevent replay and
+    key substitution.
+
+    **Residual.** Whoever steals `r_sync.internal.worker_config.json` steals the
+    node's control-plane identity. Protect it like a private key.
+  </AccordionItem>
+  <AccordionItem title="A compromised orchestrator issuing destructive commands">
+    **Control.** Triple gating — the tunnel, the fixed action allowlist (no
+    eval-style escape hatch), and node-side safe mode, which cannot be overridden
+    remotely. Command results are bound to the issuing node, so a forged result
+    from a different worker is discarded.
+
+    **Residual.** Non-gated commands (`server:lock`, `circuit:open`) still work
+    and can disrupt service. And R_Sync's localhost-only `/flush` wipes tunnel
+    state and **exits worker processes** — anyone with local access to the
+    orchestrator box can kill your fleet.
+  </AccordionItem>
+  <AccordionItem title="An operator exceeding their authority">
+    **Control.** PBAC with default deny and deny-overrides, node commands
+    individually grantable and resource-scoped, governance enforced by role
+    rather than policy, and every request — denials included — audited.
+
+    **Residual.** Root bypasses PBAC entirely by design. Root is a single
+    account; treat its credentials accordingly.
+  </AccordionItem>
+</Accordion>
+
+## Availability
+
+<Accordion allowMultiple>
+  <AccordionItem title="Volumetric flood">
+    **Control.** Flood guard ahead of body parsing, per-actor token buckets, load
+    shedding at 500 in-flight (100 while degraded), circuit breakers, and
+    self-termination at 85% memory.
+
+    **Residual.** Everything here is per-node in-process state. Orion is not a
+    DDoS mitigation layer — put one in front.
+  </AccordionItem>
+  <AccordionItem title="Losing a dependency">
+    **Control.** Redis loss degrades key sharing but does not stop minting.
+    Orchestrator loss does not affect authentication. Circuit breakers isolate
+    failing dependencies.
+
+    **Residual.** **Postgres is a hard dependency.** Losing it stops
+    authentication entirely.
+  </AccordionItem>
+</Accordion>
+
+## Explicitly out of scope
+
+- **XSS in your application.** Orion cannot fix it.
+- **DDoS mitigation.** Use a CDN or scrubbing service.
+- **Application-level authorization.** Orion gives you an identity and a role;
+  what that permits inside your app is your code.
+- **Client-side malware.** A compromised device is a compromised session.
+- **Insider access to the database.** Audit rows resist edits through the
+  application, but direct database access can still alter data — which is exactly
+  what `audit verify` is for detecting.
+
+## Historical note
+
+Two subsystems were decommissioned in favour of TLS 1.3: the Data Integrity
+Protocol (`orion-dip-*` headers) and a hybrid transport-encryption layer
+(`orion-encryption-*` headers). Request payloads now travel as plain JSON over
+TLS. Configuration keys and documentation referencing `dataIntegrity.dip` are
+inert — the switch is no longer read.

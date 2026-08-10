@@ -1,0 +1,147 @@
+---
+title: API conventions
+description: The header contract, request envelope, response shapes, and credential classes shared by every Orion endpoint.
+---
+
+Every built-in endpoint follows the same conventions. Learn them once and the
+rest of the reference is a table of paths.
+
+## Base path
+
+```text
+{serverUrl}/{slug?}/alpine/api/v1/{action|request}/{name}
+```
+
+`alpine` is Orion's internal namespace and is fixed. `slug` comes from
+`api.slug` and applies to **your** custom endpoints — core routes are not
+prefixed by it. Paths under `action/` mutate; paths under `request/` read.
+
+**Every core endpoint is `POST`**, including the read-shaped ones.
+
+## Required headers
+
+```http
+Content-Type: application/json
+orion-fingerprint: <64-char device fingerprint>
+orion-user-agent: <user agent string>
+orion-api-system-version: 1.0.0[BETA]
+Authorization: ACCESS_BEARER | NO_AUTH_BEARER | NO_BEARER
+Origin: https://your-client-origin
+```
+
+The three `orion-*` headers must be present and non-empty or the request is
+rejected with `GENERAL::HEADERS-INVALID::A::p` before reaching any handler.
+
+`Origin` must match an entry in `client.urls` exactly — scheme, host, and port.
+Browsers set it automatically; a non-browser client must send it itself.
+
+Requests must be sent with credentials included, since every token travels as an
+`HttpOnly` cookie.
+
+## Credential classes
+
+`Authorization` names a **class**, never a token value.
+
+| Value | Presents | Reaches |
+| --- | --- | --- |
+| `ACCESS_BEARER` | The `ACCESS_TOKEN` cookie (falling back to `REFRESH_TOKEN`) | Everything |
+| `NO_AUTH_BEARER` | The `NO_AUTH_TOKEN` cookie | A fixed pre-auth allowlist, plus your `requireAuth: false` routes |
+| `NO_BEARER` | Nothing | Only the three no-auth-token bootstrap routes |
+
+Anything else returns `AUTH::INVALID-TOKEN-TYPE::A::p`. Using a class that cannot
+reach the route returns `AUTH::BEARER-MISMATCH::A::p`; using an insufficient class
+on a `requireAuth: true` route returns `AUTH::INSUFFICIENT-PRIVILEGE::A::p`.
+
+## Request envelope
+
+Payloads are wrapped in `packet`:
+
+```json
+{ "packet": { "email": "ada@example.com", "password": "…" } }
+```
+
+Endpoints taking no input still expect `{ "packet": {} }` — several schemas are
+`Joi.object().max(0)`, which rejects extra keys.
+
+Schema validation runs in the pipeline; a failure returns
+`DATA-VALIDATION::INVALID-DATA::A::p`. Custom endpoints have no schema entry and
+are not validated.
+
+## Response envelope
+
+```json filename="success"
+{ "error": false, "data": { } }
+```
+
+```json filename="failure"
+{
+  "error": true,
+  "errorData": {
+    "status": 401,
+    "context": "The email or password is incorrect",
+    "errorCode": "ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p",
+    "fault": "CLIENT",
+    "solutions": ["Check the email and password", "Reset the password if it has been forgotten"]
+  },
+  "errorTrigger": "ACCOUNT-SIGNIN::INVALID-PASSWORD::A::p"
+}
+```
+
+`errorData.errorCode` is what your client should branch on. `errorTrigger` is the
+raw internal code before obfuscation — a development aid, not a stable contract.
+
+## Response headers
+
+| Header | Meaning |
+| --- | --- |
+| `orion-response-status` | Custom status string for this outcome |
+| `orion-response-refresh` | `true` when the client should reload/retry |
+| `orion-flow-activation` | `FLOW-DEVICE-AUTHORIZATION` or `FLOW-STEP-UP-AUTH` |
+| `orion-session-logout` | `true` — the session on this device is finished and its cookies have been cleared |
+| `orion-served-by` | Which node answered |
+
+All are exposed via `Access-Control-Expose-Headers`, so cross-origin browsers can
+read them.
+
+## Cookies
+
+| Cookie | Lifespan |
+| --- | --- |
+| `ACCESS_TOKEN` | `tokens.lifespans.accessTokens` |
+| `REFRESH_TOKEN` | `tokens.lifespans.refreshTokens` |
+| `NO_AUTH_TOKEN` | 1 day |
+| `STEP_UP_TOKEN` | 5 hours |
+| `authorizedDeviceId` / `authorizedDeviceCode` | 7 days |
+| Flow scratch cookies | 30 s – 15 min |
+
+All are `HttpOnly`, `Secure`, `SameSite=None`, `Path=/`. See
+[Cookie policy](/versions/alpine/docs/configuration/cookies) for the complete table.
+
+## Rate limiting
+
+Requests are charged against per-IP, per-fingerprint, and per-account token
+buckets. Exceeding one returns `GENERAL::RATE-LIMIT-EXCEEDED::A::p` (429). Costs
+are per route — see [Rate limits](/versions/alpine/docs/configuration/rate-limits).
+
+## The virtual endpoint
+
+```http
+POST /alpine/api/v1/action/get-current-auth-state
+Authorization: ACCESS_BEARER
+```
+
+Not in the route registry — the authentication middleware answers it directly:
+
+```json
+{ "error": false, "data": { "authed": true, "user": { "uid": "…", "email": "…", "jti": "…" } } }
+```
+
+`jti` is `"STATELESS"` for tier-1 tokens.
+
+## Endpoint index
+
+- [Authentication endpoints](/versions/alpine/docs/api-reference/authentication) — sign-up, sign-in, passkeys, OAuth, captcha, device auth, step-up
+- [Account & 2FA endpoints](/versions/alpine/docs/api-reference/account) — profile, TOTP, 2FA removal, password reset
+- [Session endpoints](/versions/alpine/docs/api-reference/sessions) — list and revoke
+- [Error codes](/versions/alpine/docs/api-reference/errors) — the registry and its conventions
+- [Orchestrator admin API](/versions/alpine/docs/api-reference/admin-api) — the PBAC-governed control-plane API

@@ -1,0 +1,361 @@
+---
+title: Control plane
+description: R_Sync's cryptography, the wire protocol both sides share, and the command allowlist.
+---
+
+The control plane is two packages: `orion-orch` decides *what* to say, `r-sync`
+decides *how* it travels. The contract between them and the nodes is a single
+shared module.
+
+## R_Sync — the transport
+
+One `ORCHESTRATOR`, many `WORKER`s. R_Sync knows nothing about authentication; it
+moves signed, encrypted events.
+
+### Registration
+
+<Steps>
+  <Step title="Persistent identity, ephemeral session keys">
+    On first boot a worker generates a **persistent Ed25519 identity key pair**
+    and saves it to `r_sync.internal.worker_config.json`. That key is reused for
+    the worker's lifetime and is what proves, on every future reconnect, that a
+    request claiming a given `workerId` comes from the same worker that
+    registered it. On <em>every</em> boot it also generates a fresh ECDH key pair
+    and a fresh Ed25519 session signature pair.
+  </Step>
+  <Step title="Signed discovery">
+    The worker posts `/discover-me` with its session public keys and its
+    persistent identity public key. The request is signed with the identity
+    private key over
+    <code>timestamp:workerId:nonce:sha256(encryptionPublicKey)</code> — the fresh
+    nonce and the digest of the offered key mean a captured registration request
+    can neither be replayed nor have its key material swapped.
+  </Step>
+  <Step title="Key agreement">
+    The orchestrator performs ECDH against the worker's session encryption key,
+    then derives an AES-256 key via HKDF using a per-session salt — SHA-256 of
+    both parties' raw public keys, so no two tunnels share a salt. It returns its
+    own public keys and both sides hold the same symmetric key.
+  </Step>
+  <Step title="Reconnect">
+    A worker restarting sends its persisted `workerId`, signed with the identity
+    key. The orchestrator requires the stored `identityPublicKey` for that id to
+    match exactly; a known `workerId` signed by a different identity key is
+    rejected with <code>403 IDENTITY_MISMATCH</code> rather than being treated as
+    a reconnect. Once identity is confirmed the session keys rotate.
+  </Step>
+</Steps>
+
+### Every event
+
+1. Serialize the event to JSON.
+2. Encrypt with AES-256-GCM using the shared key → base64 `payload`.
+3. Sign the encrypted payload with Ed25519 → `signature`.
+4. Send `{ payload, signature, timestamp }` over HTTP.
+5. The recipient verifies the signature, then decrypts.
+6. The recipient checks the event's embedded `id` and `timestamp` — part of the
+   signed, encrypted payload, not a header — against a short-lived replay cache.
+
+Worker→orchestrator events carry an additional nonce-bearing header signature.
+Orchestrator→worker events are deduplicated on the event id alone, so a captured
+event cannot be replayed to trigger its side effect twice: the second delivery is
+acknowledged as `{ duplicate: true }` instead of re-invoking handlers.
+
+### Curves
+
+| Value | Curve | Security level |
+| --- | --- | --- |
+| `ECC_256` (default) | NIST P-256 | 128-bit |
+| `ECC_384` | NIST P-384 | 192-bit |
+| `ECC_521` | NIST P-521 | 256-bit |
+
+Both sides must agree.
+
+### Heartbeats
+
+Workers post `/heartbeat` on `heartbeatIntervalMs` (default 30s, minimum 1000).
+Each heartbeat is signed with the session Ed25519 key, carries a nonce, and is
+checked against the replay cache before `lastHeartbeat` is updated.
+
+<Warning title="`system:flush` kills your services">
+R_Sync exposes a localhost-only `/flush` on the orchestrator that wipes tunnel
+state on all nodes **and exits their processes**. With embedded workers, that
+means terminating your Orion-core services. Do not run it against a live cluster.
+</Warning>
+
+## The protocol module
+
+`orion-orch/protocol` is imported by *both* sides, so the wire contract cannot
+drift. `PROTOCOL_VERSION` is currently `3`. Bump it on any breaking envelope
+change.
+
+### Events
+
+| Direction | Event | When |
+| --- | --- | --- |
+| Node → Orch | `orion:node:hello` | Join, re-registration, and identify requests |
+| Node → Orch | `orion:node:status` | Every `statusReportIntervalMs` — full system status plus process telemetry |
+| Node → Orch | `orion:node:alert` | The moment an operational flag flips |
+| Node → Orch | `orion:node:goodbye` | Graceful shutdown |
+| Node → Orch | `orion:command:result` | Reply to any command, correlated by `commandId` |
+| Node → Orch | `orion:mailing:progress` | Batch mailing heartbeat — counts only, on a timer |
+| Node → Orch | `orion:mailing:group-done` | A batch mailing group finished, failed, or was cancelled |
+| Orch → Node | `orion:command` | An allowlisted remote command |
+| Orch → Node | `orion:cluster:state` | Every health transition, broadcast fleet-wide |
+
+The two `orion:mailing:*` events are the only node-initiated traffic that is not
+about the node itself. Note what they are **not**: a per-mail report. A sending
+node writes each delivery straight to the shared database, so these carry group
+counts rather than recipients — see [Batch mailing](#batch-mailing) below.
+
+### Command envelopes
+
+```js
+buildCommandEnvelope(commandId, action, args, issuedBy)
+// → { protocolVersion, commandId, action, args, issuedBy: { type, id, email } }
+```
+
+`issuedBy` is `{ type: 'system' }` for orchestrator automation — policies, health,
+consensus — and `{ type: 'admin', id, email }` for a human acting through the
+panel or CLI. Nodes feed it straight into their local audit trail. The field is
+additive since v2, so older nodes simply ignore it.
+
+## The command allowlist
+
+Every action maps 1:1 onto a node capability. Anything not on this list is
+rejected with `UNKNOWN_COMMAND` before it touches anything.
+
+| Action | Args | Safe-mode gated |
+| --- | --- | --- |
+| `node:ping` | — | no |
+| `node:identify` | — | no |
+| `status:get` | — | no |
+| `consensus:vote` | `{ topic, params? }` | no |
+| `server:lock` / `server:unlock` | — | no |
+| `ets:clear-lockdown` | — | **yes** |
+| `security:deactivate` / `security:reactivate` | `{ system }` | **yes** |
+| `audit:pause` / `audit:resume` | — | **yes** |
+| `circuit:open` | `{ dependency }` | no |
+| `circuit:reset` | `{ dependency }` | **yes** |
+| `load:set-max-in-flight` | `{ limit }` | **yes** |
+| `abuse:unblock-actor` | `{ actorId }` | **yes** |
+| `config:client-urls:add` | `{ clientUrls }` | gated by the node's `client.runTimeUpdateAllowed` boot flag |
+| `secrets:list-kids` | — | no |
+| `secrets:revoke-kids` | `{ kids }` | no |
+| `secrets:force-rotate` | `{ kind?, domain? }` | no |
+| `keyvault:status` | — | no |
+| `keyvault:rotate-kek` | — | no |
+| `keyvault:rotate-dek` | `{ batchSize?, reencrypt? }` | no |
+| `keyvault:wipe-encrypted` | `{ fields?, confirmation }` | **the node re-checks the confirmation phrase itself** |
+| `mailing:assign` | `{ jobId, jobName, groupNumber, recipientCount, rateLimit?, maxAttempts? }` | no |
+| `mailing:status` | `{ jobId? }` | no |
+| `mailing:cancel` | `{ jobId, groupNumber? }` | no |
+| `memory-monitor:start` / `stop` | — | no |
+| `event-loop-monitor:start` / `stop` | — | no |
+
+### Signing-key operations
+
+The three `secrets:*` commands are how a compromised signing key is dealt with
+fleet-wide:
+
+- **`secrets:list-kids`** returns each node's inventory — active signing kids it
+  owns and verification kids it trusts. Kids and expiries only, never key
+  material.
+- **`secrets:revoke-kids`** broadcasts a revocation. Each node self-discovers
+  what the kid means to it: a kid in its *signing* pool is decommissioned and
+  replaced with a fresh pair, a kid in its *verification* pool is wiped so its
+  signatures stop verifying, and either way the kid is deleted from the shared
+  Redis fan-out.
+- **`secrets:force-rotate`** decommissions all of one node's signing keys
+  immediately and regenerates the pools, optionally narrowed to one manager
+  family by `kind` and `domain`.
+
+From the CLI: `orionctl secrets keys`, `orionctl secrets revoke <kid,…>`,
+`orionctl secrets rotate-node <workerId>`.
+
+### Field-encryption operations
+
+The `keyvault:*` commands manage encryption at rest for encryptable fields — see
+[Key vaults & field encryption](/versions/alpine/docs/security/key-vaults).
+
+- **`keyvault:status`** reports the resolved provider, a live wrap/unwrap health
+  round trip, the data-encryption-key ledger, and per-field counts of sealed and
+  stale rows. It answers even when the vault is broken: a status command that
+  fails when things are wrong is useless precisely when it is needed.
+- **`keyvault:rotate-kek`** rotates the vault key and re-wraps the DEK. Stored
+  field data is untouched, so it is fast and safe to schedule.
+- **`keyvault:rotate-dek`** activates a new DEK and re-encrypts every registered
+  encrypted column in bounded batches. Retired DEKs are kept, so nothing is
+  stranded by a partial run.
+- **`keyvault:wipe-encrypted`** is destructive and irreversible.
+
+Unlike the `secrets:*` commands, these are issued to a **single node**, not
+broadcast: the key ledger and the encrypted columns are shared database state, so
+a fleet-wide broadcast would have every node racing on the same rows.
+
+`keyvault:wipe-encrypted` is the only command a node refuses on its own
+authority: it re-checks the `WIPE ENCRYPTED FIELDS` confirmation phrase before
+executing, independently of whatever the orchestrator already verified. Defence
+in depth for the one operation that cannot be undone.
+
+The orchestrator adds its own gates on top — root role, the
+`keyvault:ops:wipe-encrypted` PBAC action, a recorded reason, and a **unanimous**
+`encryption-unavailable` consensus vote. If any node can still decrypt, the wipe
+is refused; the right action is to repair that node, not to destroy every user's
+second factor.
+
+From the CLI: `orionctl keyvault status | check | rotate-kek | rotate-dek | wipe`.
+
+## Batch mailing
+
+The `mailing:*` commands drive spreadsheet-driven mail blasts across the fleet —
+see the [Batch mailing guide](/versions/alpine/docs/guides/batch-mailing) for the
+operator's view. Architecturally it is the one plane that breaks a rule the rest
+of the system holds to, and the reason is worth stating.
+
+### Why the data path bypasses the control plane
+
+Every other command in the table above is request/response: the orchestrator asks,
+the node answers, the answer is the result. Mailing cannot work that way. A
+200,000-recipient blast would become 200,000 completion messages converging on one
+process, purely to record work that already happened — and `CommandDispatcher`'s
+10-second timeout is not a sensible ceiling for a job that runs for hours.
+
+So the control plane carries **assignments, not data**:
+
+- `mailing:assign` hands a node one group and returns as soon as it is accepted.
+  The recipients are **not** in the envelope — the node reads them from the shared
+  database, which is also where it retires each one.
+- `orion:mailing:progress` carries counts on a timer. It is not how the
+  orchestrator learns what was sent; the database already knows that. It is how it
+  tells a node that is working slowly from one that has wedged.
+- `orion:mailing:group-done` is the one report that matters, and its *absence* is
+  what the watchdog watches for.
+
+The orchestrator therefore never handles a single mail. It deals only in groups —
+assign one, hear back about one — and "how much is left" is a `COUNT` against the
+queue table rather than a tally this process has to keep correct across restarts.
+
+### The lease
+
+Because both sides write to the mailing tables, the invariant that keeps them
+apart is a **lease**: a recipient row is owned by exactly one node at a time,
+recorded in `locked_by`. The orchestrator stamps it when it dispatches a group;
+the node only ever reads or deletes rows carrying its own worker id.
+
+That id is also a **fencing token**. If the orchestrator concluded a node was gone
+and reassigned its group, the stale node's writes stop matching — its retire
+affects zero rows, and it stops immediately rather than duplicating the new
+holder's mail. The reverse is guarded too: a late `orion:mailing:group-done` from
+a node whose group was already reclaimed matches no live assignment and is
+discarded, so it cannot strip the lease from whoever is working now.
+
+This is the same shape as the `CommandDispatcher` discarding a command result that
+arrives from the wrong worker — in a distributed control plane, "who is this
+actually from" has to be checked at every point where a message causes a write.
+
+### Recovery
+
+`mailing:status` is the probe. A node that is silent because it is slow and a node
+that is silent because it is dead look identical from outside, and only the node
+can tell them apart — so the orchestrator asks before concluding anything. An
+unreachable node answers "no" by failing, which is the correct reading: a node it
+cannot talk to is a node that cannot report completion either.
+
+Three timescales, all ending in the same action — release the lease and let the
+normal dispatch loop pick the group up again:
+
+| Trigger | Latency | Source |
+| --- | --- | --- |
+| Node goodbye or stale sweep | ~seconds to `nodeStaleAfterSeconds` | The existing liveness machinery |
+| No progress within `groupStallSeconds` | default 30 min | Probe, then reclaim |
+| No completion within `groupSilentTimeoutSeconds` | default 24 h | Probe, count the table, rebuild every outstanding group |
+
+An orchestrator restart runs the same reconciliation on boot: assignments that
+survived are probed, and the ones that cannot be confirmed are reclaimed.
+
+`mailing:cancel` is graceful by design — a node finishes the mail already handed
+to its transport before stopping, because a mail sent without its queue row being
+retired is the one outcome that produces a duplicate on the next assignment.
+
+## The three gates on remote control
+
+<Steps>
+  <Step title="Transport">
+    A command only arrives over an established R_Sync tunnel — ECDH-derived
+    AES-256-GCM encryption, Ed25519 signatures, replay and dedup guards. Only the
+    orchestrator a node registered with can address it.
+  </Step>
+  <Step title="Node allowlist">
+    `allowRemoteControl: false` rejects every command with
+    <code>REMOTE_CONTROL_DISABLED</code>. Unknown actions are rejected before
+    anything is touched. There is no eval-style escape hatch — only the fixed
+    table above exists.
+  </Step>
+  <Step title="Safe mode">
+    Orion's `OrionSystemsControl` safe mode still applies to the gated actions. A
+    refusal reports `{ applied: false }` back to the orchestrator, which cannot
+    override it — by design, lifting it requires a config change and a restart on
+    the node itself.
+  </Step>
+</Steps>
+
+Command *results* are bound to the issuing node as well: a `orion:command:result`
+arriving from a different worker than the command was sent to is discarded by the
+`CommandDispatcher` as an impersonation attempt.
+
+## Programmatic surface
+
+```js
+import { OrionOrchestrator, ClusterCommands, ConsensusTopics } from 'orion-orch';
+
+const orch = new OrionOrchestrator({ cluster: 'orion-prod', publicIp: '10.0.0.5', port: 55321 });
+
+orch.onNodeHello((workerId, hello) => {});
+orch.onNodeStatus((workerId, status) => {});
+orch.onNodeAlert((workerId, alert) => {});
+orch.onNodeGoodbye((workerId, data) => {});
+orch.onClusterStateChange((state, previous, evaluation) => {});
+
+await orch.start();
+
+// Reads
+await orch.getClusterStatus();      // merged transport + application + health view
+orch.getNodes(); orch.getNode(id);
+orch.getClusterHealth();
+orch.getEscalations(50);
+orch.getConsensusHistory(10);
+orch.getPolicyRules(); orch.getPolicyOutcomes(20);
+orch.getCommandLog(50);
+
+// Commands
+await orch.command(workerId, ClusterCommands.GET_STATUS);
+await orch.commandAll(ClusterCommands.PING);
+await orch.pingNode(workerId);
+await orch.getNodeStatus(workerId);
+await orch.lockNode(workerId);   await orch.unlockNode(workerId);
+await orch.lockCluster();        await orch.unlockCluster();
+await orch.clearNodeEtsLockdown(workerId);
+await orch.addClientUrls(['https://new-frontend.example']);
+
+// Keys
+await orch.listClusterSigningKeys();
+await orch.revokeSigningKids(['kid-1']);
+await orch.forceRotateNodeKeys(workerId);
+
+// Incidents and votes
+await orch.declareIncident('DB failover');
+await orch.resolveIncident('done');
+await orch.proposeConsensus(ConsensusTopics.NODE_HEALTHY);
+
+// Batch mailing (null unless mailing.enabled)
+const mailing = orch.getMailingService();
+await mailing.submitJob(parsedSheet, { id, email });
+await mailing.getQueueState();
+await mailing.getJobDetail(jobId);
+await mailing.listDeadLetters(jobId);
+await mailing.cancelJob(jobId, { id, email }, 'wrong list');
+```
+
+Cluster-wide operations never reject outright — per-node failures come back in
+the result array.

@@ -1,0 +1,233 @@
+---
+title: Orchestrator configuration
+description: Configure the OrionOrchestrator constructor for node coordination, health, consensus, commands, and the governed admin plane.
+---
+
+```js filename="orchestrator.js"
+import { OrionOrchestrator } from 'orion-orch';
+
+const orch = new OrionOrchestrator({ cluster: 'orion-prod', publicIp: '10.0.0.5', port: 55321 });
+await orch.start();
+```
+
+## Core
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `cluster` | string | — **required** | Nodes must present the same name to register |
+| `publicIp` | string | `127.0.0.1` | Address nodes reach the orchestrator on |
+| `port` | number | `55321` | M2M port. Keep it on a private subnet |
+| `encryptionAlg` | string | `ECC_256` | `ECC_256` \| `ECC_384` \| `ECC_521`. Must match every node |
+| `trustAdvertisedWorkerIp` | boolean | `false` | Use the `x-r_sync-ip` header instead of the TCP peer address. Leave off unless nodes are behind NAT and you trust the header |
+
+## Registry and liveness
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `nodeStaleAfterSeconds` | number | `120` | Silence after which a node is flagged `node:stale` |
+| `staleSweepIntervalMs` | number | `30000` | How often the stale check runs |
+| `identifyOnStart` | boolean | `true` | Ask nodes with live tunnels to re-send identity after an orchestrator restart |
+| `persistence` | object | `{ enabled: true }` | `{ enabled, directory, fileName, debounceMs }`. Registry file: `orion_orch.internal.registry.json` |
+
+## Commands
+
+| Key | Type | Default |
+| --- | --- | --- |
+| `commandTimeoutMs` | number | `10000` |
+
+Every command method accepts a per-call `timeoutMs` override.
+
+## Health
+
+| Key | Type | Default |
+| --- | --- | --- |
+| `healthEvaluationIntervalMs` | number | `15000` |
+| `confirmIncidentViaConsensus` | boolean | `true` |
+| `health.incidentRatio` | number | `0.5` |
+| `health.minUnhealthyForIncident` | number | `2` |
+| `health.statusMaxAgeSeconds` | number | `300` |
+
+With `confirmIncidentViaConsensus: true`, entering `INCIDENT` requires a failed
+fleet `NODE_HEALTHY` vote — and an *undecided* vote counts as confirming, because
+an unreachable fleet is what an incident looks like.
+
+## Consensus
+
+| Key | Type | Default |
+| --- | --- | --- |
+| `consensus.quorumRatio` | number | `0.5` |
+| `consensus.minVoters` | number | `1` |
+| `consensus.timeoutMs` | number | `8000` |
+
+Quorum is measured over **eligible** voters, so silent nodes make acceptance
+harder rather than easier.
+
+## Policies
+
+```js
+policies: {
+    useDefaults: true,
+    rules: [
+        {
+            id: 'auto-clear-lockdown-after-10m',
+            on: ['ets:lockdown-engaged'],
+            cooldownSec: 900,
+            actions: [
+                { type: 'schedule-command', delaySec: 600,
+                  action: ClusterCommands.CLEAR_ETS_LOCKDOWN,
+                  onlyIfStatusFlag: 'etsLockdown' }
+            ]
+        }
+    ]
+}
+```
+
+`DEFAULT_POLICIES` covers every protocol alert type with observability-first
+reactions. Auto-remediation is opt-in, and node-side safe mode overrides it.
+
+Action types: `escalate`, `verify-status`, `command`, `consensus`,
+`schedule-command`.
+
+## Escalations
+
+```js
+escalations: {
+    webhook: { url: 'https://ops.example.com/hooks/orion', headers: { 'x-api-key': '…' } }
+}
+```
+
+The log channel is always on. Add custom channels at runtime:
+
+```js
+orch.addEscalationChannel('pagerduty', async event => { /* … */ });
+```
+
+## System-admin plane
+
+```js
+systemAdmin: { enabled: false }
+```
+
+See [System-admin plane](/versions/alpine/docs/configuration/system-admin) for the full table.
+
+## Batch mailing
+
+```js
+mailing: { enabled: false }
+```
+
+Spreadsheet-driven mail blasts executed by the fleet — see the
+[Batch mailing guide](/versions/alpine/docs/guides/batch-mailing). Requires
+`systemAdmin.enabled`: it shares that database connection and is driven from the
+same panel and CLI.
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `mailing.enabled` | boolean | `false` | |
+| `mailing.maxPerGroup` | number | `300` | Ceiling on one group. Bigger = fewer hand-offs; smaller = less re-work when a node dies mid-group |
+| `mailing.cooldownSeconds` | number | `3600` | Quiet period after a job finishes. Cancelling sets it to zero |
+| `mailing.nodeRateLimit` | object | `{ perWindow: 15, windowMs: 120000 }` | The send budget shipped to each node with its assignment |
+| `mailing.maxAttempts` | number | `3` | Per-recipient delivery attempts before the address is dead-lettered |
+| `mailing.dispatchIntervalMs` | number | `15000` | How often the scheduler looks for work to hand out |
+| `mailing.watchdogIntervalMs` | number | `300000` | How often silent assignments are checked |
+| `mailing.groupStallSeconds` | number | `1800` | No progress for this long → probe the node, then reclaim the group |
+| `mailing.groupSilentTimeoutSeconds` | number | `86400` | No completion for this long → full recovery sweep of the job |
+| `mailing.archiveTtlDays` | number | `90` | How long per-recipient delivery records are kept |
+| `mailing.assignTimeoutMs` | number | `15000` | Ceiling on how long a node may take to *acknowledge* an assignment (not to send it) |
+| `mailing.emailSubmitterOnCompletion` | boolean | `true` | Mail the submitting admin a summary. Uses the `systemAdmin.mail` transport |
+
+Group size is `min(ceil(total / liveNodes), maxPerGroup)`, and everything is
+chunked at that size — so when the cap binds you get more groups than nodes and
+the fleet cycles through them. At the default budget, a 300-recipient group
+occupies a node for roughly 40 minutes.
+
+<Warning title="Nodes need their own configuration and grants">
+Enabling this on the orchestrator is half the job. Every sending node needs
+`utilities.batchMailer` with its own bulk SMTP credentials, and
+`sql/worker-grants.example.sql` must be applied — nodes write their own delivery
+records. A node without `batchMailer` simply declines assignments and the group
+goes to someone else.
+</Warning>
+
+### Node-side — `utilities.batchMailer`
+
+Configured on each Orion-core node, not on the orchestrator.
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | |
+| `mail` | object | `{}` | `{ service \| host, port, secure, email, password, from }`. **Deliberately separate** from `systemConfig.mail` — bulk and transactional mail must not share a reputation or quota |
+| `ratePerWindow` | number | `15` | Overridden per assignment by the orchestrator |
+| `rateWindowMs` | number | `120000` | Sliding window, not a fixed bucket |
+| `maxAttempts` | number | `3` | Overridden per assignment |
+| `backoffBaseMs` | number | `5000` | Exponential: `base × 2^(attempt-1)` |
+| `backoffMaxMs` | number | `300000` | Backoff ceiling |
+| `progressIntervalMs` | number | `30000` | Heartbeat cadence while a group is in flight |
+| `fetchBatchSize` | number | `50` | Rows read from the queue per database round trip |
+| `archiveTtlDays` | number | `90` | Overridden per assignment |
+| `consecutiveFailureAbort` | number | `10` | Consecutive **transport** failures that mean "the mail server is down, not the addresses" — the group is handed back rather than burned through. Bad addresses do not count |
+
+## Complete example
+
+```js filename="orchestrator.js" copy
+import { OrionOrchestrator, ClusterCommands, ConsensusTopics } from 'orion-orch';
+
+const orch = new OrionOrchestrator({
+    cluster: 'orion-prod',
+    publicIp: '10.0.0.5',
+    port: 55321,
+    encryptionAlg: 'ECC_256',
+
+    nodeStaleAfterSeconds: 120,
+    healthEvaluationIntervalMs: 15_000,
+    confirmIncidentViaConsensus: true,
+
+    persistence: { enabled: true },
+    escalations: { webhook: { url: process.env.OPS_WEBHOOK } },
+
+    systemAdmin: {
+        enabled: true,
+        database: {
+            host: process.env.SA_DB_HOST,
+            port: 5432,
+            database: process.env.SA_DB_NAME,
+            user: process.env.SA_DB_USER,
+            password: process.env.SA_DB_PASSWORD
+        },
+        rootAdmin: {
+            email: process.env.SA_ROOT_EMAIL,
+            initialPassword: process.env.SA_ROOT_PASSWORD
+        },
+        http: { host: '0.0.0.0', port: 55330, secureCookies: true, trustProxy: true, theme: 'modern' },
+        baseUrl: process.env.SA_BASE_URL,
+        mail: {
+            service: 'gmail',
+            email: process.env.SA_MAIL_EMAIL,
+            password: process.env.SA_MAIL_PASSWORD,
+            from: process.env.SA_MAIL_EMAIL,
+            appName: 'Orion Orchestrator'
+        }
+    },
+
+    mailing: {
+        enabled: true,
+        maxPerGroup: 300,
+        cooldownSeconds: 3600,
+        nodeRateLimit: { perWindow: 15, windowMs: 120_000 },
+        maxAttempts: 3,
+        archiveTtlDays: 90
+    }
+});
+
+orch.onNodeHello((id, hello) => console.log(`[hello] ${id} → ${hello?.appName}`));
+orch.onNodeAlert((id, alert) => console.log(`[ALERT:${alert?.severity}] ${id} → ${alert?.type}`));
+orch.onClusterStateChange((state, prev) => console.log(`[health] ${prev} → ${state}`));
+
+await orch.start();
+```
+
+<Callout type="tip" title="Keep secrets out of the file">
+Read everything sensitive from environment variables and launch from a
+git-ignored `gipsy.*` script that exports them. The repo's `.gitignore` covers
+`gipsy.*` everywhere.
+</Callout>

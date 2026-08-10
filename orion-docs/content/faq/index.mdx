@@ -1,0 +1,159 @@
+---
+title: FAQ
+description: Clear answers to the most common Orion questions about self-hosting, backing services, sessions, security tiers, and operating a cluster.
+---
+
+<Accordion allowMultiple>
+  <AccordionItem title="Is Orion a hosted service?">
+    No. It is a library and a control plane you run inside your own
+    infrastructure. There is no Orion cloud, no account to create, and no
+    external service in the request path.
+  </AccordionItem>
+
+  <AccordionItem title="Which databases do I actually need?">
+    **Postgres** always — it holds users, credentials, tokens, devices, and every
+    in-flight ceremony. **Redis** only once you run more than one node, where it
+    shares JWT signing keys. **MySQL** only if you enable the tamper-evident
+    audit trail. A single node with Postgres alone is a complete working
+    deployment.
+  </AccordionItem>
+
+  <AccordionItem title="Can I run one node without the orchestrator?">
+    Yes. The orchestrator adds fleet health, alerting, consensus, remote
+    commands, and governed human access. It is never in the request path of a
+    sign-in, so a single node does not need it — and a cluster keeps
+    authenticating if it goes down.
+  </AccordionItem>
+
+  <AccordionItem title="Does R_Sync replicate sessions between nodes?">
+    No, and this is worth being precise about. Sessions are rows in the shared
+    Postgres, and signing keys are shared through Redis. R_Sync carries
+    control-plane traffic only — status, alerts, commands, cluster state. If you
+    have read that sessions gossip between nodes, that is wrong.
+  </AccordionItem>
+
+  <AccordionItem title="What happens when a node goes offline?">
+    Its in-flight requests fail; your load balancer routes the next ones
+    elsewhere. Nothing is lost, because the node held nothing — a session created
+    on it is a Postgres row any other node can read. The orchestrator raises
+    `node:stale` after `nodeStaleAfterSeconds` (default 120).
+  </AccordionItem>
+
+  <AccordionItem title="Do I have to use the browser SDK?">
+    No, but you take on real work without it: the three mandatory `orion-*`
+    headers, cookie handling, the captcha bootstrap, and full drivers for the
+    device-authorization and step-up ceremonies. The SDK also assumes a browser
+    (`window`, IndexedDB, WebAuthn), so a mobile or server-to-server client calls
+    the HTTP API directly — and must send its own `Origin` header.
+  </AccordionItem>
+
+  <AccordionItem title="Why does my app need to send orion-fingerprint?">
+    Any request going through the pipeline is rejected without it. Use the SDK's
+    `getDeviceFingerprint()` and reuse the value, so your own `fetch` calls carry
+    the same fingerprint the SDK used at sign-in. A different value looks like a
+    device mismatch to tier-3/4 binding and can force step-up on every request.
+  </AccordionItem>
+
+  <AccordionItem title="Why is Authorization: ACCESS_BEARER not a token?">
+    Because the token is in an `HttpOnly` cookie, where script cannot read it.
+    The header names which credential *class* the request presents —
+    `ACCESS_BEARER`, `NO_AUTH_BEARER`, or `NO_BEARER` — and the pipeline uses
+    that to decide which routes are reachable.
+  </AccordionItem>
+
+  <AccordionItem title="Why do I need HTTPS even in a small deployment?">
+    Session cookies are `Secure` + `SameSite=None`, which is correct for
+    cross-origin auth. Browsers reject that combination over plain HTTP
+    everywhere except `localhost`. There is no configuration flag to weaken it —
+    the cookie policy is validated at boot and a `SameSite=None` cookie without
+    `Secure` fails the boot.
+  </AccordionItem>
+
+  <AccordionItem title="Which security tier should I use?">
+    Tier 4 is the default in the shipped template and usually the right answer:
+    it binds to both IP range and fingerprint, and escalates to step-up rather
+    than rejecting. Tier 2 hard-fails on an IP change, which is hostile to mobile
+    users. Tier 3 is advisory only and can never trip step-up on its own. See
+    [Security tiers](/versions/alpine/docs/concepts/security-tiers).
+  </AccordionItem>
+
+  <AccordionItem title="Why were passkeys and TOTP silently disabled?">
+    No `mail` credentials. Removing either method requires an emailed one-time
+    code, so allowing enrollment without a removal path would strand accounts.
+    Orion force-disables them at boot with a warning. Device authorization is
+    stricter still — enabled without mail, it fails the boot outright.
+  </AccordionItem>
+
+  <AccordionItem title="Can I add a custom OAuth provider?">
+    No. The registry is fixed at eleven providers. Five are enabled by default
+    (google, github, discord, slack, microsoft) and six more need
+    `explicitAllow: true` (facebook, amazon, twitter, linkedin, reddit,
+    spotify). Apple is not supported — its `form_post` callback and JWT client
+    secret do not fit the standard code flow.
+  </AccordionItem>
+
+  <AccordionItem title="Is there an `orion` CLI?">
+    No. `orionctl` is the only CLI, and it operates the orchestrator's
+    system-admin plane, not a node. A node is started by your own script calling
+    `initiateServer()`.
+  </AccordionItem>
+
+  <AccordionItem title="How do I add my own routes?">
+    Declare them in `api.customEndpoints` rather than mounting them on
+    `server.app`. They then traverse the full pipeline — so `requireAuth: true`
+    gives you an authenticated `req.user` — and the authentication middleware's
+    allowlist recognises them. A path it does not recognise fails closed. See
+    [Custom endpoints](/versions/alpine/docs/guides/custom-endpoints).
+  </AccordionItem>
+
+  <AccordionItem title="Is there a /health endpoint?">
+    Not a built-in one. Point your load balancer at a cheap real endpoint, or
+    declare your own `/healthz` as a custom endpoint. Declaring your own means it
+    still traverses the pipeline, so it reflects lock and load-shed state — which
+    is usually what you want.
+  </AccordionItem>
+
+  <AccordionItem title="How do I revoke a session?">
+    `revokeSession({ linkCode })` for a whole session, `{ tokenId }` for one
+    token, or `revokeAllSessions()`. Under the hood, stateful tiers delete rows,
+    tier 1 uses a short-lived `jti` denylist, and bulk invalidation moves the
+    user's `sessions_valid_from` watermark — which is the only mechanism that
+    also covers stateless tokens.
+  </AccordionItem>
+
+  <AccordionItem title="Can I change configuration without a restart?">
+    Only allowed client URLs, via `orionctl client-urls` or
+    `orch.addClientUrls()`, on nodes booted with
+    `client.runTimeUpdateAllowed`. Everything else — security tier, token
+    binding, OAuth providers, access controls, safe mode — is read at boot.
+  </AccordionItem>
+
+  <AccordionItem title="Are migrations safe to run across a whole fleet?">
+    Yes. They are versioned, checksummed, and serialized under a Postgres
+    advisory lock: exactly one node applies a pending migration while the others
+    wait and verify. Booting the fleet simultaneously is safe. There are no down
+    migrations — rollback means reverting the code and leaving the schema, which
+    works because the migrations are additive.
+  </AccordionItem>
+
+  <AccordionItem title="What is the `gipsy.` prefix?">
+    A repo-wide git-ignore convention. Any file named `gipsy.*` is ignored
+    everywhere, so real configs, credentials, keys, and scratch scripts cannot be
+    committed by accident. The committed template is
+    `orion.config.example.js`; your real one is `gipsy.orion.config.js`.
+  </AccordionItem>
+
+  <AccordionItem title="What does 'Alpine' mean in the package name?">
+    It is Orion's internal codename. It appears in the npm package
+    (`@aadharsh/orion-alpine-x934x`) and as the fixed API namespace — every
+    built-in route lives under `/alpine/api/v1/`.
+  </AccordionItem>
+
+  <AccordionItem title="Is Orion production-ready?">
+    Orion-core reports `__Status__: 'Beta'`; Orion-Orchestrator and R_Sync report
+    `Stable`. The security surface is substantial and has been through a
+    remediation pass, but the API is not frozen. Pin your versions, work through
+    the [hardening checklist](/versions/alpine/docs/security/hardening), and read the migration
+    files before upgrading.
+  </AccordionItem>
+</Accordion>

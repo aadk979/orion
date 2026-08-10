@@ -1,0 +1,267 @@
+---
+title: orionctl
+description: The system-admin CLI for the Orion control plane — same API, same PBAC rules, same audit trail as the panel.
+---
+
+`orionctl` is the only CLI Orion ships. It lives in the `orion-orch` package
+`bin`, has zero dependencies, and talks to the system-admin API — the same
+endpoints, the same policy evaluation, and the same audit trail as the web panel.
+There is no side door.
+
+<Callout type="warning" title="There is no `orion` command">
+Orion-core does not ship a CLI. A node is started by your own script calling
+`initiateServer()`. If you have seen references to `orion start` or
+`orion cluster status`, they are not real.
+</Callout>
+
+## Install
+
+```bash filename="terminal" copy
+# Run it directly
+node Packages/server/Orion-Orchestrator/bin/orionctl.js help
+
+# Or link it — the package declares a bin entry
+cd Packages/server/Orion-Orchestrator && npm link
+orionctl help
+```
+
+Session state is stored in `~/.orionctl.json` with mode `0600`.
+
+## Sign in
+
+```bash filename="terminal" copy
+# System admin — emailed magic link, then TOTP
+orionctl login ops@example.com --url https://orch.example.com
+
+# Root — password, then TOTP
+orionctl login root@example.com --root --url https://orch.example.com
+```
+
+Both are two-stage: the first factor yields a short `pending_totp` session that
+can only reach the TOTP endpoints, and the authenticator code upgrades it.
+
+Without a configured URL every command fails with:
+
+```text
+no orchestrator URL configured — run: orionctl login <email> --url <https://orch-host:55330>
+```
+
+An expired session reports the failing code and tells you to log in again.
+
+| Command | Purpose |
+| --- | --- |
+| `login <email> [--root] [--url URL]` | Sign in |
+| `logout` | Revoke the current session |
+| `whoami` | Show the current session |
+| `change-password` | Rotate the root password |
+
+## Cluster — governed by your policy
+
+Every command below needs the matching PBAC action. A denial is itself audited.
+
+### Reads
+
+```bash filename="terminal"
+orionctl status                # needs cluster:read:status
+orionctl health                # cluster:read:health
+orionctl nodes                 # cluster:read:nodes
+orionctl node WKR-1            # cluster:read:nodes
+orionctl escalations           # cluster:read:escalations
+orionctl consensus-history     # cluster:read:consensus
+orionctl policy-rules          # cluster:read:policy-rules
+orionctl policy-outcomes       # cluster:read:policy-outcomes
+orionctl command-log           # cluster:read:command-log
+orionctl commands              # the available node-command vocabulary
+```
+
+### Commands
+
+```bash filename="terminal"
+orionctl cmd WKR-1 node:ping
+orionctl cmd WKR-1 load:set-max-in-flight --args '{"limit":500}' --timeout 15000
+orionctl cmd-all node:ping
+```
+
+Needs `cluster:command:<action>` on `node:<workerId>` (or `*` for `cmd-all`).
+
+### Operations
+
+```bash filename="terminal"
+orionctl lock                                   # cluster:ops:lock
+orionctl unlock                                 # cluster:ops:unlock
+orionctl incident declare --reason "DB failover"
+orionctl incident resolve --reason "complete"
+orionctl consensus node-healthy --params '{}'
+orionctl client-urls https://a.example,https://b.example
+```
+
+### Signing keys
+
+```bash filename="terminal"
+orionctl secrets keys                      # active signing/verification kids per node
+orionctl secrets revoke kid-1,kid-2        # broadcast immediate revocation fleet-wide
+orionctl secrets rotate-node WKR-1         # decommission ALL of a node's signing keys
+```
+
+`secrets revoke` is the blunt instrument for a suspected key compromise: every
+node self-discovers what each kid means to it, decommissions or wipes it, and
+deletes it from the shared Redis fan-out.
+
+### Field encryption
+
+```bash filename="terminal"
+orionctl keyvault status                   # provider, health, key ledger, sealed-row counts per node
+orionctl keyvault check                    # does the fleet agree encryption is unrecoverable?
+orionctl keyvault rotate-kek               # rotate the vault key, re-wrap the DEK (data untouched)
+orionctl keyvault rotate-dek               # new DEK + re-encrypt every sealed row
+orionctl keyvault rotate-dek --batch 1000  # bound the re-encryption batch size
+```
+
+`status` is fleet-wide on purpose. The key ledger is shared, so the interesting
+failure is **divergence** — one node that cannot reach the vault while the rest
+can. That is invisible in a single-node query and is exactly what turns into a
+partial outage.
+
+```bash filename="terminal"
+orionctl keyvault wipe --reason "KMS key deleted in incident 2026-07-27"
+orionctl keyvault wipe --reason "…" --admins --include-root
+orionctl keyvault wipe --reason "…" --override-consensus
+```
+
+`wipe` is **irreversible**: every affected user loses their authenticator
+enrollment. It requires root, the `keyvault:ops:wipe-encrypted` action, a reason
+of at least 10 characters, an interactively typed confirmation phrase, and a
+unanimous fleet vote that encryption is genuinely unrecoverable. The phrase is
+prompted rather than passed as a flag, so a shell history cannot repeat it.
+
+`--admins` extends the reset to the orchestrator's own system admins; root is
+spared unless `--include-root` is also passed, because root has no magic-link
+fallback. See [Key vaults & field encryption](/versions/alpine/docs/security/key-vaults).
+
+## Batch mailing
+
+Available when the orchestrator runs with `mailing.enabled`. See the
+[Batch mailing guide](/versions/alpine/docs/guides/batch-mailing).
+
+```bash filename="terminal"
+orionctl mailing submit ./october-newsletter.xlsx   # mailing:ops:submit
+orionctl mailing queue                              # mailing:read:queue
+orionctl mailing list --status queued --limit 20    # mailing:read:jobs
+orionctl mailing status <jobId>                     # per-group progress across the fleet
+orionctl mailing dead-letters <jobId>               # addresses that exhausted their attempts
+orionctl mailing cancel <jobId> --reason "wrong list"
+```
+
+`submit` takes `.xlsx` or `.csv`. The CLI does **not** parse the sheet — it reads
+the bytes and posts them to the same endpoint the panel uses, so "what a valid
+sheet looks like" has exactly one definition on the server, and `orionctl` stays
+dependency-free.
+
+Validation is all-or-nothing. A rejected sheet prints every problem at once and
+queues nothing:
+
+```text
+orionctl: MAILING::SHEET-INVALID: The sheet has 3 problems and was not accepted — nothing was queued
+  - row 4: "not-an-email" is not a valid email address
+  - row 9: content is empty
+  - row 12: "ada@example.com" is already listed on row 4
+```
+
+`queue` is the command for "why has my blast not gone out" — it reports what is
+running, what is waiting, and whether the blocker is the cooldown or an empty
+fleet.
+
+## Notifications
+
+```bash filename="terminal"
+orionctl notifications --limit 50      # needs notifications:read
+orionctl notifications --unread
+orionctl notifications read NTF_123
+orionctl notifications read-all
+```
+
+Read state is per admin, so marking one read does not hide it from anyone else.
+
+## Audit
+
+```bash filename="terminal"
+orionctl audit --limit 100
+orionctl audit --action governance:
+orionctl audit --admin ADM_123
+orionctl audit verify            # root only — re-walks the hash chain
+```
+
+`audit` needs `audit:read`. `audit verify` is root-only. A chain failure means
+someone reached the database directly — the table blocks `UPDATE` and `DELETE`
+via trigger.
+
+## Governance — root only
+
+Enforced by role, not by policy. A non-root admin is refused no matter what any
+policy grants.
+
+```bash filename="terminal"
+# Admins
+orionctl admins list
+orionctl admins create dev@example.com --name "Dev" --policy POL_DEFAULT_READ_ONLY
+orionctl admins create ops@example.com --group GRP_OPS
+orionctl admins suspend ADM_123
+orionctl admins activate ADM_123
+orionctl admins delete ADM_123
+
+# Policies
+orionctl policies list
+orionctl policies attachments POL_123
+orionctl policies create --name ops --file ops-policy.json --description "Ops"
+orionctl policies update POL_123 --name ops-v2 --file ops-v2.json
+orionctl policies delete POL_123
+orionctl policies attach POL_123 --admin ADM_123
+orionctl policies attach POL_123 --group GRP_OPS
+orionctl policies detach POL_123 --admin ADM_123
+
+# Groups
+orionctl groups list
+orionctl groups create ops --description "On-call"
+orionctl groups delete GRP_OPS
+orionctl groups members GRP_OPS
+orionctl groups add GRP_OPS ADM_123
+orionctl groups remove GRP_OPS ADM_123
+```
+
+Creating an admin with neither `--policy` nor `--group` attaches the managed
+`default-read-only` policy automatically.
+
+## Policy documents
+
+```json filename="ops-policy.json"
+{
+  "version": 1,
+  "statements": [
+    { "sid": "observe", "effect": "allow", "actions": ["cluster:read:*", "audit:read"], "resources": ["*"] },
+    { "sid": "ping",    "effect": "allow", "actions": ["cluster:command:node:ping"],    "resources": ["*"] },
+    { "sid": "no-prod", "effect": "deny",  "actions": ["cluster:command:*"], "resources": ["node:WKR-prod-1"] }
+  ]
+}
+```
+
+Default deny, deny overrides, effective policy = direct + group attachments.
+Patterns are `:`-segment globs: `*` matches one segment, a trailing `*` matches
+the rest. Documents are validated on write.
+
+## Flags
+
+| Flag | Applies to |
+| --- | --- |
+| `--url URL` | `login` |
+| `--root` | `login` |
+| `--args JSON` | `cmd`, `cmd-all` |
+| `--timeout ms` | `cmd` |
+| `--params JSON` | `consensus` |
+| `--reason TEXT` | `incident`, `mailing cancel`, `keyvault wipe` |
+| `--status S` · `--limit N` | `mailing list` |
+| `--unread` · `--limit N` | `notifications` |
+| `--limit N` · `--action PREFIX` · `--admin ID` | `audit` |
+| `--name` · `--file` · `--description` | `policies`, `admins`, `groups` |
+| `--admin ID` \| `--group ID` | `policies attach` / `detach` |
+
+`orionctl help` prints the full surface.

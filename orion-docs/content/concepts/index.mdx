@@ -1,0 +1,128 @@
+---
+title: Concepts
+description: The vocabulary and mental model behind Orion — nodes, sessions, tokens, flows, and the control plane.
+---
+
+Five pages of background that make everything else in these docs read faster.
+Start here if you have a node running and want to know what it is actually doing.
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/concepts/packages">The four packages</a></CardTitle>
+    <CardDescription className="mt-2">
+      Orion-core, Orion-Orchestrator, R_Sync, and the browser SDK — what each
+      owns and how they depend on each other.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/concepts/request-lifecycle">Request lifecycle</a></CardTitle>
+    <CardDescription className="mt-2">
+      The exact middleware chain every request traverses, in order, and what each
+      stage can reject.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/concepts/sessions-and-tokens">Sessions &amp; tokens</a></CardTitle>
+    <CardDescription className="mt-2">
+      Access, refresh, resource, and no-auth tokens; cookies; rotation; reuse
+      detection; revocation.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/concepts/security-tiers">Security tiers</a></CardTitle>
+    <CardDescription className="mt-2">
+      What tiers 1–4 bind a token to, which mismatches are fatal, and which raise
+      risk instead.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/concepts/cluster-model">Cluster model</a></CardTitle>
+    <CardDescription className="mt-2">
+      What nodes actually share — cluster mode versus the cluster link — and what
+      the control plane adds on top.
+    </CardDescription>
+  </Card>
+</Grid>
+
+## Glossary
+
+<Accordion allowMultiple>
+  <AccordionItem title="Node">
+    One running instance of Orion-core, embedded in your Express application.
+    Nodes are interchangeable: any node can serve any request, because durable
+    state lives in Postgres and signing keys are shared through Redis.
+  </AccordionItem>
+  <AccordionItem title="Cluster">
+    Several nodes sharing the same Postgres and the same Redis. Optionally also
+    registered with one Orion-Orchestrator under a shared `cluster` name, which
+    adds fleet health, consensus, and remote commands.
+  </AccordionItem>
+  <AccordionItem title="Cluster mode">
+    A node-level boolean. It is `true` when `utilities.ephemeralDB.provider` is
+    `REDIS` and `false` for `LOCAL_DB`. Cluster mode shares *data* (signing
+    keys); the orchestrator link shares *control*. They are independent, and a
+    production cluster runs both.
+  </AccordionItem>
+  <AccordionItem title="Session">
+    A linked access-token / refresh-token pair, identified by an
+    `accessTokenLinkCode`. Sessions are rows in the `tokens` table, not
+    replicated objects. Revoking a session deletes or invalidates that pair.
+  </AccordionItem>
+  <AccordionItem title="Flow">
+    A multi-step, cookie-backed ceremony the server can demand mid-request —
+    device authorization or step-up auth. The server signals one with the
+    `orion-flow-activation` response header and the SDK drives it to completion,
+    then retries the original call.
+  </AccordionItem>
+  <AccordionItem title="No-auth token">
+    A short-lived cookie proving a browser solved the captcha challenge. It gates
+    unauthenticated endpoints (sign-up, sign-in, OAuth start) against automation.
+    Controlled by `utilities.accessControl.captcha`.
+  </AccordionItem>
+  <AccordionItem title="Step-up auth">
+    Re-verification of an already-signed-in user before a sensitive action, or
+    when token binding produces enough risk score. Satisfied by an emailed OTP, a
+    passkey assertion, or a TOTP code; grants a `STEP_UP_TOKEN` cookie.
+  </AccordionItem>
+  <AccordionItem title="Device authorization">
+    First-sign-in-from-a-new-device verification. Emails a one-time code; once
+    completed, the device is recorded in `recognized_devices` and remembered by
+    the `authorizedDeviceId` / `authorizedDeviceCode` cookies for 7 days.
+  </AccordionItem>
+  <AccordionItem title="Security tier">
+    `tokens.securityTier`, 1–4. Decides what client context a token is bound to:
+    nothing, IP range, device fingerprint, or both. See
+    [Security tiers](/versions/alpine/docs/concepts/security-tiers).
+  </AccordionItem>
+  <AccordionItem title="DPoP / token binding">
+    Opt-in proof-of-possession (RFC 9449). With `tokens.binding: 'dpop'` a token
+    is bound to a non-extractable browser key and every request must carry a
+    fresh signed `DPoP` proof. A stolen token is inert without the key.
+  </AccordionItem>
+  <AccordionItem title="Safe mode">
+    `utilities.safeMode`. When enabled, security-weakening operations cannot be
+    performed remotely — a command the orchestrator sends reports
+    `{ applied: false }` and the change requires a config edit plus a restart on
+    the node itself.
+  </AccordionItem>
+  <AccordionItem title="ETS lockdown">
+    A protective state entered by the Error Tracker System when a node sees a
+    burst of failures. It is one of the operational flags the cluster link
+    reports as an alert and one of the consensus topics the fleet can vote on.
+  </AccordionItem>
+  <AccordionItem title="ORAS">
+    Orion Resource Access System — the token- or query-gated file delivery path
+    mounted at any route containing `resource-access-oras`. Distinct from plain
+    static hosting (`api.static`), which is ungated.
+  </AccordionItem>
+  <AccordionItem title="PBAC">
+    Policy-Based Access Control, the model governing human operators of the
+    orchestrator. IAM-flavored JSON documents with default-deny and
+    deny-overrides semantics. See [Authorization](/versions/alpine/docs/architecture/authorization).
+  </AccordionItem>
+  <AccordionItem title="Worker">
+    R_Sync's name for a node. In the control plane a node registers as an R_Sync
+    `WORKER` and gets a `workerId` such as `WKR-1`; the orchestrator is the
+    single `ORCHESTRATOR` role.
+  </AccordionItem>
+</Accordion>

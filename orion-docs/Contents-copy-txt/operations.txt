@@ -1,0 +1,163 @@
+---
+title: Day-2 operations
+description: Running the fleet — monitoring, incidents, key rotation, and emergency controls.
+---
+
+## What to watch
+
+| Signal | Where |
+| --- | --- |
+| Cluster health state | `orionctl health`, the panel dashboard, or `onClusterStateChange` |
+| Node staleness | `node:stale` alerts — a node silent past `nodeStaleAfterSeconds` |
+| Event-loop degradation | `elm:degraded` alerts; also flips load shedding to its degraded ceiling |
+| Memory pressure | `memory:pressure` above `memoryPressureThresholdPercent` |
+| ETS lockdown | `ets:lockdown-engaged` — a node protecting itself from an error burst |
+| Tunnel resync | `tunnel:resynced` — a node rebuilt its control-plane tunnel |
+| Audit chain integrity | `orionctl audit verify` (root) |
+
+Wire escalations to somewhere a human sees them:
+
+```js
+escalations: { webhook: { url: 'https://ops.example.com/hooks/orion' } }
+```
+
+```js
+orch.addEscalationChannel('pagerduty', async event => notify(event));
+```
+
+The log channel is always on.
+
+## Health states
+
+```text
+FORMING → HEALTHY ⇄ DEGRADED → INCIDENT
+```
+
+`DEGRADED` means at least one node is unhealthy but below the incident
+threshold. `INCIDENT` requires the unhealthy ratio to cross `incidentRatio`
+(default 0.5) with at least `minUnhealthyForIncident` nodes (default 2), **and** a
+fleet `NODE_HEALTHY` vote that fails to affirm health. An undecided vote counts as
+confirming — a silent fleet is what an incident looks like.
+
+Manual control:
+
+```bash filename="terminal"
+orionctl incident declare --reason "DB region failover"
+orionctl incident resolve --reason "failover complete"
+```
+
+## Emergency controls
+
+```bash filename="terminal"
+orionctl lock       # reject ALL API traffic fleet-wide
+orionctl unlock
+orionctl cmd WKR-2 server:lock     # one node only
+```
+
+A locked node returns `GENERAL::SERVER-LOCKDOWN::A::i` (503) to everything. Use
+it when you would otherwise pull the plug — it is reversible and it is audited.
+
+## Runtime configuration push
+
+```bash filename="terminal"
+orionctl client-urls https://new-frontend.example
+```
+
+Propagates to every node that booted with `client.runTimeUpdateAllowed`. With
+`persistentUpdateAllowed` it also survives a restart, persisted to
+`orion.internal.persistant_client_urls.json`. No redeploy needed.
+
+## Signing-key rotation
+
+Routine rotation happens on its own — each `TokenSecretsManager` maintains a pool
+and retires keys as they expire. The commands below are for a suspected
+compromise.
+
+```bash filename="terminal"
+orionctl secrets keys                   # inventory: kids and expiries, never key material
+orionctl secrets revoke kid-a,kid-b     # immediate fleet-wide revocation
+orionctl secrets rotate-node WKR-1      # decommission ALL of one node's signing keys
+
+orionctl keyvault status                # field-encryption health + key ledger per node
+orionctl keyvault rotate-kek            # routine: rotate the vault key, re-wrap the DEK
+```
+
+`revoke` makes every node self-discover what a kid means to it: in its signing
+pool it is decommissioned and replaced; in its verification pool it is wiped so
+those signatures stop verifying; and either way the kid is deleted from the
+shared Redis fan-out.
+
+<Warning title="Revocation invalidates live sessions">
+Every token signed by a revoked key stops validating immediately. Users are
+signed out. That is the point — but say so in your incident comms.
+</Warning>
+
+## Circuit breakers and load
+
+```bash filename="terminal"
+orionctl cmd WKR-1 circuit:open  --args '{"dependency":"mail"}'
+orionctl cmd WKR-1 circuit:reset --args '{"dependency":"mail"}'   # safe-mode gated
+orionctl cmd WKR-1 load:set-max-in-flight --args '{"limit":200}'  # safe-mode gated
+```
+
+## Abuse
+
+```bash filename="terminal"
+orionctl consensus abuse-high --params '{"minBlocked":5}'   # is it fleet-wide?
+orionctl cmd WKR-1 abuse:unblock-actor --args '{"actorId":"1.2.3.4"}'
+```
+
+Abuse state is per-node in-process memory, so an actor blocked on one node is not
+blocked on another. The consensus vote is how you tell a distributed attack from
+a single hot node.
+
+## Safe mode
+
+With `utilities.safeMode: 'ENABLED'`, the gated commands — clearing an ETS
+lockdown, deactivating a security system, pausing the audit trail, resetting a
+circuit, changing the in-flight ceiling, unblocking an actor — report
+`{ applied: false }` instead of taking effect.
+
+That is deliberate: it means a compromised orchestrator cannot remotely disable a
+node's defenses. Lifting safe mode requires editing the node's config and
+restarting it.
+
+## The audit trail
+
+```bash filename="terminal"
+orionctl audit --limit 100
+orionctl audit --action governance:
+orionctl audit --admin ADM_123
+orionctl audit verify              # root only
+```
+
+`orch_admin_audit` rejects `UPDATE` and `DELETE` at the database level. A failed
+verification means someone reached the database directly — investigate as a
+compromise, not a bug.
+
+Node-side, Orion-core's own audit trail records every remote command it receives
+as `CLUSTER_COMMAND_RECEIVED`, scoped to the admin who issued it. Both sides
+independently record the same action.
+
+## Retention
+
+The `audit_trail` table is not partitioned — `UNIQUE(recordId)` is what makes WAL
+replay idempotent, and MySQL partitioning would require the partition key in every
+unique key. Prune with a batched `DELETE` on `idx_audit_timestamp` during
+low-traffic windows.
+
+The `DatabaseJanitor` handles application-side TTLs itself: expired tokens, stale
+devices, and abandoned ceremony rows, every 15 minutes, 5000 rows per statement,
+advisory-locked so one node sweeps per cycle.
+
+## Backups
+
+| What | Why |
+| --- | --- |
+| Postgres | Everything. This is the system of record |
+| MySQL `orion_audit` | The audit trail, if you need it for compliance |
+| Your key vault's KEK | Wraps the DEK that seals TOTP secrets. Lose it and every enrolled user must re-enroll — the backup lives with your vault provider, not with Orion |
+| `tokens.fingerprintDigestKey` | Losing it breaks fingerprint matching for existing tokens |
+| `r_sync.internal.worker_config.json` per node | Holds the node's persistent control-plane identity |
+
+The last three are the ones people forget. They are not in the database.

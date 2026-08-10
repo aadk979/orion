@@ -29,11 +29,16 @@ export const ConsumedRefreshTokenModel = {
     },
 
     /**
-     * @returns {{ token_id, user_uid, link_code } | null} null when this id was
-     *   never retired (i.e. an unknown token rather than a replayed one)
+     * `consumed_at` is what lets the caller distinguish a genuine replay from a
+     * client retrying a rotation whose response it never received — both arrive
+     * as the same "retired token presented again" signal, and only their age
+     * tells them apart.
+     *
+     * @returns {{ token_id, user_uid, link_code, consumed_at } | null} null when
+     *   this id was never retired (i.e. an unknown token rather than a replay)
      */
     async find(tokenId) {
-        const result = await query('SELECT token_id, user_uid, link_code FROM consumed_refresh_tokens WHERE token_id = $1', [tokenId]);
+        const result = await query('SELECT token_id, user_uid, link_code, consumed_at FROM consumed_refresh_tokens WHERE token_id = $1', [tokenId]);
         return result.rows[0] || null;
     },
 

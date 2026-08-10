@@ -1,0 +1,159 @@
+---
+title: Run your first node
+description: Configure Orion-core, call initiateServer, and get an authentication API listening.
+---
+
+An Orion node is not a separate process you run — it is an Express app that
+`initiateServer()` builds and hands back to you. You decide how it listens.
+
+<Steps>
+  <Step title="Write a configuration module">
+    Orion-core takes a plain JavaScript object. Start from the annotated template
+    at `Packages/apps/Todos-App/server/orion.config.example.js`, or from the
+    minimum below.
+
+    ```js filename="gipsy.orion.config.js" copy
+    const configuration = {
+        app: {
+            port: 3900,
+            appName: 'My Service',
+            serviceID: '3e4c9f7a-2b1d-4f6e-9a3c-8d7b5e2f1a90'
+        },
+        db: {
+            provider: 'POSTGRES',
+            credentials: {
+                host: '127.0.0.1',
+                database: 'orion',
+                user: 'orion_app',
+                password: 'your-password'
+            }
+        },
+        client: {
+            urls: ['http://localhost:8080']
+        },
+        server: {
+            urls: ['http://localhost:3900'],
+            selfUrl: 'http://localhost:3900'
+        },
+        api: {
+            customEndpoints: [],
+            customMiddlewares: [],
+            slug: ''
+        },
+        tokens: {
+            lifespans: {
+                accessTokens: '15m',
+                refreshTokens: '7d',
+                resourceTokens: '1h'
+            },
+            securityTier: 4
+        },
+        authMethods: {
+            emailPassword: true,
+            passkey: false,
+            OAuth: {},
+            allowedEmailDomains: ['*']
+        },
+        utilities: {
+            accessControl: {
+                deviceAuthorization: 'DISABLED',
+                captcha: 'ENABLED'
+            },
+            safeMode: 'ENABLED'
+        }
+    };
+
+    export { configuration };
+    ```
+
+    `deviceAuthorization` is disabled here only because it needs SMTP. Turn it on
+    and add a `mail` block as soon as you have credentials — see
+    [Device authorization](/versions/alpine/docs/guides/device-authorization).
+  </Step>
+
+  <Step title="Boot the server">
+    ```js filename="index.js" copy
+    import { initiateServer, logger } from '@aadharsh/orion-alpine-x934x';
+    import { configuration } from './gipsy.orion.config.js';
+
+    const server = await initiateServer(undefined, configuration);
+
+    server.app.listen(configuration.app.port, () => {
+        logger.info(`API listening on ${configuration.app.port}`);
+    });
+    ```
+
+    `initiateServer(startConfig, systemConfig)` returns
+    `{ app, dbManager, PORT }`. `app` is an ordinary Express instance with the
+    entire Orion middleware pipeline and every auth route already mounted — you
+    can wrap it in `https.createServer()`, mount it under another app, or listen
+    directly.
+  </Step>
+
+  <Step title="Run it">
+    ```bash filename="terminal" copy
+    node index.js
+    ```
+
+    First boot does a lot: it opens the Postgres pool and runs migrations, then
+    executes a 15-iteration write/read/delete health check against the database
+    that must pass **100%** before startup continues. It validates your client
+    URLs, resolves the security-subsystem switches, initializes the token and
+    signature secrets managers, validates the rate-limit and cookie policies, and
+    starts the memory monitor, event-loop monitor, and database janitor.
+  </Step>
+</Steps>
+
+## What a successful boot logs
+
+```text filename="stdout"
+Trust proxy: disabled — client IP is the socket peer and X-Forwarded-For is ignored.
+Service "My Service" ready
+Service ID: 3e4c9f7a-2b1d-4f6e-9a3c-8d7b5e2f1a90
+Listening on port: 3900
+```
+
+<Callout type="warning" title="Behind a proxy? Say so.">
+`server.trustProxy` defaults to `false`, so `req.ip` is the socket peer and
+`X-Forwarded-For` is ignored. That is the safe default for a directly exposed
+node — but behind nginx, Caddy, or an ALB it attributes every request to the
+proxy, which silently breaks IP-bound token tiers, step-up binding, password
+reset, device auth, and rate limiting. Set `server.trustProxy: 1` (hop count) or
+a list of trusted proxy IPs/CIDRs.
+</Callout>
+
+## Boot failures you might hit
+
+| Message | Cause |
+| --- | --- |
+| `Configuration error: allowed client urls must be given…` | `client.urls` is missing or empty. It is mandatory. |
+| `Unable to certify database as operational, pass rate…` | The Postgres health check did not reach 100%. Check connectivity and permissions. |
+| `Configuration conflict: Device authorization is enabled but no mail credentials…` | Add a `mail` block or set `accessControl.deviceAuthorization: 'DISABLED'`. |
+| `Configuration conflict: Cannot mix wildcard '*' with specific domains` | `authMethods.allowedEmailDomains` must be either `['*']` or a list of real domains. |
+| `Configuration error: tokens.binding must be "none" or "dpop"` | Only those two values are accepted. |
+| `AuditTrailSystem integrity test failed…` | MySQL is unreachable or the credentials cannot write to `audit_trail`. |
+| `CookiePolicy: cookie "X" must declare exactly one of maxAge / maxAgeFrom` | The built-in cookie policy was edited incorrectly. |
+
+## Adding your own routes
+
+Custom endpoints are registered after the core ones and traverse the same
+pipeline, so `requireAuth: true` gives you `req.user` for free.
+
+```js filename="gipsy.orion.config.js"
+api: {
+    customEndpoints: [
+        { path: '/todos',     requireAuth: true, method: 'GET',    callback: listTodos },
+        { path: '/todos',     requireAuth: true, method: 'POST',   callback: createTodo },
+        { path: '/todos/:id', requireAuth: true, method: 'PATCH',  callback: updateTodo },
+        { path: '/todos/:id', requireAuth: true, method: 'DELETE', callback: deleteTodo }
+    ]
+}
+```
+
+Parameterized paths are matched segment-aware: `:id` matches exactly one segment
+and the segment counts must agree. See
+[Custom endpoints](/versions/alpine/docs/guides/custom-endpoints).
+
+## Next
+
+[Complete a sign-in from the browser →](/versions/alpine/docs/getting-started/first-sign-in)

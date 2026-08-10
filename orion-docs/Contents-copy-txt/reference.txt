@@ -1,0 +1,229 @@
+---
+title: SDK API reference
+description: Reference every browser SDK Orion class method, its arguments, return value, and role in the client-side authentication lifecycle.
+---
+
+## Constructor
+
+```js
+new Orion({ serverUrl, slug })
+```
+
+| Option | Required | Notes |
+| --- | --- | --- |
+| `serverUrl` | yes | Base URL of the Orion node. Throws without it, even for a same-origin deployment |
+| `slug` | no | Matches the node's `api.slug`. Defaults to `''` |
+| `postAuthRedirect` | no | Fallback URL used when an OAuth callback is interrupted and no provider was saved |
+
+Throws if constructed twice.
+
+## Exports
+
+```js
+import { Orion, getDeviceFingerprint } from './orion.beta.sdk.js';
+```
+
+`getDeviceFingerprint()` returns the same fingerprint the SDK sends as
+`orion-fingerprint`. Use it for your own `fetch` calls so tier-3/4 binding sees a
+consistent device.
+
+## Auth state
+
+### `onAuthStateChanged(callback) → unsubscribe`
+
+Subscribes to state changes and fires immediately with the current state. Returns
+an unsubscribe function. Triggers `initialize()` when the state is still `IDLE`.
+
+```js
+const unsubscribe = orion.onAuthStateChanged(state => {
+    // state.status: 'IDLE' | 'LOADING' | 'AUTHENTICATED' | 'UNAUTHENTICATED' | 'ERROR'
+    // state.user (AUTHENTICATED): { uid, email, jti }
+    // state.error (ERROR): { code, message }
+});
+```
+
+### `authState(callback) → unsubscribe`
+
+Compatibility wrapper emitting `{ signedIn, loading }` instead of the state
+object. Prefer `onAuthStateChanged` in new code.
+
+### `initialize() → Promise`
+
+Runs the bootstrap explicitly. Idempotent — concurrent calls share one promise,
+and it returns immediately once the state has left `IDLE`.
+
+### `setUserSignedInState(signedIn, userData?)`
+
+Forces the local state. Useful after a custom flow; it does not talk to the
+server.
+
+## Email and password
+
+### `signUpUser(email, password)`
+
+```js
+const result = await orion.signUpUser('ada@example.com', 'correct-horse-battery');
+// { error: false, ... } | { error: true, errorCode }
+```
+
+Returns `CLIENT-AUTH-AUTHED-USER-PRESENT` if already signed in. Server-side the
+password must be at least 7 characters.
+
+### `signInUser(email, password)`
+
+Same shape. If device authorization interrupts, the SDK completes the ceremony
+and **retries the sign-in transparently**.
+
+### `signOutUser()`
+
+Returns `CLIENT-AUTH-NO-AUTHED-USER-PRESENT` when not signed in.
+
+## Passkeys
+
+### `registerPasskey()`
+
+Adds a passkey to the signed-in account. Requires an authenticated session.
+
+### `signUpWithPasskey(email)`
+
+Creates an account whose only credential is a passkey.
+
+### `signInWithPasskey(email)`
+
+On a device-authorization interruption, retries with a **fresh** challenge — a
+WebAuthn challenge is single-use.
+
+## OAuth
+
+### `generateOAuthRedirectURLAndRedirect(providerName)`
+
+Requests the redirect URL, stores the provider name in `sessionStorage` under
+`orion_oauth_provider`, and navigates the browser. Does not return on success.
+
+### `handleOAuthCallback()`
+
+```js
+const result = await orion.handleOAuthCallback();
+// { error: false, signedIn: boolean } | { error: true, errorCode }
+```
+
+If device authorization interrupts, the SDK restarts a fresh OAuth redirect for
+the saved provider rather than replaying the single-use code. With no saved
+provider it navigates to `postAuthRedirect` (default: `window.location.origin`).
+
+## TOTP
+
+### `setupTOTP()`
+
+```js
+// { error: false, qrCode, secret }
+```
+
+`qrCode` is a data URI; `secret` is for manual entry.
+
+### `verifyAndEnableTOTP(totpCode)`
+
+```js
+// { error: false, complete: true }
+```
+
+The code must be exactly 6 characters.
+
+## 2FA removal
+
+### `initiate2FAMethodRemoval(method)`
+
+`method` is the method name, e.g. `'totp'` or `'passkey'`. Emails a code.
+
+```js
+// { error: false, sent: true }
+```
+
+### `complete2FAMethodRemoval(code)`
+
+```js
+// { error: false, complete: true, method }
+```
+
+## Profile
+
+### `getUserProfile()`
+
+```js
+// { error: false, profile: { ... } }
+```
+
+## Sessions
+
+### `listActiveSessions()`
+
+```js
+// { error: false, sessions: [ { linkCode, current, ... } ] }
+```
+
+Grouped by session — one entry per access/refresh pair. `current: true` marks the
+calling session.
+
+### `revokeSession({ tokenId } | { linkCode })`
+
+Exactly one of the two. Both or neither is rejected client-side.
+
+```js
+// { error: false, revokedCount, currentSessionRevoked }
+```
+
+When `currentSessionRevoked` is true, local auth state is torn down
+automatically.
+
+### `revokeAllSessions({ keepCurrent = true })`
+
+```js
+// { error: false, revokedCount, currentSessionRevoked }
+```
+
+`keepCurrent: true` is "sign out everywhere else"; `false` signs this device out
+too.
+
+### `showNotifications()`
+
+```js
+// { shown: boolean, acknowledged: number, pending: number }
+```
+
+Surfaces any pending [Orion Notifications](/versions/alpine/docs/guides/notifications) immediately,
+for hosts that want a bell icon or a settings-page entry point. The SDK already
+runs this check automatically on every transition into an authenticated state,
+and the **server** decides whether anything is raised — this only asks earlier.
+
+Style it with `notificationStyles` in the `Orion` constructor config; the same
+CSS variables as the step-up and device-authorization prompts apply.
+
+## Transport behaviour
+
+Every request the SDK makes carries:
+
+```http
+Content-Type: application/json
+orion-fingerprint: <computed>
+orion-user-agent: <navigator.userAgent>
+orion-api-system-version: 1.0.0[BETA]
+Authorization: ACCESS_BEARER | NO_AUTH_BEARER | NO_BEARER
+```
+
+with `credentials: 'include'`. Request bodies are plain JSON wrapped as
+`{ packet: { … } }`.
+
+<Callout type="info" title="Origin is not set by the SDK">
+`Origin` is a forbidden header name — the browser discards any script-supplied
+value and sets its own. The SDK deliberately does not write it. A non-browser
+runtime calling the API must supply a real `Origin` itself, because the origin
+verifier requires one.
+</Callout>
+
+Three response headers are handled centrally:
+
+| Header | Reaction |
+| --- | --- |
+| `orion-response-refresh: true` | `window.location.reload()` |
+| `orion-session-logout: true` | Clear the vault entry and emit `UNAUTHENTICATED` |
+| `orion-flow-activation` | Run the matching flow driver, then throw a retry marker |

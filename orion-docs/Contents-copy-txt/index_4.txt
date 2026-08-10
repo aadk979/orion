@@ -1,0 +1,301 @@
+---
+title: Orion-core configuration
+description: Every key of the Orion-core system configuration object, its default, and what happens if you get it wrong.
+---
+
+Orion-core takes one plain JavaScript object, passed to
+`initiateServer(startConfig, systemConfig)`. There is no config file format and
+no environment-variable schema — read env vars yourself and assemble the object.
+
+```js
+const server = await initiateServer(undefined, configuration);
+```
+
+The first argument is a small start config; only `sizeLimit` is defined there and
+it defaults to `'10mb'`. Everything below belongs in the second argument.
+
+<Callout type="tip" title="Start from the annotated template">
+`Packages/apps/Todos-App/server/orion.config.example.js` is a complete, commented
+config exercising the full security surface. Copy it to `gipsy.orion.config.js`
+and fill in the `CHANGE_ME` values.
+</Callout>
+
+## `app`
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `port` | number | Listen port. You call `listen()` yourself; this is what the value is read from |
+| `appName` | string | Shown in emails, the cluster hello payload, and logs |
+| `serviceID` | string | Stable unique id across restarts. A random UUID is generated if absent |
+
+## `db` — required
+
+```js
+db: {
+    provider: 'POSTGRES',
+    credentials: {
+        host: '127.0.0.1',
+        database: 'orion',
+        user: 'orion_app',
+        password: '…',
+        poolMax: 20,
+        statementTimeoutMs: 30000,
+        ssl: { rejectUnauthorized: true }
+    }
+}
+```
+
+Any key beyond the documented ones is passed straight through to `pg.Pool`.
+
+<Warning title="poolMax is per node">
+Ten nodes at `poolMax: 20` is 200 connections before anything else touches the
+database. Check it against Postgres `max_connections`.
+</Warning>
+
+## `client` — required
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `urls` | string[] | **Required.** Allowed browser origins, exact match on scheme/host/port. Missing or empty fails the boot |
+| `runTimeUpdateAllowed` | boolean | Lets the orchestrator push new origins at runtime |
+| `persistentUpdateAllowed` | boolean | Persists pushed origins to `orion.internal.persistant_client_urls.json` |
+| `enforceHTTPS` | boolean | Reject insecure origins with `GENERAL::INVALID-PROTOCOL::A::p` |
+
+`persistentUpdateAllowed: true` with `runTimeUpdateAllowed: false` is a
+configuration conflict and fails the boot.
+
+## `server`
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `urls` | string[] | Every node's public API URL. Used for `iss` validation, so all nodes list all URLs |
+| `selfUrl` | string | This node's own URL |
+| `trustProxy` | `false` \| number \| string[] | **Defaults to `false`.** See below |
+
+<Warning title="trustProxy decides what every IP-bound control sees">
+With the default `false`, `req.ip` is the socket peer and `X-Forwarded-For` is
+ignored — correct for a directly exposed node, and safe against a spoofed header.
+Behind a proxy it attributes every request to the proxy, silently breaking token
+tiers, step-up binding, password reset, device auth, and rate limiting. Set a hop
+count (`1` for one reverse proxy) or a list of trusted proxy IPs/CIDRs.
+</Warning>
+
+## `api`
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `customEndpoints` | array | `{ path, method, requireAuth, callback }`. `:param` segments supported |
+| `customMiddlewares` | array | Functions, or `{ applyAll }` / `{ pathsToApply }` objects with a `callback` |
+| `slug` | string | Path prefix for **your** endpoints only |
+| `maxPayloadSize` | string | `express.json` limit. Default `'10mb'` |
+| `static` | object | `{ enabled, directory, options: { dotfiles, index, maxAge } }` |
+| `resourceAccessConfig` | array | ORAS callbacks: `{ callbackPath, accessType, callback }` |
+
+Invalid `resourceAccessConfig` entries are refused registration with a warning
+rather than failing the boot — check your logs.
+
+## `tokens`
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `lifespans.accessTokens` | duration | `'15m'` | Also the `ACCESS_TOKEN` cookie lifespan |
+| `lifespans.refreshTokens` | duration | `'7d'` | Also the `REFRESH_TOKEN` cookie lifespan |
+| `lifespans.resourceTokens` | duration | `'1h'` | |
+| `securityTier` | 1–4 | `4` | See [Security tiers](/versions/alpine/docs/concepts/security-tiers) |
+| `binding` | `'none'` \| `'dpop'` | `'none'` | Any other value fails the boot |
+| `fingerprintDigestKey` | string | — | HMAC key for fingerprint digests. Must be identical fleet-wide. Unset warns rather than failing |
+
+## `authMethods`
+
+```js
+authMethods: {
+    emailPassword: true,
+    passkey: true,
+    totp: true,
+    OAuth: {
+        google: { clientId, clientSecret, redirectUri },
+        spotify: { clientId, clientSecret, redirectUri, explicitAllow: true }
+    },
+    allowedEmailDomains: ['*']
+}
+```
+
+`passkey` and `totp` are **force-set to `false`** at boot when `mail` is absent.
+`allowedEmailDomains` must be either `['*']` or a list of real domains — mixing
+them fails the boot.
+
+Providers enabled by default: `google`, `github`, `discord`, `slack`,
+`microsoft`. Also in the registry behind `explicitAllow: true`: `facebook`,
+`amazon`, `twitter`, `linkedin`, `reddit`, `spotify`.
+
+## `mail`
+
+```js
+mail: { email: 'you@example.com', password: 'app-password', service: 'gmail' }
+```
+
+Required for device authorization (its absence with device auth enabled is a boot
+failure), and for TOTP, passkeys, password reset, step-up email, and 2FA removal.
+
+## `utilities`
+
+### `logToFile`
+
+`boolean` — mirror logs to `logs/`.
+
+### `safeMode`
+
+`'ENABLED'` | `'DISABLED'`. When enabled, security-weakening operations cannot be
+applied remotely; a gated command reports `{ applied: false }` and the change
+requires a config edit plus a restart on the node.
+
+### `accessControl`
+
+```js
+accessControl: {
+    deviceAuthorization: 'ENABLED',   // or 'DISABLED'
+    captcha: 'ENABLED'
+}
+```
+
+Anything other than the exact string `'DISABLED'` is treated as enabled.
+
+### `dataEncryption`
+
+Encryption at rest for encryptable fields (today: TOTP secrets). Orion uses
+envelope encryption — a data encryption key it stores wrapped, protected by a key
+encryption key that lives wherever `provider` points.
+
+```js
+dataEncryption: {
+    provider: 'AWS_KMS',            // see the provider table below
+    region: 'eu-west-1',
+    keyId: 'arn:aws:kms:…'
+}
+```
+
+| Key | Meaning |
+| --- | --- |
+| `provider` | `INLINE_KEY`, `AWS_KMS`, `GCP_KMS`, `AZURE_KEY_VAULT`, `HASHICORP_VAULT`, `HCP_VAULT`, `OPENBAO`, `HCP_VAULT_SECRETS`, `AKEYLESS`, `INFISICAL` |
+| `key` | `INLINE_KEY` only, ≥32 chars. **Single instance only** |
+| `legacyKey` | The pre-vault key, so `enc.v1.` rows stay readable during migration |
+| `explicitAllow` | Required for providers not on the internally-verified list |
+| `timeoutMs` | Per-call ceiling on vault requests. Default `10000` |
+| `required` | `true` makes an absent/unusable configuration fatal at boot. Recommended in production |
+
+This block is **structurally validated at boot**, and unknown keys are rejected
+with a suggested correction rather than ignored — a typo cannot silently
+disable encryption. Reachability problems still degrade rather than failing.
+
+Plus the provider's own connection keys — see
+[Key vaults & field encryption](/versions/alpine/docs/security/key-vaults) for the full table.
+
+<Callout type="warning" title="Cluster mode requires a vault">
+`INLINE_KEY` is refused when `ephemeralDB.provider` is `REDIS`. A symmetric key
+copied onto every node cannot be revoked, rotated or audited. Without a vault,
+encryptable fields deactivate: TOTP stops being offered and enrolled users fall
+back to the emailed one-time code. Secrets are never written in plaintext.
+</Callout>
+
+### `ephemeralDB`
+
+```js
+ephemeralDB: {
+    provider: 'REDIS',                 // or 'LOCAL_DB'
+    credentials: { host, port, password }
+}
+```
+
+`REDIS` puts the node into cluster mode and shares signing keys. `LOCAL_DB` (the
+default when omitted) is single-node only. A provider other than `LOCAL_DB`
+without credentials fails the boot.
+
+### `auditTrailSystem`
+
+| Key | Notes |
+| --- | --- |
+| `enabled` | Master switch |
+| `host`, `user`, `password`, `database` | **Required when enabled.** Missing values fail the boot |
+| `flushIntervalMs`, `flushThreshold` | Buffering behaviour |
+
+At boot Orion writes, flushes, reads back, and deletes a `SYSTEM-AUDIT-TEST` row.
+A failed round trip fails startup.
+
+### `databaseJanitor`
+
+| Key | Default |
+| --- | --- |
+| `enabled` | `true` |
+| `intervalMs` | `900000` (15 min) |
+| `batchSize` | `5000` |
+
+### `rateLimiter`
+
+```js
+rateLimiter: {
+    defaultTTL: 300,
+    floodGuard: { enabled: true, windowMs: 60000, max: 1000 }
+}
+```
+
+### `loadShedding`
+
+`{ maxInFlight: 500, degradedMaxInFlight: 100 }`.
+
+### `eventLoopMonitor`
+
+`{ enabled: true, intervalMs: 10000, resolutionMs: 20, lagWarningMs: 100, lagCriticalMs: 500 }`.
+
+### `ipRisk`
+
+`{ asnLookup: false }` — ASN lookups are a network call on the auth path, so they
+are opt-in.
+
+### `userRoles`
+
+`{ allowedUserRoles: ['USER', 'ADMIN', 'AUDITOR'] }` — uppercased and trimmed at
+boot. A non-array or an empty array fails the boot.
+
+### `onUserCreation`
+
+`(user) => {}` — called when an account is created.
+
+### `clusterLink`
+
+| Key | Type | Default |
+| --- | --- | --- |
+| `enabled` | boolean | `false` |
+| `cluster` | string | — (required when enabled) |
+| `orchestratorIp` / `orchestratorPort` | string / number | `127.0.0.1` / `55321` |
+| `publicIp` / `port` | string / number | `127.0.0.1` / `55322` |
+| `encryptionAlg` | string | `ECC_256` — must match the orchestrator |
+| `heartbeatIntervalMs` | number | `30000` |
+| `statusReportIntervalMs` | number | `60000` |
+| `flagWatchIntervalMs` | number | `2000` (`0` disables) |
+| `memoryPressureThresholdPercent` | number | `80` |
+| `reRegisterAfterFailures` | number | `3` (`0` disables) |
+| `allowRemoteControl` | boolean | `true` |
+| `requireOrchestrator` | boolean | `false` |
+
+## Boot-time validation summary
+
+These fail the boot outright:
+
+- `client.urls` missing or empty
+- `persistentUpdateAllowed` without `runTimeUpdateAllowed`
+- Wildcard mixed with specific `allowedEmailDomains`, or an invalid domain format
+- Device authorization enabled with no `mail`
+- `tokens.binding` other than `'none'` or `'dpop'`
+- `utilities.userRoles.allowedUserRoles` not a non-empty array
+- `ephemeralDB` with a non-`LOCAL_DB` provider and no credentials
+- Audit trail enabled with missing credentials, or a failed integrity round trip
+- Database health check below 100% over 15 rounds
+- An invalid rate-limit cost or a malformed cookie-policy entry
+
+## The rest of the configuration reference
+
+- [Orchestrator](/versions/alpine/docs/configuration/orchestrator) — every option the `OrionOrchestrator` constructor accepts.
+- [System-admin plane](/versions/alpine/docs/configuration/system-admin) — the `systemAdmin` block: database, root admin, HTTP, mail, session lifetimes.
+- [R_Sync](/versions/alpine/docs/configuration/r-sync) — the transport's own options, the files it writes, and its direct API.
+- [Rate-limit policy](/versions/alpine/docs/configuration/rate-limits) — actor buckets, the per-route cost table, and resolution order.
+- [Cookie policy](/versions/alpine/docs/configuration/cookies) — every cookie, its lifespan, and why a handler cannot override it.

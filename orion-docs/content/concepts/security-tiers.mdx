@@ -1,0 +1,123 @@
+---
+title: Security tiers
+description: What tokens.securityTier 1–4 actually binds, which mismatches are fatal, and which raise risk.
+---
+
+`tokens.securityTier` is a single number, 1 to 4, that decides how tightly a
+session token is bound to the client context it was issued to. It applies to
+access and refresh tokens.
+
+<Callout type="warning" title="Tier 3 is weaker than its number suggests">
+The tiers are not a simple ladder of strictness. Tier 2 hard-fails on an IP
+mismatch. Tier 3 treats a fingerprint mismatch as an *advisory* signal that
+cannot, on its own, reach the step-up threshold. If you want a fingerprint
+mismatch to have consequences, you need tier 4.
+</Callout>
+
+## The four tiers
+
+| Tier | Binds to | On mismatch |
+| --- | --- | --- |
+| 1 | Nothing — fully stateless | n/a. No token row is written; revocation relies on the `jti` denylist |
+| 2 | The client's IP range | **Hard failure.** The token is rejected outright |
+| 3 | Device fingerprint | Adds 30 risk. Threshold is 50, so tier 3 alone never trips it — advisory by design |
+| 4 | IP range **and** fingerprint | Fingerprint 30 + IP 40 = 70 ≥ 50 → **step-up auth required** |
+
+The constants are explicit in the implementation:
+
+```js
+const STEP_UP_RISK_THRESHOLD    = 50;
+const FINGERPRINT_MISMATCH_RISK = 30;
+const IP_MISMATCH_RISK          = 40;
+```
+
+## What "IP range" means
+
+Orion binds to a *range*, not to an exact address, so a user's IP shifting within
+their network or a carrier's pool does not break their session. The range is
+computed at issuance and stored on the token row; validation checks membership.
+
+## What "fingerprint" means
+
+The client SDK computes a device fingerprint and sends it as the
+`orion-fingerprint` header on every request. What Orion stores is a **keyed HMAC
+digest**, not the raw value and not a bcrypt hash — a fingerprint is already
+high-entropy, so the only property needed is that someone reading the database
+cannot correlate a digest back to a device.
+
+The HMAC key is `tokens.fingerprintDigestKey`. It must be stable across restarts
+and identical across every node in a cluster, or digests stop matching. It is
+**not** an authentication secret: a mismatch degrades an advisory signal rather
+than granting access, so leaving it unset warns rather than failing the boot.
+
+<Callout type="tip" title="Send the same fingerprint everywhere">
+If your own `fetch` calls compute a fingerprint differently from the SDK, tier 4
+sees a mismatch on every request and users get pushed into step-up constantly.
+Use the SDK's `getDeviceFingerprint()` and reuse the value.
+</Callout>
+
+## Step-up rather than rejection
+
+At tiers 3 and 4 a risk score at or above 50 does not reject the request — it
+returns `STEP-UP::REQUIRED::A::p` with `orion-flow-activation: FLOW-STEP-UP-AUTH`,
+and the middleware sets a signed `stepUpContext` cookie so the flow routes can
+identify the user without trusting a caller-supplied uid.
+
+The user re-verifies with an emailed OTP, a passkey, or TOTP, and the request
+proceeds. This is the difference between "your session moved networks, prove it's
+you" and "you are logged out" — and it is why tier 4 is usable as a default.
+
+## Choosing a tier
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardHeader><Badge>Tier 1</Badge></CardHeader>
+    <CardTitle>Stateless</CardTitle>
+    <CardDescription className="mt-2">
+      No per-token database row, so validation is pure crypto. Choose it when
+      token-table write volume is the binding constraint and you accept that
+      revocation depends on the short-lived <code>jti</code> denylist — which is
+      per-node without Redis.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="warning">Tier 2</Badge></CardHeader>
+    <CardTitle>Hard IP binding</CardTitle>
+    <CardDescription className="mt-2">
+      The strictest failure mode in the set. Good for internal tools on stable
+      networks; hostile to mobile users, who will be signed out when they move
+      between networks.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge>Tier 3</Badge></CardHeader>
+    <CardTitle>Advisory fingerprint</CardTitle>
+    <CardDescription className="mt-2">
+      Records the binding and surfaces the signal without ever acting on it
+      alone. Useful as an observability step on the way to tier 4.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardHeader><Badge tone="accent">Tier 4</Badge></CardHeader>
+    <CardTitle>Both, with step-up</CardTitle>
+    <CardDescription className="mt-2">
+      The default in the shipped config template. A stolen token replayed from
+      another network and device demands re-verification instead of working.
+    </CardDescription>
+  </Card>
+</Grid>
+
+<Callout type="info" title="Tiers and DPoP are complementary">
+Tiers bind to values the client transmits; DPoP binds to a key the client cannot
+export. Running tier 4 *and* `tokens.binding: 'dpop'` gives you both a risk signal
+and a real possession requirement. See
+[Sessions &amp; tokens](/versions/alpine/docs/concepts/sessions-and-tokens#proof-of-possession-dpop).
+</Callout>
+
+## Changing the tier
+
+`tokens.securityTier` is read once at boot into the global access point. Changing
+it requires a restart, and existing tokens keep whatever binding fields they were
+issued with — a token minted at tier 1 has no `ipRange` for a tier-2 validator to
+check. Plan a tier change alongside a session flush (move `sessions_valid_from`
+forward) rather than expecting live sessions to upgrade in place.

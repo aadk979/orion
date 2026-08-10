@@ -24,11 +24,19 @@ import { logger } from './logger.js';
 const HMAC_PREFIX = 'hmac$';
 
 /**
- * Server key for fingerprint digests. Derived from the signature secrets
- * manager's domain key material when available so it survives restarts;
- * otherwise a per-process key, which degrades fingerprint checks to
- * "always mismatch" after a restart — an advisory risk signal, never an
- * authentication decision, so that is a safe failure mode.
+ * Server key for fingerprint digests.
+ *
+ * Boot REQUIRES `tokens.fingerprintDigestKey` at security tier 3 and above —
+ * the tiers that actually consult the digest — so the fallback below is only
+ * reachable at tiers 1 and 2, where nothing reads it, or in tests. See
+ * handleTokenSecretsSetup in Server/onStartConfigurations.js.
+ *
+ * The fallback is kept rather than made fatal here because this module is also
+ * loaded by tooling and tests that never boot a server. What it must not do is
+ * silently become the production path, which is what the boot check prevents:
+ * a per-process key makes every fingerprint check fail after a restart and on
+ * every node that did not mint the token, and at tier 4 that is enough to push
+ * the whole deployment into step-up.
  */
 let cachedKey = null;
 

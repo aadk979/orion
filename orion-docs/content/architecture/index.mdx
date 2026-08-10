@@ -1,0 +1,100 @@
+---
+title: Architecture
+description: How Orion-core nodes, Orion-Orchestrator, and R_Sync fit together — and which design decisions drive the rest.
+---
+
+Orion is a library your application embeds, plus a control plane that supervises
+however many copies of it you run. No node is special, and the control plane is
+never in the request path of a sign-in.
+
+<Architecture />
+
+## Layers
+
+| Layer | Package | Owns |
+| --- | --- | --- |
+| Auth node | Orion-core | Identity, credentials, sessions, tokens, ceremonies, defense, audit |
+| Control plane | `orion-orch` | Registry, health, consensus, commands, PBAC admin plane |
+| Transport | `r-sync` | Encrypted, authenticated, replay-protected M2M events |
+| Client | Browser SDK | Ceremony driving, DPoP keys, captcha bootstrap, auth state |
+
+## Five decisions that shape everything else
+
+<Accordion allowMultiple>
+  <AccordionItem title="Durable state lives in Postgres, not in the nodes">
+    Nodes hold no per-session memory. That is why any node can serve any request,
+    why a node restart loses nothing, and why "replication" between nodes is not
+    a concept Orion needs. The cost is a database on the hot path; the benefit is
+    that there is exactly one source of truth.
+  </AccordionItem>
+  <AccordionItem title="Signing keys are shared, tokens are not">
+    Each token kind has its own key pool, fanned out over Redis. A node validates
+    a peer's token by having the peer's public key, not by asking the peer. This
+    is the whole of what "cluster mode" means.
+  </AccordionItem>
+  <AccordionItem title="Risk escalates to a challenge, it does not reject">
+    Binding mismatches, login backoff, and unrecognized devices all produce a
+    *flow* — device authorization or step-up auth — rather than a refusal. Login
+    throttling in particular is deliberately not a lockout: a correct credential
+    presented during backoff is escalated to step-up, so knowing someone's email
+    can never be used to deny them their own account.
+  </AccordionItem>
+  <AccordionItem title="Policy tables are frozen and validated at boot">
+    The rate-limit policy and the cookie policy are deep-frozen module constants
+    validated before the server accepts traffic. A malformed cost table or a
+    <code>sameSite=None</code> cookie without <code>secure</code> fails the boot
+    instead of mis-throttling or setting a rejected cookie at runtime.
+  </AccordionItem>
+  <AccordionItem title="Remote control is triple-gated and node-final">
+    An orchestrator command must arrive over an authenticated R_Sync tunnel, name
+    an action on a fixed allowlist, and survive the node's own safe mode. There is
+    no eval-style escape hatch, and a safe-mode refusal cannot be overridden
+    remotely — it requires a config change and a restart on the node itself.
+  </AccordionItem>
+</Accordion>
+
+## Where to go next
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/architecture/authentication">Authentication</a></CardTitle>
+    <CardDescription className="mt-2">
+      Every credential type Orion accepts, the ceremonies behind them, and what
+      happens on a failed attempt.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/architecture/authorization">Authorization</a></CardTitle>
+    <CardDescription className="mt-2">
+      End-user roles, resource access, and the PBAC model governing operators of
+      the control plane.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/architecture/data-model">Data model</a></CardTitle>
+    <CardDescription className="mt-2">
+      The Postgres schema, the migration system, and what each table is for.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/architecture/distributed-systems">Distributed systems</a></CardTitle>
+    <CardDescription className="mt-2">
+      Cluster mode, health states, consensus, and the failure modes each one is
+      designed around.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/architecture/control-plane">Control plane</a></CardTitle>
+    <CardDescription className="mt-2">
+      R_Sync's cryptography, the wire protocol, the command allowlist, and the
+      policy engine.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle><a href="/versions/alpine/docs/architecture/resilience">Resilience &amp; defense</a></CardTitle>
+    <CardDescription className="mt-2">
+      Rate limiting, abuse detection, circuit breaking, load shedding, event-loop
+      monitoring, and graceful shutdown.
+    </CardDescription>
+  </Card>
+</Grid>

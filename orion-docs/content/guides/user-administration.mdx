@@ -1,0 +1,127 @@
+---
+title: User administration
+description: Disabling accounts, changing roles, and administrative password resets from server-side code.
+---
+
+Orion exposes no HTTP admin API for end-user accounts. Administration happens
+in-process, through the exported `userControl` singleton — so you build the admin
+surface (a route, a CLI, a job) and you decide who may reach it.
+
+```js
+import { userControl } from '@aadharsh/orion-alpine-x934x';
+```
+
+<Callout type="warning" title="There is no authorization inside userControl">
+It performs the operation and audits it. Gating who may call it is entirely your
+responsibility — put it behind a `requireAuth: true` custom endpoint with your own
+role check, or keep it out of the request path altogether.
+</Callout>
+
+## The surface
+
+| Call | Returns |
+| --- | --- |
+| `userControl.checkUserExist().byEmail(email)` | `{ error, exists }` |
+| `userControl.checkUserExist().byUid(uid)` | `{ error, exists }` |
+| `userControl.getUserUidByEmail(email)` | `{ error, uid }` |
+| `userControl.getUserEmailByUid(uid)` | `{ error, email }` |
+| `userControl.getUserAccountState()` | Account status accessors |
+| `userControl.disableUserAccount()` | Disable accessors |
+| `userControl.enableUserAccount()` | Enable accessors |
+| `userControl.updateUserRole(uid, role, customRolesAllowed)` | `{ error }` |
+| `userControl.updateUserPassword(uid, newPassword)` | `{ error }` |
+
+Several of these are **accessor factories** — they return an object of functions
+(`byEmail` / `byUid`) rather than performing the work directly. Call the inner
+function.
+
+Every call, including every failure path, writes an audit record with the action,
+status, function name, impact, and error code. Calls made outside a request carry
+`requestId: 'LOCAL-SYSTEM'` and `ipAddress: 'LOCAL-SYSTEM'`.
+
+## Disabling an account
+
+```js
+const uid = await userControl.getUserUidByEmail('spammer@example.com');
+await userControl.disableUserAccount().byUid(uid.uid);
+```
+
+Effects:
+
+- Sign-in is refused with `ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p`.
+- Live sessions die on the next refresh, because the authentication middleware
+  re-reads `disabled` from the database rather than trusting the presented token.
+
+## Changing a role
+
+```js
+await userControl.updateUserRole(uid, 'ADMIN', false);
+```
+
+Standard roles are `USER` and `ADMIN`. To allow others, declare them:
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    userRoles: {
+        allowedUserRoles: ['USER', 'ADMIN', 'AUDITOR']
+    }
+}
+```
+
+The array is uppercased and trimmed at boot. A non-array or an empty array fails
+the boot with a configuration error. Pass `customRolesAllowed: true` to
+`updateUserRole` when assigning one of your custom roles.
+
+<Callout type="info" title="Why a demotion actually takes effect">
+Authorization claims are re-read from the database on every refresh and never
+copied forward from the presented token. Copying `role` forward made a role change
+unenforceable — each refresh seeded the next, so stale privilege propagated for as
+long as the session kept refreshing. A role change also moves
+`sessions_valid_from`.
+</Callout>
+
+## Setting a password administratively
+
+```js
+await userControl.updateUserPassword(uid, newPassword);
+```
+
+Bypasses the emailed-code flow. Use it for support-desk resets where identity has
+been established another way, and remember that it moves the session watermark —
+every live session for that user ends.
+
+For the self-service flow, see [Password reset](/versions/alpine/docs/guides/password-reset).
+
+## Exposing it safely
+
+```js filename="admin/handlers.js" copy
+export async function disableUser(req, res) {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ error: true, message: 'Forbidden' });
+    }
+
+    const result = await userControl.disableUserAccount().byUid(req.body.uid);
+
+    if (result.error) return res.status(400).json({ error: true, code: result.errorCode });
+
+    res.status(200).json({ error: false });
+}
+```
+
+```js filename="gipsy.orion.config.js"
+api: {
+    customEndpoints: [
+        { path: '/admin/users/disable', requireAuth: true, method: 'POST', callback: disableUser }
+    ]
+}
+```
+
+Consider requiring step-up auth for destructive administrative actions, so a
+hijacked admin session cannot use them without fresh proof.
+
+## What this is not
+
+`userControl` administers **your end users**. The humans who operate the
+*cluster* are a different population governed by PBAC in the orchestrator's
+system-admin plane — see [Authorization](/versions/alpine/docs/architecture/authorization) and
+[orionctl](/versions/alpine/docs/cli).

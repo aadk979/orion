@@ -1,0 +1,127 @@
+---
+title: Authentication endpoints
+description: Sign-up, sign-in, passkeys, OAuth, the captcha gate, device authorization, and step-up auth.
+---
+
+All paths are relative to `{serverUrl}/alpine/api/v1/`. All are `POST`. Payloads
+go inside `{ packet: … }`.
+
+`Auth` column: the minimum credential class that can reach the route.
+`Cost` column: the rate-limit cost charged to the caller's bucket.
+
+## The captcha gate
+
+The only three routes reachable with `NO_BEARER`.
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `request/have-no-auth-token` | `NO_BEARER` | 1 | `{}` (must be empty) |
+| `action/generate-no-auth-token-transaction` | `NO_BEARER` | 3 | `{ captchaQuestionsHash }` — 64-char hex |
+| `action/generate-no-auth-token` | `NO_BEARER` | 3 | `{ transactionId, recaptchaResponse, captchaSystemVersion }` |
+
+`captchaSystemVersion` must be exactly `[orion:v1]-[1.0.0]-[BETA]`.
+`transactionId` is at least 8 characters. Success sets the `NO_AUTH_TOKEN`
+cookie for 1 day.
+
+When `utilities.accessControl.captcha` is `DISABLED`, the no-auth-token check is
+skipped — but route-level `requireAuth` is still enforced.
+
+## Email and password
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `action/sign-up-user` | `NO_AUTH_BEARER` | 5 | `{ email, password }` — valid email, password ≥ 7 chars |
+| `action/sign-in-user` | `NO_AUTH_BEARER` | 5 | `{ email, password }` |
+| `action/sign-out-user` | `ACCESS_BEARER` | 1 | `{}` |
+
+Sign-in outcomes:
+
+| Result | Code |
+| --- | --- |
+| Bad credentials (any cause) | `ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p` |
+| Correct credentials during backoff | `ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p` + `orion-flow-activation: FLOW-STEP-UP-AUTH` |
+| Account disabled | `ACCOUNT-SIGNIN::ACCOUNT-DISABLED::A::p` |
+| Method disabled in config | `ACCOUNT-SIGNIN::EMAIL-PASSWORD-DISABLED::A::p` |
+| Unrecognized device | `orion-flow-activation: FLOW-DEVICE-AUTHORIZATION` |
+
+## Passkeys
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `action/generate-passkey-registration-options` | `ACCESS_BEARER` | 3 | `{}` |
+| `action/complete-passkey-registration` | `ACCESS_BEARER` | 3 | `{ registrationResponse }` |
+| `action/generate-passkey-sign-up-options` | `NO_AUTH_BEARER` | 3 | `{ email }` |
+| `action/complete-passkey-sign-up` | `NO_AUTH_BEARER` | 5 | `{ email, registrationResponse }` |
+| `action/generate-passkey-authentication-options` | `NO_AUTH_BEARER` | 3 | `{ email }` |
+| `action/sign-in-with-passkey-authentication` | `NO_AUTH_BEARER` | 5 | `{ email, authenticationResponse }` |
+
+`registrationResponse` and `authenticationResponse` are the raw WebAuthn
+credential objects, each required to be a non-empty object.
+
+Challenge state lives server-side in `webauthn_ceremonies`; the browser only
+holds an opaque ceremony id in a 30–60 second scratch cookie.
+
+## OAuth
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `action/get-o-auth-redirect-url` | `NO_AUTH_BEARER` | 3 | `{ providerName }` |
+| `action/handle-o-auth-callback` | `NO_AUTH_BEARER` | 3 | `{ code, state }` |
+
+The redirect endpoint returns the provider URL and sets a 2-minute
+`oAuthFlowSecret` cookie. `state` is matched against the server-side
+`oauth_requests` row, which also holds the PKCE verifier.
+
+Providers enabled by default: `google`, `github`, `discord`, `slack`,
+`microsoft`. The rest of the registry needs `explicitAllow: true`. See
+[OAuth providers](/versions/alpine/docs/guides/oauth).
+
+## Device authorization
+
+| Path | Auth | Cost | Packet |
+| --- | --- | --- | --- |
+| `request/available-2fa-methods` | `NO_AUTH_BEARER` | 1 | `{}` |
+| `action/send-device-authorization-email` | `NO_AUTH_BEARER` | 3 | `{}` |
+| `action/authorize-me` | `NO_AUTH_BEARER` | 3 | `{ authorizationCode }` |
+| `action/authorize-device-with-passkey` | `NO_AUTH_BEARER` | 3 | `{ authenticationResponse }` |
+| `action/authorize-device-with-totp` | `NO_AUTH_BEARER` | 3 | `{ totpCode }` — exactly 6 chars |
+
+Flow state travels in the `deviceAuthorizationRequestId`,
+`deviceAuthEmailOffset`, and `deviceAuthFlowSecret` cookies (15 minutes each).
+Success sets `authorizedDeviceId` and `authorizedDeviceCode` for 7 days.
+
+The request record carries an attempt ceiling; exceeding it destroys the record.
+
+## Step-up auth
+
+These six routes **bypass the no-auth-token gate** — they authenticate through
+the signed `stepUpContext` cookie the server sets when raising the flow.
+
+| Path | Auth | Cost |
+| --- | --- | --- |
+| `request/step-up-methods` | `NO_AUTH_BEARER` | 1 |
+| `action/initiate-step-up-email` | `NO_AUTH_BEARER` | 3 |
+| `action/verify-step-up-email` | `NO_AUTH_BEARER` | 5 |
+| `action/generate-step-up-passkey-options` | `NO_AUTH_BEARER` | 3 |
+| `action/verify-step-up-passkey` | `NO_AUTH_BEARER` | 5 |
+| `action/verify-step-up-totp` | `NO_AUTH_BEARER` | 5 |
+
+Success sets `STEP_UP_TOKEN` for 5 hours.
+
+## Auth state
+
+```http
+POST /alpine/api/v1/action/get-current-auth-state
+Authorization: ACCESS_BEARER
+```
+
+A virtual endpoint handled by the authentication middleware. Returns
+`{ authed, user: { uid, email, jti } }`. These four error codes mean "not signed
+in" rather than "something broke":
+
+```text
+AUTH::MISSING-TOKEN::A::p
+TOKEN-ACCESS::EXPIRED::A::p
+TOKEN-REFRESH::EXPIRED::A::p
+AUTH::MISSING-SESSION-CREDENTIALS::A::p
+```

@@ -1,0 +1,178 @@
+---
+title: Authentication
+description: Every credential Orion accepts, the ceremonies behind them, and what happens when an attempt fails.
+---
+
+Orion supports three primary ways to prove identity, three second factors, and
+two mid-request escalation flows. All of them converge on the same outcome: a
+linked access/refresh token pair written as `HttpOnly` cookies.
+
+## Credentials
+
+| Method | Config gate | Notes |
+| --- | --- | --- |
+| Email + password | `authMethods.emailPassword` | bcrypt hashing; zxcvbn strength checking at registration |
+| Passkey (WebAuthn) | `authMethods.passkey` | Sign-up and sign-in ceremonies; force-disabled without SMTP |
+| OAuth | `authMethods.OAuth` | Authorization-code flow with PKCE; identity keyed on provider subject |
+| TOTP | `authMethods.totp` | Second factor only, never a primary credential; force-disabled without SMTP |
+
+`authMethods.allowedEmailDomains` restricts which addresses may register. It is
+either `['*']` or a list of real domains — mixing the wildcard with specific
+domains fails the boot.
+
+## Sign-in with a password
+
+<Steps>
+  <Step title="Resolve and verify">
+    The account is looked up and the password compared. "No such account", "this
+    account has no password", and "wrong password" are three distinct internal
+    facts — all three return the same
+    <code>ACCOUNT-SIGNIN::INVALID-CREDENTIALS::A::p</code> to the client so
+    addresses cannot be enumerated and OAuth-only accounts cannot be identified.
+    The audit trail still records which actually occurred.
+  </Step>
+  <Step title="Charge failures to a backoff window">
+    Failures increment <code>failed_login_count</code> against a rolling window
+    and extend <code>login_throttled_until</code> exponentially.
+  </Step>
+  <Step title="Escalate, never lock out">
+    If the credentials are <em>correct</em> but the account is still under
+    backoff, Orion does not refuse — it returns
+    <code>ACCOUNT-SIGNIN::STEP-UP-REQUIRED::A::p</code> and runs step-up auth.
+    Locking on failures alone would let anyone who knows an email address deny
+    its owner service. A successful sign-in clears the backoff.
+  </Step>
+  <Step title="Device check">
+    If device authorization is enabled and this device is not recognized, the
+    response carries <code>orion-flow-activation: FLOW-DEVICE-AUTHORIZATION</code>
+    and the sign-in pauses until the emailed code is confirmed.
+  </Step>
+  <Step title="Issue the pair">
+    An access token and a refresh token are minted with a shared
+    <code>accessTokenLinkCode</code>, bound according to the security tier, and
+    set as cookies.
+  </Step>
+</Steps>
+
+## Passkeys (WebAuthn)
+
+Four ceremonies, each with its own endpoints: registration for an existing user,
+authentication for an existing user, sign-up (account creation by passkey), and
+step-up assertion.
+
+Challenge state is **server-side**, in the `webauthn_ceremonies` table. The
+client cookie carries only an opaque `ceremony_id`. Each row records:
+
+- `user_uid` (or `email`, for sign-up ceremonies that precede the account) — the
+  authoritative subject, so credential lookup never keys on a caller-supplied uid;
+- `type` — `registration` | `authentication` | `sign-up` | `step-up`, so a
+  ceremony issued for one purpose cannot be completed as another;
+- `challenge`, `consumed_at`, and `expires_at` — consumed atomically on
+  verification, which is what makes a challenge genuinely single-use.
+
+The scratch cookies (`PASSKEY-REGISTRATION-INFO-STEP-1` and friends) live 30–60
+seconds.
+
+## OAuth
+
+Standard authorization-code flow, run by an `OAuthProviderToolkit` singleton
+built at boot from `authMethods.OAuth`.
+
+**Enabled by default:** `google`, `github`, `discord`, `slack`, `microsoft`.
+
+**Present in the registry but requiring `explicitAllow: true`:** `facebook`,
+`amazon`, `twitter`, `linkedin`, `reddit`, `spotify`.
+
+The registry is fixed — you cannot define a custom provider in config. Per-provider
+flags drive the flow: `pkce` (S256 code challenge), `sendNonce` (binds the
+`id_token` to the request), `idTokenExpected` (fail the exchange without one), and
+`clientAuth: 'basic'` for providers that require HTTP Basic at the token endpoint.
+Identity comes from validated `id_token` claims when the provider publishes a
+JWKS, and from the userinfo endpoint otherwise.
+
+<Callout type="warning" title="Identity is keyed on the provider subject">
+`user_providers.provider_subject` holds the provider's stable subject id, with a
+partial unique index over `(provider, subject)`. Identity must never be keyed on the
+email string a provider asserts — an account created before this binding existed
+is treated as unbound and adopts its subject on the next successful sign-in by
+that provider rather than being matched retroactively.
+</Callout>
+
+Notes on specific providers: Slack uses **"Sign in with Slack" (OIDC)**, so your
+Slack app needs the `openid email profile` scopes, not the legacy `identity.*`
+ones. Microsoft switches to full OIDC with `id_token` identity when you pin a
+tenant issuer. Apple is not in the registry — its `form_post` callback and JWT
+client secret do not fit the standard code flow.
+
+The redirect flow uses a 2-minute `oAuthFlowSecret` cookie, and PKCE verifiers
+are stored server-side in `oauth_requests`.
+
+## Second factors and device trust
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle>Device authorization</CardTitle>
+    <CardDescription className="mt-2">
+      First sign-in from an unrecognized device emails a one-time code.
+      Completing it writes the device to <code>recognized_devices</code> and
+      issues <code>authorizedDeviceId</code> / <code>authorizedDeviceCode</code>
+      cookies good for 7 days. It can also be satisfied by a passkey assertion or
+      a TOTP code instead of the emailed code.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Step-up auth</CardTitle>
+    <CardDescription className="mt-2">
+      Re-verification of an already-identified user. Three methods — email OTP,
+      passkey, TOTP — behind a signed <code>stepUpContext</code> cookie so the
+      flow routes never trust a caller-supplied uid. Success grants a
+      <code>STEP_UP_TOKEN</code> cookie valid for 5 hours.
+    </CardDescription>
+  </Card>
+</Grid>
+
+Step-up is triggered by three different situations: a tier-3/4 risk score at or
+above 50, correct credentials during login backoff, and any sensitive operation
+that demands it explicitly (such as removing a 2FA method).
+
+## Every challenge has an attempt ceiling
+
+Password reset, step-up, device authorization, and 2FA removal all issue a
+6-digit code. Each record carries `attempts` and `max_attempts`, and exceeding
+the ceiling **destroys the record** rather than merely rejecting the submission —
+so a guessed code can never be retried against it. The rate-limit policy backs
+this up: the step-up, password-reset, and 2FA-removal verification endpoints are
+charged cost 5, and the device-authorization ones cost 3.
+
+## The captcha gate
+
+When `utilities.accessControl.captcha` is enabled, unauthenticated endpoints
+require a `NO_AUTH_TOKEN` cookie, obtained by solving a server-generated
+challenge. Three routes are reachable with no credential at all — the two that
+mint the token and the one that checks whether you already hold it.
+
+Disabling captcha relaxes anti-automation only. The endpoint's own `requireAuth`
+flag is evaluated before any subsystem-disabled shortcut, so it never widens
+access to a protected route.
+
+## Password reset
+
+`initiate-password-reset` emails a code and creates a
+`password_reset_requests` row carrying the requesting IP; `complete-password-reset`
+verifies it. The request is IP-bound —
+`ACCOUNT-SIGNIN::PASSWORD-RESET-IP-MISMATCH::A::p` if completion comes from a
+different network. A successful reset moves the user's `sessions_valid_from`
+watermark forward, invalidating every live session including stateless tier-1
+tokens.
+
+## What is verified on every authenticated request
+
+<ProtocolTimeline entries={[
+  { label: "01 · headers", title: "Header contract", description: "orion-fingerprint, orion-user-agent, and orion-api-system-version must all be present and non-empty." },
+  { label: "02 · signature", title: "JWT signature", description: "The token's key id selects a public key from the domain's pool, shared fleet-wide over Redis." },
+  { label: "03 · binding", title: "Tier binding and DPoP", description: "IP range and fingerprint digest per the security tier; when binding is enabled, a fresh DPoP proof matching the token's cnf.jkt." },
+  { label: "04 · state", title: "Revocation state", description: "The token row for stateful tiers, the jti denylist for tier 1, and the user's sessions_valid_from watermark." },
+  { label: "05 · rotate", title: "Silent rotation", description: "An expired access token is replaced using the refresh token, with role and disabled status re-read from the database." }
+]} />
+
+Failing any of these rejects the request before your handler runs.

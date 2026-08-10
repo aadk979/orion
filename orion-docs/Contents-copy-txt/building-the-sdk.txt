@@ -1,0 +1,92 @@
+---
+title: Building the SDK
+description: The build pipeline, how to vendor the bundle, and the current state of the committed build.
+---
+
+The SDK source lives in `Packages/client/lib/` and is bundled to a single ES
+module.
+
+```bash filename="terminal" copy
+cd Packages/client
+npm install
+npm run build          # → dist/orion.beta.sdk.js
+```
+
+`npm run build` executes `gipsy.non-commitable-dev-tooling/sdkBuilder.js`, which
+uses **esbuild** to bundle (`format: 'esm'`, `bundle: true`, `keepNames: true`,
+no sourcemap) and then **terser** to compress with `mangle: false` — deliberately,
+so parameter names survive and the shipped file stays readable and debuggable.
+
+`prepublishOnly` runs the same build.
+
+## Vendoring it
+
+There is no CDN. Copy the built file next to your front end and import it
+relatively, which is what the reference app does:
+
+```text
+client/
+├── orion.beta.sdk.js     ← copied from Packages/client/dist/
+├── orion-client.js       ← constructs and exports the singleton
+├── config.js             ← SERVER_URL, the one line to change per deployment
+└── app.js
+```
+
+```js filename="config.js"
+const SERVER_URL = 'https://auth.example.com';
+export { SERVER_URL };
+```
+
+Or import it through your bundler if you prefer — it is a plain ES module with no
+runtime dependencies.
+
+## What is bundled in
+
+| File | Purpose |
+| --- | --- |
+| `External-Scripts/DOM-purify.js` | Sanitising anything the flow UIs render |
+| `External-Scripts/fPrint.js` | Device fingerprinting |
+| `External-Scripts/webAuthn.js` | WebAuthn browser helper |
+| `Flows/DeviceAuthorizationFlow.js` | Device authorization ceremony + UI |
+| `Flows/StepUpAuthFlow.js` | Step-up ceremony + UI |
+| `Utils/Captcha.js` | The no-auth-token bootstrap |
+| `Utils/DpopKey.js` | Non-extractable keypair and per-request proof minting |
+| `Utils/OrionVault.js` | IndexedDB-backed local store |
+
+<Callout type="warning" title="The committed bundle predates DPoP">
+`Packages/client/dist/orion.beta.sdk.js` as committed contains no DPoP code — no
+`createProof`, no `DPoP` header. The source in `lib/` does. If you enable
+`tokens.binding: 'dpop'` on the server, you must **rebuild the SDK from source**,
+and you must also pass `useDpop` through to `ApiInterface`: the current
+`Orion` constructor calls `new ApiInterface(serverUrl, nameSpace, slug)` without
+an options argument, so `options.useDpop` is never set. Wire that through before
+rolling out token binding, or bound sessions will be unusable.
+</Callout>
+
+Verify what you have:
+
+```bash filename="terminal" copy
+grep -c "createProof" Packages/client/dist/orion.beta.sdk.js
+# 0 → the bundle has no DPoP support; rebuild from lib/
+```
+
+## Watch mode
+
+`gipsy.non-commitable-dev-tooling/fileWatcher.js` rebuilds on change during
+development. The whole `gipsy.` directory is git-ignored, which is why the build
+tooling is not part of the published package.
+
+## Versioning
+
+The package version (`1.0.6`) tracks Orion-core's. Keep them aligned: the SDK
+sends `orion-api-system-version: 1.0.0[BETA]` and the captcha subsystem pins
+`captchaSystemVersion` to `[orion:v1]-[1.0.0]-[BETA]`, so a mismatched pair can
+fail schema validation on the no-auth-token endpoints.
+
+## Non-browser clients
+
+The SDK assumes a browser: `window`, `navigator`, IndexedDB, `sessionStorage`,
+and WebAuthn. For a server-to-server or mobile client, call the HTTP API directly
+— see [API Reference](/versions/alpine/docs/api-reference) — and note that you must supply a real
+`Origin` header yourself, since the origin verifier requires one and only a
+browser sets it automatically.

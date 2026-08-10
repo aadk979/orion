@@ -23,6 +23,11 @@ import { HealthCheckModel } from '../Utils/Databases/models/index.js';
 import { TokenSecretsManager } from '../Utils/Systems/TokenSecretsManager.js';
 import { SignatureSecretsManager } from '../Utils/Systems/SignatureSecretsManager.js';
 import { SafeModuleHandler } from '../Utils/UnavailableModuleWrapper.js';
+import { KeyVaultManager } from '../Utils/Core/KeyVault/KeyVaultManager.js';
+import { EncryptionKeyManager } from '../Utils/Core/KeyVault/EncryptionKeyManager.js';
+import { deactivatedFeatures } from '../Utils/Core/KeyVault/EncryptedFieldRegistry.js';
+import { validateDataEncryptionConfig } from '../Utils/Core/KeyVault/configSchema.js';
+import { announceEncryptionDegraded } from '../Utils/Core/Notifications/NotificationService.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'onStartConfigurations.js');
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'onStartConfigurations.js');
@@ -300,7 +305,7 @@ const handleAllowedUserRolesConfig = () => {
     if (systemConfig?.utilities?.userRoles) {
         if (!Array.isArray(systemConfig?.utilities?.userRoles?.allowedUserRoles)) {
             throw new Error(
-                'Configuration error: allowed custom user roles must be a valid array of roles got ' + typeof systemConfig.userRoles?.allowedUserRoles
+                'Configuration error: allowed custom user roles must be a valid array of roles got ' + typeof systemConfig.utilities?.userRoles?.allowedUserRoles
             );
         }
 
@@ -310,7 +315,7 @@ const handleAllowedUserRolesConfig = () => {
 
         globalAccessPoint.setValue(
             'allowedUserRoles',
-            systemConfig.utilites?.userRoles?.allowedUserRoles.map(val => val.toUpperCase().trim())
+            systemConfig.utilities?.userRoles?.allowedUserRoles.map(val => val.toUpperCase().trim())
         );
 
         return;
@@ -414,6 +419,98 @@ const handleEphemeralDatabaseSetup = async () => {
     return;
 };
 
+// Field encryption at rest.
+//
+// Runs after handleEphemeralDatabaseSetup because the single-instance/cluster
+// distinction it establishes is what decides whether an inline configuration
+// key is acceptable at all: one box may hold its own key, a fleet may not.
+//
+// This function NEVER throws. An unusable key vault deactivates the features
+// that depend on encryption (see EncryptedFieldRegistry) and the node serves
+// everything else normally — enrolled users fall back to the email one-time
+// code rather than being locked out. Failing the boot instead would turn a
+// vault outage into a full authentication outage, which is strictly worse than
+// running with one factor family disabled.
+const handleDataEncryptionSetup = async () => {
+    const systemConfig = systemConfigModule.getModule();
+    const encryptionConfig = systemConfig?.utilities?.dataEncryption || {};
+    const clusterMode = globalAccessPoint.getValue('clusterMode') === true;
+
+    // Structural validation runs FIRST and is fatal. A misspelled key, an
+    // unknown provider or a missing required value is deterministic and will
+    // never resolve on its own, so starting anyway would mean running without
+    // the protection the config claims to configure. That is the one failure
+    // mode the degradation path below must not absorb.
+    const validation = validateDataEncryptionConfig(systemConfig?.utilities?.dataEncryption, { clusterMode });
+
+    for (const warning of validation.warnings) {
+        logger.warn(`Configuration warning: ${warning}`);
+    }
+
+    if (!validation.valid) {
+        throw new Error(`Configuration error in utilities.dataEncryption:\n  - ${validation.errors.join('\n  - ')}`);
+    }
+
+    // Absence is NOT fatal by default: it would break a first run and every
+    // existing deployment that has no TOTP users. Operators who want a hard
+    // guarantee opt in with `required: true`.
+    if (!validation.providerId && encryptionConfig.required === true) {
+        throw new Error(
+            'Configuration error: utilities.dataEncryption.required is true but no provider is configured. ' +
+                'Set utilities.dataEncryption.provider to a key vault, or utilities.dataEncryption.key on a single-instance deployment.'
+        );
+    }
+
+    const vault = new KeyVaultManager(encryptionConfig, { clusterMode });
+    await vault.initialize();
+    globalAccessPoint.setValue('keyVaultManager', vault);
+
+    // `key` doubles as the legacy key: rows sealed before this deployment moved
+    // to a vault were sealed with sha256 of exactly that string, so keeping it
+    // in config lets them be read and re-sealed by a DEK rotation. It can be
+    // dropped once rotation reports zero stale rows.
+    const encryptionKeyManager = new EncryptionKeyManager(vault, { legacyKey: encryptionConfig.legacyKey || encryptionConfig.key || null });
+    const ready = await encryptionKeyManager.initialize();
+
+    globalAccessPoint.setValue('encryptionKeyManager', encryptionKeyManager);
+    globalAccessPoint.setValue('fieldEncryptionAvailable', ready);
+
+    if (ready) {
+        globalAccessPoint.setValue('deactivatedEncryptedFeatures', []);
+        return;
+    }
+
+    const features = deactivatedFeatures();
+    const reason = encryptionKeyManager.unavailableReason || vault.unavailableReason || 'unknown';
+
+    globalAccessPoint.setValue('deactivatedEncryptedFeatures', features);
+
+    if (features.includes('totp')) {
+        if (!systemConfig.authMethods) systemConfig.authMethods = {};
+        systemConfig.authMethods.totp = false;
+        globalAccessPoint.setValue('totpSystemDisabled', true);
+    }
+
+    logger.error(
+        `Field encryption is UNAVAILABLE — ${reason}\n` +
+            `  Deactivated: ${features.join(', ') || 'none'}.\n` +
+            '  Users already enrolled in TOTP are NOT locked out: they fall back to the email one-time code, ' +
+            'and their stored secrets are left untouched so they become usable again the moment the vault is reachable.'
+    );
+
+    if (!utilHasMailCredentials()) {
+        logger.error(
+            'No mail credentials are configured either, so the email one-time code fallback is also unavailable. ' +
+                'Accounts that rely on TOTP cannot complete a second factor until the key vault is restored.'
+        );
+    }
+
+    // Best-effort: tell affected users what happened through the notifications
+    // plane so they are not left guessing why their authenticator stopped being
+    // offered. A failure here must never affect the boot.
+    await announceEncryptionDegraded(reason).catch(error => logger.warn(`Could not queue the encryption-degraded notification — ${error.message}`));
+};
+
 // Flat registry of every live secrets manager so cluster-plane consumers
 // (ClusterLinkSystem's secrets:* commands) can enumerate them without knowing
 // the per-domain GAP key naming scheme.
@@ -432,13 +529,35 @@ const handleTokenSecretsSetup = async () => {
 
     // Server key for fingerprint digests (see Utils/fingerprintDigest.js). Must be
     // stable across restarts, and identical across cluster nodes, or fingerprint
-    // risk signals stop matching. It is not an authentication secret — a mismatch
-    // degrades an advisory signal, it does not grant access — so an unset value
-    // warns rather than failing the boot.
+    // risk signals stop matching.
+    //
+    // A mismatch cannot grant access — the digest only feeds a risk score — but
+    // "it only degrades a signal" understated the effect at the tiers that use
+    // it. With no configured key each process invents its own, so after any
+    // restart, and on every node that did not mint the token, EVERY fingerprint
+    // check fails: a permanent +30 on all traffic. Add an ordinary IP change
+    // (+40) and every user in the deployment crosses the step-up threshold at
+    // once. That is an availability failure produced by a missing config value,
+    // so tiers that actually consult the digest now refuse to boot without it
+    // rather than starting into that state.
     const fingerprintDigestKey = systemConfigModule.getModule()?.tokens?.fingerprintDigestKey;
+    const tierUsesFingerprint = Number(tokenSecurityTier) >= 3 || !tokenSecurityTier;
 
     if (fingerprintDigestKey) {
+        if (String(fingerprintDigestKey).length < 32) {
+            throw new Error('Configuration error: tokens.fingerprintDigestKey must be at least 32 characters');
+        }
+
         globalAccessPoint.setValue('fingerprintDigestKey', fingerprintDigestKey);
+    } else if (tierUsesFingerprint) {
+        throw new Error(
+            'Configuration error: tokens.fingerprintDigestKey is required at security tier 3 and above ' +
+                '(the configured tier is ' +
+                (tokenSecurityTier || 4) +
+                '). Without it each process derives its own key, so device fingerprints never match after a ' +
+                'restart or across cluster nodes and every session is pushed into step-up. Set a stable ' +
+                'random value of at least 32 characters, identical on every node.'
+        );
     }
 
     // Proof-of-possession binding (DPoP). Opt-in: when enabled, tokens are bound
@@ -451,13 +570,74 @@ const handleTokenSecretsSetup = async () => {
 
     globalAccessPoint.setValue('tokenBinding', bindingMode);
 
-    // ASN lookups are a network call on the auth path — opt-in only.
-    globalAccessPoint.setValue('ipRiskAsnLookupEnabled', systemConfigModule.getModule()?.utilities?.ipRisk?.asnLookup === true);
 
     if (bindingMode === 'dpop') {
         logger.info('Token binding: DPoP enabled — tokens are bound to a client-held key and proofs are required on every request.');
     }
 
+    handleSharedSignalsSetup();
+
+    return handleTokenSecretsManagers(defaultDomains);
+};
+
+/**
+ * Shared Signals Framework (OpenID SSF / CAEP).
+ *
+ * Off by default: transmitting security events means posting statements about
+ * your users to endpoints someone configured, which is not something to switch
+ * on implicitly. When it IS on, the issuer is mandatory — every SET's `iss` and
+ * every `iss_sub` subject is built from it, and a receiver cannot verify or
+ * attribute events without a stable one.
+ */
+const handleSharedSignalsSetup = () => {
+    const ssf = systemConfigModule.getModule()?.sharedSignals || {};
+    const enabled = ssf.enabled === true;
+
+    globalAccessPoint.setValue('ssfEnabled', enabled);
+
+    if (!enabled) {
+        globalAccessPoint.setValue('ssfIssuer', null);
+        globalAccessPoint.setValue('ssfTrustedIssuers', {});
+        globalAccessPoint.setValue('ssfManagementToken', null);
+        globalAccessPoint.setValue('ssfAllowInsecureDelivery', false);
+        return;
+    }
+
+    const issuer = ssf.issuer || systemConfigModule.getModule()?.server?.selfUrl;
+
+    if (!issuer) {
+        throw new Error(
+            'Configuration error: sharedSignals.enabled is true but no sharedSignals.issuer (or server.selfUrl) is set. ' +
+                'Every Security Event Token is attributed to this value and receivers key their trust on it.'
+        );
+    }
+
+    // Stream management decides who receives security events about your users —
+    // a caller who can create a stream can have every revocation forwarded to an
+    // endpoint they control. That is not something to leave unauthenticated.
+    const managementToken = ssf.managementToken;
+
+    if (!managementToken || String(managementToken).length < 32) {
+        throw new Error(
+            'Configuration error: sharedSignals.managementToken is required (min 32 characters) when Shared Signals is enabled. ' +
+                'It guards stream creation, which controls where security events about your users are sent.'
+        );
+    }
+
+    globalAccessPoint.setValue('ssfIssuer', issuer);
+    globalAccessPoint.setValue('ssfManagementToken', managementToken);
+    globalAccessPoint.setValue('ssfTrustedIssuers', ssf.trustedIssuers || {});
+
+    // Escape hatch for local development only; SETs name users and describe
+    // their security state, so plaintext delivery is refused by default.
+    globalAccessPoint.setValue('ssfAllowInsecureDelivery', ssf.allowInsecureDelivery === true);
+
+    const inboundCount = Object.keys(ssf.trustedIssuers || {}).length;
+    logger.info(`Shared Signals enabled — issuer ${issuer}, ${inboundCount} trusted inbound issuer(s).`);
+};
+
+/** Builds and registers the per-domain token secrets managers. */
+const handleTokenSecretsManagers = async defaultDomains => {
     let arr = [];
 
     for (let i = 0; i < defaultDomains.length; i++) {
@@ -519,8 +699,16 @@ const handleOnStartConfiguration = async () => {
     handleRASValidation();
     handleAllowedUserRolesConfig();
     await handleEphemeralDatabaseSetup();
+    await handleDataEncryptionSetup();
     await handleTokenSecretsSetup();
     await handleSignatureSecretsSetup();
 };
 
-export { handleOnStartConfiguration };
+// handleAllowedUserRolesConfig is exported for unit testing: it is the only
+// place the custom-role allowlist reaches globalAccessPoint, and a silent
+// failure here disables custom roles entirely without failing the boot.
+//
+// handleDataEncryptionSetup is exported for the same reason: it is the only
+// place that decides whether encryptable features are live, and it is required
+// to degrade rather than throw.
+export { handleOnStartConfiguration, handleAllowedUserRolesConfig, handleDataEncryptionSetup };

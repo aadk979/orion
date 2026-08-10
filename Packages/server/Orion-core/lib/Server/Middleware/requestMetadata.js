@@ -86,6 +86,15 @@ const requestMetadataMiddleware = async (request, response, next) => {
         method: request.method,
         requestUri: `${request.protocol}://${request.get('host')}${request.originalUrl.split('?')[0]}`,
         dpopProof: request.headers['dpop'] || null,
+        // Per-request memo of verified DPoP proofs. A client sends one proof per
+        // request, but several independent checks in a single request may need
+        // it (step-up token here, then the access token — and on a refresh, the
+        // refresh token and the newly minted access token too). Verification
+        // consumes the proof's jti, so without this memo every one of those
+        // after the first failed as a replay. The Map is mutable even though the
+        // metadata object is frozen, and a new one per request is what keeps
+        // cross-request replay protection intact.
+        dpopProofCache: new Map(),
         stepUpAuthComplete: false,
         stepUpUid: null
     };
@@ -96,7 +105,18 @@ const requestMetadataMiddleware = async (request, response, next) => {
     // Validate step-up token if present — allows the auth middleware to trust stepUpAuthComplete
     const rawStepUpToken = parseCookieData(request.cookies['STEP_UP_TOKEN']);
     if (rawStepUpToken) {
-        const stepUpResult = await validateStepUpToken(rawStepUpToken, metadata.ip, metadata.userAgent, metadata.fingerprint);
+        // The proof context is handed over explicitly: this runs before
+        // `requestContext.run` below, so the async store is not readable yet.
+        const stepUpResult = await validateStepUpToken(rawStepUpToken, metadata.ip, metadata.userAgent, metadata.fingerprint, {
+            dpopProof: metadata.dpopProof,
+            method: metadata.method,
+            requestUri: metadata.requestUri,
+            // Handed over explicitly: this runs before `requestContext.run`, so
+            // the proof memo cannot be read from the async store yet. Without
+            // it the proof verified here would be consumed and every later
+            // check in this same request would fail as a replay.
+            proofCache: metadata.dpopProofCache
+        });
         if (stepUpResult.valid) {
             metadata.stepUpAuthComplete = true;
             metadata.stepUpUid = stepUpResult.uid;

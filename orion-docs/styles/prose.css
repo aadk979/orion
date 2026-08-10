@@ -1,0 +1,201 @@
+/**
+ * Hand-rolled documentation typography, scoped under `.prose-orion`.
+ * Deliberately not @tailwindcss/typography — tuned to Orion's own tokens.
+ */
+
+.prose-orion {
+  color: var(--color-text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  max-width: 100%;
+}
+
+/**
+ * Reading measure is applied to body copy only, not to the container. Wide
+ * content — tables, code blocks, diagrams, card grids — then fills the whole
+ * article column instead of being boxed into a text-width gutter.
+ */
+.prose-orion > p,
+.prose-orion > ul,
+.prose-orion > ol,
+.prose-orion > blockquote {
+  max-width: var(--width-prose);
+}
+
+.prose-orion > :first-child {
+  margin-top: 0;
+}
+
+.prose-orion h1 {
+  color: var(--color-text-primary);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  margin: 0 0 1rem;
+}
+
+.prose-orion h2 {
+  color: var(--color-text-primary);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-snug);
+  margin: 3rem 0 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-faint);
+  scroll-margin-top: calc(var(--height-nav) + 1.5rem);
+}
+
+.prose-orion h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 1.5rem;
+}
+
+.prose-orion h3 {
+  color: var(--color-text-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-normal);
+  margin: 2.25rem 0 0.75rem;
+  scroll-margin-top: calc(var(--height-nav) + 1.5rem);
+}
+
+.prose-orion h4 {
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.prose-orion p {
+  margin: 1rem 0;
+}
+
+.prose-orion a {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.prose-orion a:hover {
+  text-decoration-color: var(--color-accent-bright);
+}
+
+.prose-orion strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.prose-orion ul,
+.prose-orion ol {
+  margin: 1rem 0;
+  padding-left: 1.375rem;
+}
+
+.prose-orion ul {
+  list-style: none;
+}
+
+.prose-orion ul > li {
+  position: relative;
+}
+
+.prose-orion ul > li::before {
+  content: "";
+  position: absolute;
+  left: -1.125rem;
+  top: 0.65em;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-faint);
+}
+
+.prose-orion ol {
+  list-style: decimal;
+}
+
+.prose-orion ol > li::marker {
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.prose-orion li {
+  margin: 0.4rem 0;
+}
+
+.prose-orion li > p {
+  margin: 0.25rem 0;
+}
+
+.prose-orion blockquote {
+  margin: 1.5rem 0;
+  padding: 0.25rem 0 0.25rem 1.125rem;
+  border-left: 2px solid var(--color-accent-dim);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.prose-orion hr {
+  border: none;
+  border-top: 1px solid var(--color-border-faint);
+  margin: 2.5rem 0;
+}
+
+.prose-orion code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0.15em 0.4em;
+}
+
+.orion-table-scroll {
+  width: 100%;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border-block: 1px solid var(--color-border-faint);
+}
+
+.orion-table-scroll:focus-visible {
+  outline-offset: 4px;
+}
+
+.prose-orion table {
+  width: 100%;
+  min-width: max-content;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.prose-orion th {
+  text-align: left;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.prose-orion td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--color-border-faint);
+  color: var(--color-text-secondary);
+}
+
+.prose-orion img {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.prose-orion > pre,
+.prose-orion > .orion-code-block {
+  margin: 1.5rem 0;
+}

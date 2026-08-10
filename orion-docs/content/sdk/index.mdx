@@ -1,0 +1,111 @@
+---
+title: Client SDK
+description: The browser SDK — a singleton Orion class that owns auth state, ceremonies, and the captcha bootstrap.
+---
+
+`@aadharsh/orion-client` builds to a single ES module,
+`dist/orion.beta.sdk.js`. It has no runtime dependencies — DOMPurify, the
+fingerprinting library, and the WebAuthn helper are bundled in.
+
+```js filename="orion-client.js" copy
+import { Orion, getDeviceFingerprint } from './orion.beta.sdk.js';
+
+const orion = new Orion({
+    serverUrl: 'https://auth.example.com',
+    slug: ''
+});
+
+export { orion, getDeviceFingerprint };
+```
+
+## What it owns
+
+<Grid columns={2} className="my-6">
+  <Card hoverable={false}>
+    <CardTitle>Auth state</CardTitle>
+    <CardDescription className="mt-2">
+      A five-state machine — <code>IDLE</code>, <code>LOADING</code>,
+      <code>AUTHENTICATED</code>, <code>UNAUTHENTICATED</code>, and
+      <code>ERROR</code> — with a subscribe/unsubscribe API.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Interruption flows</CardTitle>
+    <CardDescription className="mt-2">
+      Full drivers for device authorization and step-up auth, including their
+      UI, that transparently retry the interrupted call.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>The captcha bootstrap</CardTitle>
+    <CardDescription className="mt-2">
+      Detects whether a no-auth token is needed, solves the challenge, and
+      refreshes it — before your first sign-in call.
+    </CardDescription>
+  </Card>
+  <Card hoverable={false}>
+    <CardTitle>Header and cookie discipline</CardTitle>
+    <CardDescription className="mt-2">
+      Sends the three mandatory <code>orion-*</code> headers and
+      <code>credentials: 'include'</code> on every call, and reacts to the
+      <code>orion-session-logout</code> header centrally.
+    </CardDescription>
+  </Card>
+</Grid>
+
+## The singleton rule
+
+```js
+new Orion({ serverUrl });   // ok
+new Orion({ serverUrl });   // throws — "The Orion class is a singleton class!"
+```
+
+Construct it once, export the instance, import it everywhere. `serverUrl` is
+required even when the client and API share an origin. The namespace is forced to
+`alpine` internally.
+
+## Initialization
+
+The first call to `onAuthStateChanged` (or any method, which all `await this.initialize()`
+first) triggers a one-time bootstrap:
+
+<Steps>
+  <Step title="Open the local vault">
+    An IndexedDB-backed store for small non-secret values such as the last-used
+    email.
+  </Step>
+  <Step title="Run the captcha check">
+    Asks whether this browser already holds a no-auth token; if not, solves the
+    challenge and obtains one.
+  </Step>
+  <Step title="Ask for current auth state">
+    Calls the virtual endpoint
+    <code>/alpine/api/v1/action/get-current-auth-state</code>.
+  </Step>
+</Steps>
+
+Four responses are treated as "not signed in" rather than as failures:
+`AUTH::MISSING-TOKEN::A::p`, `TOKEN-ACCESS::EXPIRED::A::p`,
+`TOKEN-REFRESH::EXPIRED::A::p`, and `AUTH::MISSING-SESSION-CREDENTIALS::A::p`.
+Anything else resets the vault and emits `ERROR`.
+
+## Error convention
+
+Expected failures return `{ error: true, errorCode }` rather than throwing. The
+one deliberate exception is a flow interruption, which throws an error carrying
+`_orionDeviceAuthCompleted` — the sign-in methods catch it and retry.
+
+Client-originated codes are prefixed `CLIENT-`:
+
+| Code | Meaning |
+| --- | --- |
+| `CLIENT-AUTH-AUTHED-USER-PRESENT` | Called a sign-in method while already authenticated |
+| `CLIENT-AUTH-NO-AUTHED-USER-PRESENT` | Called an authenticated method while signed out |
+| `CLIENT-MISSING-REVOCATION-TARGET` | `revokeSession` called with neither `tokenId` nor `linkCode` |
+| `CLIENT-AMBIGUOUS-REVOCATION-TARGET` | `revokeSession` called with both |
+
+## Where to go
+
+- [API reference](/versions/alpine/docs/sdk/reference) — every method and its return shape.
+- [Interruption flows](/versions/alpine/docs/sdk/flows) — what happens when the server demands a ceremony.
+- [Building the SDK](/versions/alpine/docs/sdk/building-the-sdk) — the build pipeline and the state of the shipped bundle.

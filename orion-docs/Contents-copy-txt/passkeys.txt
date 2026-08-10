@@ -1,0 +1,106 @@
+---
+title: Passkeys (WebAuthn)
+description: Passwordless sign-up and sign-in, and adding a passkey to an existing account.
+---
+
+Orion implements WebAuthn through `@simplewebauthn/server`. The browser SDK
+bundles the client half, so you never touch `navigator.credentials` directly.
+
+<Warning title="Passkeys need SMTP">
+With no `mail` block configured, `authMethods.passkey` is force-disabled at boot
+with a warning. Removing a passkey requires an emailed OTP, and allowing
+enrollment without a removal path would strand accounts.
+</Warning>
+
+## Enable
+
+```js filename="gipsy.orion.config.js"
+authMethods: {
+    passkey: true
+},
+mail: {
+    email: 'you@example.com',
+    password: 'app-password',
+    service: 'gmail'
+}
+```
+
+## Register a passkey for a signed-in user
+
+```js
+const result = await orion.registerPasskey();
+
+if (result.error) showError(result.errorCode);
+```
+
+Two endpoints run under the hood — `generate-passkey-registration-options`
+(authenticated, empty packet) and `complete-passkey-registration` (authenticated,
+`{ registrationResponse }`). The SDK handles the ceremony, including the
+`PASSKEY-REGISTRATION-INFO-STEP-1` scratch cookie, which lives 30 seconds.
+
+## Sign up with a passkey
+
+Creates the account and the credential in one flow — no password ever exists.
+
+```js
+const result = await orion.signUpWithPasskey(email);
+```
+
+Endpoints: `generate-passkey-sign-up-options` (`{ email }`) and
+`complete-passkey-sign-up` (`{ email, registrationResponse }`). Both are reachable
+with a `NO_AUTH_BEARER`, since there is no account yet. The scratch cookie
+`PASSKEY-SIGN-UP-INFO-STEP-1` lives 60 seconds.
+
+## Sign in with a passkey
+
+```js
+const result = await orion.signInWithPasskey(email);
+```
+
+Endpoints: `generate-passkey-authentication-options` (`{ email }`) and
+`sign-in-with-passkey-authentication` (`{ email, authenticationResponse }`).
+
+If the device is unrecognized, the SDK runs device authorization first and then
+retries with a **fresh challenge** — a WebAuthn challenge is single-use, so it
+cannot simply replay the interrupted one.
+
+## Ceremony state is server-side
+
+This is worth understanding if you are debugging.
+
+The challenge lives in the `webauthn_ceremonies` table, not in a client cookie.
+The cookie carries only an opaque `ceremony_id`. Each row records:
+
+| Column | Purpose |
+| --- | --- |
+| `user_uid` | The authoritative subject. Credential lookup keys on this, never on a uid the caller supplied |
+| `email` | Used instead of `user_uid` for sign-up ceremonies, which precede the account |
+| `type` | `registration` \| `authentication` \| `sign-up` \| `step-up` — a ceremony issued for one purpose cannot be completed as another |
+| `challenge` | The value the authenticator signs |
+| `consumed_at` | Set atomically on verification, which is what makes the challenge genuinely single-use |
+| `expires_at` | Swept by the database janitor |
+
+The earlier design round-tripped the challenge through a client-held cookie and
+read it back as the expected value, which meant it was never single-use and the
+uid it named was caller-supplied. If you see documentation describing that
+behaviour, it predates migration `0005`.
+
+## Removing a passkey
+
+Passkeys are a 2FA method for removal purposes, so removal goes through the
+two-step 2FA removal flow with an emailed code:
+
+```js
+await orion.initiate2FAMethodRemoval('passkey');   // emails a 6-digit code
+await orion.complete2FAMethodRemoval(code);
+```
+
+The removal request carries an attempt ceiling — exceeding it destroys the
+request rather than merely rejecting the code.
+
+## Origins and the relying party
+
+WebAuthn binds credentials to a relying-party ID derived from your origin. A
+credential registered on `app.example.com` will not work on
+`staging.example.com`. Keep `client.urls` and your real origins aligned, and
+expect to re-register passkeys if you change domains.

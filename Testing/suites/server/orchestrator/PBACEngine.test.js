@@ -39,6 +39,30 @@ describe('PBACEngine — pattern matching', () => {
         assert.equal(matchesPattern('x', ''), false);
         assert.equal(matchesPattern(undefined, 'x'), false);
     });
+
+    test('intra-segment prefix glob matches within one segment only', () => {
+        // The documented idiom for scoping a deny to a node-name family. While
+        // this form was unimplemented it compared literally, never matched, and
+        // silently FAILED OPEN — a broad allow beat the deny the operator
+        // believed was protecting production.
+        assert.equal(matchesPattern('node:WKR_prod*', 'node:WKR_prod7'), true);
+        assert.equal(matchesPattern('node:WKR_prod*', 'node:WKR_prod'), true);
+        assert.equal(matchesPattern('node:WKR_prod*', 'node:WKR_stage7'), false);
+
+        // A prefix glob must not leak across the ':' boundary.
+        assert.equal(matchesPattern('node:WKR*', 'node:WKR-1:extra'), false);
+        assert.equal(matchesPattern('cluster:read*', 'cluster:read:status'), false);
+    });
+
+    test('a prefix glob still respects segment count', () => {
+        assert.equal(matchesPattern('node:PROD*', 'node:PROD-1'), true);
+        assert.equal(matchesPattern('node:PROD*', 'node'), false);
+    });
+
+    test('a bare * segment does not match a missing segment', () => {
+        assert.equal(matchesPattern('cluster:*', 'cluster'), false);
+        assert.equal(matchesPattern('a:*:c', 'a:c'), false);
+    });
 });
 
 describe('PBACEngine — evaluation semantics', () => {
@@ -81,6 +105,27 @@ describe('PBACEngine — evaluation semantics', () => {
 
         assert.equal(evaluate(documents, 'cluster:command:server:lock', 'node:STAGE-1').allowed, true);
         assert.equal(evaluate(documents, 'cluster:command:server:lock', 'node:PROD-1').allowed, false);
+    });
+
+    test('a node-family deny actually denies — the fail-open regression', () => {
+        // End-to-end version of the prefix-glob defect: a broad allow plus a
+        // family-scoped deny. If the matcher stops honouring the prefix form, the
+        // deny silently stops matching and this flips to allowed.
+        const documents = [
+            doc([
+                { sid: 'all-commands', effect: 'allow', actions: ['cluster:command:*'], resources: ['*'] },
+                { sid: 'protect-prod-family', effect: 'deny', actions: ['cluster:command:*'], resources: ['node:WKR_prod*'] }
+            ])
+        ];
+
+        for (const node of ['node:WKR_prod1', 'node:WKR_prod-db', 'node:WKR_prod']) {
+            const verdict = evaluate(documents, 'cluster:command:server:lock', node);
+            assert.equal(verdict.allowed, false, `${node} must be denied`);
+            assert.equal(verdict.reason, 'explicit-deny');
+            assert.equal(verdict.matchedSid, 'protect-prod-family');
+        }
+
+        assert.equal(evaluate(documents, 'cluster:command:server:lock', 'node:WKR_stage1').allowed, true);
     });
 
     test('empty/malformed document sets deny by default', () => {

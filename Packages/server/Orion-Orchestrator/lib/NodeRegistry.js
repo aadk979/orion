@@ -53,13 +53,30 @@ class NodeRegistry {
         return node;
     }
 
+    /** An alert RECEIVED from the node — the delivery itself proves liveness. */
     recordAlert(workerId, alertData, unixTime) {
         const node = this.touch(workerId, unixTime);
+        this._pushAlert(node, alertData, unixTime);
+        return node;
+    }
+
+    /**
+     * An alert the ORCHESTRATOR synthesized about the node (NODE_STALE, ...).
+     * Deliberately does not touch liveness: nothing was heard from the node, so
+     * recording our own observation must not mark it online or refresh its
+     * lastSeen — that would erase the very condition being reported.
+     */
+    appendAlert(workerId, alertData, unixTime) {
+        const node = this._ensure(workerId);
+        this._pushAlert(node, alertData, unixTime);
+        return node;
+    }
+
+    _pushAlert(node, alertData, unixTime) {
         node.alerts.push({ ...alertData, receivedAt: unixTime });
         if (node.alerts.length > ALERT_HISTORY_LIMIT) {
             node.alerts.splice(0, node.alerts.length - ALERT_HISTORY_LIMIT);
         }
-        return node;
     }
 
     markOffline(workerId, reason) {

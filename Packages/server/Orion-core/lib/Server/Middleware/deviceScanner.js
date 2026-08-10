@@ -7,6 +7,8 @@ import { isValidEmailDomain } from '../../Utils/Validator.js';
 import { respondWithError } from '../Response/response.js';
 import { slugParser } from '../../Utils/Parsers.js';
 import { setManagedCookie, clearManagedCookie } from '../../Utils/CookieUtils.js';
+import { generateDeviceAuthContext } from '../../Utils/Core/SecurityManagment/DeviceAuthContext.js';
+import { UserModel } from '../../Utils/Databases/models/index.js';
 
 const NAME_SPACE = globalAccessPoint.nameSpace();
 
@@ -91,8 +93,31 @@ const deviceCheckMiddlware = async (request, response, next) => {
                 return respondWithError(parameters.response, 'DEVICE-AUTH::ACCOUNT-DISABLED::A::p');
             }
 
+            // The device-authorization context is SIGNED and device-bound, and
+            // this is one of only two places that mints it. It used to be the
+            // bare email — a value any caller could set for themselves, which
+            // let the four unauthenticated device-auth routes be pointed at any
+            // account. See Core/SecurityManagment/DeviceAuthContext.js.
+            //
+            // Minted for an unrecognised address too, carrying a null uid, so
+            // the response here is identical whether or not the address is
+            // registered.
+            const issueContext = async () => {
+                const uid = await UserModel.getUidByEmail(email);
+                const context = await generateDeviceAuthContext(email, uid);
+
+                if (typeof context !== 'string') {
+                    return false;
+                }
+
+                setManagedCookie(parameters.response, 'deviceAuthEmailOffset', context);
+                return true;
+            };
+
             if (!deviceId || !deviceCode) {
-                setManagedCookie(parameters.response, 'deviceAuthEmailOffset', email);
+                if (!(await issueContext())) {
+                    return respondWithError(parameters.response, 'DEVICE-AUTH::CONTEXT-UNAVAILABLE::A::i');
+                }
 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
                 // Update note: the client sdk no longer listens for the error code to trigger the flow but listens for the orion-flow-activation header as to allow future support for other flows
@@ -106,7 +131,9 @@ const deviceCheckMiddlware = async (request, response, next) => {
 
                 clearManagedCookie(parameters.response, 'authorizedDeviceCode');
 
-                setManagedCookie(parameters.response, 'deviceAuthEmailOffset', email);
+                if (!(await issueContext())) {
+                    return respondWithError(parameters.response, 'DEVICE-AUTH::CONTEXT-UNAVAILABLE::A::i');
+                }
 
                 // Not a true error, the system sends an error with the specific error code and the client SDK will identify the error code and start device authorization process on the client
                 return respondWithError(parameters.response, 'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p');

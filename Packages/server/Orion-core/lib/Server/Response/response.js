@@ -27,7 +27,14 @@ const recordFailureIfCredentialGuess = errorCode => {
         const metadata = requestContext.getStore();
         if (!metadata?.ip) return;
 
-        abuseDetection.recordAuthFailure(metadata.ip, metadata.fingerprint);
+        // Fire-and-forget: recording is now async (it may write to Redis) but
+        // this runs on a response path that must not wait for it. The detector
+        // does not reject, and the catch here is the belt for anything that
+        // slips through — an abuse-counter failure must never escalate into an
+        // unhandled rejection on an error response.
+        Promise.resolve(abuseDetection.recordAuthFailure(metadata.ip, metadata.fingerprint)).catch(err =>
+            logger.warn(`Abuse detection: failed to record auth failure for ${errorCode} — ${err.message}`)
+        );
     } catch (e) {
         logger.warn(`Abuse detection: failed to record auth failure for ${errorCode} — ${e.message}`);
     }
@@ -72,8 +79,26 @@ const respondWithError = (response, errorCode) => {
         logger.warn(`Obfuscated error '${errorCode}' → client receives '${trueError.clientSafeErrorCode}'`);
     }
 
-    // The error trigger field is for quick dev testing where new error codes have not been populated in the error registry and minimize confusion of what the true error is
-    response.status(error.status).json({ error: true, errorData: { ...error }, errorTrigger: errorCode });
+    // `errorTrigger` is the TRUE, pre-obfuscation code. It exists so a developer
+    // can see what actually fired when a new code is not yet in the registry —
+    // but shipping it in production handed the client back exactly what
+    // clientSafeErrorCode had just removed. Sign-in deliberately collapses
+    // "no such account", "account has no password" and "wrong password" into one
+    // INVALID-CREDENTIALS response precisely to stop address enumeration and to
+    // hide which accounts are OAuth-only; errorTrigger disclosed all three
+    // verbatim. It also disclosed ACCOUNT-SIGNIN::STEP-UP-REQUIRED, which is
+    // returned only when the password was CORRECT — a clean oracle telling an
+    // attacker mid-brute-force that they had found the password.
+    //
+    // Outside production it stays, because that is where it earns its keep. The
+    // true code is always recorded in the audit trail and the server log.
+    const body = { error: true, errorData: { ...error } };
+
+    if (process.env.NODE_ENV !== 'production') {
+        body.errorTrigger = errorCode;
+    }
+
+    response.status(error.status).json(body);
 
     return;
 };

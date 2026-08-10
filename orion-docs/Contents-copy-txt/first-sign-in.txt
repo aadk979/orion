@@ -1,0 +1,140 @@
+---
+title: Your first sign-in
+description: Wire the browser SDK to a node and complete signup, sign-in, and session restore.
+---
+
+The browser SDK is a single ES module built to
+`Packages/client/dist/orion.beta.sdk.js`. Copy it next to your front end (or
+serve it from your bundler) and import the `Orion` class.
+
+<Steps>
+  <Step title="Instantiate the singleton">
+    ```js filename="orion-client.js" copy
+    import { Orion, getDeviceFingerprint } from './orion.beta.sdk.js';
+
+    const orion = new Orion({
+        serverUrl: 'http://localhost:3900',
+        slug: ''
+    });
+
+    export { orion, getDeviceFingerprint };
+    ```
+
+    `Orion` is a singleton — constructing it twice throws. Create it once and
+    export it. `serverUrl` is required even when the client and API share an
+    origin. The `nameSpace` is forced to `alpine` internally; you do not set it.
+  </Step>
+
+  <Step title="Subscribe to auth state">
+    ```js filename="app.js" copy
+    orion.onAuthStateChanged(state => {
+        switch (state.status) {
+            case 'LOADING':
+                return showSpinner();
+            case 'AUTHENTICATED':
+                return renderApp(state.user);   // { uid, email, jti }
+            case 'UNAUTHENTICATED':
+                return location.assign('./auth.html');
+            case 'ERROR':
+                return showError(state.error.message);
+        }
+    });
+    ```
+
+    The first subscription triggers `initialize()`, which opens the SDK's local
+    vault, runs the captcha / no-auth-token bootstrap if that subsystem is
+    enabled, and asks the server for the current auth state. It returns an
+    unsubscribe function.
+  </Step>
+
+  <Step title="Sign up and sign in">
+    ```js filename="auth.js" copy
+    const signUp = await orion.signUpUser(email, password);
+    if (signUp.error) showError(signUp.errorCode);
+
+    const signIn = await orion.signInUser(email, password);
+    if (signIn.error) showError(signIn.errorCode);
+    ```
+
+    Both return `{ error, … }` rather than throwing for expected failures.
+    Calling `signInUser` while already authenticated returns
+    `CLIENT-AUTH-AUTHED-USER-PRESENT` instead of starting a second session.
+  </Step>
+
+  <Step title="Sign out">
+    ```js filename="auth.js" copy
+    await orion.signOutUser();
+    ```
+  </Step>
+</Steps>
+
+## Calling your own endpoints
+
+Orion authenticates by cookie, but it also requires three headers on every
+request that goes through the pipeline. If you call your custom routes with a
+plain `fetch`, you must send them yourself:
+
+```js filename="api.js" copy
+// Compute once and reuse — it must be the SAME fingerprint the SDK used at
+// sign-in, or tier-4 binding sees a mismatch and can force step-up.
+const deviceFingerprint = await getDeviceFingerprint();
+
+async function apiFetch(path, method = 'GET', body) {
+    const response = await fetch(`${SERVER_URL}${path}`, {
+        method,
+        credentials: 'include',                     // cookies carry the session
+        headers: {
+            'Content-Type': 'application/json',
+            'orion-fingerprint': deviceFingerprint,
+            'orion-user-agent': navigator.userAgent,
+            'orion-api-system-version': '1.0.0[BETA]',
+            Authorization: 'ACCESS_BEARER'
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+
+    return { status: response.status, data: await response.json().catch(() => ({})) };
+}
+```
+
+<Callout type="info" title="Authorization is a token *class*, not a token">
+Orion never puts a session token in the `Authorization` header. The header names
+which credential class the request presents — `ACCESS_BEARER`, `NO_AUTH_BEARER`,
+or `NO_BEARER` — and the actual token travels in an `HttpOnly` cookie. See
+[Sessions & tokens](/versions/alpine/docs/concepts/sessions-and-tokens).
+</Callout>
+
+## HTTPS is not optional in production
+
+Orion's session cookies are always `Secure` + `SameSite=None`, which is correct
+for cross-origin auth but means browsers reject them over plain HTTP. The only
+exception browsers make is `localhost`. Any deployment that is not on localhost
+needs real TLS on both the client origin and the API. See
+[TLS & reverse proxies](/versions/alpine/docs/deployment/tls).
+
+## CORS
+
+`client.urls` is an exact-match allowlist of browser origins. Scheme, host, and
+port must all match — `http://localhost:8080` does not authorize
+`http://127.0.0.1:8080`. Add the origin and restart, or push it at runtime from
+the orchestrator with `addClientUrls()` when
+`client.runTimeUpdateAllowed` is on.
+
+## When sign-in does not simply succeed
+
+Two flows can interrupt an otherwise valid sign-in. The server signals them with
+the `orion-flow-activation` response header, and the SDK handles both for you:
+
+| Header value | Meaning | SDK behaviour |
+| --- | --- | --- |
+| `FLOW-DEVICE-AUTHORIZATION` | First sign-in from an unrecognized device | Runs the email-OTP device authorization flow, then transparently retries the sign-in |
+| `FLOW-STEP-UP-AUTH` | Risk signals or a backoff state require re-verification | Runs the step-up flow (email OTP, passkey, or TOTP) |
+
+You do not need to implement either by hand. See
+[SDK flows](/versions/alpine/docs/sdk/flows).
+
+## Next
+
+- [Concepts](/versions/alpine/docs/concepts) — what actually happened during that sign-in.
+- [Guides](/versions/alpine/docs/guides) — add passkeys, TOTP, or OAuth.
+- [SDK reference](/versions/alpine/docs/sdk/reference) — the complete method surface.

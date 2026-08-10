@@ -1,0 +1,157 @@
+---
+title: Running a cluster
+description: Add Orion-core nodes to a cluster, share Redis-backed signing state, and join the control plane without weakening the authentication path.
+---
+
+Going from one node to several is mostly configuration. There is no clustering
+protocol between nodes to set up — they coordinate through shared services.
+
+## The five rules
+
+<Steps>
+  <Step title="Point every node at the same Redis">
+    ```js
+    utilities: {
+        ephemeralDB: {
+            provider: 'REDIS',
+            credentials: { host: '10.0.0.5', port: 6379, password: '…' }
+        }
+    }
+    ```
+    This is what puts the node into cluster mode and shares signing keys. Without
+    it, a token minted on node A fails validation on node B.
+  </Step>
+  <Step title="List every node's URL in every node's config">
+    ```js
+    server: {
+        urls: [
+            'https://auth-1.example.com',
+            'https://auth-2.example.com',
+            'https://auth-3.example.com'
+        ],
+        selfUrl: 'https://auth-2.example.com'   // this node
+    }
+    ```
+    A token's `iss` claim is validated against this list, so each node must
+    recognise every peer as a legitimate issuer.
+  </Step>
+  <Step title="Give each node a distinct identity">
+    Unique `app.serviceID`, unique `app.appName`, and unique
+    `utilities.clusterLink.publicIp` / `port`.
+  </Step>
+  <Step title="Share the fingerprint digest key">
+    `tokens.fingerprintDigestKey` must be **identical** fleet-wide, or fingerprint
+    digests computed on one node will not match those stored by another and
+    tier-3/4 risk signals break.
+  </Step>
+  <Step title="List every browser origin in client.urls">
+    Exact match on scheme, host, and port. You can also push additions at runtime
+    from the orchestrator when `client.runTimeUpdateAllowed` is on.
+  </Step>
+</Steps>
+
+Everything else — Postgres, MySQL, mail — is the same configuration on every
+node.
+
+## What you do not need to do
+
+- No session replication to configure. Sessions are rows in the shared Postgres.
+- No leader election. Migrations and the janitor sweep serialize on Postgres
+  advisory locks.
+- No coordinated startup. Booting the whole fleet at once is safe.
+- No orchestrator, strictly. Cluster mode works without one; you lose fleet
+  observability and remote control, not authentication.
+
+## Joining the control plane
+
+On the orchestrator box, one process per cluster:
+
+```js filename="orchestrator.js" copy
+import { OrionOrchestrator, ClusterCommands, ConsensusTopics } from 'orion-orch';
+
+const orch = new OrionOrchestrator({
+    cluster: 'orion-prod',          // nodes must present exactly this name
+    publicIp: '10.0.0.5',
+    port: 55321,
+    nodeStaleAfterSeconds: 120,
+    persistence: { enabled: true }
+});
+
+orch.onNodeHello((id, hello) => console.log(`[hello] ${id} → ${hello?.appName}`));
+orch.onClusterStateChange((state, prev) => console.log(`[health] ${prev} → ${state}`));
+
+await orch.start();
+```
+
+On each node:
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    clusterLink: {
+        enabled: true,
+        cluster: 'orion-prod',            // must match the orchestrator
+        orchestratorIp: '10.0.0.5',
+        orchestratorPort: 55321,
+        publicIp: '10.0.0.21',            // this node's M2M callback address
+        port: 55322,
+        requireOrchestrator: false,       // true = refuse to boot without it
+        allowRemoteControl: true
+    }
+}
+```
+
+`initiateServer()` starts the link automatically, after on-start configuration so
+the secrets managers already exist.
+
+### Verifying it worked
+
+Watch the orchestrator log for `[hello]` as each node joins, then
+`[health] FORMING → HEALTHY` once the fleet settles. Or ask:
+
+```js
+const status = await orch.getClusterStatus();
+// status.health.state, status.summary.online / total / unhealthy
+```
+
+## Ports
+
+| Port | Role | Exposure |
+| --- | --- | --- |
+| Your API port (e.g. 3900) | Auth API | Public, behind TLS |
+| 55321 | Orchestrator M2M | **Private subnet only** |
+| 55322 | Node M2M callback | **Private subnet only** |
+| 55330 | System-admin panel | Behind TLS, restricted |
+
+The M2M ports never need public exposure. Keep them inside the private network.
+
+## Rolling restarts
+
+Migrations are checksummed and advisory-locked, so a node running new code can
+boot alongside nodes running old code as long as the schema change is additive —
+which is how the shipped migrations are written (`IF NOT EXISTS`, nullable
+columns, defaults chosen so existing rows stay valid).
+
+Take one node out of the load balancer, restart it, wait for
+`[health] … → HEALTHY`, move to the next.
+
+## Common cluster mistakes
+
+| Symptom | Cause |
+| --- | --- |
+| Tokens from node A rejected on node B | Redis not shared, or one node still on `LOCAL_DB` |
+| Intermittent `iss` validation failures | A node's URL missing from another node's `server.urls` |
+| Step-up demanded constantly after adding a node | `tokens.fingerprintDigestKey` differs between nodes |
+| Nodes never appear in the orchestrator | Cluster name mismatch, or the M2M port is firewalled |
+| `403 IDENTITY_MISMATCH` on registration | Two nodes sharing one `r_sync.internal.worker_config.json` — each node needs its own working directory |
+| Postgres connection exhaustion | `db.credentials.poolMax` × node count exceeds `max_connections` |
+
+## Sizing the connection pool
+
+`poolMax` defaults conservatively but is per-node. Ten nodes at `poolMax: 20` is
+200 connections before you count the orchestrator or anything else on that
+database. Set `db.credentials.poolMax` deliberately and check it against
+Postgres's `max_connections`.
+
+`statementTimeoutMs` (default 30 000) kills runaway queries before they wedge the
+pool. Any other key under `credentials` is passed straight through to `pg.Pool`,
+including `ssl: { rejectUnauthorized: true }`.

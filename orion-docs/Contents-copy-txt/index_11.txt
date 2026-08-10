@@ -1,0 +1,95 @@
+---
+title: Orion Documentation
+description: Orion is a self-hosted authentication framework for Node.js, plus a cluster control plane and a PBAC-governed admin plane for operating a fleet of auth nodes.
+---
+
+Orion is authentication you run yourself. An **Orion-core** node is an Express
+application your service embeds: it owns signup, sign-in, sessions, tokens,
+passkeys, TOTP, device authorization, OAuth, password reset, abuse defense, and a
+tamper-evident audit trail. **Orion-Orchestrator** supervises a fleet of those
+nodes and exposes a policy-governed admin plane — web panel, JSON API, and the
+`orionctl` CLI. **R_Sync** is the encrypted machine-to-machine transport the
+control plane rides on. A **browser SDK** is what your front end talks to.
+
+Nothing here is a hosted service. You provision Postgres, you hold the signing
+keys, and every request is served by a process you control.
+
+<Grid columns={2} className="my-8">
+  <Card>
+    <CardHeader>
+      <Badge tone="accent">Start here</Badge>
+    </CardHeader>
+    <CardTitle><a href="/versions/alpine/docs/getting-started">Getting Started</a></CardTitle>
+    <CardDescription className="mt-2">
+      Provision Postgres, configure a node, boot it, and complete a real sign-in
+      from a browser.
+    </CardDescription>
+  </Card>
+  <Card>
+    <CardHeader>
+      <Badge>Understand it</Badge>
+    </CardHeader>
+    <CardTitle><a href="/versions/alpine/docs/concepts">Concepts</a></CardTitle>
+    <CardDescription className="mt-2">
+      The four packages, the middleware pipeline every request traverses, and how
+      sessions and tokens actually work.
+    </CardDescription>
+  </Card>
+  <Card>
+    <CardHeader>
+      <Badge>Build with it</Badge>
+    </CardHeader>
+    <CardTitle><a href="/versions/alpine/docs/guides">Guides</a></CardTitle>
+    <CardDescription className="mt-2">
+      Task-focused walkthroughs: passkeys, TOTP, OAuth, device authorization,
+      step-up auth, custom endpoints, clustering.
+    </CardDescription>
+  </Card>
+  <Card>
+    <CardHeader>
+      <Badge tone="warning">Before production</Badge>
+    </CardHeader>
+    <CardTitle><a href="/versions/alpine/docs/security">Security</a></CardTitle>
+    <CardDescription className="mt-2">
+      The threat model, what each control does and does not stop, and the
+      hardening checklist to work through before going live.
+    </CardDescription>
+  </Card>
+</Grid>
+
+## What is in the box
+
+| Package | Package name | Version | What it is |
+| --- | --- | --- | --- |
+| Orion-core | `@aadharsh/orion-alpine-x934x` | 1.0.6 · Beta | The auth framework your Node/Express app embeds |
+| Orion-Orchestrator | `orion-orch` | 1.1.0 · Stable | Cluster control plane + PBAC system-admin plane |
+| R_Sync | `r-sync` | 1.0.0 · Stable | Encrypted M2M transport under the control plane |
+| Client SDK | `@aadharsh/orion-client` | 1.0.6 | Browser SDK, built to `dist/orion.beta.sdk.js` |
+
+<Callout type="info" title="Beta status">
+Orion-core reports `__Status__: 'Beta'`. The surface documented here is what the
+current build does, but it is not frozen — pin the version you deploy and
+re-read these pages before upgrading. Edition 001 has not been issued yet; see
+the [edition timeline](/versions/alpine) for what that means in practice.
+</Callout>
+
+## The shape of a deployment
+
+<Architecture />
+
+Every auth node is identical and keeps no per-request state of its own. Nodes
+share durable state through Postgres and share JWT signing keys through Redis, so
+a token minted by one node validates on any other. The orchestrator is optional
+for a single node; it is what turns several nodes into a cluster — health,
+consensus, fleet-wide commands, and governed human access.
+
+## Everything else
+
+- [Architecture](/versions/alpine/docs/architecture) — how authentication, authorization, and the distributed layer are built.
+- [Client SDK](/versions/alpine/docs/sdk) — the `Orion` class your front end instantiates.
+- [API Reference](/versions/alpine/docs/api-reference) — every HTTP endpoint, request shape, and error code.
+- [Configuration](/versions/alpine/docs/configuration) — every key Orion-core, the orchestrator, and R_Sync accept.
+- [CLI](/versions/alpine/docs/cli) — `orionctl`, the system-admin command line.
+- [Deployment](/versions/alpine/docs/deployment) — backing services, single node, cluster, TLS, day-2 operations.
+- [Examples](/versions/alpine/docs/examples) — the Todos reference application.
+- [FAQ](/versions/alpine/docs/faq) · [Status & Roadmap](/versions/alpine/docs/roadmap) · [Contributing](/versions/alpine/docs/contributing)

@@ -1,15 +1,17 @@
 {
     "name": "orion-testing",
     "version": "1.0.0",
-    "description": "Comprehensive automated test suite for the Orion (Alpine) authentication framework — server (Orion-core) and browser SDK.",
+    "description": "Comprehensive automated test suite for the Orion (Alpine) authentication framework — Orion-core server, the Orion-Orchestrator control plane (cluster, system-admin, batch mailing, orionctl) and the browser SDK.",
     "private": true,
     "type": "module",
     "scripts": {
-        "test": "node --test \"suites/**/*.test.js\"",
-        "test:watch": "node --test --watch \"suites/**/*.test.js\"",
-        "test:coverage": "node --test --experimental-test-coverage \"suites/**/*.test.js\"",
+        "test": "node --test \"suites/**/*.test.js\" \"integration/**/*.test.js\"",
+        "test:watch": "node --test --watch \"suites/**/*.test.js\" \"integration/**/*.test.js\"",
+        "test:coverage": "node --test --experimental-test-coverage \"suites/**/*.test.js\" \"integration/**/*.test.js\"",
         "test:server": "node --test \"suites/server/**/*.test.js\"",
         "test:client": "node --test \"suites/client/**/*.test.js\"",
+        "test:orchestrator": "node --test \"suites/server/orchestrator/**/*.test.js\"",
+        "test:integration": "node --test \"integration/**/*.test.js\"",
         "test:crypto": "node --test \"suites/server/**/{CryptoFunctions,dedicatedCrypto,SecretsCrypto}.test.js\""
     },
     "engines": {

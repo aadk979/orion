@@ -1,0 +1,184 @@
+---
+title: Distributed systems
+description: Cluster health, consensus, the policy engine, and the failure modes each is designed around.
+---
+
+A cluster is any number of Orion-core nodes sharing backing services, optionally
+registered with one Orion-Orchestrator under a shared cluster name.
+
+<ClusterDiagram />
+
+<Callout type="warning" title="The orchestrator is not a load balancer">
+It never proxies authentication traffic and never routes a request. Put a normal
+load balancer or reverse proxy in front of your nodes. The orchestrator's job is
+observability and control.
+</Callout>
+
+## What makes nodes interchangeable
+
+Not replication — shared state. Durable data is in Postgres, signing keys are in
+Redis, and a node holds nothing between requests. See
+[Cluster model](/versions/alpine/docs/concepts/cluster-model) for the full table of what lives
+where.
+
+## Health
+
+`ClusterHealth` is a four-state machine, evaluated every
+`healthEvaluationIntervalMs` (default 15s).
+
+```text
+FORMING ──first nodes──▶ HEALTHY ◀──────────────┐
+                            │ any unhealthy node │ all healthy
+                            ▼                    │
+                        DEGRADED ────────────────┘
+                            │ ≥ incidentRatio unhealthy (and ≥ minUnhealthyForIncident)
+                            │ + fleet consensus fails to affirm NODE_HEALTHY
+                            ▼
+                        INCIDENT  ── every transition: escalated + broadcast to all nodes
+```
+
+A node counts as unhealthy when it is offline, in ETS lockdown, event-loop
+degraded, or its last status snapshot is older than `statusMaxAgeSeconds`
+(default 300).
+
+Defaults under `health`: `incidentRatio: 0.5`, `minUnhealthyForIncident: 2`,
+`statusMaxAgeSeconds: 300`.
+
+Every transition is escalated through the `EscalationHub` **and** broadcast to
+every node as `orion:cluster:state`, so each node stores the current cluster
+state in its global access point. The fleet shares one health view rather than
+each node guessing.
+
+Manual overrides: `declareIncident(reason)` and `resolveIncident(reason)`.
+
+## Staleness detection
+
+A separate sweep runs every `staleSweepIntervalMs` (default 30s) and raises
+`node:stale` for any node silent longer than `nodeStaleAfterSeconds` (default
+120). Any authenticated traffic from an offline node raises `node:recovered`.
+
+## Consensus
+
+A vote asks every node to evaluate a predicate against its **local** view and
+report a ballot. The engine tallies against a quorum measured over **eligible**
+voters, so silent nodes make acceptance harder, never easier.
+
+| Topic | A node votes true when… |
+| --- | --- |
+| `node-healthy` | No lockdown, no event-loop degradation, no memory pressure, not locked |
+| `ets-lockdown` | It is in ETS lockdown |
+| `elm-degraded` | Its event loop is degraded |
+| `memory-pressure` | Memory usage ≥ `params.thresholdPercent` |
+| `abuse-high` | At least `params.minBlocked` actors are currently blocked |
+| `encryption-unavailable` | It **cannot** read its encrypted fields — no vault, an unreachable one, or a key that no longer unwraps |
+
+Defaults: `quorumRatio: 0.5`, `minVoters: 1`, `timeoutMs: 8000`.
+
+<Callout type="warning" title="encryption-unavailable is the one topic that demands unanimity">
+It gates the irreversible
+[encrypted-field wipe](/versions/alpine/docs/security/key-vaults), so it is proposed with
+`quorumRatio: 1`. If a single node can still decrypt, the data is not lost and
+the correct action is to repair the others — destroying every user's second
+factor for what may be one misconfigured node is not a recovery. A partitioned
+fleet returns `decided: false`, which reads as *unknown* and also refuses.
+</Callout>
+
+```js
+const vote = await orch.proposeConsensus(ConsensusTopics.NODE_HEALTHY);
+// { decided, accepted, eligible, responded, yes, no, ratio, votes: [...] }
+```
+
+<Callout type="info" title="Undecided is a real answer">
+A mostly-unreachable fleet returns `decided: false` rather than a fabricated
+rejection. And when `confirmIncidentViaConsensus` is on, an *undecided*
+confirmation counts **for** the incident — because a silent fleet is exactly what
+an incident looks like.
+</Callout>
+
+## The policy engine
+
+Declarative rules that run on every alert. `DEFAULT_POLICIES` covers every
+protocol alert type with observability-first reactions; auto-remediation is
+opt-in.
+
+Action types:
+
+| Type | Effect |
+| --- | --- |
+| `escalate` | Push through the escalation channels |
+| `verify-status` | Fetch a fresh status snapshot and attach it to the escalation |
+| `command` | Issue a node command immediately |
+| `consensus` | Propose a fleet vote |
+| `schedule-command` | Delayed remediation that **re-checks the condition before firing**, so it never races an operator who already fixed it |
+
+Per-(rule, node) cooldowns stop alert storms.
+
+```js filename="orchestrator.js"
+policies: {
+    rules: [
+        {
+            id: 'auto-clear-lockdown-after-10m',
+            on: ['ets:lockdown-engaged'],
+            cooldownSec: 900,
+            actions: [
+                {
+                    type: 'schedule-command',
+                    delaySec: 600,
+                    action: ClusterCommands.CLEAR_ETS_LOCKDOWN,
+                    onlyIfStatusFlag: 'etsLockdown'
+                }
+            ]
+        }
+    ]
+}
+```
+
+Node-side safe mode always has the final say: a safe-mode refusal reports
+`{ applied: false }` and the orchestrator cannot override it remotely.
+
+## Alerts
+
+Nodes raise alerts the moment an operational flag flips — the fast watcher runs
+every `flagWatchIntervalMs` (default 2s), which is the alert latency ceiling.
+
+| Alert | Raised by |
+| --- | --- |
+| `ets:lockdown-engaged` / `ets:lockdown-lifted` | Node — Error Tracker System |
+| `elm:degraded` / `elm:recovered` | Node — event-loop monitor |
+| `server:locked` / `server:unlocked` | Node — server lock state |
+| `memory:pressure` / `memory:recovered` | Node — memory above `memoryPressureThresholdPercent` |
+| `tunnel:resynced` | Node — tunnel desynced and re-registered itself |
+| `node:stale` / `node:recovered` | Orchestrator — stale sweep |
+| `cluster:state-changed` | Orchestrator — health transition |
+
+Severities are `info`, `warning`, `critical`.
+
+## Escalations
+
+The log channel is always on. Add a webhook through `escalations.webhook`, or
+register a custom channel:
+
+```js
+orch.addEscalationChannel('pagerduty', async event => {
+    await notify(event);   // { type, severity, message, ... }
+});
+```
+
+## Failure modes, and what each one does
+
+| Scenario | Behaviour |
+| --- | --- |
+| A node crashes | Its requests fail over to whatever your load balancer picks next. Nothing is lost — sessions are rows in Postgres |
+| A node loses the orchestrator | Keeps serving. Registration retries with exponential backoff, 5s → 5m. `requireOrchestrator: true` makes this fatal at boot instead |
+| Repeated delivery failures | After `reRegisterAfterFailures` (default 3) the node rebuilds the tunnel from scratch under its persistent identity key and raises `tunnel:resynced` |
+| The orchestrator restarts | Registry rehydrates from `orion_orch.internal.registry.json` with every node marked offline until it proves liveness, then an identify sweep over still-live tunnels rebuilds state within seconds |
+| The fleet partitions | Consensus returns undecided; incident confirmation treats undecided as confirming |
+| Redis is lost | Signing-key fan-out stops. New tokens still mint, but cross-node validation degrades — treat it as a production incident |
+| Postgres is lost | Authentication stops. This is the one true hard dependency |
+
+## Migration and sweep serialization
+
+Both schema migrations and the janitor's TTL sweep take Postgres advisory locks,
+so exactly one node in the fleet performs each per cycle. There is no leader
+election to configure and no split-brain to reason about — the database is the
+arbiter.

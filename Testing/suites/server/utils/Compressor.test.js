@@ -22,9 +22,17 @@ describe('gzip string compression', () => {
 });
 
 describe('URL compression (compact wire form)', () => {
-    test('encodes protocol as a single-char prefix and strips .com', () => {
-        assert.deepEqual(compressURLs(['https://example.com']), ['s:example']);
-        assert.deepEqual(compressURLs(['http://test.com/cb']), ['o:test/cb']);
+    test('encodes protocol as a single-char prefix and preserves the host', () => {
+        // Only the scheme is compressed: 's' for https, 'o' for http. The host is
+        // kept verbatim, which is what makes decompressURLs a true inverse.
+        //
+        // This previously expected '.com' to be stripped as well. No current code
+        // path does that, and it could not work: decompressURLs never re-appends
+        // '.com', so stripping it would break the round-trip test below. The
+        // expectation outlived an older wire format.
+        assert.deepEqual(compressURLs(['https://example.com']), ['s:example.com']);
+        assert.deepEqual(compressURLs(['http://test.com/cb']), ['o:test.com/cb']);
+        assert.deepEqual(compressURLs(['http://localhost:3000/x']), ['o:localhost:3000/x']);
     });
 
     test('round-trips simple .com origins and localhost', () => {

@@ -1,0 +1,142 @@
+---
+title: Upgrades & redeploys
+description: Rolling out new code and schema across a fleet without dropping sessions.
+---
+
+## The routine
+
+<Steps>
+  <Step title="Deploy the code">
+    ```bash filename="terminal"
+    git fetch origin && git reset --hard origin/main
+    ```
+    This discards local edits — which is exactly why real configuration lives in
+    git-ignored `gipsy.*` files. They survive.
+  </Step>
+  <Step title="Reinstall changed dependencies">
+    ```bash filename="terminal"
+    cd Packages/server/Orion-core        && npm install --omit=dev
+    cd ../Orion-Orchestrator             && npm install --omit=dev
+    ```
+  </Step>
+  <Step title="Restart one node at a time">
+    Take it out of the load balancer, restart, wait for a clean boot, put it
+    back. Migrations apply automatically and safely.
+  </Step>
+  <Step title="Confirm health">
+    Watch for `[health] … → HEALTHY` and `N/N online`.
+  </Step>
+</Steps>
+
+## Why rolling restarts are safe
+
+Migrations are versioned, checksummed, and serialized under a Postgres advisory
+lock. Exactly one node applies a pending migration; the others wait and verify.
+The shipped migrations are written to be additive — `IF NOT EXISTS`, nullable
+columns, and defaults chosen so pre-existing rows stay valid — so a node running
+old code keeps working against the new schema.
+
+Two concrete examples of that discipline:
+
+- `sessions_valid_from` defaults to epoch, so every pre-existing session survives
+  the upgrade; only an explicit security event moves it forward.
+- `tokens.dpop_jkt` is nullable, and `NULL` means "unbound but valid", so
+  enabling token binding does not invalidate live sessions.
+
+## Graceful shutdown
+
+`SIGTERM` triggers a clean stop: drain in-flight requests for up to 30 seconds
+(polling every 500 ms), send `orion:node:goodbye` so the orchestrator marks the
+node offline instantly rather than waiting for the stale sweep, flush the audit
+trail, stop the janitor, monitors, and cluster link, and close the database pool.
+
+Give your process manager more than 30 seconds to allow this. For systemd:
+
+```ini
+KillSignal=SIGTERM
+TimeoutStopSec=45
+```
+
+## Configuration changes needing a restart
+
+Everything, except client URLs. Notably:
+
+| Change | Why a restart |
+| --- | --- |
+| `tokens.securityTier` | Read once at boot into the global access point |
+| `tokens.binding` | Same |
+| `authMethods.OAuth` | The provider toolkit is a singleton built at boot; a later config is ignored with a warning |
+| `utilities.accessControl.*` | Resolved during on-start configuration |
+| `utilities.safeMode` | Deliberately not remotely changeable |
+| `systemAdmin.http.theme` | Stamped per request from a value read at startup |
+
+Client URLs are the exception:
+
+```bash filename="terminal"
+orionctl client-urls https://new-frontend.example
+```
+
+## Upgrading Orion-core itself
+
+<Steps>
+  <Step title="Read the migration files that are new">
+    `lib/Utils/Databases/migrations/` is ordered and commented with the reason
+    for every change. That is the most reliable changelog in the repo.
+  </Step>
+  <Step title="Back up Postgres">
+    Migrations are additive and advisory-locked, but a backup costs nothing.
+  </Step>
+  <Step title="Upgrade one node and watch it boot">
+    The boot sequence is strict — database certification, audit round trip,
+    policy validation. If something is wrong it fails loudly at startup rather
+    than at request time.
+  </Step>
+  <Step title="Roll the rest">
+  </Step>
+</Steps>
+
+## Upgrading the SDK
+
+The browser SDK version tracks Orion-core's. Rebuild and redeploy it alongside:
+
+```bash filename="terminal"
+cd Packages/client && npm install && npm run build
+```
+
+Then copy `dist/orion.beta.sdk.js` to your front end. Clients cache aggressively —
+version the filename or bust the cache, or some users will run a mismatched SDK.
+
+<Warning title="Ship the SDK before enabling token binding">
+Every client must be able to mint DPoP proofs before the server starts requiring
+them. And note that the committed `dist` bundle predates the DPoP work — see
+[Building the SDK](/versions/alpine/docs/sdk/building-the-sdk).
+</Warning>
+
+## Upgrading the orchestrator panel
+
+`gui/out` is committed, so a normal deploy carries the panel with it. Rebuild only
+if you changed the GUI source:
+
+```bash filename="terminal"
+cd Packages/server/Orion-Orchestrator && npm run build:gui
+# then commit gui/out
+```
+
+## Rollback
+
+Code rollback is a `git reset` and a restart. **Schema rollback is not
+supported** — there are no down migrations. Because migrations are additive, old
+code generally runs fine against a newer schema, which is the practical rollback
+path: revert the code, leave the schema.
+
+If a migration itself is the problem, restore Postgres from backup.
+
+## Verifying an upgrade
+
+```bash filename="terminal"
+orionctl status                 # N/N online, HEALTHY
+orionctl audit verify           # chain intact
+```
+
+Then run a real signup and sign-in against each node, and confirm a session
+issued by one node is accepted by another.

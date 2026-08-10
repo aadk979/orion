@@ -1,0 +1,132 @@
+---
+title: Status & Roadmap
+description: What each package's version and status actually mean, what shipped recently, and the known gaps.
+---
+
+These are the versions **Alpine** pins. For the editions themselves — what each
+one is and whether it has been issued — see the [edition timeline](/versions).
+
+<Callout type="warning" title="Alpine has not been issued yet">
+Edition 001 is in its final phases. The documentation is published ahead of it,
+so everything below describes the build as it stands — not a release you can
+download today, and not a public repository you can clone. No date is announced.
+</Callout>
+
+## Package status
+
+| Package | Version | Reported status |
+| --- | --- | --- |
+| Orion-core (`@aadharsh/orion-alpine-x934x`) | 1.0.6 | **Beta** |
+| Orion-Orchestrator (`orion-orch`) | 1.1.0 | **Stable** |
+| R_Sync (`r-sync`) | 1.0.0 | **Stable** |
+| Client SDK (`@aadharsh/orion-client`) | 1.0.6 | Tracks Orion-core |
+| Cluster protocol | v2 | Additive change from v1 (`issuedBy` on command envelopes) |
+| Audit trail schema | 2.1.0 | |
+
+Beta means the surface documented here is what the current build does, but it is
+not frozen. Pin the version you deploy.
+
+## Recently shipped
+
+<Timeline
+  entries={[
+    {
+      label: "migration 0005",
+      title: "Ceremony state, login throttling, and proof-of-possession",
+      description: "WebAuthn challenges moved server-side and made genuinely single-use; per-account exponential backoff that escalates to step-up instead of locking out; DPoP thumbprint binding on tokens.",
+    },
+    {
+      label: "migration 0004",
+      title: "Security remediation",
+      description: "The sessions_valid_from watermark, OAuth identity keyed on provider subject, attempt ceilings on every challenge record, and refresh-token reuse detection.",
+    },
+    {
+      label: "orch 1.1.0",
+      title: "PBAC system-admin plane",
+      description: "Panel, JSON API, and orionctl behind policy — magic link plus mandatory TOTP, deny-overrides evaluation, and a hash-chained audit table the database refuses to let you edit.",
+    },
+    {
+      label: "control plane",
+      title: "Fleet signing-key operations",
+      description: "secrets:list-kids, secrets:revoke-kids, and secrets:force-rotate — fleet-wide key inventory and immediate revocation.",
+    },
+    {
+      label: "decommissioned",
+      title: "DIP and hybrid transport encryption",
+      description: "The Data Integrity Protocol and the custom transport-encryption layer were removed in favour of TLS 1.3. Payloads now travel as plain JSON, and the orion-dip-* and orion-encryption-* headers no longer exist.",
+    },
+  ]}
+/>
+
+## Known gaps
+
+These are real, current, and documented rather than hidden.
+
+<Accordion allowMultiple>
+  <AccordionItem title="The committed SDK bundle predates DPoP">
+    `Packages/client/dist/orion.beta.sdk.js` contains no `createProof` and no
+    `DPoP` header — the source in `lib/` does. Additionally, the `Orion`
+    constructor calls `new ApiInterface(serverUrl, nameSpace, slug)` with no
+    options argument, so `options.useDpop` is never set. Enabling
+    `tokens.binding: 'dpop'` therefore requires rebuilding the SDK **and** wiring
+    that flag through. See [Building the SDK](/versions/alpine/docs/sdk/building-the-sdk).
+  </AccordionItem>
+  <AccordionItem title="Abuse detection is per-node">
+    Counters live in process memory rather than Redis, so thresholds are
+    effectively per-node on a cluster. The `abuse-high` consensus topic exists
+    partly to compensate — it lets you ask whether an attack is fleet-wide.
+  </AccordionItem>
+  <AccordionItem title="The tier-1 jti denylist degrades without Redis">
+    It falls back to an in-process map, which is correct for a single node and
+    per-node on a cluster. Run Redis if you use tier 1.
+  </AccordionItem>
+  <AccordionItem title="Inert configuration keys">
+    `utilities.dataIntegrity.dip` appears in the shipped config template but is
+    no longer read — the DIP subsystem was decommissioned. It is harmless, but it
+    is not doing anything.
+  </AccordionItem>
+  <AccordionItem title="Documentation referencing a missing entry point">
+    `Packages/apps/Todos-App/README.md` still instructs you to run
+    `orchestrator/start.js`, which is not in the repository. Build one from
+    `Packages/server/Orion-Orchestrator/examples/orchestrator.example.js`.
+    The root `DEPLOYMENT.md` has been corrected.
+  </AccordionItem>
+  <AccordionItem title="No built-in health endpoint">
+    There is no `/health` route. Declare your own custom endpoint, or point your
+    load balancer at a cheap real one.
+  </AccordionItem>
+  <AccordionItem title="No down migrations">
+    Schema rollback is not supported. Because migrations are additive, reverting
+    code and leaving the schema is the practical path; a genuinely bad migration
+    means restoring from backup.
+  </AccordionItem>
+</Accordion>
+
+## Where the project is headed
+
+<Callout type="info" title="Direction, not commitment">
+The items below reflect the shape of the work in the repository — open
+extension points, partially-generalised systems, and gaps the code itself flags.
+None of them are dated promises.
+</Callout>
+
+- **Finish the DPoP rollout path.** Rebuild and republish the SDK bundle with
+  proof generation wired through, so token binding is a config change rather
+  than a source change.
+- **Distributed abuse state.** Moving abuse counters onto the shared ephemeral
+  store would make thresholds fleet-wide rather than per-node.
+- **Configuration surface cleanup.** Removing the inert `dataIntegrity.dip` key
+  from the shipped `orion.config.example.js`. `DEPLOYMENT.md` now documents it as
+  inert rather than live.
+- **Broader secrets-manager domains.** The registry already supports arbitrary
+  `kind` / `domain` pairs; today only `access`, `refresh`, `resource`, and
+  `internal` are created at boot.
+- **More reference applications.** The Todos app proved its worth by surfacing
+  four real bugs the unit suite never exercised.
+
+## Reading the real changelog
+
+The most reliable record of what changed and why is
+`lib/Utils/Databases/migrations/`. Each file opens with a comment block naming
+the issue it addresses and the reasoning behind the fix. Read those before an
+upgrade.

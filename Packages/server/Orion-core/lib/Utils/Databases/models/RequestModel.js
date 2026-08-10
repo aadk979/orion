@@ -109,6 +109,23 @@ export const RequestModel = {
         await query('DELETE FROM step_up_auth_requests WHERE request_id = $1', [reqId]);
     },
 
+    /**
+     * Drops every outstanding step-up challenge for a user, and reports the ids
+     * so the caller can cancel their scheduled cleanup tasks.
+     *
+     * Re-initiating used to leave the previous challenge alive for its full
+     * 10-minute TTL, each with its own independent attempt budget. Since the
+     * caller keeps the request ids it was issued, that made the per-challenge
+     * ceiling resettable at will: N initiations bought N × maxAttempts guesses
+     * at a 6-digit code. Only the newest challenge is valid now.
+     *
+     * @returns {Promise<string[]>} request ids that were removed
+     */
+    async deleteStepUpAuthRequestsForUser(uid) {
+        const result = await query('DELETE FROM step_up_auth_requests WHERE user_uid = $1 RETURNING request_id', [uid]);
+        return result.rows.map(row => row.request_id);
+    },
+
     // ─── 2FA Removal Requests ───────────────────────────────────────────────
 
     async create2FARemovalRequest(reqId, { codeHash, fingerprintHash, ip, userAgent, email, uid, method }) {

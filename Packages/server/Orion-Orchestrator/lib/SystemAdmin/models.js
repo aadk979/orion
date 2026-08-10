@@ -68,6 +68,31 @@ class SystemAdminModel {
         await this.db.query('UPDATE orch_system_admins SET totp_pending_secret = $2, updated_at = now() WHERE id = $1', [id, secret]);
     }
 
+    /**
+     * Clears TOTP enrollment for every admin (optionally including root) and
+     * returns them to 'pending', so the next sign-in forces re-enrollment.
+     *
+     * Root is spared by DEFAULT and only included when explicitly requested:
+     * root cannot use the magic-link path by design, so a root whose
+     * authenticator is gone after a wipe has no way back into the control
+     * plane. Sparing it keeps one guaranteed route in.
+     */
+    async wipeTotpEnrollments({ includeRoot = false } = {}) {
+        const { rows } = await this.db.query(
+            `UPDATE orch_system_admins
+                SET totp_enabled = FALSE,
+                    totp_secret = NULL,
+                    totp_pending_secret = NULL,
+                    status = CASE WHEN status = 'active' THEN 'pending' ELSE status END,
+                    updated_at = now()
+              WHERE (totp_enabled = TRUE OR totp_secret IS NOT NULL OR totp_pending_secret IS NOT NULL)
+                ${includeRoot ? '' : "AND role <> 'root'"}
+              RETURNING id, email, role`
+        );
+
+        return rows;
+    }
+
     /** Promotes the pending TOTP secret to active; enrollment is complete. */
     async activateTotp(id) {
         const { rows } = await this.db.query(
@@ -321,13 +346,18 @@ class SessionModel {
         this.db = db;
     }
 
-    async create(adminId, tokenHash, stage, ttlSeconds, ip = null, userAgent = null) {
+    /**
+     * @param {string|null} certThumbprint RFC 8705 x5t#S256 of the client
+     *   certificate this session is bound to. NULL leaves it unbound, which the
+     *   service refuses once mTLS binding is required.
+     */
+    async create(adminId, tokenHash, stage, ttlSeconds, ip = null, userAgent = null, certThumbprint = null) {
         const id = generateId('SES', 24);
         const { rows } = await this.db.query(
-            `INSERT INTO orch_admin_sessions (id, admin_id, token_hash, stage, expires_at, ip, user_agent)
-             VALUES ($1, $2, $3, $4, now() + ($5 || ' seconds')::interval, $6, $7)
+            `INSERT INTO orch_admin_sessions (id, admin_id, token_hash, stage, expires_at, ip, user_agent, cert_thumbprint)
+             VALUES ($1, $2, $3, $4, now() + ($5 || ' seconds')::interval, $6, $7, $8)
              RETURNING *`,
-            [id, adminId, tokenHash, stage, String(ttlSeconds), ip, userAgent]
+            [id, adminId, tokenHash, stage, String(ttlSeconds), ip, userAgent, certThumbprint]
         );
         return rows[0];
     }
@@ -335,7 +365,7 @@ class SessionModel {
     /** Returns the session joined with its admin, only while live. */
     async findLive(tokenHash) {
         const { rows } = await this.db.query(
-            `SELECT s.id AS session_id, s.stage, s.expires_at, s.ip, s.user_agent,
+            `SELECT s.id AS session_id, s.stage, s.expires_at, s.ip, s.user_agent, s.cert_thumbprint,
                     a.*
              FROM orch_admin_sessions s
              JOIN orch_system_admins a ON a.id = s.admin_id

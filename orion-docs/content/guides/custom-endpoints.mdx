@@ -1,0 +1,122 @@
+---
+title: Custom endpoints
+description: Add custom application routes and middleware inside the Orion request pipeline without bypassing its authentication, validation, and security controls.
+---
+
+Your routes are registered by Orion, not alongside it. They traverse the same
+middleware chain, so `requireAuth: true` gives you an authenticated `req.user`
+with no work.
+
+## Declare them
+
+```js filename="gipsy.orion.config.js"
+import { listTodos, createTodo, updateTodo, deleteTodo } from './todos/handlers.js';
+
+api: {
+    customEndpoints: [
+        { path: '/todos',     requireAuth: true,  method: 'GET',    callback: listTodos },
+        { path: '/todos',     requireAuth: true,  method: 'POST',   callback: createTodo },
+        { path: '/todos/:id', requireAuth: true,  method: 'PATCH',  callback: updateTodo },
+        { path: '/todos/:id', requireAuth: true,  method: 'DELETE', callback: deleteTodo },
+        { path: '/status',    requireAuth: false, method: 'GET',    callback: publicStatus }
+    ],
+    customMiddlewares: [],
+    slug: ''
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `path` | Express path. `:param` segments are supported |
+| `method` | Any Express method name; an unknown one logs a warning and skips the route |
+| `requireAuth` | Whether the authentication middleware demands a session |
+| `callback` | `(req, res) => …` — an ordinary Express handler |
+
+`api.slug` prefixes **your** endpoints only. With `slug: 'app'`, `/todos` mounts
+at `/app/todos`. Core auth routes are unaffected.
+
+## Path matching
+
+The authentication middleware maintains its own allowlist and matches
+parameterized paths segment-aware:
+
+- segment counts must be equal;
+- only `:`-prefixed segments are wildcards, and each matches exactly one segment.
+
+So `/todos/:id` matches `/todos/1` but not `/todos/1/comments`. For every route
+without parameters, matching is as strict as literal equality.
+
+<Callout type="warning" title="Unregistered paths fail closed">
+A request to a path that resolves to neither a core route nor one of your
+declared endpoints is rejected with `GENERAL::UNKNOWN-API-ROUTE::A::p` (404)
+before anything else runs.
+You cannot mount a route directly on `server.app` and have it authenticate —
+declare it here.
+</Callout>
+
+## Writing a handler
+
+```js filename="todos/handlers.js" copy
+import { respondWithSuccess } from './helpers.js';
+
+export async function listTodos(req, res) {
+    const { uid } = req.user;               // populated by the auth middleware
+
+    const rows = await db.query('SELECT id, title, done FROM todos WHERE uid = $1', [uid]);
+
+    res.status(200).json({ todos: rows });
+}
+```
+
+`req.user` carries the validated token payload — `uid`, `email`, `role`,
+`authMethod`, and token metadata. Treat it as authoritative; it has already
+survived signature, binding, and revocation checks.
+
+## Custom middleware
+
+`api.customMiddlewares` accepts either plain functions (applied to every custom
+route) or objects for targeted application:
+
+```js
+customMiddlewares: [
+    requestLogger,                                        // every custom route
+    { applyAll: true, callback: injectTenant },           // every custom route
+    { pathsToApply: ['/todos', '/todos/:id'], callback: requireTodoScope }
+]
+```
+
+An object without a valid `callback` function logs a warning and is skipped.
+
+<Callout type="info" title="These run after Orion's stack, not instead of it">
+Custom middleware executes between the pipeline and your handler. Everything
+Orion does — flood guard, rate limiting, origin checks, header validation, abuse
+checks, authentication — has already happened.
+</Callout>
+
+## Payload conventions
+
+Core Orion endpoints expect `{ packet: { … } }` and are validated by Joi schemas.
+Your endpoints have **no** schema entry, so `dataValidator` skips them and
+`req.body` is whatever you sent. Validate it yourself.
+
+## Rate limiting
+
+Custom routes fall through to the policy fallback: cost 1 against the caller's
+bucket. Dynamic segments are normalized before lookup — UUID-v4 and pure-numeric
+segments collapse to `:id`, so `/todos/1` and `/todos/2` share one policy entry
+rather than fragmenting the table.
+
+To charge a heavy route more, add an entry to the route table in
+`lib/General/index.js`. Only the costs 1, 2, 3, 5, and 10 are legal; an invalid
+value fails the boot.
+
+## Calling them from the browser
+
+Custom routes still traverse the header parser, so browser calls need
+`orion-fingerprint`, `orion-user-agent`, `orion-api-system-version`, an
+`Authorization` credential class, and `credentials: 'include'`. See
+[Your first sign-in](/versions/alpine/docs/getting-started/first-sign-in#calling-your-own-endpoints).
+
+If you want a route reachable by a plain fetch with no Orion headers, serve it as
+a static asset (`api.static`) instead — that middleware sits ahead of the header
+stack.

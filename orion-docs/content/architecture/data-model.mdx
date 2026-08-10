@@ -1,0 +1,178 @@
+---
+title: Data model
+description: The Postgres schema Orion owns, the migration system that maintains it, and the separate audit database.
+---
+
+Orion creates and maintains its own schema. You do not run DDL by hand, and you
+should not modify these tables — but you do need to know what is in them.
+
+## Migrations
+
+Migrations live in `lib/Utils/Databases/migrations/` and run on the first pool
+connection, before `initiateServer()` returns.
+
+| File | Adds |
+| --- | --- |
+| `0001_initial.sql` | The baseline 3NF schema — 18 tables |
+| `0002_legacy_upgrade.sql` | Statements that only apply to pre-migration databases (case-insensitive email uniqueness, folding legacy mirror tables) |
+| `0003_oauth_pkce_verifier.sql` | Server-side PKCE verifier storage |
+| `0004_security_remediation.sql` | Session watermark, OAuth subject binding, challenge attempt ceilings, refresh reuse detection |
+| `0005_binding_and_ceremonies.sql` | Server-side WebAuthn ceremony state, login throttling columns, DPoP thumbprint |
+
+They are **versioned, checksummed, and advisory-locked**: every node runs them at
+boot, exactly one applies them, and the rest wait and verify. Booting an entire
+fleet simultaneously is safe. `0001` is written to be safe against a
+pre-migration-era database — every statement is `IF NOT EXISTS` or `OR REPLACE`.
+
+Schema conventions worth knowing:
+
+- All timestamps are `TIMESTAMPTZ`; models convert to and from unix seconds at
+  the query boundary.
+- Surrogate keys are `BIGINT GENERATED ALWAYS AS IDENTITY`, never `SERIAL`.
+- Every `ON DELETE CASCADE` foreign key column is indexed.
+- Short-lived rows carry an expiry column swept by the `DatabaseJanitor`. Those
+  TTLs are garbage-collection deadlines, deliberately generous — the real
+  per-flow validity window is enforced in application code.
+
+## Identity tables
+
+| Table | Holds |
+| --- | --- |
+| `users` | The account root: uid, email, password hash, role, disabled flag, `sessions_valid_from` watermark, login throttling columns |
+| `user_providers` | OAuth links, keyed on `(provider, provider_subject)` |
+| `user_security` | 1:1 security flags |
+| `user_two_fa_methods` | Which second factors are enrolled |
+| `user_passkeys` | WebAuthn credentials |
+| `user_passkey_transports` | Transport hints per credential |
+| `user_totp` | TOTP secret and pending secret, sealed with AES-256-GCM under a vault-wrapped DEK (`enc.v2.<version>.` prefix) |
+| `user_profile_fields` | Key-value profile data |
+| `user_custom_data` | Key-value application data |
+
+<Warning title="Sealed TOTP secrets need their key vault">
+A database whose `user_totp` rows are sealed is only readable by a node whose
+[key vault](/versions/alpine/docs/security/key-vaults) still holds the wrapping key. Without it the
+model reports the secrets as unreadable rather than throwing: TOTP is dropped
+from the affected users' offered methods and they fall back to the emailed
+one-time code, so nobody is locked out. Rows carrying the older `enc.v1.` prefix
+need `utilities.dataEncryption.legacyKey` to be read.
+</Warning>
+
+## Encryption and notification tables
+
+| Table | Holds |
+| --- | --- |
+| `orion_encryption_keys` | The DEK ledger — every version stored **wrapped** by the vault KEK, with provider, key reference and state (`active` / `retired`). Contains no usable key material on its own. A partial unique index permits exactly one active row, which is what makes concurrent cluster boots safe |
+| `orion_notifications` | Account-security notices: audience, severity, title, body, optional action, expiry. A `notification_key` collapses the same announcement from every node into one row |
+| `orion_notification_receipts` | Per-user delivery state (`pending` → `shown` → `viewed`) with server-side timestamps. Materialized lazily on first check, so a broadcast costs one row rather than one per account |
+
+## Session and device tables
+
+| Table | Holds |
+| --- | --- |
+| `tokens` | Every issued access, refresh, and resource token for stateful tiers. Carries the tier binding fields (`ip_range`, `hashed_fingerprint`) and `dpop_jkt` |
+| `consumed_refresh_tokens` | Retired refresh-token ids, kept slightly past natural expiry so a replay is recognised as reuse rather than as an unknown token |
+| `recognized_devices` | Devices that completed device authorization |
+
+`tokens` is the single source of truth; the legacy `user_active_token_refs` and
+`user_recognized_device_refs` mirror tables were folded into it in `0002`.
+
+## Ceremony tables
+
+Short-lived rows backing multi-step flows. All are swept by the janitor.
+
+| Table | Flow |
+| --- | --- |
+| `device_authorization_requests` | Device authorization. Identified by email, no user FK, since the flow precedes authentication |
+| `oauth_requests` | In-flight OAuth, including the PKCE verifier |
+| `step_up_auth_requests` | Step-up challenges |
+| `two_fa_removal_requests` | 2FA method removal |
+| `password_reset_requests` | Password reset. `expiry` here is the real app-supplied deadline, not just a GC hint |
+| `no_auth_token_transactions` | Captcha / no-auth-token issuance |
+| `webauthn_ceremonies` | Single-use WebAuthn challenge state, consumed atomically on verification |
+
+Four of these — reset, step-up, device auth, and 2FA removal — carry `attempts`
+and `max_attempts`. Exceeding the ceiling destroys the row.
+
+## Operational tables
+
+`_orion_health_check` backs the boot-time database certification: 15 rounds of
+write, read, delete that must all pass before startup proceeds.
+
+## The audit database (MySQL)
+
+Separate engine, separate database (default `orion_audit`), one table:
+`audit_trail`. `AuditTrailSystem` creates and converges it itself at boot;
+`lib/Utils/Databases/audit-mysql.ddl.sql` is reference documentation, not
+something Orion executes.
+
+Design points that matter operationally:
+
+- **Append-only and tamper-evident.** Every row carries a SHA-256 `hash` chained
+  to `prevHash`, covering all audited fields — so a stored row is sufficient to
+  re-verify the chain end to end. Orion never updates or deletes rows.
+- **`recordId` is unique.** Crash recovery replays the on-disk write-ahead log
+  through `INSERT … ON DUPLICATE KEY UPDATE`, so a crash between the flush commit
+  and the WAL truncation cannot double-insert.
+- **No foreign key to `users`.** The audit database is a different server, and
+  audit rows must survive user deletion — which is itself an audited event.
+- **`id` is the ordering authority, not `timestamp`.** Rows in a batch share a
+  timestamp; the chain is ordered by insert order. Read with `ORDER BY id`.
+- **Not partitioned.** Partitioning would require the partition key in every
+  unique key, conflicting with `UNIQUE(recordId)`. Retention is a batched
+  `DELETE` on `idx_audit_timestamp` during low-traffic windows.
+
+Alongside MySQL, each node appends to a local signed WAL
+(`orion.internal.audit_wal.jsonl`) with a published public key
+(`orion.internal.audit_wal.pub.pem`). Audit schema version is `2.1.0`.
+
+## The orchestrator's tables
+
+When the system-admin plane is enabled it creates `orch_*` tables in the same
+Postgres, tracked in its own `_orch_migrations` ledger under a different advisory
+lock so the two migration systems never collide.
+
+| Migration | Adds |
+| --- | --- |
+| `0001_system_admin.sql` | The eight admin tables — `orch_system_admins`, `orch_admin_policies`, `orch_admin_groups`, `orch_admin_group_members`, `orch_admin_policy_attachments`, `orch_admin_magic_links`, `orch_admin_sessions`, `orch_admin_audit` |
+| `0002_batch_mailing.sql` | The four mailing tables plus the orchestrator notification feed |
+
+Everything in `0001` is orchestrator-write-only; workers may at most `SELECT`,
+and never see the credential-bearing tables at all. See
+[Authorization](/versions/alpine/docs/architecture/authorization#storage-and-the-worker-read-only-rule).
+
+### Batch mailing tables
+
+| Table | Holds | Writers |
+| --- | --- | --- |
+| `orch_mailing_jobs` | One row per submitted sheet: status, priority, counters, the group plan, and the cooldown that gates the next job. A **partial unique index on `status = 'running'`** is what enforces one job at a time — two orchestrator processes racing cannot both start one | Orchestrator |
+| `orch_mailing_recipients` | The live queue. A row exists here *iff* the mail has not reached a terminal state, so "how much is left" is a `COUNT` rather than a scan over completed work. `fields` is `JSONB` — every sheet column the parser did not recognise, offered to the mail as a `<TOKEN>`, which is what makes new nullable columns free | **Both** |
+| `orch_mailing_archive` | The delivery record: recipient, outcome (`sent` / `failed` / `cancelled`), attempts, failure reason, sending node, timestamp. Carries `expires_at` for TTL reaping. No FK to the job — it must outlive a deleted job row rather than cascade with it | **Both** |
+| `orch_mailing_assignments` | The group → node dispatch ledger. Drives the watchdog and answers "which node holds group 4 right now". A group may be assigned many times over a job's life, but a **partial unique index** permits only one live assignment at a time | Orchestrator |
+
+The two dual-write tables are the only place a worker writes to an `orch_*`
+table. A sending node archives and deletes each recipient itself, in one
+statement, scoped by `locked_by = <its own worker id>` — the lease that keeps two
+nodes off the same rows. Reporting every send upstream instead would turn a large
+blast into a sustained flood of control-plane traffic. See
+[Control plane](/versions/alpine/docs/architecture/control-plane#batch-mailing).
+
+### Orchestrator notifications
+
+| Table | Holds |
+| --- | --- |
+| `orch_notifications` | Control-plane notices surfaced in the panel — type, severity, title, body, optional `job_id` correlation, expiry. General-purpose; batch mailing is simply its first producer |
+| `orch_notification_reads` | Per-admin read state. A notification is a fact about the cluster, not a message addressed to a person, so two admins each see it and each dismisses it for themselves |
+
+Both carry expiries, and so does the mailing archive. Orion-core's
+`DatabaseJanitor` cannot reap them — workers deliberately hold no `DELETE` on
+either — so the orchestrator sweeps them itself on a six-hourly cycle.
+
+## Where things are *not* stored
+
+- **Signing keys** — Redis (shared) or in-process (single node), never Postgres.
+- **Rate-limit buckets** — Redis, keyed `rl:<actor-type>:<hash>`.
+- **Revoked `jti` values** — Redis with an in-process fallback.
+- **R_Sync tunnel state** — LokiJS files (`r_sync.local_db.db`) next to the
+  process.
+- **The node registry** — `orion_orch.internal.registry.json` next to the
+  orchestrator.

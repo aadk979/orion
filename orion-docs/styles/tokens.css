@@ -1,0 +1,120 @@
+/**
+ * Orion design system — CSS variable tokens.
+ * Dark-mode only. Warm near-black ground, single amber accent used sparingly.
+ *
+ * Colour comes from the Aperture brand pack (`/public/brand/README.md`). The
+ * raw brand values live in the `--orion-*` block below and everything else in
+ * the site derives from them, so the logo and the UI can never drift apart.
+ */
+
+:root {
+  /* ---- Brand: the Aperture pack's own tokens, verbatim ---- */
+  --orion-ink: #14120e;
+  --orion-page: #0b0a08;
+  --orion-bone: #edeae3;
+  --orion-muted: #6e6a61;
+  --orion-amber: #f0a02a;
+  --orion-amber-strong: #ba7517;
+  /* The site is dark-only, so the accent is pinned to the bright value. The
+     pack swaps this to `--orion-amber-strong` on light grounds; we never have
+     one. Inlined brand SVGs read this variable for their accent segment. */
+  --orion-accent: var(--orion-amber);
+
+  /* ---- Surfaces: the pack's page ground, warming up towards ink ---- */
+  --color-bg: var(--orion-page);
+  --color-bg-raised: #100e0b;
+  --color-bg-elevated: var(--orion-ink);
+  --color-bg-overlay: #191712;
+
+  /* ---- Borders: bone at low alpha, so hairlines stay warm ---- */
+  --color-border: rgba(237, 234, 227, 0.1);
+  --color-border-strong: rgba(237, 234, 227, 0.16);
+  --color-border-faint: rgba(237, 234, 227, 0.06);
+
+  /* ---- Text ---- */
+  --color-text-primary: var(--orion-bone);
+  --color-text-secondary: #c9c5bc;
+  /* Functional muted copy. The pack's raw muted value is 3.67:1 on the page
+     ground; this derived step reaches 4.82:1 so navigation and controls clear AA. */
+  --color-text-tertiary: #817d74;
+  /* Decorative instrumentation only. Information must be repeated at an
+     accessible tier before it may appear this faint. */
+  --color-text-faint: #4a463c;
+
+  /* ---- Accent: amber, used sparingly ---- */
+  --color-accent: var(--orion-amber);
+  --color-accent-rgb: 240, 160, 42;
+  --color-accent-bright: #f5b455;
+  --color-accent-dim: var(--orion-amber-strong);
+  /* Ink, not white. Amber is a light colour — white on it lands at 2.15:1 and
+     fails AA outright, while ink reaches 8.8:1. This is what solid accent
+     buttons and badges put their label in. */
+  --color-accent-contrast: var(--orion-ink);
+
+  /* ---- Radius scale ---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  /* ---- Typography scale ---- */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+  --text-6xl: 4.25rem;
+  --text-7xl: 5.5rem;
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.35;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.75;
+
+  --tracking-tight: -0.03em;
+  --tracking-tighter: -0.045em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.04em;
+
+  /* ---- Spacing scale (section rhythm) ---- */
+  --space-section-sm: 4rem;
+  --space-section-md: 6rem;
+  --space-section-lg: 9rem;
+
+  /* ---- Layout ---- */
+  /* Marketing pages: a narrow, centred measure. */
+  --width-content: 1120px;
+  /* Docs shell: sidebar + article + TOC. Much wider, because three columns
+     inside 1120px left the article at ~560px on any real monitor. */
+  --width-docs: 1720px;
+  /* Reading measure for body copy only — tables, code blocks and diagrams
+     break out of this and use the full article column. */
+  --width-prose: 900px;
+  --height-nav: 64px;
+
+  /* ---- Motion tokens ---- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 450ms;
+  --duration-slower: 800ms;
+
+  /* ---- Shadows: layered, low-saturation depth ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --shadow-lg: 0 12px 40px -12px rgba(0, 0, 0, 0.65), 0 24px 64px -32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.15), 0 8px 40px -8px rgba(var(--color-accent-rgb), 0.25);
+}

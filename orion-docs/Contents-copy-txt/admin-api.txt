@@ -1,0 +1,245 @@
+---
+title: Orchestrator admin API
+description: The PBAC-governed HTTP surface of the system-admin plane, served alongside the panel.
+---
+
+`AdminServer` mounts this API on `systemAdmin.http.port` (default `55330`),
+same-origin with the static panel. `orionctl` speaks to exactly this API under
+exactly these rules — there is no side door.
+
+Sessions ride an `HttpOnly` cookie. Every authenticated request is written to the
+hash-chained `orch_admin_audit` table, including the ones PBAC denies.
+
+## Auth — `/api/auth`
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/auth/magic-link` | Request a magic link (system admins) |
+| `POST` | `/api/auth/magic-link/verify` | Consume the link → `pending_totp` session |
+| `POST` | `/api/auth/root/login` | Root password login → `pending_totp` session |
+| `POST` | `/api/auth/totp/setup` | Begin TOTP enrollment |
+| `POST` | `/api/auth/totp/activate` | Complete enrollment |
+| `POST` | `/api/auth/totp/verify` | Upgrade a `pending_totp` session to full |
+| `POST` | `/api/auth/root/change-password` | Rotate the root password |
+| `GET` | `/api/auth/session` | Current session details |
+
+Sessions are two-stage. The first factor yields a short `pending_totp` session
+that can reach **only** the TOTP endpoints; the authenticator code upgrades it.
+Default lifetimes: magic link 10 min, pending session 15 min, full session 12 h.
+
+`http.authRateLimit` defaults to 10 requests per 5 minutes on this group.
+
+## Cluster — `/api/cluster`
+
+Each route is gated by one PBAC action.
+
+| Method | Path | Required action |
+| --- | --- | --- |
+| `GET` | `/api/cluster/status` | `cluster:read:status` |
+| `GET` | `/api/cluster/nodes` | `cluster:read:nodes` |
+| `GET` | `/api/cluster/nodes/:workerId` | `cluster:read:nodes` |
+| `GET` | `/api/cluster/health` | `cluster:read:health` |
+| `GET` | `/api/cluster/escalations` | `cluster:read:escalations` |
+| `GET` | `/api/cluster/consensus-history` | `cluster:read:consensus` |
+| `GET` | `/api/cluster/policy-rules` | `cluster:read:policy-rules` |
+| `GET` | `/api/cluster/policy-outcomes` | `cluster:read:policy-outcomes` |
+| `GET` | `/api/cluster/command-log` | `cluster:read:command-log` |
+| `GET` | `/api/cluster/commands` | `cluster:read:nodes` |
+
+### Operations
+
+| Method | Path | Required action |
+| --- | --- | --- |
+| `POST` | `/api/cluster/nodes/:workerId/command` | `cluster:command:<action>` on `node:<workerId>` |
+| `POST` | `/api/cluster/command-all` | `cluster:command:<action>` on `*` |
+| `POST` | `/api/cluster/lock` | `cluster:ops:lock` |
+| `POST` | `/api/cluster/unlock` | `cluster:ops:unlock` |
+| `POST` | `/api/cluster/incident/declare` | `cluster:ops:incident-declare` |
+| `POST` | `/api/cluster/incident/resolve` | `cluster:ops:incident-resolve` |
+| `POST` | `/api/cluster/consensus` | `cluster:ops:consensus-propose` |
+| `POST` | `/api/cluster/client-urls` | `cluster:ops:client-urls-add` |
+
+### Signing keys
+
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/cluster/secrets/keys` |
+| `POST` | `/api/cluster/secrets/revoke` |
+| `POST` | `/api/cluster/secrets/rotate-node` |
+
+These map to the `secrets:list-kids`, `secrets:revoke-kids`, and
+`secrets:force-rotate` node commands.
+
+### Field encryption
+
+| Method | Path | Required |
+| --- | --- | --- |
+| `GET` | `/api/cluster/keyvault/status` | `keyvault:read:status` |
+| `POST` | `/api/cluster/keyvault/confirm-unrecoverable` | `keyvault:read:status` |
+| `POST` | `/api/cluster/keyvault/rotate-kek` | `keyvault:ops:rotate-kek` |
+| `POST` | `/api/cluster/keyvault/rotate-dek` | `keyvault:ops:rotate-dek` |
+| `POST` | `/api/cluster/keyvault/wipe` | `keyvault:ops:wipe-encrypted` **+ root role** |
+
+`confirm-unrecoverable` is a read-only preview of the consensus that gates the
+wipe, so an operator can check whether the fleet actually agrees before reaching
+for the destructive endpoint.
+
+`wipe` additionally requires `reason` (≥10 characters, recorded in the audit
+trail), the exact `confirmation` phrase — which the executing node re-checks
+independently — and a unanimous `encryption-unavailable` vote. It returns `409`
+with the consensus tally when the fleet disagrees, unless
+`overrideConsensus: true` is sent. Optional `includeAdmins` / `includeRootAdmin`
+extend the reset to the orchestrator's own admins.
+
+See [Key vaults & field encryption](/versions/alpine/docs/security/key-vaults).
+
+<Callout type="info" title="Node commands are individually grantable">
+Executing a node command needs `cluster:command:<node action>` — for example
+`cluster:command:server:lock` — scoped to `node:<workerId>` or `*`. A policy can
+therefore allow pings everywhere while denying lockdown clears on production
+nodes.
+</Callout>
+
+## Batch mailing — `/api/mailing`
+
+Present only when `mailing.enabled` is set on the orchestrator; otherwise every
+route here returns `503 MAILING::DISABLED` naming the config key. See the
+[Batch mailing guide](/versions/alpine/docs/guides/batch-mailing).
+
+| Method | Path | Required action | Resource |
+| --- | --- | --- | --- |
+| `POST` | `/api/mailing/jobs` | `mailing:ops:submit` | `mailing` |
+| `GET` | `/api/mailing/jobs` | `mailing:read:jobs` | `mailing` |
+| `GET` | `/api/mailing/queue` | `mailing:read:queue` | `mailing` |
+| `GET` | `/api/mailing/jobs/:jobId` | `mailing:read:jobs` | `job:<jobId>` |
+| `GET` | `/api/mailing/jobs/:jobId/dead-letters` | `mailing:read:jobs` | `job:<jobId>` |
+| `GET` | `/api/mailing/jobs/:jobId/archive` | `mailing:read:jobs` | `job:<jobId>` |
+| `POST` | `/api/mailing/jobs/:jobId/cancel` | `mailing:ops:cancel` | `job:<jobId>` |
+
+### Submitting a sheet
+
+The spreadsheet is sent as a **raw request body**, not multipart — there is
+exactly one file and no other fields, so a parser dependency would buy nothing.
+Set the content type and pass the name as a query parameter:
+
+```bash filename="terminal"
+curl -X POST 'https://orch.example.com/api/mailing/jobs?filename=october.xlsx' \
+  -H 'content-type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' \
+  --data-binary @october.xlsx
+```
+
+Accepted content types are the `.xlsx` type above, `application/vnd.ms-excel`,
+`text/csv`, and `application/octet-stream`. The body limit is 50 MB; exceeding it
+returns `413 API::BODY-TOO-LARGE`.
+
+A valid sheet returns `201` with the job, the group plan, and the extra columns
+that became substitution tokens. An invalid one returns `400
+MAILING::SHEET-INVALID` with a **`details` array listing every problem at once** —
+validation is all-or-nothing and nothing is queued, so one upload finds
+everything rather than one problem per attempt.
+
+A job id that already exists returns `409 MAILING::DUPLICATE-JOB`. Cancelling a
+job that has already finished returns `409 MAILING::NOT-CANCELLABLE`; an unknown
+job id returns `404 MAILING::JOB-NOT-FOUND`.
+
+Submission and cancellation each write an extra audit row —
+`mailing:job-submitted` and `mailing:job-cancelled` — beyond the automatic
+per-request one. That is the record of who authorised mail going out under the
+organisation's name, and to how many people.
+
+## Notifications — `/api/notifications`
+
+| Method | Path | Required action |
+| --- | --- | --- |
+| `GET` | `/api/notifications` | `notifications:read` |
+| `POST` | `/api/notifications/:id/read` | `notifications:read` |
+| `POST` | `/api/notifications/read-all` | `notifications:read` |
+
+`GET` accepts `limit`, `offset`, and `unread=true`, and returns the caller's
+unread count alongside the feed. Read state is per admin — marking one read does
+not hide it from anyone else.
+
+Served by the same plane as mailing, so these also return `503` when
+`mailing.enabled` is off.
+
+## Audit — `/api/audit`
+
+| Method | Path | Required |
+| --- | --- | --- |
+| `GET` | `/api/audit` | `audit:read`. Filters: `limit`, `action` prefix, `admin` id |
+| `GET` | `/api/audit/verify` | **Root only** — re-walks the whole hash chain |
+
+The `orch_admin_audit` table rejects `UPDATE` and `DELETE` at the database level
+via trigger, so a `verify` failure means someone reached the database directly.
+
+## Governance — root only
+
+Enforced by **role**, not by policy: a non-root admin is refused regardless of
+what any policy says, and root bypasses PBAC entirely.
+
+### `/api/admins`
+
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/admins` |
+| `POST` | `/api/admins` |
+| `POST` | `/api/admins/:id/status` |
+| `DELETE` | `/api/admins/:id` |
+
+Suspending an admin revokes every live session instantly.
+
+### `/api/policies`
+
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/policies` |
+| `GET` | `/api/policies/:id/attachments` |
+| `POST` | `/api/policies` |
+| `PATCH` | `/api/policies/:id` |
+| `DELETE` | `/api/policies/:id` |
+| `POST` | `/api/policies/:id/attach` |
+| `POST` | `/api/policies/:id/detach` |
+
+Attach and detach take either `{ principalType: 'admin', principalId }` or
+`{ principalType: 'group', principalId }`. Policy documents are validated on
+write.
+
+### `/api/groups`
+
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/groups` |
+| `POST` | `/api/groups` |
+| `DELETE` | `/api/groups/:id` |
+| `GET` | `/api/groups/:id/members` |
+| `POST` | `/api/groups/:id/members` |
+| `DELETE` | `/api/groups/:id/members/:adminId` |
+
+## Meta
+
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/meta` |
+
+Reports server metadata including the active panel theme (`guiTheme`) and whether
+the batch mailing plane is running (`mailingAvailable`) — the panel uses the
+latter to hide the Mailing and Notifications navigation entirely rather than
+offering pages that can only return `503`.
+
+## The panel
+
+Anything that is not `/api/*` is served from the committed static export in
+`gui/out`. `AdminServer` stamps `data-theme` onto `<html>` per request, so
+switching between the `modern` and `classic` themes is a process restart, never a
+GUI rebuild.
+
+## Common responses
+
+| Status | Meaning |
+| --- | --- |
+| 401 | No session, or a `pending_totp` session reaching a non-TOTP route (`AUTH::TOTP-REQUIRED`) |
+| 403 | PBAC denied the action, or a non-root admin attempted governance |
+| 409 | State conflict — a duplicate mailing job id, a job that can no longer be cancelled, or a key-vault wipe the fleet refused |
+| 413 | Upload larger than the endpoint's body limit |
+| 429 | Auth rate limit exceeded |
+| 503 | An optional plane the route belongs to is not enabled |

@@ -15,6 +15,7 @@ import { auditLogger } from '../../utils/AuditLogSystem.js';
 import { globalAccessPoint } from '../../utils/globalAccessPoint.js';
 import { createReplayGuard } from '../../utils/replayGuard.js';
 import { buildRequestSignaturePayload } from '../../utils/requestSignature.js';
+import { verifyRequest } from '../../utils/httpSignature.js';
 
 /** Max clock skew for signed worker requests (worker-event, heartbeat), in seconds */
 const AUTH_TIMESTAMP_LEEWAY_SEC = 30;
@@ -187,8 +188,99 @@ if (typeof nonceCleanupTimer.unref === 'function') {
  * - x-r_sync-timestamp
  * - x-r_sync-nonce (New)
  */
+/**
+ * RFC 9421 verification path.
+ *
+ * Tried FIRST, because it is the scheme every current worker signs with. A
+ * request carrying `Signature-Input` is verified here and never falls through
+ * to the legacy branch — so a peer that speaks the standard cannot be talked
+ * into the proprietary format by omitting a header.
+ *
+ * @returns {null} when this request is not RFC 9421 signed, so the caller can
+ *   decide whether the legacy path is still permitted.
+ */
+const tryRfc9421 = async (req, res) => {
+    if (!req.headers['signature-input'] || !req.headers['signature']) return null;
+
+    const workerId = req.headers['x-r_sync-worker-id'];
+
+    if (!workerId) {
+        return res.status(401).json({ error: true, errorCode: 'MISSING_AUTH_HEADERS', message: 'Missing x-r_sync-worker-id' });
+    }
+
+    const worker = await getWorkerById(workerId);
+
+    if (!worker) {
+        return res.status(404).json({ error: true, errorCode: 'WORKER_NOT_FOUND', message: 'Worker not found' });
+    }
+
+    if (!worker.signaturePublicKey) {
+        return res.status(403).json({ error: true, errorCode: 'NO_PUBLIC_KEY', message: 'Worker has no registered signature key' });
+    }
+
+    // Reconstruct the absolute target URI the worker signed. `@target-uri`
+    // binds host and port as well as path, so a signature captured against one
+    // orchestrator cannot be replayed at another.
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const scheme = (typeof forwardedProto === 'string' ? forwardedProto.split(',')[0].trim() : null) || req.protocol || 'http';
+    const targetUri = `${scheme}://${req.headers.host}${req.originalUrl}`;
+
+    const result = verifyRequest({
+        method: req.method,
+        url: targetUri,
+        headers: req.headers,
+        body: req.body,
+        publicJwk: worker.signaturePublicKey,
+        maxAgeSeconds: AUTH_TIMESTAMP_LEEWAY_SEC
+    });
+
+    if (!result.valid) {
+        logger.warn(`RFC 9421 signature rejected for worker ${workerId}: ${result.reason}`);
+        auditLogger.record({
+            actorId: workerId,
+            actionType: 'SECURITY_VIOLATION',
+            resource: req.path,
+            outcome: 'DENIED',
+            severity: 'HIGH',
+            metadata: { violationType: 'HTTP_SIGNATURE_INVALID', reason: result.reason, method: req.method }
+        });
+
+        return res.status(401).json({ error: true, errorCode: 'INVALID_SIGNATURE', message: 'Signature verification failed' });
+    }
+
+    // Nonce recorded only after the signature verifies, so a bogus request
+    // cannot pre-burn a nonce the worker's legitimate retry would reuse.
+    const nonce = result.params.nonce;
+
+    if (nonceCache.has(nonce)) {
+        logger.warn(`Replay detected! Nonce reused: ${nonce} from worker ${workerId}`);
+        return res.status(401).json({ error: true, errorCode: 'REPLAY_DETECTED', message: 'Request replay detected' });
+    }
+
+    nonceCache.set(nonce, getCurrentUnixTime() + NONCE_RETENTION_SEC);
+
+    return 'verified';
+};
+
 const validateWorkerSignature = async (req, res, next) => {
     try {
+        // Standard scheme first.
+        const rfcResult = await tryRfc9421(req, res);
+
+        if (rfcResult === 'verified') return next();
+        if (rfcResult !== null) return rfcResult; // a response was already sent
+
+        // No RFC 9421 headers. Only the transition window permits the legacy
+        // format; once a fleet is upgraded this is switched off and an unsigned
+        // or old-format request is simply refused.
+        if (globalAccessPoint.getValue('R_SYNC_ACCEPT_LEGACY_SIGNATURES') !== true) {
+            return res.status(401).json({
+                error: true,
+                errorCode: 'MISSING_AUTH_HEADERS',
+                message: 'Request must carry RFC 9421 Signature-Input and Signature headers'
+            });
+        }
+
         const workerId = req.headers['x-r_sync-worker-id'];
         const signature = req.headers['x-r_sync-signature']; // Base64 signature
         const timestamp = parseInt(String(req.headers['x-r_sync-timestamp'] || ''), 10);
@@ -242,19 +334,8 @@ const validateWorkerSignature = async (req, res, next) => {
             });
         }
 
-        // Reconstruct signed payload.
-        //
-        // The signature covers the REQUEST, not just the sender: method, path and
-        // a digest of the body are included alongside identity and freshness.
-        // Signing only `${workerId}:${timestamp}:${nonce}` authenticated who was
-        // talking but said nothing about what they said — anything able to alter
-        // a request in flight could swap the body or retarget the endpoint and
-        // the signature still verified. The registration PoP already binds its
-        // key material this way; this extends the same discipline to every
-        // subsequent request.
-        //
-        // Built from the shared canonical definition so signer and verifier
-        // cannot drift apart — see utils/requestSignature.js.
+        // Legacy proprietary canonical string. Accepted only while a fleet is
+        // mid-upgrade — see the RFC 9421 branch in validateWorkerSignature.
         const signedPayload = buildRequestSignaturePayload({
             method: req.method,
             path: req.originalUrl.split('?')[0],

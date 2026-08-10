@@ -1,0 +1,93 @@
+---
+title: Device authorization
+description: Verifying a new device on first sign-in, and the three ways a user can satisfy it.
+---
+
+Device authorization is the "we noticed a sign-in from a new device" check. It
+runs *after* credentials are verified and *before* a session is issued.
+
+## Enable
+
+```js filename="gipsy.orion.config.js"
+utilities: {
+    accessControl: {
+        deviceAuthorization: 'ENABLED'   // or 'DISABLED'
+    }
+},
+mail: { email: '…', password: '…', service: 'gmail' }
+```
+
+<Warning title="Enabled without mail is a boot failure">
+Not a warning — a hard stop:
+
+```text
+Configuration conflict: Device authorization is enabled but no mail credentials
+are configured (systemConfig.mail).
+```
+
+Either supply credentials or set the switch to `'DISABLED'`.
+</Warning>
+
+## The flow
+
+<Steps>
+  <Step title="The device scanner flags an unknown device">
+    Late in the middleware chain, `deviceScanner` checks the request against
+    `recognized_devices`. An unrecognized device produces an error response
+    carrying <code>orion-flow-activation: FLOW-DEVICE-AUTHORIZATION</code>.
+  </Step>
+  <Step title="The client asks what methods are available">
+    <code>POST /alpine/api/v1/request/available-2fa-methods</code> reports what
+    this account can use — emailed code, passkey, TOTP.
+  </Step>
+  <Step title="The user proves themselves">
+    Whichever method they pick, the endpoints are:
+
+    - `action/send-device-authorization-email` then `action/authorize-me` with `{ authorizationCode }`
+    - `action/authorize-device-with-passkey` with `{ authenticationResponse }`
+    - `action/authorize-device-with-totp` with `{ totpCode }`
+  </Step>
+  <Step title="The device is remembered">
+    A row lands in `recognized_devices` and the browser receives
+    <code>authorizedDeviceId</code> and <code>authorizedDeviceCode</code> cookies,
+    both valid for 7 days.
+  </Step>
+  <Step title="The original call is retried">
+    The SDK re-runs the interrupted sign-in transparently. For passkey sign-in it
+    fetches a fresh challenge first; for OAuth it restarts the redirect, because
+    an authorization code is single-use.
+  </Step>
+</Steps>
+
+## Cookies in flight
+
+| Cookie | Lifespan | Role |
+| --- | --- | --- |
+| `deviceAuthorizationRequestId` | 15 min | Identifies the in-flight request |
+| `deviceAuthEmailOffset` | 15 min | Rate-limits repeat email sends |
+| `deviceAuthFlowSecret` | 15 min | Binds the flow to this browser |
+| `authorizedDeviceId` | 7 days | Marks the device as recognized |
+| `authorizedDeviceCode` | 7 days | Paired secret for the above |
+
+## Attempt ceiling
+
+`device_authorization_requests` carries `attempts` and `max_attempts`. Exceeding
+the ceiling **destroys the request row**, so a guessed code cannot be retried
+against it — the user must start over. The rate limiter charges cost 3 to each of
+the three authorization endpoints.
+
+## From the client
+
+You do not implement any of this. The SDK's `DeviceAuthorizationFlow` driver
+intercepts the flow header, presents the challenge, completes it, and rethrows a
+marker (`_orionDeviceAuthCompleted`) that `signInUser`, `signInWithPasskey`, and
+`handleOAuthCallback` catch to retry.
+
+If you are building a fully custom client, watch for `orion-flow-activation` on
+error responses and drive the endpoints above yourself.
+
+## Turning it off
+
+`accessControl.deviceAuthorization: 'DISABLED'` removes the check entirely. Do
+this only when you have another compensating control — it is the main defence
+against a stolen password being used from an attacker's machine.

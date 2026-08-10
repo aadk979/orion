@@ -2,6 +2,7 @@ import { generateTOTPSecret, verifyTOTPToken, generateTOTPAuthURI } from './TOTP
 import { respondWithError, respondWithSuccess } from '../../../Server/Response/response.js';
 import { globalAccessPoint } from '../../GlobalAccessPoint.js';
 import { UserModel, TOTPModel, UserSecurityModel } from '../../Databases/models/index.js';
+import { __sealing } from '../../Databases/models/TOTPModel.js';
 import { tryCatch } from '../../TryCatch.js';
 import { fileURLToPath } from 'url';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
@@ -10,9 +11,17 @@ import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
 
 const auditTrailSystemModule = new SafeModuleHandler('AuditTrailSystem', 'auditTrailSystem', 'SetupTOTP.js');
 
+const { totpStorageAvailable } = __sealing;
+
 const generateTOTPSetupSecret = async uid => {
     const Function = async parameters => {
-        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
+        // Enrollment writes a secret, so it needs field encryption to be live —
+        // not just TOTP to be enabled. Refusing here keeps the promise that a
+        // TOTP secret is never written in plaintext, even if the key vault
+        // became unreachable after this node booted.
+        if (globalAccessPoint.getValue('totpSystemDisabled') || !totpStorageAvailable()) {
+            return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
+        }
 
         const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();
@@ -71,7 +80,13 @@ const generateTOTPSetupSecret = async uid => {
 
 const verifyAndEnableTOTP = async (uid, totpCode) => {
     const Function = async parameters => {
-        if (globalAccessPoint.getValue('totpSystemDisabled')) return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
+        // Enrollment writes a secret, so it needs field encryption to be live —
+        // not just TOTP to be enabled. Refusing here keeps the promise that a
+        // TOTP secret is never written in plaintext, even if the key vault
+        // became unreachable after this node booted.
+        if (globalAccessPoint.getValue('totpSystemDisabled') || !totpStorageAvailable()) {
+            return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
+        }
 
         const auditTrail = auditTrailSystemModule.getModule();
         const requestMetadata = requestContext.getStore();

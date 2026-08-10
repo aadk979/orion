@@ -20,7 +20,18 @@ export const systemConfig = {
     },
 
     utilities: {
-        logToFile: false
+        logToFile: false,
+
+        // Custom end-user roles. Read from utilities.userRoles.allowedUserRoles —
+        // a top-level `allowedUserRoles` is NOT read and is silently ignored.
+        // Uppercased and trimmed at boot. Omit the whole `userRoles` block to
+        // keep the standard USER/ADMIN set; a non-array or empty array fails the
+        // boot. Note this list REPLACES the standard set when a role is assigned
+        // with customRolesAllowed: true, so keep USER/ADMIN listed if you still
+        // want to assign them that way.
+        userRoles: {
+            allowedUserRoles: ['USER', 'ADMIN']
+        }
 
         // Cluster link — join an Orion-Orchestrator control plane (see
         // Packages/server/Orion-Orchestrator/README.md). Disabled by default.
@@ -43,7 +54,6 @@ export const systemConfig = {
     // Allowed browser origins (validated by Validator.validateClientUrls)
     allowedClientUrls: ['http://localhost:3000'],
     allowedEmailDomains: [], // empty = allow any well-formed domain
-    allowedUserRoles: ['user'],
 
     // Persistent store — Postgres
     database: {

@@ -10,12 +10,17 @@ import { generateRandomNumber, generateRequestId, generateChallenge } from '../.
 import { generateAndSendMail } from '../../Mail/sendMail.js';
 import { cronScheduler } from '../../Cron.js';
 import { parseCookieData, setManagedCookie, clearManagedCookie } from '../../CookieUtils.js';
+import { resolveClientContext } from '../../Parsers.js';
 import { verifyTOTPToken } from '../AccountManagment/TOTP.js';
 import { veryifyAndCompletePasskeyAuthentication } from '../AccountManagment/Passkeys/completeAuthentication.js';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { getDeviceDetails } from '../../Device.js';
 import { requestContext } from '../../../Server/Middleware/requestMetadata.js';
 import { SafeModuleHandler } from '../../UnavailableModuleWrapper.js';
+import { isBindingRequired, resolveIssuanceBinding } from '../TokenManagement/internals/dpopBinding.js';
+import { verifyDpopProof } from '../TokenManagement/internals/dpop.js';
+import { emitAssuranceChange } from '../SharedSignals/emitters.js';
+import { logger } from '../../logger.js';
 
 const systemConfigModule = new SafeModuleHandler('SystemConfig', 'systemConfig', 'StepUpAuth.js');
 const signatureSecretsManagerModule = new SafeModuleHandler('SignatureSecretsManager(internal)', 'SIGNATURE_SECRETS_MANAGER_internal', 'StepUpAuth.js');
@@ -29,9 +34,17 @@ const signatureSecretsManagerModule = new SafeModuleHandler('SignatureSecretsMan
  *
  * Token format: base64url(jsonPayload).signature
  *
- * Payload is cryptographically signed and bound to the requesting device's IP
- * range, user-agent (SHA-256), and fingerprint (SHA-256) so the token cannot
- * be lifted and replayed from a different device or network.
+ * This token grants elevated access for five hours, so what binds it to a
+ * device matters more here than anywhere else in the system. When the
+ * deployment enables proof of possession the payload carries a `cnf.jkt`
+ * (RFC 7800) and using the token requires a signature from the client key —
+ * the same binding the session tokens get. The IP range, user-agent hash and
+ * fingerprint hash are still recorded, but they become corroborating signals
+ * rather than the binding itself; see the note in internals/tierBinding.js for
+ * why an address cannot carry that weight.
+ *
+ * With binding off, those three remain the only thing tying the token to a
+ * device and stay strictly enforced.
  *
  * Not exported — always called from inside already-tryCatch-wrapped functions.
  *
@@ -49,6 +62,15 @@ const generateStepUpToken = async (uid, ip, userAgent, fingerprint) => {
         throw new Error('SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i');
     }
 
+    const binding = await resolveIssuanceBinding();
+
+    // A step-up that cannot be bound is not downgraded to an unbound one — the
+    // caller surfaces the error and the user retries with a client that can
+    // produce a proof.
+    if (binding.error) {
+        throw new Error(binding.errorCode);
+    }
+
     const exp = getFutureUnixTime('5h');
 
     const tokenPayload = JSON.stringify({
@@ -57,6 +79,7 @@ const generateStepUpToken = async (uid, ip, userAgent, fingerprint) => {
         ipRange: getIpRange(ip),
         uaSHA256: sha256Hash(userAgent),
         fpSHA256: sha256Hash(fingerprint),
+        ...(binding.jkt ? { cnf: { jkt: binding.jkt } } : {}),
         exp,
         kid: signingPair.keyPairId
     });
@@ -64,6 +87,10 @@ const generateStepUpToken = async (uid, ip, userAgent, fingerprint) => {
     const signature = ssm.sign(tokenPayload, signingPair.keyPairId);
     const payloadB64 = Buffer.from(tokenPayload).toString('base64url');
 
+    // NOTE: the assurance-change signal is NOT emitted here. It is emitted by
+    // completeStepUp() once the token is actually on its way to the client —
+    // announcing AAL2 from inside the mint would tell receivers the assurance
+    // rose even on a path that then failed to deliver the token.
     return `${payloadB64}.${signature}`;
 };
 
@@ -75,15 +102,21 @@ const generateStepUpToken = async (uid, ip, userAgent, fingerprint) => {
  * Validates a Step-Up Auth Token issued by `generateStepUpToken`.
  *
  * Performs structural checks, expiry, cryptographic signature verification,
- * and per-request device-binding checks (IP range, UA hash, fingerprint hash).
+ * proof of possession when the token carries a `cnf.jkt`, and the device
+ * signal checks (IP range, UA hash, fingerprint hash).
+ *
+ * `proofContext` has to be passed in rather than read from the request context:
+ * the only caller is the requestMetadata middleware, which runs this BEFORE it
+ * enters `requestContext.run`, so the store is not populated yet.
  *
  * @param {string} token
  * @param {string} ip        Current request IP
  * @param {string} userAgent Current request user-agent (orion-user-agent header)
  * @param {string} fingerprint Current request fingerprint (orion-fingerprint header)
+ * @param {{dpopProof: string|null, method: string, requestUri: string, proofCache?: Map}} [proofContext]
  * @returns {Promise<{ error: boolean, valid?: boolean, uid?: string }>}
  */
-const validateStepUpToken = async (token, ip, userAgent, fingerprint) => {
+const validateStepUpToken = async (token, ip, userAgent, fingerprint, proofContext = null) => {
     const Function = async parameters => {
         // ── 1. Split token into payload + signature ───────────────────────────
         const dotIndex = parameters.token.indexOf('.');
@@ -132,25 +165,62 @@ const validateStepUpToken = async (token, ip, userAgent, fingerprint) => {
             return { error: true, valid: false };
         }
 
-        // ── 6. IP binding check ───────────────────────────────────────────────
-        if (!(await isIpInRange(parameters.ip, payload.ipRange))) {
-            return { error: true, valid: false };
+        // ── 6. Proof of possession ────────────────────────────────────────────
+        // The real binding when this deployment uses it. A token minted before
+        // binding was switched on carries no cnf and is refused outright rather
+        // than silently accepted as a bearer credential.
+        const bindingActive = isBindingRequired();
+        const boundJkt = payload.cnf?.jkt || null;
+
+        if (bindingActive) {
+            if (!boundJkt) {
+                return { error: true, valid: false };
+            }
+
+            const proofResult = await verifyDpopProof({
+                proof: parameters.proofContext?.dpopProof || null,
+                method: parameters.proofContext?.method || 'POST',
+                url: parameters.proofContext?.requestUri,
+                // The step-up token rides in an HttpOnly cookie, so the client
+                // cannot hash it — same transport reasoning as the session
+                // tokens. See the `requireAth` note in internals/dpop.js.
+                accessToken: null,
+                expectedJkt: boundJkt,
+                requireAth: false,
+                // This runs before requestContext.run, so the per-request proof
+                // memo has to be passed in. Omitting it consumed the proof here
+                // and made every later check in the request fail as a replay.
+                proofCache: parameters.proofContext?.proofCache || null
+            });
+
+            if (!proofResult.valid) {
+                return { error: true, valid: false };
+            }
         }
 
-        // ── 7. User-agent binding check ───────────────────────────────────────
-        if (sha256Hash(parameters.userAgent) !== payload.uaSHA256) {
-            return { error: true, valid: false };
-        }
+        // ── 7. Device signals ─────────────────────────────────────────────────
+        // Strict when they are the only binding available; corroborating once
+        // the key check above has already run. A user who moves between
+        // networks or whose browser auto-updates its user-agent string mid-
+        // session is not an attacker, and with a verified key we can say so.
+        if (!bindingActive) {
+            if (!(await isIpInRange(parameters.ip, payload.ipRange))) {
+                return { error: true, valid: false };
+            }
 
-        // ── 8. Fingerprint binding check ──────────────────────────────────────
-        if (sha256Hash(parameters.fingerprint) !== payload.fpSHA256) {
-            return { error: true, valid: false };
+            if (sha256Hash(parameters.userAgent) !== payload.uaSHA256) {
+                return { error: true, valid: false };
+            }
+
+            if (sha256Hash(parameters.fingerprint) !== payload.fpSHA256) {
+                return { error: true, valid: false };
+            }
         }
 
         return { error: false, valid: true, uid: payload.uid };
     };
 
-    const parameters = { token, ip, userAgent, fingerprint };
+    const parameters = { token, ip, userAgent, fingerprint, proofContext };
     const functionSource = fileURLToPath(import.meta.url);
     return await tryCatch(Function, true, parameters, 'validateStepUpToken', functionSource);
 };
@@ -162,9 +232,20 @@ const validateStepUpToken = async (token, ip, userAgent, fingerprint) => {
 /**
  * Generates a short-lived Step-Up Context Token (10-minute lifetime).
  *
- * Stored as the `stepUpContext` cookie.  Its sole purpose is to identify the
- * user across step-up flow routes where the full session token may be
- * risk-flagged and therefore unavailable.
+ * Stored as the `stepUpContext` cookie. Its purpose is to identify the user
+ * across step-up flow routes where the full session token may be risk-flagged
+ * and therefore unavailable.
+ *
+ * It is DEVICE-BOUND on the same terms as the step-up token itself: with proof
+ * of possession enabled it carries a `cnf.jkt` and using it demands a signature
+ * from that key; without it, the IP range, user-agent hash and fingerprint hash
+ * are enforced. It used to carry nothing but a uid, which made a lifted cookie
+ * enough to enumerate a victim's enrolled factors and trigger step-up emails at
+ * them — the flow routes are reachable without a session by design, so this
+ * cookie is the only thing authenticating the caller to them.
+ *
+ * The device context is read from the in-flight request, so the binding is
+ * always to the device the step-up was demanded of.
  *
  * @param {string} uid
  * @returns {Promise<string | { error: true, errorCode: string }>}
@@ -179,11 +260,25 @@ const generateStepUpContextToken = async uid => {
             return { error: true, errorCode: 'SYSTEM::SIGNING-KEY-UNAVAILABLE::A::i' };
         }
 
+        const metadata = requestContext.getStore();
+
+        const binding = await resolveIssuanceBinding();
+
+        // A context that cannot be bound is not downgraded to an unbound one —
+        // same rule as generateStepUpToken.
+        if (binding.error) {
+            return { error: true, errorCode: binding.errorCode };
+        }
+
         const exp = getFutureUnixTime('10m');
 
         const tokenPayload = JSON.stringify({
             type: 'STEP_UP_CONTEXT',
             uid: parameters.uid,
+            ipRange: getIpRange(metadata?.ip),
+            uaSHA256: sha256Hash(metadata?.userAgent || ''),
+            fpSHA256: sha256Hash(metadata?.fingerprint || ''),
+            ...(binding.jkt ? { cnf: { jkt: binding.jkt } } : {}),
             exp,
             kid: signingPair.keyPairId
         });
@@ -203,7 +298,8 @@ const generateStepUpContextToken = async uid => {
  * Validates a Step-Up Context Token.
  *
  * Called at the top of every step-up route handler to authenticate the
- * in-progress step-up session.
+ * in-progress step-up session. Device signals are read from the in-flight
+ * request context; these handlers always run inside `requestContext.run`.
  *
  * @param {string} token
  * @returns {Promise<{ error: boolean, errorCode?: string, uid?: string }>}
@@ -228,7 +324,18 @@ const validateStepUpContextToken = async token => {
         }
 
         // ── 3. Structural check ───────────────────────────────────────────────
-        if (!payload || payload.type !== 'STEP_UP_CONTEXT' || !payload.uid || !payload.exp || !payload.kid) {
+        // The device-signal fields are required: a context minted before they
+        // existed is refused rather than silently accepted as a bearer value.
+        if (
+            !payload ||
+            payload.type !== 'STEP_UP_CONTEXT' ||
+            !payload.uid ||
+            !payload.ipRange ||
+            !payload.uaSHA256 ||
+            !payload.fpSHA256 ||
+            !payload.exp ||
+            !payload.kid
+        ) {
             return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
         }
 
@@ -244,6 +351,44 @@ const validateStepUpContextToken = async token => {
 
         if (!signatureValid) {
             return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
+        }
+
+        // ── 6. Device binding ─────────────────────────────────────────────────
+        // Same branch logic as validateStepUpToken: the key check is the real
+        // binding when this deployment uses it, and the request-borne signals
+        // are the fallback when it does not.
+        const metadata = requestContext.getStore();
+        const bindingActive = isBindingRequired();
+
+        if (bindingActive) {
+            if (!payload.cnf?.jkt) {
+                return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
+            }
+
+            const proofResult = await verifyDpopProof({
+                proof: metadata?.dpopProof || null,
+                method: metadata?.method || 'POST',
+                url: metadata?.requestUri,
+                accessToken: null,
+                expectedJkt: payload.cnf.jkt,
+                requireAth: false
+            });
+
+            if (!proofResult.valid) {
+                return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
+            }
+        } else {
+            if (!(await isIpInRange(metadata?.ip, payload.ipRange))) {
+                return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
+            }
+
+            if (sha256Hash(metadata?.userAgent || '') !== payload.uaSHA256) {
+                return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
+            }
+
+            if (sha256Hash(metadata?.fingerprint || '') !== payload.fpSHA256) {
+                return { error: true, errorCode: 'STEP-UP::SESSION-EXPIRED::A::p' };
+            }
         }
 
         return { error: false, uid: payload.uid };
@@ -276,7 +421,11 @@ const getAvailableStepUpMethods = async uid => {
         }
 
         const hasPasskey = await PasskeyModel.hasPasskey(parameters.uid);
-        const totpEnabled = await TOTPModel.isEnabled(parameters.uid);
+
+        // isUsable, not isEnabled — see the same check in DeviceAuthorization:
+        // an enrolled user whose secret cannot be decrypted is offered the
+        // emailed code rather than a factor that cannot succeed.
+        const totpUsable = await TOTPModel.isUsable(parameters.uid);
 
         const totpSystemDisabled = globalAccessPoint.getValue('totpSystemDisabled');
         const passkeySystemDisabled = !systemConfigModule.getModule()?.authMethods?.passkey;
@@ -286,7 +435,7 @@ const getAvailableStepUpMethods = async uid => {
             methods: {
                 'email-code': true,
                 passkey: passkeySystemDisabled ? false : hasPasskey,
-                totp: totpSystemDisabled ? false : totpEnabled
+                totp: totpSystemDisabled ? false : totpUsable
             }
         };
     };
@@ -332,6 +481,18 @@ const initiateStepUpEmailChallenge = async (uid, ip, userAgent) => {
         const userAgentHash = await hashString(parameters.userAgent);
 
         const reqId = generateRequestId('STEP_UP_AUTH', 52);
+
+        // ── Retire any challenge already outstanding for this user ────────────
+        // Only the newest challenge may be answered. Leaving the previous ones
+        // alive gave each its own independent attempt budget, and the caller
+        // keeps every request id it has been issued — so the per-challenge
+        // ceiling was resettable simply by initiating again, and N initiations
+        // bought N × maxAttempts guesses at a 6-digit code.
+        const supersededIds = await RequestModel.deleteStepUpAuthRequestsForUser(parameters.uid);
+
+        for (const supersededId of supersededIds) {
+            cronScheduler.cancelEvent(supersededId);
+        }
 
         // ── Persist challenge record ──────────────────────────────────────────
         await RequestModel.createStepUpAuthRequest(reqId, {
@@ -614,16 +775,37 @@ const verifyStepUpWithTOTP = async (uid, totpCode, ip, userAgent, fingerprint) =
             return { error: true, errorCode: 'USER-CONTROL::NO-SUCH-USER::A::p' };
         }
 
+        // Per-account ceiling, checked BEFORE the code is compared. A 6-digit
+        // code with unlimited attempts is not a second factor; nothing else on
+        // this path bounds guessing, because a TOTP submission creates no
+        // challenge record for chargeFailedAttempt to charge against. The
+        // emailed code stays available while TOTP is throttled, so this refuses
+        // a factor rather than locking the account.
+        const throttle = await UserModel.getSecondFactorThrottle(parameters.uid);
+
+        if (throttle.throttled) {
+            return { error: true, errorCode: 'STEP-UP::TOTP-THROTTLED::A::p' };
+        }
+
         const totpConfig = await TOTPModel.getTOTPConfig(parameters.uid);
 
         if (!totpConfig?.enabled) {
             return { error: true, errorCode: 'TOTP::NOT-ENABLED::A::p' };
         }
 
+        // Enrolled but undecryptable: a system-level TOTP outage, not a wrong
+        // code. Reported as such so the client offers the emailed step-up code
+        // instead of blaming the user's authenticator.
+        if (!totpConfig.secret) {
+            return { error: true, errorCode: 'TOTP::SYSTEM-DISABLED::A::i' };
+        }
+
         // ── Verify TOTP code ──────────────────────────────────────────────────
         const totpResult = await verifyTOTPToken(parameters.totpCode, totpConfig.secret);
 
         if (totpResult.error) {
+            await UserModel.recordFailedSecondFactor(parameters.uid);
+
             return { error: true, errorCode: 'STEP-UP::INVALID-TOTP::A::p' };
         }
 
@@ -675,6 +857,48 @@ const resolveStepUpContext = async (request, response) => {
  */
 const setStepUpTokenCookie = (response, token) => {
     setManagedCookie(response, 'STEP_UP_TOKEN', token);
+};
+
+/**
+ * The single completion path for every step-up factor.
+ *
+ * Delivers the token, retires the context that authorized the challenge, and
+ * settles the two side effects that must happen exactly once and only after the
+ * token is really being sent.
+ *
+ * CLEARING THE LOGIN BACKOFF IS LOAD-BEARING, NOT HOUSEKEEPING.
+ *
+ * SignIn.js escalates a correct-password-during-backoff to step-up rather than
+ * refusing it, specifically so a failure counter cannot be used to lock an
+ * owner out. That escalation had no exit: completing step-up issued this cookie
+ * and nothing else, `signInWithPassword` re-read the same unchanged
+ * `login_throttled_until` on the retry, and returned STEP-UP-REQUIRED again —
+ * so the user looped until the backoff lapsed on its own and the DoS the
+ * design set out to avoid was fully present. Clearing it here is what makes the
+ * escalation an actual path through.
+ *
+ * @param {object} response Express response
+ * @param {string} uid
+ * @param {string} token    Signed Step-Up Auth Token
+ */
+const completeStepUp = async (response, uid, token) => {
+    setStepUpTokenCookie(response, token);
+    clearManagedCookie(response, 'stepUpContext');
+
+    // Proving a second factor resolves the backoff regardless of what triggered
+    // the step-up: the user has demonstrated more than the password counter was
+    // ever guarding against.
+    try {
+        await UserModel.clearFailedLogins(uid);
+        await UserModel.clearFailedSecondFactors(uid);
+    } catch (e) {
+        logger.warn(`StepUpAuth: could not clear backoff state for ${uid} — ${e.message}`);
+    }
+
+    // This session's authentication assurance just rose. Receivers use it to
+    // permit operations they were refusing a moment ago, which is the point of
+    // step-up being visible beyond the issuer.
+    emitAssuranceChange({ uid, currentLevel: 'nist-aal2', previousLevel: 'nist-aal1', reason: 'step-up authentication completed' });
 };
 
 /**
@@ -765,11 +989,10 @@ const routeHandlerVerifyStepUpEmail = async (request, response) => {
     const callback = await verifyStepUpWithEmailCode(reqId, code, flowSecret, uid, ip, userAgent, fingerprint);
     if (callback.error) return respondWithError(response, callback.errorCode);
 
-    // ── Issue Step-Up Token ───────────────────────────────────────────────────
-    setStepUpTokenCookie(response, callback.token);
+    // ── Issue Step-Up Token, retire the context, settle backoff state ────────
+    await completeStepUp(response, uid, callback.token);
 
     // ── Clear transient step-up cookies ──────────────────────────────────────
-    clearCookie(response, 'stepUpContext');
     clearCookie(response, 'stepUpEmailReqId');
     clearCookie(response, 'stepUpFlowSecret');
 
@@ -787,10 +1010,11 @@ const routeHandlerGenerateStepUpPasskeyOptions = async (request, response) => {
     if (!ctx.ok) return;
 
     const { uid } = ctx;
-    const clientURL = request.get('Origin') || request.get('Referer');
-    const parsedClientURL = new URL(clientURL).host;
 
-    const callback = await generateStepUpPasskeyOptions(uid, parsedClientURL);
+    const clientContext = resolveClientContext(request);
+    if (!clientContext) return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
+
+    const callback = await generateStepUpPasskeyOptions(uid, clientContext.rpId);
     if (callback.error) return respondWithError(response, callback.errorCode);
 
     if (callback.cookies) {
@@ -818,20 +1042,30 @@ const routeHandlerVerifyStepUpPasskey = async (request, response) => {
     const userAgent = meta?.userAgent || '';
     const fingerprint = meta?.fingerprint || '';
 
-    const authResponse = request.body.packet.authenticationResponse;
+    const authResponse = request.body.packet?.authenticationResponse;
     const cookieData = request.cookies['PASSKEY-AUTHENTICATION-INFO-STEP-1'];
 
-    const clientURL = request.get('Origin') || request.get('Referer');
-    const parsedClientURL = new URL(clientURL).host;
+    if (!authResponse) return respondWithError(response, 'PASSKEY::AUTH-FAILED::A::i');
 
-    const callback = await verifyStepUpWithPasskey(authResponse, cookieData, uid, clientURL, parsedClientURL, ip, userAgent, fingerprint);
+    const clientContext = resolveClientContext(request);
+    if (!clientContext) return respondWithError(response, 'GENERAL::UNKNOWN-ORIGIN::A::p');
+
+    const callback = await verifyStepUpWithPasskey(
+        authResponse,
+        cookieData,
+        uid,
+        clientContext.origin,
+        clientContext.rpId,
+        ip,
+        userAgent,
+        fingerprint
+    );
     if (callback.error) return respondWithError(response, callback.errorCode);
 
-    // ── Issue Step-Up Token ───────────────────────────────────────────────────
-    setStepUpTokenCookie(response, callback.token);
+    // ── Issue Step-Up Token, retire the context, settle backoff state ────────
+    await completeStepUp(response, uid, callback.token);
 
     // ── Clear transient step-up cookies ──────────────────────────────────────
-    clearCookie(response, 'stepUpContext');
     clearCookie(response, 'PASSKEY-AUTHENTICATION-INFO-STEP-1');
 
     return respondWithSuccess(response, 200, { stepUpComplete: true });
@@ -854,16 +1088,13 @@ const routeHandlerVerifyStepUpTOTP = async (request, response) => {
     const fingerprint = meta?.fingerprint || '';
 
     // Accept both `totpCode` and the shorter alias `code` from the client
-    const totpCode = request.body.packet.totpCode || request.body.packet.code;
+    const totpCode = request.body.packet?.totpCode || request.body.packet?.code;
 
     const callback = await verifyStepUpWithTOTP(uid, totpCode, ip, userAgent, fingerprint);
     if (callback.error) return respondWithError(response, callback.errorCode);
 
-    // ── Issue Step-Up Token ───────────────────────────────────────────────────
-    setStepUpTokenCookie(response, callback.token);
-
-    // ── Clear transient step-up cookies ──────────────────────────────────────
-    clearCookie(response, 'stepUpContext');
+    // ── Issue Step-Up Token, retire the context, settle backoff state ────────
+    await completeStepUp(response, uid, callback.token);
 
     return respondWithSuccess(response, 200, { stepUpComplete: true });
 };

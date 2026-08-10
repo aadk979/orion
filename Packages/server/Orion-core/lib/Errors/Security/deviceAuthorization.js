@@ -83,6 +83,28 @@ const DeviceAuthorization = {
         fault: 'CLIENT',
         solutions: ['Check the code in your authenticator app and try again']
     },
+    // Per-account second-factor ceiling. This endpoint is unauthenticated and
+    // takes a 6-digit code, so the ceiling is what stops it being brute-forced;
+    // it refuses the authenticator factor only, leaving the emailed code open so
+    // a real owner is never shut out.
+    'DEVICE-AUTH::TOTP-THROTTLED::A::p': {
+        status: 429,
+        context: 'Too many incorrect authenticator codes were submitted; authorize this device with an emailed code instead',
+        errorCode: 'DEVICE-AUTH::TOTP-THROTTLED::A::p',
+        fault: 'CLIENT',
+        solutions: ['Authorize with an emailed code instead', 'Try the authenticator again later']
+    },
+    // The signed device-authorization context could not be minted (no signing
+    // key available, or proof of possession is required and the request carried
+    // no usable proof). Fails the flow rather than falling back to an unsigned
+    // value, which is the state this context exists to eliminate.
+    'DEVICE-AUTH::CONTEXT-UNAVAILABLE::A::i': {
+        status: 500,
+        context: 'The device authorization flow could not be started',
+        errorCode: 'DEVICE-AUTH::CONTEXT-UNAVAILABLE::A::i',
+        fault: 'SERVER',
+        solutions: ['Try again in a moment']
+    },
     'DEVICE-AUTH::AUTHORIZATION-STARTED::A::p': {
         status: 401,
         customStatus: 600,
